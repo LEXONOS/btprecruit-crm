@@ -1,9 +1,0 @@
-{
-  "name": "btprecruit-crm",
-  "version": "1.0.0",
-  "description": "BTPRecruit CRM — Cabinet de recrutement BTP",
-  "private": true,
-  "engines": {
-    "node": "20"
-  }
-}
