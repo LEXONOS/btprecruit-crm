@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "BTPRecruit CRM — Cabinet de recrutement BTP",
   "private": true,
+  "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": "20"
   },
   "dependencies": {
     "node-fetch": "^3.3.2"
