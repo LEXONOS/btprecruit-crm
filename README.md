@@ -1,41 +1,36 @@
 # BTPRecruit CRM — Déploiement Vercel
 
-## Structure du projet
-
-```
-btprecruit-vercel/
-├── public/
-│   └── index.html          ← Le CRM complet
-├── api/
-│   ├── post-job.js         ← Publication automatique job boards
-│   ├── health.js           ← Vérification statut API
-│   └── lib/
-│       └── france-travail.js ← Intégration France Travail
-├── vercel.json
-├── package.json
-└── .gitignore
-```
-
 ## Variables d'environnement Vercel
 
-Dans Vercel → votre projet → Settings → Environment Variables :
+Dans Vercel → Settings → Environment Variables :
 
 | Variable | Description | Requis |
 |---|---|---|
-| `FRANCE_TRAVAIL_CLIENT_ID` | Client ID API France Travail | Pour auto-post FT |
-| `FRANCE_TRAVAIL_CLIENT_SECRET` | Secret API France Travail | Pour auto-post FT |
+| `RESEND_API_KEY` | Clé API Resend (resend.com) | ✅ Rappels email |
+| `CRM_USER_EMAIL` | Ton email pour recevoir les rappels | ✅ Rappels email |
+| `SUPABASE_URL` | URL projet Supabase | ✅ Sync données |
+| `SUPABASE_ANON_KEY` | Clé anon/publishable Supabase | ✅ Sync données |
+| `CRM_URL` | URL du CRM en prod (ex: https://novalem-crm.vercel.app) | Recommandé |
+| `CRON_SECRET` | Secret pour sécuriser le cron | Recommandé |
+| `FRANCE_TRAVAIL_CLIENT_ID` | Client ID France Travail API | Auto-post FT |
+| `FRANCE_TRAVAIL_CLIENT_SECRET` | Secret France Travail API | Auto-post FT |
 
-## Déploiement
+## Cron email
 
-1. Créer un repo GitHub avec ce dossier
-2. Connecter sur vercel.com → "New Project" → importer le repo
-3. Ajouter les variables d'environnement
-4. Deploy → votre CRM est en ligne à l'URL Vercel
+Le cron `/api/cron-reminders` tourne du lundi au vendredi à 8h00 UTC (9h Paris hiver, 10h été).
+Pour tester manuellement : `GET https://novalem-crm.vercel.app/api/send-reminders`
 
-## Obtenir les clés France Travail
-
-1. Aller sur https://francetravail.io
-2. Créer un compte partenaire
-3. Créer une application → sélectionner "API Offres d'emploi v2"
-4. Récupérer Client ID et Client Secret
-5. Les coller dans les variables d'env Vercel
+## Structure
+```
+├── public/index.html     ← CRM complet
+├── api/
+│   ├── post-job.js       ← Publication job boards
+│   ├── cron-reminders.js ← Email quotidien automatique
+│   ├── send-reminders.js ← Déclenchement manuel
+│   ├── health.js         ← Statut API
+│   └── lib/
+│       ├── email.js          ← Resend + template HTML
+│       └── france-travail.js ← API France Travail
+├── vercel.json
+└── package.json
+```
