@@ -494,13 +494,6 @@ select option{background:var(--s2)}
 <div class="ctx" id="ctx" style="display:none"></div>
 <div id="toaster"></div>
 <script>
-// ── AUTH CHECK — redirige vers login si pas connecté ──
-(function(){
-  if(!sessionStorage.getItem('btprecruit_auth')){
-    window.location.replace('/');
-  }
-})();
-
 // ═══════════════════════════════════════════════════════
 // CONSTANTS — exact pipelines as specified
 // ═══════════════════════════════════════════════════════
@@ -751,10 +744,17 @@ function computeAlerts(){
   const a=[];
   DB.candidates.forEach(c=>{
     if(c.status==='new') a.push({color:'var(--ac4)',msg:`Précal à faire : ${c.name}`,act:`openCandPanel('${c.id}')`});
+    if(c.status==='entrant'&&daysDiff(c.created)>2) a.push({color:'var(--ac4)',msg:`Entrant sans action (${daysDiff(c.created)}j) : ${c.name}`,act:`switchCandTab('entrants');openEntrantSplit('${c.id}')`});
+    if(c.status==='precal'&&daysDiff(c.updated)>5&&!c.int_date_planned) a.push({color:'var(--ac6)',msg:`Entretien non planifié (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
     if(c.status==='dossier'&&daysDiff(c.updated)>2) a.push({color:'var(--ac3)',msg:`Dossier sans retour (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
     if(c.status==='presented'&&daysDiff(c.updated)>3) a.push({color:'var(--ac3)',msg:`Client sans retour (${daysDiff(c.updated)}j) sur ${c.name}`,act:`openCandPanel('${c.id}')`});
-    if(c.status==='interview'&&daysDiff(c.updated)>1) a.push({color:'var(--ac5)',msg:`Synthèse entretien manquante : ${c.name}`,act:`openCandPanel('${c.id}')`});
+    if(c.status==='interview'&&daysDiff(c.updated)>3) a.push({color:'var(--ac5)',msg:`Synthèse entretien manquante : ${c.name}`,act:`openCandPanel('${c.id}')`});
   });
+  // Prospects avec rappel dû aujourd'hui
+  const today=new Date();today.setHours(0,0,0,0);
+  DB.companies.filter(c=>c.type==='prospect'&&c.status==='nobiz'&&c.nobiz_remind&&new Date(c.nobiz_remind)<=today).forEach(c=>
+    a.push({color:'var(--ac4)',msg:`Rappel prospect : ${c.name}`,act:`go('pros')`})
+  );
   DB.agenda.filter(a=>!a.done&&isPast(a.date)&&!isToday(a.date)).forEach(ev=>
     a.push({color:'var(--ac6)',msg:`En retard : ${ev.title}`,act:`go('agenda')`})
   );
@@ -801,7 +801,7 @@ function rDash(){
         <div class="dsec mt14">🎯 Besoins ouverts</div>
         ${DB.needs.filter(n=>n.status==='open').slice(0,5).map(n=>{const co=coById(n.company_id);return`<div class="aitem" onclick="openNeedPanel('${n.id}')"><span style="flex:1">${esc(n.title)}</span><span class="fs10 mu_">${co?esc(co.name):''}</span><span class="fs9" style="color:${{h:'var(--ac3)',m:'var(--ac4)',l:'var(--mu2)'}[n.urgency]||'var(--mu2)'}">${{h:'🔴',m:'🟡',l:'⚪'}[n.urgency]||''}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun besoin ouvert</div>`}
         <div class="dsec mt14">📥 Entrants à trier</div>
-        ${DB.candidates.filter(c=>c.status==='entrant').slice(0,4).map(c=>{const cat=getCat(c.cat);return`<div class="aitem" onclick="switchCandTab('entrants');openEntrantPanel('${c.id}')"><span class="pill pent">Entrant</span><span style="flex:1">${esc(c.name)}</span><span class="tag ${cat.cls} fs9">${cat.l}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun entrant en attente</div>`}
+        ${DB.candidates.filter(c=>c.status==='entrant').slice(0,4).map(c=>{const cat=getCat(c.cat);return`<div class="aitem" onclick="switchCandTab('entrants');openEntrantSplit('${c.id}')"><span class="pill pent">Entrant</span><span style="flex:1">${esc(c.name)}</span><span class="tag ${cat.cls} fs9">${cat.l}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun entrant en attente</div>`}
       </div>
     </div>`;
 }
@@ -2912,6 +2912,8 @@ function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_da
 function openStatusTree(id){openStatusMo('cand',id);}
 function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(c.linked_need?'Besoin lié ✓':'Lien retiré','s');}
 function saveGNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
+// Alias — lit gen-note-{id} ou gnote-{id} selon le panel
+function saveGenNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note-'+id)||document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function saveCoNote(id){const c=coById(id);if(!c)return;const el=document.getElementById('conote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function addRef(id){openMo('Ajouter référence',`<div class="fg"><div class="fgrp ff"><span class="lbl">Entreprise</span><input id="rf-co" placeholder="Nom entreprise"></div><div class="fgrp"><span class="lbl">Contact</span><input id="rf-ct"></div><div class="fgrp"><span class="lbl">Téléphone</span><input id="rf-ph"></div></div>`,`<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="saveRef('${id}')">Ajouter</button>`);}
 function saveRef(id){const c=cById(id);if(!c)return;const co=document.getElementById('rf-co').value.trim();if(!co)return;c.refs=c.refs||[];c.refs.push({company:co,contact:document.getElementById('rf-ct').value,phone:document.getElementById('rf-ph').value,done:false,note:''});c.updated=now_();save();closeMo();openCandPanel(id);toast('Référence ajoutée ✓','s');}
@@ -3641,7 +3643,14 @@ function renderRep(){
   const revPot=active.reduce((a,c)=>a+(Number(c.salary||0)*.18),0);
   const clients=comps.filter(c=>c.type==='client');
   const prospects=comps.filter(c=>c.type==='prospect'&&!['refused'].includes(c.status));
-  const convRate=cands.length>0?Math.round(placed.length/Math.max(cands.filter(c=>c.status!=='entrant').length,1)*100):0;
+  const convRate=(()=>{
+    const base=cands.filter(c=>!['entrant'].includes(c.status)).length;
+    if(!base)return 0;
+    // KO exclus du calcul — seuls les candidats actifs + placés comptent
+    const actifsPlusPlaces=cands.filter(c=>!['entrant','ko'].includes(c.status)).length;
+    if(!actifsPlusPlaces)return 0;
+    return Math.round(placed.length/actifsPlusPlaces*100);
+  })();
 
   // Candidats ajoutés dans la période
   const newInPeriod=cands.filter(c=>inPeriod(c.created)&&c.status!=='entrant').length;
