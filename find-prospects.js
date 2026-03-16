@@ -1,80 +1,34 @@
-// api/send-reminders.js
-const { sendEmail, buildReminderEmail } = require('./lib/email.js');
+// api/find-prospects.js
+// Trouve des entreprises BTP à fort potentiel de recrutement (La Bonne Boite v2)
+// POST /api/find-prospects  { rome, dept, distance }
 
-const STATUS_FR = {
-  new:'Précal à faire', precal:'Précal faite', dossier:'Dossier envoyé',
-  interview:'Entretien visio', presented:'Présenté client',
-  placed:'Placé', ko:'KO', entrant:'Entrant brut',
+const { findBonnesBoites } = require('./france-travail.js');
+
+const BTP_TO_ROME = {
+  go:'F1201', so:'F1101', be:'F1106', vrd:'F1302', hse:'H1502', mgmt:'F1201',
 };
 
 module.exports = async function handler(req, res) {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_ANON_KEY;
-  const userEmail   = process.env.CRM_USER_EMAIL;
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST uniquement' });
 
-  const missing = [];
-  if (!supabaseUrl)  missing.push('SUPABASE_URL');
-  if (!supabaseKey)  missing.push('SUPABASE_ANON_KEY');
-  if (!userEmail)    missing.push('CRM_USER_EMAIL');
-  if (!process.env.RESEND_API_KEY) missing.push('RESEND_API_KEY');
+  const { cat, dept, lat, lon, distance = 30 } = req.body || {};
 
-  if (missing.length) {
-    return res.status(500).json({ error: 'Variables manquantes dans Vercel → Settings → Environment Variables', missing });
+  if (!dept && (!lat || !lon)) {
+    return res.status(400).json({ error: 'dept ou lat+lon requis' });
   }
 
-  // Charger données Supabase
-  let DB;
+  const rome = BTP_TO_ROME[cat] || 'F1201';
+
   try {
-    const resp = await fetch(`${supabaseUrl}/rest/v1/crm_data?id=eq.1&select=data`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const result = await findBonnesBoites({
+      rome,
+      commune: dept ? { dept } : { lat, lon },
+      distance,
+      nbResultats: 25
     });
-    if (!resp.ok) throw new Error(`Supabase HTTP ${resp.status}`);
-    const rows = await resp.json();
-    if (!rows?.length) throw new Error('Table crm_data vide');
-    DB = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+    return res.status(200).json(result);
   } catch (err) {
-    return res.status(500).json({ error: 'Supabase: ' + err.message });
-  }
-
-  const now = new Date();
-  const todayStr = now.toDateString();
-
-  const alerts = [];
-  (DB.candidates || []).forEach(c => {
-    if (c.status === 'new') alerts.push(`Précal à faire : ${c.name}`);
-    if (c.status === 'dossier') {
-      const d = Math.floor((Date.now() - new Date(c.updated)) / 86400000);
-      if (d > 2) alerts.push(`Dossier sans retour ${d}j : ${c.name}`);
-    }
-    if (c.status === 'presented') {
-      const d = Math.floor((Date.now() - new Date(c.updated)) / 86400000);
-      if (d > 3) alerts.push(`Client sans retour ${d}j : ${c.name}`);
-    }
-  });
-  (DB.agenda || []).filter(a => !a.done && a.date).forEach(a => {
-    const d = new Date(a.date);
-    if (d < now && d.toDateString() !== todayStr) alerts.push(`En retard : ${a.title}`);
-  });
-
-  const agenda = (DB.agenda || [])
-    .filter(a => !a.done && a.date && new Date(a.date).toDateString() === todayStr)
-    .sort((a, b) => (a.time||'').localeCompare(b.time||''))
-    .map(a => ({ title: a.title, time: a.time || '' }));
-
-  const pipeline = (DB.candidates || [])
-    .filter(c => !['entrant','placed','ko'].includes(c.status))
-    .map(c => ({ name: c.name, role: c.role||'', status: STATUS_FR[c.status]||c.status }));
-
-  const dateStr = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-  const html = buildReminderEmail({ alerts, agenda, pipeline, date: dateStr });
-  const urgence = alerts.length ? `⚡ ${alerts.length} action(s)` : '';
-  const ag = agenda.length ? `📅 ${agenda.length} événement(s)` : '';
-  const subject = [urgence, ag].filter(Boolean).join(' · ') || `📋 Récap BTPRecruit — ${dateStr}`;
-
-  try {
-    await sendEmail({ to: userEmail, subject, html });
-    return res.status(200).json({ sent: true, to: userEmail, alerts: alerts.length, agenda: agenda.length, pipeline: pipeline.length });
-  } catch (err) {
-    return res.status(500).json({ error: 'Envoi email : ' + err.message });
+    return res.status(500).json({ error: err.message });
   }
 };

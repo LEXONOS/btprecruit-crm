@@ -1,74 +1,103 @@
-// api/cron-reminders.js — même logique que send-reminders, appelé par le cron Vercel
-const { sendEmail, buildReminderEmail } = require('./lib/email.js');
+// api/ft-webhook.js
+// Webhook France Travail — reçoit les nouvelles candidatures automatiquement
+// France Travail appelle cette URL à chaque nouvelle candidature sur vos offres
+// URL à déclarer : https://novalem-crm.vercel.app/api/ft-webhook
 
-const STATUS_FR = {
-  new:'Précal à faire', precal:'Précal faite', dossier:'Dossier envoyé',
-  interview:'Entretien visio', presented:'Présenté client',
-  placed:'Placé', ko:'KO', entrant:'Entrant brut',
-};
+const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async function handler(req, res) {
+  // France Travail envoie en POST
+  if (req.method !== 'POST') return res.status(200).json({ ok: true });
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_ANON_KEY;
-  const userEmail   = process.env.CRM_USER_EMAIL;
 
-  if (!supabaseUrl || !supabaseKey || !userEmail) {
-    return res.status(500).json({ error: 'Variables env manquantes (SUPABASE_URL, SUPABASE_ANON_KEY, CRM_USER_EMAIL)' });
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Supabase non configuré');
+    return res.status(200).json({ ok: true }); // Toujours 200 pour FT
   }
 
-  let DB;
   try {
-    const resp = await fetch(`${supabaseUrl}/rest/v1/crm_data?id=eq.1&select=data`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-    });
-    if (!resp.ok) throw new Error(`Supabase HTTP ${resp.status}`);
-    const rows = await resp.json();
-    if (!rows?.length) throw new Error('crm_data vide');
-    DB = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
-  } catch (err) {
-    return res.status(500).json({ error: 'Supabase: ' + err.message });
-  }
+    const payload = req.body;
+    console.log('FT webhook reçu:', JSON.stringify(payload).slice(0, 200));
 
-  const now = new Date();
-  const todayStr = now.toDateString();
-  const alerts = [];
+    // Format candidature France Travail (variable selon la version)
+    const candidature = payload.candidature || payload.application || payload;
+    const candidat = candidature.candidat || candidature.candidate || {};
 
-  (DB.candidates || []).forEach(c => {
-    if (c.status === 'new') alerts.push(`Précal à faire : ${c.name}`);
-    if (c.status === 'dossier') {
-      const d = Math.floor((Date.now() - new Date(c.updated)) / 86400000);
-      if (d > 2) alerts.push(`Dossier sans retour ${d}j : ${c.name}`);
+    // Créer le candidat dans le format du CRM
+    const newCand = {
+      id: `ft_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: [candidat.prenom, candidat.nom].filter(Boolean).join(' ') ||
+            candidat.firstName + ' ' + candidat.lastName ||
+            'Candidat FT',
+      phone:  candidat.telephone || candidat.phone || '',
+      email:  candidat.email || '',
+      salary: '',
+      avail:  candidat.disponibilite || candidat.availability || '',
+      mobility: '',
+      role:   candidature.posteVise || candidature.jobTitle || '',
+      cat:    'go', // sera affiné par l'IA
+      source: 'France Travail',
+      status: 'entrant',
+      post_id: candidature.idOffre || candidature.offerId || null,
+      ft_id:  candidat.id || candidat.candidatId || null,
+      docs:   [],
+      pepite: false,
+      notes_pre: candidature.lettreMotivation || candidature.coverLetter || '',
+      cv_url: candidat.urlCV || candidat.cvUrl || null,
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+    };
+
+    // Charger la DB actuelle depuis Supabase
+    const sb = createClient(supabaseUrl, supabaseKey);
+    const { data: rows, error: loadErr } = await sb
+      .from('crm_data').select('data').eq('id', 1).maybeSingle();
+
+    if (loadErr) throw loadErr;
+
+    let DB = rows?.data ? (typeof rows.data === 'string' ? JSON.parse(rows.data) : rows.data) : { candidates: [], companies: [], needs: [], agenda: [], posts: [] };
+
+    // Éviter les doublons (même email FT)
+    const exists = DB.candidates.some(c =>
+      (newCand.ft_id && c.ft_id === newCand.ft_id) ||
+      (newCand.email && c.email === newCand.email)
+    );
+
+    if (!exists) {
+      DB.candidates.unshift(newCand);
+      // Auto-créer une précal dans l'agenda
+      DB.agenda = DB.agenda || [];
+      DB.agenda.push({
+        id: `ag_${Date.now()}`,
+        type: 'call',
+        title: `Précal FT — ${newCand.name}`,
+        date: new Date().toISOString(),
+        time: '',
+        cand_id: newCand.id,
+        comp_id: null,
+        notes: 'Candidature reçue via France Travail',
+        done: false,
+        created: new Date().toISOString(),
+      });
+
+      // Sauvegarder dans Supabase
+      const { error: saveErr } = await sb
+        .from('crm_data')
+        .upsert({ id: 1, data: JSON.stringify(DB), updated_at: new Date().toISOString() }, { onConflict: 'id' });
+
+      if (saveErr) throw saveErr;
+      console.log(`Nouveau candidat FT ajouté: ${newCand.name}`);
+    } else {
+      console.log(`Candidat déjà existant ignoré: ${newCand.email}`);
     }
-    if (c.status === 'presented') {
-      const d = Math.floor((Date.now() - new Date(c.updated)) / 86400000);
-      if (d > 3) alerts.push(`Client sans retour ${d}j : ${c.name}`);
-    }
-  });
-  (DB.agenda || []).filter(a => !a.done && a.date).forEach(a => {
-    const d = new Date(a.date);
-    if (d < now && d.toDateString() !== todayStr) alerts.push(`En retard : ${a.title}`);
-  });
 
-  const agenda = (DB.agenda || [])
-    .filter(a => !a.done && a.date && new Date(a.date).toDateString() === todayStr)
-    .sort((a, b) => (a.time||'').localeCompare(b.time||''))
-    .map(a => ({ title: a.title, time: a.time||'' }));
+    // Toujours répondre 200 rapidement à France Travail
+    return res.status(200).json({ ok: true, processed: !exists });
 
-  const pipeline = (DB.candidates || [])
-    .filter(c => !['entrant','placed','ko'].includes(c.status))
-    .map(c => ({ name: c.name, role: c.role||'', status: STATUS_FR[c.status]||c.status }));
-
-  const dateStr = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-  const html = buildReminderEmail({ alerts, agenda, pipeline, date: dateStr });
-  const urgence = alerts.length ? `⚡ ${alerts.length} action(s)` : '';
-  const ag = agenda.length ? `📅 ${agenda.length} événement(s)` : '';
-  const subject = [urgence, ag].filter(Boolean).join(' · ') || `📋 Récap BTPRecruit — ${dateStr}`;
-
-  try {
-    await sendEmail({ to: userEmail, subject, html });
-    return res.status(200).json({ sent: true, alerts: alerts.length, agenda: agenda.length, pipeline: pipeline.length });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('FT webhook error:', err.message);
+    return res.status(200).json({ ok: true, error: err.message }); // 200 quand même
   }
 };
-

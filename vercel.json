@@ -1,5 +1,30 @@
-node_modules/
-.env
-.env.local
-.vercel/
-*.log
+{
+  "version": 2,
+  "routes": [
+    { "src": "/api/cron-reminders", "dest": "/cron-reminders.js" },
+    { "src": "/api/send-reminders", "dest": "/send-reminders.js" },
+    { "src": "/api/post-job", "dest": "/post-job.js" },
+    { "src": "/api/find-prospects", "dest": "/find-prospects.js" },
+    { "src": "/api/verify-offer", "dest": "/verify-offer.js" },
+    { "src": "/api/ft-webhook", "dest": "/ft-webhook.js" },
+    { "src": "/api/health", "dest": "/health.js" },
+    { "src": "/crm", "dest": "/crm.html" },
+    { "src": "/", "dest": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-reminders",
+      "schedule": "0 7 * * 1-5"
+    }
+  ]
+}

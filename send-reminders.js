@@ -1,4 +1,4 @@
-// api/cron-reminders.js — même logique que send-reminders, appelé par le cron Vercel
+// api/send-reminders.js
 const { sendEmail, buildReminderEmail } = require('./email.js');
 
 const STATUS_FR = {
@@ -12,10 +12,17 @@ module.exports = async function handler(req, res) {
   const supabaseKey = process.env.SUPABASE_ANON_KEY;
   const userEmail   = process.env.CRM_USER_EMAIL;
 
-  if (!supabaseUrl || !supabaseKey || !userEmail) {
-    return res.status(500).json({ error: 'Variables env manquantes (SUPABASE_URL, SUPABASE_ANON_KEY, CRM_USER_EMAIL)' });
+  const missing = [];
+  if (!supabaseUrl)  missing.push('SUPABASE_URL');
+  if (!supabaseKey)  missing.push('SUPABASE_ANON_KEY');
+  if (!userEmail)    missing.push('CRM_USER_EMAIL');
+  if (!process.env.RESEND_API_KEY) missing.push('RESEND_API_KEY');
+
+  if (missing.length) {
+    return res.status(500).json({ error: 'Variables manquantes dans Vercel → Settings → Environment Variables', missing });
   }
 
+  // Charger données Supabase
   let DB;
   try {
     const resp = await fetch(`${supabaseUrl}/rest/v1/crm_data?id=eq.1&select=data`, {
@@ -23,7 +30,7 @@ module.exports = async function handler(req, res) {
     });
     if (!resp.ok) throw new Error(`Supabase HTTP ${resp.status}`);
     const rows = await resp.json();
-    if (!rows?.length) throw new Error('crm_data vide');
+    if (!rows?.length) throw new Error('Table crm_data vide');
     DB = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
   } catch (err) {
     return res.status(500).json({ error: 'Supabase: ' + err.message });
@@ -31,8 +38,8 @@ module.exports = async function handler(req, res) {
 
   const now = new Date();
   const todayStr = now.toDateString();
-  const alerts = [];
 
+  const alerts = [];
   (DB.candidates || []).forEach(c => {
     if (c.status === 'new') alerts.push(`Précal à faire : ${c.name}`);
     if (c.status === 'dossier') {
@@ -52,7 +59,7 @@ module.exports = async function handler(req, res) {
   const agenda = (DB.agenda || [])
     .filter(a => !a.done && a.date && new Date(a.date).toDateString() === todayStr)
     .sort((a, b) => (a.time||'').localeCompare(b.time||''))
-    .map(a => ({ title: a.title, time: a.time||'' }));
+    .map(a => ({ title: a.title, time: a.time || '' }));
 
   const pipeline = (DB.candidates || [])
     .filter(c => !['entrant','placed','ko'].includes(c.status))
@@ -66,9 +73,8 @@ module.exports = async function handler(req, res) {
 
   try {
     await sendEmail({ to: userEmail, subject, html });
-    return res.status(200).json({ sent: true, alerts: alerts.length, agenda: agenda.length, pipeline: pipeline.length });
+    return res.status(200).json({ sent: true, to: userEmail, alerts: alerts.length, agenda: agenda.length, pipeline: pipeline.length });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Envoi email : ' + err.message });
   }
 };
-

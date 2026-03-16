@@ -1,11 +1,152 @@
-// api/health.js
-module.exports = function handler(req, res) {
-  const hasFT = !!(process.env.FRANCE_TRAVAIL_CLIENT_ID && process.env.FRANCE_TRAVAIL_CLIENT_SECRET);
-  res.status(200).json({
-    status: 'ok', version: '1.0.0', timestamp: new Date().toISOString(),
-    boards: {
-      'France Travail': hasFT ? 'configured' : 'missing_credentials',
-      'Indeed': 'manual_only', 'LinkedIn Jobs': 'manual_only',
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>BTPRecruit — Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b09;--s1:#111110;--s2:#171715;--bd:#282825;--bd2:#363630;--tx:#e3e3da;--mu:#707068;--mu2:#424240;--ac:#cee044;--ac2:#3ddf98;--ac3:#df4a4a;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(206,224,68,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(206,224,68,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.glow{position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(61,223,152,.06) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+.card{position:relative;z-index:1;width:100%;max-width:380px;padding:0 20px;}
+.logo{text-align:center;margin-bottom:40px;}
+.logo-t{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.5px;}
+.logo-t b{color:var(--ac)}
+.logo-s{font-size:11px;color:var(--mu2);letter-spacing:.2em;text-transform:uppercase;margin-top:4px;}
+.box{background:var(--s1);border:1px solid var(--bd2);border-radius:4px;padding:32px 28px;}
+.box-t{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:5px;}
+.box-s{font-size:11px;color:var(--mu);margin-bottom:28px;line-height:1.6;}
+.pin-display{display:flex;gap:8px;justify-content:center;margin-bottom:24px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--bd2);background:transparent;transition:.15s;}
+.pin-dot.filled{background:var(--ac2);border-color:var(--ac2);}
+.pin-dot.error{background:var(--ac3);border-color:var(--ac3);animation:shake .3s ease;}
+.pin-dot.ok{background:var(--ac);border-color:var(--ac);}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.k{background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:14px;text-align:center;font-family:'Syne',sans-serif;font-weight:700;font-size:17px;cursor:pointer;transition:.12s;user-select:none;}
+.k:hover{background:#1e1e1b;border-color:var(--bd2);}
+.k:active{transform:scale(.95);}
+.k.del{font-size:14px;color:var(--mu);}
+.k.empty{background:transparent;border-color:transparent;cursor:default;}
+.msg{text-align:center;font-size:11px;margin-top:16px;height:16px;transition:.2s;}
+.msg.err{color:var(--ac3);}
+.msg.ok_{color:var(--ac2);}
+.footer{text-align:center;margin-top:24px;font-size:10px;color:var(--mu2);letter-spacing:.06em;}
+.loader{display:none;text-align:center;padding:20px 0;}
+.loader-ring{width:32px;height:32px;border:2px solid var(--bd2);border-top-color:var(--ac2);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="card">
+  <div class="logo">
+    <div class="logo-t">BTP<b>Recruit</b></div>
+    <div class="logo-s">Cabinet de recrutement CDI · BTP</div>
+  </div>
+  <div class="box">
+    <div class="box-t">Accès sécurisé</div>
+    <div class="box-s">Entrez votre code PIN à 6 chiffres<br>pour accéder au CRM.</div>
+    <div class="pin-display" id="pin-display">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="d4"></div>
+      <div class="pin-dot" id="d5"></div>
+    </div>
+    <div id="numpad-wrap">
+      <div class="numpad" id="numpad">
+        <div class="k" onclick="press('1')">1</div>
+        <div class="k" onclick="press('2')">2</div>
+        <div class="k" onclick="press('3')">3</div>
+        <div class="k" onclick="press('4')">4</div>
+        <div class="k" onclick="press('5')">5</div>
+        <div class="k" onclick="press('6')">6</div>
+        <div class="k" onclick="press('7')">7</div>
+        <div class="k" onclick="press('8')">8</div>
+        <div class="k" onclick="press('9')">9</div>
+        <div class="k empty"></div>
+        <div class="k" onclick="press('0')">0</div>
+        <div class="k del" onclick="del()">&#x232B;</div>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="loader" id="loader">
+      <div class="loader-ring"></div>
+      <div style="font-size:11px;color:var(--ac2);">Connexion en cours&hellip;</div>
+    </div>
+  </div>
+  <div class="footer">BTPRecruit &copy; 2025 &middot; Accès privé</div>
+</div>
+<script>
+const CORRECT_PIN = '141290';
+const CRM_URL     = '/crm';
+
+let current = '';
+const MAX = 6;
+
+function press(d) {
+  if (current.length >= MAX) return;
+  current += d;
+  updateDots();
+  if (current.length === MAX) setTimeout(verify, 120);
+}
+
+function del() {
+  current = current.slice(0, -1);
+  updateDots();
+  setMsg('', '');
+}
+
+function updateDots() {
+  for (let i = 0; i < MAX; i++) {
+    const dot = document.getElementById('d' + i);
+    dot.className = 'pin-dot' + (i < current.length ? ' filled' : '');
+  }
+}
+
+function verify() {
+  if (current === CORRECT_PIN) {
+    for (let i = 0; i < MAX; i++) document.getElementById('d' + i).className = 'pin-dot ok';
+    setMsg('Acces autorise', 'ok_');
+    document.getElementById('numpad').style.opacity = '0';
+    document.getElementById('loader').style.display = 'block';
+    setTimeout(() => {
+      sessionStorage.setItem('btprecruit_auth', btoa(CORRECT_PIN + Date.now()));
+      window.location.href = CRM_URL;
+    }, 900);
+  } else {
+    for (let i = 0; i < MAX; i++) {
+      document.getElementById('d' + i).className = 'pin-dot error';
     }
-  });
-};
+    setMsg('Code incorrect - reessayez', 'err');
+    setTimeout(() => {
+      current = '';
+      updateDots();
+      setMsg('', '');
+    }, 900);
+  }
+}
+
+function setMsg(txt, cls) {
+  const el = document.getElementById('msg');
+  el.textContent = txt;
+  el.className = 'msg ' + cls;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key >= '0' && e.key <= '9') press(e.key);
+  if (e.key === 'Backspace') del();
+});
+
+if (sessionStorage.getItem('btprecruit_auth')) {
+  window.location.href = CRM_URL;
+}
+</script>
+</body>
+</html>
