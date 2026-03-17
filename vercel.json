@@ -1,15 +1,7 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/api/send-email", "dest": "/send-email.js" },
-    { "src": "/api/test-email", "dest": "/test-email.js" },
-    { "src": "/api/cron-reminders", "dest": "/cron-reminders.js" },
-    { "src": "/api/send-reminders", "dest": "/send-reminders.js" },
-    { "src": "/api/post-job", "dest": "/post-job.js" },
-    { "src": "/api/find-prospects", "dest": "/find-prospects.js" },
-    { "src": "/api/verify-offer", "dest": "/verify-offer.js" },
-    { "src": "/api/ft-webhook", "dest": "/ft-webhook.js" },
-    { "src": "/api/health", "dest": "/health.js" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/crm", "dest": "/crm.html" },
     { "src": "/", "dest": "/index.html" }
   ],
