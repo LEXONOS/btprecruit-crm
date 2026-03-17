@@ -3882,46 +3882,90 @@ function emailFromCand(candId, tplKey){
   });
 }
 
-function sendEmailNow(){
-  const to=document.getElementById('em-to')?.value||EM.to;
-  const sub=document.getElementById('em-sub')?.value||EM.subject;
-  const body=document.getElementById('em-body')?.value||EM.body;
-  if(!to){toast('Ajoutez un destinataire','e');return;}
-  if(!sub){toast('Ajoutez un objet','e');return;}
+async function sendEmailNow(){
+  const to   = (document.getElementById('em-to')?.value   || EM.to   || '').trim();
+  const sub  = (document.getElementById('em-sub')?.value  || EM.subject || '').trim();
+  const body = (document.getElementById('em-body')?.value || EM.body  || '').trim();
 
-  // Envoi via Resend (backend Vercel) si disponible
-  const apiBase=getApiBase();
-  if(apiBase){
-    document.getElementById('em-status').textContent='Envoi en cours…';
-    fetch(`${apiBase}/api/send-email`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({to,subject:sub,body})
-    }).then(r=>r.json()).then(data=>{
-      if(data.sent||data.id){
-        logEmail(to,sub,body);
-        toast('✅ Email envoyé !','s');
-        document.getElementById('em-status').textContent='Envoyé ✓';
-      } else {
-        toast('Erreur envoi : '+(data.error||'?'),'e');
-        document.getElementById('em-status').textContent='Échec';
-      }
-    }).catch(()=>{
-      // Fallback mailto
-      openInMailClient();
+  if(!to)  { toast('Ajoutez un destinataire','e'); return; }
+  if(!sub) { toast('Ajoutez un objet','e'); return; }
+
+  const stEl = document.getElementById('em-status');
+  const setStatus = (txt, color='var(--mu2)') => { if(stEl){ stEl.textContent=txt; stEl.style.color=color; } };
+
+  const apiBase = getApiBase();
+
+  if(!apiBase){
+    // En local → ouvrir messagerie directement
+    openInMailClient(); return;
+  }
+
+  setStatus('⏳ Envoi en cours…', 'var(--ac4)');
+
+  // Désactiver le bouton pendant l'envoi
+  const btn = document.querySelector('[onclick="sendEmailNow()"]');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi…'; }
+
+  try {
+    const resp = await fetch(`${apiBase}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject: sub, body })
     });
-  } else {
-    // Pas de backend → ouvre dans messagerie
-    openInMailClient();
+
+    const data = await resp.json();
+
+    if(resp.ok && (data.sent || data.id)){
+      // Succès
+      logEmail(to, sub, body);
+      setStatus('✅ Email envoyé', 'var(--ac2)');
+      toast(`✅ Email envoyé à ${to}`, 's');
+      // Vider le composeur après 2s
+      setTimeout(()=>{ resetEmailCompose(); setStatus(''); }, 2000);
+
+    } else {
+      // Erreur connue
+      const msg = data.error || 'Erreur inconnue';
+      setStatus('❌ Échec', 'var(--ac3)');
+
+      if(resp.status === 403 || msg.includes('domain') || msg.includes('verified')){
+        // Domaine pas encore vérifié
+        openMo('⚠️ Domaine en cours de vérification',`
+          <div style="font-size:12px;line-height:1.7;color:var(--tx)">
+            Le domaine <strong>novalem-recrutement.fr</strong> n'est pas encore vérifié sur Resend.<br><br>
+            <strong>Ce que tu dois faire :</strong><br>
+            1. Va sur <a href="https://resend.com/domains" target="_blank" style="color:var(--ac5)">resend.com/domains</a><br>
+            2. Clique sur <strong>novalem-recrutement.fr</strong><br>
+            3. Vérifie que le DKIM est vert — si pas encore, corrige l'entrée OVH<br>
+            4. Clique <strong>Restart</strong> sur Resend<br><br>
+            En attendant, tu peux ouvrir l'email dans ta messagerie :
+          </div>`,
+          `<button class="btn bg" onclick="closeMo()">Fermer</button>
+           <button class="btn bp" onclick="closeMo();openInMailClient()">📬 Ouvrir dans ma messagerie</button>`
+        );
+      } else {
+        toast('Erreur envoi : ' + msg, 'e');
+      }
+    }
+
+  } catch(err) {
+    setStatus('❌ Erreur réseau', 'var(--ac3)');
+    toast('Erreur réseau — ouverture messagerie…', 'w');
+    setTimeout(()=>openInMailClient(), 800);
+
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='📤 Envoyer'; }
   }
 }
 
 function openInMailClient(){
-  const to=document.getElementById('em-to')?.value||EM.to;
-  const sub=document.getElementById('em-sub')?.value||EM.subject;
-  const body=document.getElementById('em-body')?.value||EM.body;
-  window.location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
-  setTimeout(()=>{logEmail(to,sub,body);},800);
+  const to   = (document.getElementById('em-to')?.value   || EM.to   || '').trim();
+  const sub  = (document.getElementById('em-sub')?.value  || EM.subject || '').trim();
+  const body = (document.getElementById('em-body')?.value || EM.body  || '').trim();
+  if(!to){ toast('Destinataire manquant','e'); return; }
+  const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+  window.open(url);
+  setTimeout(()=>{ logEmail(to,sub,body); toast('Email ouvert dans ta messagerie ✓','i'); }, 600);
 }
 
 function logEmail(to,subject,body){
