@@ -402,6 +402,11 @@ select option{background:var(--s2)}
 .btn-full{width:100%;justify-content:center}
 .mt14{margin-top:14px}
 
+/* EMAIL NAV */
+.em-nav-item{padding:6px 10px;border-radius:3px;cursor:pointer;font-size:11px;color:var(--mu);display:flex;align-items:center;gap:6px;transition:.1s;user-select:none}
+.em-nav-item:hover{background:var(--s3);color:var(--tx)}
+.em-nav-item.em-nav-act{background:var(--s3);color:var(--ac);font-weight:600}
+
 /* REPORTING */
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:20px}
 .rep-kpi{background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:14px 16px;position:relative;overflow:hidden}
@@ -1641,9 +1646,12 @@ function renderCPFichiers(c){
       <span class="fs11">${uploaded}/${DOCS_LIST.length} documents</span>
       <div class="pgbar" style="width:100px"><div class="pgfill" style="width:${Math.round(uploaded/DOCS_LIST.length*100)}%"></div></div>
     </div>
-    <div class="info-box mb10 fs10">
-      💾 Les fichiers sont stockés dans votre navigateur (localStorage).<br>
-      <strong>Pour une solution cloud professionnelle</strong>, je vous expliquerai comment connecter Supabase / Google Drive quand vous êtes prêt.
+    <div style="margin-bottom:10px">
+      <label class="btn bp bsm" style="cursor:pointer;display:inline-flex;gap:5px">
+        ✨ Upload intelligent (multi-fichiers)
+        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="handleSmartUpload(event,'${c.id}')">
+      </label>
+      <span style="font-size:10px;color:var(--mu);margin-left:8px">Dépose plusieurs fichiers — classés automatiquement</span>
     </div>
     ${DOCS_LIST.map(d=>{
       const existing=docs.find(x=>x.id===d.id);
@@ -3618,41 +3626,51 @@ async function autoPostToBoard(postId,board){
 }
 
 // ═══════════════════════════════════════════════════════
-// EMAILS — vue principale
+// EMAILS — vue principale (refonte complète)
 // ═══════════════════════════════════════════════════════
 
-// Templates pré-rédigés
+// ── État global composeur ────────────────────────────
+let EM={to:'',cc:'',subject:'',body:'',candId:null,coId:null,tplKey:null,draft:false};
+let EM_VIEW='compose'; // 'compose' | 'sent' | 'drafts'
+
+// ── Templates pré-rédigés ────────────────────────────
 const EMAIL_TPLS={
   precal:{
-    label:'📞 Confirmation précal',
+    label:'📞 Confirmation précal + dossier',
     to:(c)=>c.email||'',
-    subject:(c)=>`Suite à notre échange — ${c.role||'Poste BTP'}`,
-    body:(c,nom)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+    subject:(c)=>`Novalem — Suite à notre échange | ${c.role||'Poste BTP'}`,
+    body:(c,nom,tel,dossier)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
 
-Suite à notre échange téléphonique, je me permets de vous faire parvenir le lien pour notre entretien visio ainsi que notre dossier de candidature à compléter.
+Suite à notre échange téléphonique, je vous confirme notre entretien visio :
 
-🎥 Lien de l'entretien : ${c.visio_link||'[LIEN À INSÉRER]'}
-📅 Date et heure : [DATE ET HEURE]
+📅 Date : ${c.int_date_planned?new Date(c.int_date_planned).toLocaleDateString('fr-FR'):'[DATE]'} à ${c.int_time||'[HEURE]'}
+🎥 Lien de connexion : ${c.visio_link||'[LIEN À INSÉRER]'}
 
-📋 Merci de me retourner avant notre entretien :
-- Votre CV à jour
-- Votre pièce d'identité (recto/verso)
-- Votre permis de conduire (si applicable)
-- Le dossier de candidature complété et signé
+Merci de vous connecter 2 à 3 minutes avant l'heure prévue.${dossier?`
 
-Ces documents sont indispensables pour vous présenter dans les meilleures conditions auprès de nos clients.
+──────────────────────────────
+📋 DOSSIER DE CANDIDATURE
+──────────────────────────────
+Merci de compléter et signer le dossier de candidature :
+👉 ${dossier}
 
-N'hésitez pas à me contacter pour toute question.
+Et de me retourner les pièces suivantes à cette adresse :
+
+  • CV à jour
+  • Pièce d'identité (recto/verso)
+  • Permis de conduire (si applicable)`:``}
+
+En cas de question, n'hésitez pas à me contacter.
 
 Bonne journée,
-${nom||'[VOTRE NOM]'}
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
   },
-  relance_dossier:{
-    label:'📋 Relance dossier',
+  relance:{
+    label:'🔔 Relance dossier manquant',
     to:(c)=>c.email||'',
-    subject:(c)=>`[Relance] Dossier de candidature — ${c.name||''}`,
-    body:(c,nom)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+    subject:(c)=>`[Relance] Dossier de candidature — ${(c.name||'').split(' ')[0]||''}`,
+    body:(c,nom,tel)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
 
 Je me permets de vous relancer concernant votre dossier de candidature.
 
@@ -3661,56 +3679,51 @@ Sans les documents complets, je ne pourrai malheureusement pas transmettre votre
 Pourriez-vous me faire parvenir les éléments manquants dans les meilleurs délais ?
 
 Merci pour votre réactivité,
-${nom||'[VOTRE NOM]'}
-Novalem`
-  },
-  confirmation_entretien:{
-    label:'🎥 Confirmation entretien visio',
-    to:(c)=>c.email||'',
-    subject:(c)=>`Confirmation de votre entretien — ${c.role||'Poste BTP'}`,
-    body:(c,nom)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
-
-Je confirme notre entretien visio :
-
-📅 Date : ${c.int_date_planned?new Date(c.int_date_planned).toLocaleDateString('fr-FR'):'[DATE]'}
-⏰ Heure : ${c.int_time||'[HEURE]'}
-🎥 Lien : ${c.visio_link||'[LIEN À INSÉRER]'}
-
-Pensez à vous connecter quelques minutes avant et à avoir votre CV sous la main.
-
-À très vite,
-${nom||'[VOTRE NOM]'}
-Novalem`
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`
   },
   envoi_profil:{
     label:'📤 Envoi profil au client',
     to:()=>'',
-    subject:(c)=>`Profil candidat — ${c.role||'Poste BTP'} — ${c.name||''}`,
-    body:(c,nom)=>`Bonjour,
+    subject:(c)=>`Novalem — Profil candidat | ${c.role||'Poste BTP'}`,
+    body:(c,nom,tel)=>`Bonjour,
 
 Comme convenu, je vous fais parvenir le profil de ${c.name||'[CANDIDAT]'} pour le poste de ${c.role||'[POSTE]'}.
 
-━━━━━━━━━━━━━━━━━━━━━━━
+──────────────────────────────
 RÉSUMÉ DU PROFIL
-━━━━━━━━━━━━━━━━━━━━━━━
+──────────────────────────────
 Poste ciblé    : ${c.role||'—'}
 Disponibilité  : ${c.avail||'—'}
 Mobilité       : ${c.mobility||'—'}
 Prétentions    : ${c.salary?c.salary+'K€ brut/an':'—'}
-
-${c.notes_pre?`📝 Notes :\n${c.notes_pre}`:''}
+${c.notes_pre?'\nNotes : '+c.notes_pre:''}
 
 Le dossier complet est disponible sur simple demande.
 
 Je reste disponible pour tout échange,
-${nom||'[VOTRE NOM]'}
-Novalem`
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`
+  },
+  retour_client:{
+    label:'📞 Demande retour client',
+    to:()=>'',
+    subject:(c)=>`Novalem — Retour sur le profil ${c.name||'candidat'}`,
+    body:(c,nom,tel)=>`Bonjour,
+
+Je me permets de vous recontacter concernant le profil de ${c.name||'[CANDIDAT]'} que je vous ai transmis récemment.
+
+Avez-vous eu l'occasion d'en prendre connaissance ? Seriez-vous disponible pour un échange téléphonique afin d'avoir votre retour ?
+
+Je reste à votre disposition,
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`
   },
   placement:{
     label:'🎉 Confirmation placement',
     to:()=>'',
-    subject:(c)=>`Confirmation de placement — ${c.name||''}`,
-    body:(c,nom)=>`Bonjour,
+    subject:(c)=>`Novalem — Confirmation de placement | ${c.name||''}`,
+    body:(c,nom,tel)=>`Bonjour,
 
 J'ai le plaisir de vous confirmer le placement de ${c.name||'[CANDIDAT]'} sur le poste de ${c.role||'[POSTE]'}.
 
@@ -3720,419 +3733,438 @@ Salaire convenu : ${c.salary?c.salary+'K€ brut/an':'[SALAIRE]'}
 Conformément à nos accords, notre note d'honoraires vous parviendra prochainement.
 
 Merci pour votre confiance,
-${nom||'[VOTRE NOM]'}
-Novalem`
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`
+  },
+  prise_ref:{
+    label:'🔍 Contrôle de référence',
+    to:()=>'',
+    subject:(c)=>`Novalem — Contrôle de référence | ${c.name||'candidat'}`,
+    body:(c,nom,tel)=>`Bonjour,
+
+Suite à un processus de recrutement en cours, je me permets de vous contacter afin de réaliser un contrôle de référence concernant ${c.name||'[CANDIDAT]'}, qui aurait travaillé avec vous en tant que ${c.role||'[POSTE]'}.
+
+Si vous pouvez me confirmer :
+  • Que cette personne a bien travaillé avec vous
+  • La période approximative de collaboration
+  • Vos impressions générales (points forts, axes d'amélioration)
+
+Je vous remercie pour votre retour et vous souhaite une belle journée,
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`
   },
   blank:{
     label:'✉️ Email vide',
     to:()=>'',
     subject:()=>'',
-    body:(c,nom)=>`Bonjour,
+    body:(c,nom,tel)=>`Bonjour,
 
 
 
 Cordialement,
-${nom||'[VOTRE NOM]'}
-Novalem`
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`
   }
 };
 
-let EM={to:'',subject:'',body:'',candId:null,tplKey:null};
-
+// ── Fonction principale ──────────────────────────────
 function rEmails(){
   const el=document.getElementById('view-emails');
   if(!el)return;
-  const history=(DB.emails||[]).slice(0,30);
-  const cands=DB.candidates.filter(c=>c.email);
   const nom=localStorage.getItem('btp_user_name')||'';
   const tel=localStorage.getItem('btp_user_tel')||'';
+  const history=(DB.emails||[]).slice().reverse().slice(0,50); // Les plus récents d'abord
+  const drafts=(DB.drafts||[]);
+  const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+  const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+
+  const sigOk=!!nom;
 
   el.innerHTML=`
-  <!-- Topbar emails -->
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;flex:1">✉️ Emails</div>
-    ${nom?`<span style="font-size:10px;color:var(--mu2)">Signature : <strong style="color:var(--mu)">${esc(nom)}${tel?' · '+esc(tel):''}</strong></span>`:'<span style="font-size:10px;color:var(--ac3)">⚠️ Signature non configurée</span>'}
-    <button class="btn bg bsm" onclick="openEmailSettings()" style="gap:5px">⚙️ Paramètres emails</button>
-  </div>
+  <div style="display:grid;grid-template-columns:220px 1fr;gap:0;height:calc(100vh - 110px);background:var(--s1);border:1px solid var(--bd);border-radius:4px;overflow:hidden">
 
-  <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;height:calc(100vh - 155px)">
-
-    <!-- COMPOSEUR -->
-    <div style="display:flex;flex-direction:column;gap:0;background:var(--s2);border:1px solid var(--bd);border-radius:4px;overflow:hidden">
-
-      <!-- Header composeur -->
-      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0">
-        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Nouveau message</span>
-        <div style="margin-left:auto;display:flex;gap:6px">
-          <select id="em-tpl" onchange="applyEmailTpl()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:4px 8px;border-radius:2px">
-            <option value="">— Template —</option>
-            ${Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
-          </select>
-          <select id="em-cand" onchange="prefillEmailCand()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:4px 8px;border-radius:2px;max-width:160px">
-            <option value="">— Candidat —</option>
-            ${cands.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
-          </select>
-        </div>
+    <!-- SIDEBAR GAUCHE -->
+    <div style="border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--s2)">
+      <!-- Bouton composer -->
+      <div style="padding:12px 10px;border-bottom:1px solid var(--bd)">
+        <button class="btn bp btn-full" onclick="emShowView('compose')" style="font-size:12px">✉️ Nouveau message</button>
       </div>
 
-      <!-- Champs email -->
-      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);flex-shrink:0">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:10px;color:var(--mu);min-width:40px">À</span>
-          <input id="em-to" value="${esc(EM.to||'')}" placeholder="destinataire@email.fr" style="flex:1;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--bd2);padding:3px 0;color:var(--tx);outline:none" oninput="EM.to=this.value">
+      <!-- Navigation -->
+      <div style="padding:8px 6px;flex:1;overflow-y:auto">
+        <div class="em-nav-item ${EM_VIEW==='compose'?'em-nav-act':''}" onclick="emShowView('compose')">
+          ✏️ Rédiger
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:10px;color:var(--mu);min-width:40px">Objet</span>
-          <input id="em-sub" value="${esc(EM.subject||'')}" placeholder="Objet de l'email" style="flex:1;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--bd2);padding:3px 0;color:var(--tx);outline:none" oninput="EM.subject=this.value">
+        <div class="em-nav-item ${EM_VIEW==='sent'?'em-nav-act':''}" onclick="emShowView('sent')">
+          📤 Envoyés <span class="nbadge nb-mu" style="margin-left:auto">${history.length}</span>
         </div>
+        <div class="em-nav-item ${EM_VIEW==='drafts'?'em-nav-act':''}" onclick="emShowView('drafts')">
+          📝 Brouillons <span class="nbadge nb-mu" style="margin-left:auto">${drafts.length}</span>
+        </div>
+
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);padding:12px 8px 5px">Templates</div>
+        ${Object.entries(EMAIL_TPLS).map(([k,t])=>`
+          <div class="em-nav-item" onclick="emQuickTpl('${k}')" style="font-size:10px;padding:5px 8px">${t.label}</div>
+        `).join('')}
       </div>
 
-      <!-- Corps -->
-      <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px 16px;font-size:12px;line-height:1.75;color:var(--tx);resize:none;outline:none;font-family:'DM Mono',monospace" placeholder="Rédigez votre email ici…" oninput="EM.body=this.value">${esc(EM.body||'')}</textarea>
-
-      <!-- Actions -->
-      <div style="padding:10px 16px;border-top:1px solid var(--bd);display:flex;gap:8px;align-items:center;flex-shrink:0;background:var(--s1)">
-        <button class="btn bp" onclick="sendEmailNow()" style="gap:6px">📤 Envoyer</button>
-        <button class="btn bg" onclick="openInMailClient()">📬 Ouvrir dans ma messagerie</button>
-        <button class="btn bg" onclick="resetEmailCompose()">🗑 Effacer</button>
-        <span id="em-status" style="font-size:10px;color:var(--mu2);margin-left:auto"></span>
+      <!-- Signature -->
+      <div style="padding:10px 12px;border-top:1px solid var(--bd);font-size:10px">
+        ${sigOk
+          ?`<div style="color:var(--mu2)">Signature</div><div style="color:var(--mu);margin-top:2px">${esc(nom)}${tel?'<br>'+esc(tel):''}</div>`
+          :`<div style="color:var(--ac3)">⚠️ Signature non configurée</div>`}
+        <button class="btn bg bxs" style="margin-top:6px;font-size:10px;width:100%;justify-content:center" onclick="openSettings()">⚙️ Paramètres</button>
       </div>
     </div>
 
-    <!-- PANNEAU DROIT : templates + historique -->
-    <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto">
-
-      <!-- Templates rapides -->
-      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:12px 14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin-bottom:10px">Templates rapides</div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          ${Object.entries(EMAIL_TPLS).map(([k,t])=>`
-            <button class="btn bg" style="justify-content:flex-start;font-size:11px;padding:7px 10px" onclick="quickLoadTpl('${k}')">${t.label}</button>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Historique envois -->
-      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:12px 14px;flex:1">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin-bottom:10px">Historique (${history.length})</div>
-        ${history.length?history.map(m=>{
-          const c=m.candId?cById(m.candId):null;
-          return`<div style="padding:8px 10px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;margin-bottom:5px;cursor:pointer;transition:.12s" onclick="reloadEmail(${JSON.stringify(m).replace(/"/g,'&quot;')})" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--bd)'">
-            <div style="font-size:10px;color:var(--mu);margin-bottom:2px">${fD(m.date)}${c?` · <span style="color:var(--ac5)">${esc(c.name)}</span>`:''}</div>
-            <div style="font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.subject||'—')}</div>
-            <div style="font-size:10px;color:var(--mu);margin-top:1px">→ ${esc(m.to||'—')}</div>
-          </div>`;
-        }).join(''):`<div style="font-size:11px;color:var(--mu2)">Aucun email envoyé</div>`}
-      </div>
+    <!-- ZONE PRINCIPALE -->
+    <div id="em-main" style="display:flex;flex-direction:column;overflow:hidden">
+      ${emRenderView(EM_VIEW, cands, cos, history, drafts, nom, tel)}
     </div>
-
   </div>`;
 }
 
-function applyEmailTpl(){
-  const key=document.getElementById('em-tpl')?.value;
-  if(!key)return;
-  const candId=document.getElementById('em-cand')?.value;
-  const c=candId?cById(candId):{};
+// ── Rendu selon la vue active ────────────────────────
+function emRenderView(view, cands, cos, history, drafts, nom, tel){
+  if(view==='sent') return emRenderSent(history, cands);
+  if(view==='drafts') return emRenderDrafts(drafts, cands);
+  return emRenderCompose(cands, cos, nom, tel);
+}
+
+function emShowView(view){
+  EM_VIEW=view;
+  // Re-render just the main zone
   const nom=localStorage.getItem('btp_user_name')||'';
-  const tpl=EMAIL_TPLS[key];
-  if(!tpl)return;
-  EM.to=tpl.to(c||{});
-  EM.subject=tpl.subject(c||{});
-  EM.body=tpl.body(c||{},nom);
-  EM.candId=candId||null;
-  EM.tplKey=key;
-  // Update fields
-  const toEl=document.getElementById('em-to');
-  const subEl=document.getElementById('em-sub');
-  const bodyEl=document.getElementById('em-body');
-  if(toEl)toEl.value=EM.to;
-  if(subEl)subEl.value=EM.subject;
-  if(bodyEl)bodyEl.value=EM.body;
-}
-
-function prefillEmailCand(){
-  const tplKey=document.getElementById('em-tpl')?.value||EM.tplKey;
-  if(tplKey) applyEmailTpl();
-}
-
-function quickLoadTpl(key){
-  const sel=document.getElementById('em-tpl');
-  if(sel)sel.value=key;
-  applyEmailTpl();
-}
-
-// Ouvrir l'onglet email pré-rempli depuis n'importe où dans le CRM
-function openEmailWith({to='',subject='',body='',candId=null,tplKey=null}={}){
-  EM={to,subject,body,candId,tplKey};
-  go('emails');
-}
-
-// Pré-remplir depuis un candidat + template
-function emailFromCand(candId, tplKey){
-  const c=cById(candId);if(!c)return;
-  const nom=localStorage.getItem('btp_user_name')||'';
-  const tpl=EMAIL_TPLS[tplKey||'blank'];
-  openEmailWith({
-    to: tpl.to(c),
-    subject: tpl.subject(c),
-    body: tpl.body(c,nom),
-    candId,
-    tplKey
+  const tel=localStorage.getItem('btp_user_tel')||'';
+  const history=(DB.emails||[]).slice().reverse().slice(0,50);
+  const drafts=(DB.drafts||[]);
+  const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+  const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+  const main=document.getElementById('em-main');
+  if(main) main.innerHTML=emRenderView(view,cands,cos,history,drafts,nom,tel);
+  // Update nav active state
+  document.querySelectorAll('.em-nav-item').forEach(el=>{
+    const t=el.textContent.trim();
+    el.classList.toggle('em-nav-act',
+      (view==='compose'&&(t.startsWith('✏️')||t.startsWith('Réd')))||
+      (view==='sent'&&t.startsWith('📤'))||
+      (view==='drafts'&&t.startsWith('📝'))
+    );
   });
 }
 
-async function sendEmailNow(){
-  const to   = (document.getElementById('em-to')?.value   || EM.to   || '').trim();
-  const sub  = (document.getElementById('em-sub')?.value  || EM.subject || '').trim();
-  const body = (document.getElementById('em-body')?.value || EM.body  || '').trim();
-
-  if(!to)  { toast('Ajoutez un destinataire','e'); return; }
-  if(!sub) { toast('Ajoutez un objet','e'); return; }
-
-  const stEl = document.getElementById('em-status');
-  const setStatus = (txt, color='var(--mu2)') => { if(stEl){ stEl.textContent=txt; stEl.style.color=color; } };
-
-  const apiBase = getApiBase();
-
-  if(!apiBase){
-    // En local → ouvrir messagerie directement
-    openInMailClient(); return;
-  }
-
-  setStatus('⏳ Envoi en cours…', 'var(--ac4)');
-
-  // Désactiver le bouton pendant l'envoi
-  const btn = document.querySelector('[onclick="sendEmailNow()"]');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi…'; }
-
-  try {
-    const resp = await fetch(`${apiBase}/api/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject: sub, body })
-    });
-
-    const data = await resp.json();
-
-    if(resp.ok && (data.sent || data.id)){
-      // Succès
-      logEmail(to, sub, body);
-      setStatus('✅ Email envoyé', 'var(--ac2)');
-      toast(`✅ Email envoyé à ${to}`, 's');
-      // Vider le composeur après 2s
-      setTimeout(()=>{ resetEmailCompose(); setStatus(''); }, 2000);
-
-    } else {
-      // Erreur connue
-      const msg = data.error || 'Erreur inconnue';
-      setStatus('❌ Échec', 'var(--ac3)');
-
-      if(resp.status === 403 || msg.includes('domain') || msg.includes('verified')){
-        // Domaine pas encore vérifié
-        openMo('⚠️ Domaine en cours de vérification',`
-          <div style="font-size:12px;line-height:1.7;color:var(--tx)">
-            Le domaine <strong>novalem-recrutement.fr</strong> n'est pas encore vérifié sur Resend.<br><br>
-            <strong>Ce que tu dois faire :</strong><br>
-            1. Va sur <a href="https://resend.com/domains" target="_blank" style="color:var(--ac5)">resend.com/domains</a><br>
-            2. Clique sur <strong>novalem-recrutement.fr</strong><br>
-            3. Vérifie que le DKIM est vert — si pas encore, corrige l'entrée OVH<br>
-            4. Clique <strong>Restart</strong> sur Resend<br><br>
-            En attendant, tu peux ouvrir l'email dans ta messagerie :
-          </div>`,
-          `<button class="btn bg" onclick="closeMo()">Fermer</button>
-           <button class="btn bp" onclick="closeMo();openInMailClient()">📬 Ouvrir dans ma messagerie</button>`
-        );
-      } else {
-        toast('Erreur envoi : ' + msg, 'e');
-      }
-    }
-
-  } catch(err) {
-    setStatus('❌ Erreur réseau', 'var(--ac3)');
-    toast('Erreur réseau — ouverture messagerie…', 'w');
-    setTimeout(()=>openInMailClient(), 800);
-
-  } finally {
-    if(btn){ btn.disabled=false; btn.textContent='📤 Envoyer'; }
-  }
-}
-
-function openInMailClient(){
-  const to   = (document.getElementById('em-to')?.value   || EM.to   || '').trim();
-  const sub  = (document.getElementById('em-sub')?.value  || EM.subject || '').trim();
-  const body = (document.getElementById('em-body')?.value || EM.body  || '').trim();
-  if(!to){ toast('Destinataire manquant','e'); return; }
-  const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
-  window.open(url);
-  setTimeout(()=>{ logEmail(to,sub,body); toast('Email ouvert dans ta messagerie ✓','i'); }, 600);
-}
-
-function logEmail(to,subject,body){
-  DB.emails=DB.emails||[];
-  DB.emails.unshift({id:uid(),date:now_(),to,subject,body:body.slice(0,300),candId:EM.candId||null});
-  save();
-  // Refresh historique si on est sur la vue emails
-  if(UI.view==='emails')rEmails();
-}
-
-function reloadEmail(m){
-  EM={to:m.to||'',subject:m.subject||'',body:m.body||'',candId:m.candId||null};
-  const toEl=document.getElementById('em-to');
-  const subEl=document.getElementById('em-sub');
-  const bodyEl=document.getElementById('em-body');
-  if(toEl)toEl.value=EM.to;
-  if(subEl)subEl.value=EM.subject;
-  if(bodyEl)bodyEl.value=EM.body;
-}
-
-function resetEmailCompose(){
-  EM={to:'',subject:'',body:'',candId:null,tplKey:null};
-  ['em-to','em-sub','em-body'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const sel=document.getElementById('em-tpl');if(sel)sel.value='';
-  const csel=document.getElementById('em-cand');if(csel)csel.value='';
-  const st=document.getElementById('em-status');if(st)st.textContent='';
-}
-
-// ─── Paramètres emails ────────────────────────────────
-function openEmailSettings(){
-  const nom=localStorage.getItem('btp_user_name')||'';
-  const tel=localStorage.getItem('btp_user_tel')||'';
-  // Charger les templates personnalisés depuis localStorage
-  const custom=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-
-  const tplsHtml=Object.entries(EMAIL_TPLS).map(([key,tpl])=>{
-    const cusSubject=custom[key]?.subject||'';
-    const cusBody=custom[key]?.body||'';
-    return`
-    <div style="margin-bottom:16px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
-      <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac4)">${tpl.label}</div>
-      <div class="fgrp" style="margin-bottom:6px">
-        <span class="lbl" style="font-size:10px">Objet personnalisé <span style="color:var(--mu2)">(laisser vide = défaut)</span></span>
-        <input id="tpl-sub-${key}" value="${esc(cusSubject)}" placeholder="Objet par défaut du template" style="font-size:11px">
+// ── Composeur ────────────────────────────────────────
+function emRenderCompose(cands, cos, nom, tel){
+  return`
+    <!-- En-tête composeur -->
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--s1)">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Nouveau message</span>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <select id="em-tpl" onchange="emApplyTpl()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 7px;border-radius:2px">
+          <option value="">— Template —</option>
+          ${Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
+        </select>
+        <select id="em-cand" onchange="emPickContact()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 7px;border-radius:2px;max-width:150px">
+          <option value="">— Contact —</option>
+          <optgroup label="Candidats">
+            ${cands.map(c=>`<option value="cand:${c.id}">${esc(c.name)}</option>`).join('')}
+          </optgroup>
+          <optgroup label="Entreprises">
+            ${cos.map(c=>`<option value="co:${c.id}">${esc(c.name)}</option>`).join('')}
+          </optgroup>
+        </select>
       </div>
-      <div class="fgrp">
-        <span class="lbl" style="font-size:10px">Corps personnalisé <span style="color:var(--mu2)">(laisser vide = défaut)</span></span>
-        <textarea id="tpl-body-${key}" style="min-height:90px;font-size:11px;line-height:1.6" placeholder="Corps par défaut du template…">${esc(cusBody)}</textarea>
+    </div>
+
+    <!-- Champs -->
+    <div style="padding:0 14px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--s1)">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)">
+        <span style="font-size:10px;color:var(--mu);min-width:28px;text-align:right">À</span>
+        <input id="em-to" value="${esc(EM.to)}" placeholder="destinataire@email.fr" style="flex:1;font-size:12px;background:transparent;border:none;color:var(--tx);outline:none" oninput="EM.to=this.value">
       </div>
-      <button class="btn bd_ bxs" style="font-size:10px;margin-top:6px" onclick="resetTpl('${key}')">↺ Réinitialiser ce template</button>
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0">
+        <span style="font-size:10px;color:var(--mu);min-width:28px;text-align:right">Objet</span>
+        <input id="em-sub" value="${esc(EM.subject)}" placeholder="Objet de l'email" style="flex:1;font-size:12px;background:transparent;border:none;color:var(--tx);outline:none;font-weight:600" oninput="EM.subject=this.value">
+      </div>
+    </div>
+
+    <!-- Corps -->
+    <textarea id="em-body" style="flex:1;background:var(--s1);border:none;padding:14px;font-size:12px;line-height:1.8;color:var(--tx);resize:none;outline:none;font-family:'DM Mono',monospace;min-height:0" placeholder="Rédigez votre email ici…" oninput="EM.body=this.value">${esc(EM.body)}</textarea>
+
+    <!-- Barre d'actions -->
+    <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--s2)">
+      <button class="btn bp" onclick="emSend()" id="em-send-btn" style="min-width:100px">📤 Envoyer</button>
+      <button class="btn bg" onclick="emSaveDraft()" style="font-size:11px">💾 Brouillon</button>
+      <button class="btn bg" onclick="emOpenMailClient()" style="font-size:11px" title="Ouvrir dans Gmail/Outlook">🔗 Via messagerie</button>
+      <button class="btn bg" onclick="emClear()" style="font-size:11px">🗑 Effacer</button>
+      <div id="em-status" style="margin-left:auto;font-size:11px;color:var(--mu2);display:flex;align-items:center;gap:6px"></div>
     </div>`;
-  }).join('');
+}
 
-  openMo('⚙️ Paramètres Emails',`
-    <div style="max-height:70vh;overflow-y:auto;padding-right:4px">
-      <!-- Signature -->
-      <div style="margin-bottom:20px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd2);border-radius:3px">
-        <div style="font-size:11px;font-weight:700;margin-bottom:10px">✍️ Votre signature</div>
-        <div style="font-size:10px;color:var(--mu);margin-bottom:10px">Utilisée automatiquement dans tous les templates.</div>
-        <div class="fg">
-          <div class="fgrp">
-            <span class="lbl">Votre prénom et nom</span>
-            <input id="es-nom" value="${esc(nom)}" placeholder="ex: Louis Renault">
+// ── Vue Envoyés ──────────────────────────────────────
+function emRenderSent(history, cands){
+  if(!history.length) return`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:12px">Aucun email envoyé</div>`;
+  return`
+    <div style="overflow-y:auto;flex:1">
+      ${history.map((m,i)=>{
+        const c=m.candId?cById(m.candId):null;
+        const co=m.coId?coById(m.coId):null;
+        const contact=c?c.name:co?co.name:'';
+        return`<div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="emReopen(${i})">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
+            <span style="font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.subject||'—')}</span>
+            <span style="font-size:10px;color:var(--mu);flex-shrink:0">${fD(m.date)}</span>
           </div>
-          <div class="fgrp">
-            <span class="lbl">Votre numéro de téléphone</span>
-            <input id="es-tel" value="${esc(tel)}" placeholder="ex: 06 12 34 56 78">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;color:var(--ac2)">→ ${esc(m.to||'—')}</span>
+            ${contact?`<span style="font-size:10px;color:var(--mu)">(${esc(contact)})</span>`:''}
+            ${m.sent?`<span style="font-size:9px;background:rgba(61,224,154,.1);color:var(--ac2);padding:1px 5px;border-radius:8px;margin-left:auto">✓ Envoyé</span>`:`<span style="font-size:9px;background:rgba(224,74,74,.1);color:var(--ac3);padding:1px 5px;border-radius:8px;margin-left:auto">⚡ Messagerie</span>`}
           </div>
-        </div>
-        <div style="margin-top:8px;padding:8px 10px;background:var(--s2);border-radius:2px;font-size:11px;color:var(--mu)">
-          Aperçu signature :<br>
-          <strong style="color:var(--tx)" id="es-preview">${nom||'[Votre nom]'}${tel?' — '+tel:''}<br>Novalem — Cabinet de recrutement</strong>
-        </div>
-      </div>
-
-      <!-- Templates -->
-      <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--tx)">📝 Personnaliser les templates</div>
-      <div style="font-size:10px;color:var(--mu);margin-bottom:12px">
-        Les variables disponibles : <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[NOM]</code> <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[POSTE]</code> <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[LIEN_VISIO]</code> <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[SIGNATURE]</code>
-      </div>
-      ${tplsHtml}
-    </div>`,
-    `<button class="btn bg" onclick="closeMo()">Annuler</button>
-     <button class="btn bp" onclick="saveEmailSettings()">💾 Sauvegarder</button>`
-  );
-
-  // Live preview signature
-  document.getElementById('es-nom')?.addEventListener('input',updateSigPreview);
-  document.getElementById('es-tel')?.addEventListener('input',updateSigPreview);
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
-function updateSigPreview(){
-  const nom=document.getElementById('es-nom')?.value||'';
-  const tel=document.getElementById('es-tel')?.value||'';
-  const prev=document.getElementById('es-preview');
-  if(prev) prev.innerHTML=`${esc(nom)||'[Votre nom]'}${tel?' — '+esc(tel):''}<br>Novalem — Cabinet de recrutement`;
+// ── Vue Brouillons ───────────────────────────────────
+function emRenderDrafts(drafts, cands){
+  if(!drafts.length) return`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:12px">Aucun brouillon</div>`;
+  return`
+    <div style="overflow-y:auto;flex:1">
+      ${drafts.map((m,i)=>`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1" onclick="emLoadDraft(${i})">
+              <div style="font-size:11px;font-weight:600;margin-bottom:2px">${esc(m.subject||'(sans objet)')}</div>
+              <div style="font-size:10px;color:var(--mu)">→ ${esc(m.to||'(sans destinataire)')}</div>
+            </div>
+            <span style="font-size:10px;color:var(--mu2);flex-shrink:0">${fD(m.date)}</span>
+            <button class="btn bd_ bxs" onclick="emDeleteDraft(${i})">×</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
-function saveEmailSettings(){
-  const nom=document.getElementById('es-nom')?.value?.trim()||'';
-  const tel=document.getElementById('es-tel')?.value?.trim()||'';
-  localStorage.setItem('btp_user_name', nom);
-  localStorage.setItem('btp_user_tel', tel);
-
-  // Sauvegarder templates personnalisés
-  const custom={};
-  Object.keys(EMAIL_TPLS).forEach(key=>{
-    const sub=document.getElementById(`tpl-sub-${key}`)?.value?.trim()||'';
-    const body=document.getElementById(`tpl-body-${key}`)?.value?.trim()||'';
-    if(sub||body) custom[key]={subject:sub,body};
-  });
-  localStorage.setItem('btp_email_tpls', JSON.stringify(custom));
-
-  closeMo();
-  toast('✅ Paramètres emails sauvegardés','s');
-  rEmails(); // Refresh pour afficher la nouvelle signature
+// ── Actions ──────────────────────────────────────────
+function emPickContact(){
+  const val=document.getElementById('em-cand')?.value||'';
+  if(!val)return;
+  const [type,id]=val.split(':');
+  const contact=type==='cand'?cById(id):coById(id);
+  if(!contact)return;
+  EM.candId=type==='cand'?id:null;
+  EM.coId=type==='co'?id:null;
+  // Remplir le destinataire
+  const toEl=document.getElementById('em-to');
+  if(toEl&&contact.email){toEl.value=contact.email;EM.to=contact.email;}
+  // Si un template est sélectionné, le ré-appliquer avec ce contact
+  const tplKey=document.getElementById('em-tpl')?.value;
+  if(tplKey)emApplyTpl();
 }
 
-function resetTpl(key){
-  const subEl=document.getElementById(`tpl-sub-${key}`);
-  const bodyEl=document.getElementById(`tpl-body-${key}`);
-  if(subEl)subEl.value='';
-  if(bodyEl)bodyEl.value='';
-  toast(`Template "${EMAIL_TPLS[key]?.label}" réinitialisé`,'i');
-}
-
-// Surcharge applyEmailTpl pour tenir compte des templates personnalisés
-const _applyEmailTplOrig=applyEmailTpl;
-function applyEmailTpl(){
+function emApplyTpl(){
   const key=document.getElementById('em-tpl')?.value;
   if(!key)return;
-  const candId=document.getElementById('em-cand')?.value;
+  const tpl=EMAIL_TPLS[key];if(!tpl)return;
+  const candId=EM.candId;const coId=EM.coId;
   const c=candId?cById(candId):{};
   const nom=localStorage.getItem('btp_user_name')||'';
   const tel=localStorage.getItem('btp_user_tel')||'';
+  const dossier=localStorage.getItem('btp_dossier_url')||'';
   const custom=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-  const tpl=EMAIL_TPLS[key];
-  if(!tpl)return;
 
-  const signature=`${nom||'[Votre nom]'}${tel?'\n'+tel:''}\nNovalem — Cabinet de recrutement`;
-
-  // Utiliser template personnalisé si défini, sinon défaut
+  let to=EM.to||tpl.to(c||{});
   let subject=custom[key]?.subject||tpl.subject(c||{});
-  let body=custom[key]?.body||tpl.body(c||{},nom);
+  let body=custom[key]?.body||tpl.body(c||{},nom,tel,dossier);
 
-  // Remplacer les variables dans le body personnalisé
   if(custom[key]?.body){
     body=body
       .replace(/\[NOM\]/g,(c||{}).name||'')
       .replace(/\[POSTE\]/g,(c||{}).role||'')
-      .replace(/\[LIEN_VISIO\]/g,(c||{}).visio_link||'[LIEN À INSÉRER]')
-      .replace(/\[SIGNATURE\]/g,signature);
+      .replace(/\[LIEN_VISIO\]/g,(c||{}).visio_link||'[LIEN]')
+      .replace(/\[SIGNATURE\]/g,`${nom||''}${tel?'\n'+tel:''}\nNovalem — Cabinet de recrutement`);
   }
 
-  EM.to=tpl.to(c||{});
-  EM.subject=subject;
-  EM.body=body;
-  EM.candId=candId||null;
-  EM.tplKey=key;
+  EM.to=to;EM.subject=subject;EM.body=body;EM.tplKey=key;
 
   const toEl=document.getElementById('em-to');
   const subEl=document.getElementById('em-sub');
   const bodyEl=document.getElementById('em-body');
-  if(toEl)toEl.value=EM.to;
-  if(subEl)subEl.value=EM.subject;
-  if(bodyEl)bodyEl.value=EM.body;
+  if(toEl)toEl.value=to;
+  if(subEl)subEl.value=subject;
+  if(bodyEl)bodyEl.value=body;
 }
+
+function emQuickTpl(key){
+  EM_VIEW='compose';
+  emShowView('compose');
+  setTimeout(()=>{
+    const sel=document.getElementById('em-tpl');
+    if(sel){sel.value=key;emApplyTpl();}
+  },50);
+}
+
+async function emSend(){
+  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
+
+  if(!to){toast('Ajoutez un destinataire','e');document.getElementById('em-to')?.focus();return;}
+  if(!sub){toast('Ajoutez un objet','e');document.getElementById('em-sub')?.focus();return;}
+
+  const stEl=document.getElementById('em-status');
+  const btn=document.getElementById('em-send-btn');
+
+  const setStatus=(html)=>{if(stEl)stEl.innerHTML=html;};
+  if(btn){btn.disabled=true;btn.innerHTML='⏳ Envoi…';}
+  setStatus('<span style="color:var(--ac4)">⏳ Envoi en cours…</span>');
+
+  const apiBase=getApiBase();
+
+  if(!apiBase){
+    emOpenMailClient();
+    if(btn){btn.disabled=false;btn.innerHTML='📤 Envoyer';}
+    setStatus('');
+    return;
+  }
+
+  try{
+    const resp=await fetch(`${apiBase}/api/send-email`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to,subject:sub,body})
+    });
+    const data=await resp.json();
+
+    if(resp.ok&&(data.sent||data.id)){
+      // ✅ Succès — feedback visuel clair
+      setStatus('<span style="color:var(--ac2)">✅ Envoyé !</span>');
+      emLogEmail(to,sub,body,true);
+      toast(`✅ Email envoyé à ${to}`,'s');
+
+      // Animation de succès sur le bouton
+      if(btn){btn.innerHTML='✅ Envoyé !';btn.style.background='var(--ac2)';btn.style.color='#0a0a08';}
+
+      // Reset après 2s
+      setTimeout(()=>{
+        emClear();
+        setStatus('');
+        if(btn){btn.disabled=false;btn.innerHTML='📤 Envoyer';btn.style.background='';btn.style.color='';}
+        // Passer en vue "Envoyés" pour confirmation visuelle
+        emShowView('sent');
+      },2000);
+
+    } else {
+      setStatus(`<span style="color:var(--ac3)">❌ ${esc(data.error||'Erreur')}</span>`);
+      if(btn){btn.disabled=false;btn.innerHTML='📤 Envoyer';}
+
+      if(resp.status===403||data.hint){
+        openMo('⚠️ Domaine en attente de vérification',`
+          <div style="font-size:12px;line-height:1.8;color:var(--tx)">
+            Le domaine <strong>novalem-recrutement.fr</strong> n'est pas encore totalement vérifié sur Resend.<br><br>
+            <strong>Solution rapide :</strong> clique sur <strong>"🔗 Via messagerie"</strong> pour envoyer quand même depuis Gmail/Outlook.
+          </div>`,
+          `<button class="btn bg" onclick="closeMo()">Fermer</button>
+           <button class="btn bp" onclick="closeMo();emOpenMailClient()">🔗 Ouvrir dans ma messagerie</button>`
+        );
+      }
+    }
+  }catch(err){
+    setStatus('<span style="color:var(--ac3)">❌ Erreur réseau</span>');
+    if(btn){btn.disabled=false;btn.innerHTML='📤 Envoyer';}
+    toast('Erreur réseau — utilise "Via messagerie"','w');
+  }
+}
+
+function emOpenMailClient(){
+  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
+  if(!to){toast('Destinataire manquant','e');return;}
+  window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
+  setTimeout(()=>{emLogEmail(to,sub,body,false);toast('Email ouvert dans ta messagerie','i');},600);
+}
+
+function emLogEmail(to,subject,body,sent=true){
+  DB.emails=DB.emails||[];
+  DB.emails.push({
+    id:uid(),date:now_(),
+    to,subject,
+    body:body.slice(0,400),
+    candId:EM.candId||null,
+    coId:EM.coId||null,
+    sent
+  });
+  EM.candId=null;EM.coId=null;
+  save();
+}
+
+function emSaveDraft(){
+  const to=(document.getElementById('em-to')?.value||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||'').trim();
+  const body=(document.getElementById('em-body')?.value||'').trim();
+  if(!to&&!sub&&!body){toast('Brouillon vide','w');return;}
+  DB.drafts=DB.drafts||[];
+  DB.drafts.unshift({id:uid(),date:now_(),to,subject:sub,body,candId:EM.candId,coId:EM.coId});
+  save();
+  toast('Brouillon sauvegardé ✓','s');
+}
+
+function emLoadDraft(i){
+  const d=(DB.drafts||[])[i];if(!d)return;
+  EM={to:d.to||'',subject:d.subject||'',body:d.body||'',candId:d.candId||null,coId:d.coId||null,tplKey:null};
+  emShowView('compose');
+  // Supprimer le brouillon chargé
+  DB.drafts.splice(i,1);save();
+}
+
+function emDeleteDraft(i){
+  DB.drafts=(DB.drafts||[]);
+  DB.drafts.splice(i,1);save();
+  emShowView('drafts');
+}
+
+function emReopen(i){
+  const m=(DB.emails||[]).slice().reverse()[i];if(!m)return;
+  EM={to:m.to||'',subject:'Re: '+(m.subject||''),body:'\n\n──────────────────\n'+m.body||'',candId:m.candId||null,coId:m.coId||null,tplKey:null};
+  emShowView('compose');
+}
+
+function emClear(){
+  EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:null};
+  ['em-to','em-sub','em-body'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const sel=document.getElementById('em-tpl');if(sel)sel.value='';
+  const csel=document.getElementById('em-cand');if(csel)csel.value='';
+}
+
+// ── Ouvrir l'onglet email depuis ailleurs dans le CRM ─
+function openEmailWith({to='',subject='',body='',candId=null,coId=null,tplKey=null}={}){
+  EM={to,subject,body,candId,coId,tplKey};
+  EM_VIEW='compose';
+  go('emails');
+}
+
+function emailFromCand(candId,tplKey){
+  const c=cById(candId);if(!c)return;
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem('btp_user_tel')||'';
+  const dossier=localStorage.getItem('btp_dossier_url')||'';
+  const tpl=EMAIL_TPLS[tplKey||'blank'];
+  openEmailWith({
+    to:tpl.to(c),
+    subject:tpl.subject(c),
+    body:tpl.body(c,nom,tel,dossier),
+    candId,tplKey
+  });
+}
+
+// Legacy aliases
+function sendEmailNow(){emSend();}
+function openInMailClient(){emOpenMailClient();}
+function logEmail(to,sub,body){emLogEmail(to,sub,body,true);}
+function resetEmailCompose(){emClear();}
+function quickLoadTpl(k){emQuickTpl(k);}
+
+
 
 // ═══════════════════════════════════════════════════════
 // REPORTING
@@ -4245,6 +4277,62 @@ function addBonneBoiteProspect(idx){
     rows[idx].style.pointerEvents='none';
     rows[idx].querySelector('button').textContent='✓ Ajouté';
   }
+}
+
+// Alias manquant — findBonnesBoites est dans api/, ici c'est juste le wrapper frontend
+function findBonnesBoites(params){ return searchBonnesBoites(); }
+
+// Upload intelligent avec classification IA
+async function handleSmartUpload(event, candId){
+  const files=[...event.target.files];if(!files.length)return;
+  const c=cById(candId);if(!c)return;
+  c.docs=c.docs||[];
+  let classified=0,unknown=0;
+  toast(`🔍 Classification de ${files.length} fichier(s)…`,'i');
+
+  const DOC_KEYWORDS={
+    cv:['cv','curriculum','experience','formation','competences','profil','parcours'],
+    id_card:['identite','cni','passeport','carte nationale','piece identite'],
+    permis:['permis','driving','license'],
+    carte_vit:['vitale','secu','securite sociale','ameli'],
+    visite_med:['visite','aptitude','medecine','vip','sir'],
+    rgpd:['rgpd','consentement','gdpr','protection'],
+    auth_ref:['reference','autorisation','controle'],
+    dossier:['dossier','candidature','novalem'],
+    diplomes:['diplome','bac','bts','licence','master','cap','bep','certificat'],
+    photo:['photo','portrait'],
+  };
+
+  for(const file of files){
+    if(file.size>3*1024*1024){toast(`${file.name} trop lourd (max 3MB)`,'e');continue;}
+    const nameLower=file.name.toLowerCase();
+    let detected=null;
+    for(const [docId,kws] of Object.entries(DOC_KEYWORDS)){
+      if(kws.some(kw=>nameLower.includes(kw))){detected=docId;break;}
+    }
+
+    await new Promise(res=>{
+      const reader=new FileReader();
+      reader.onload=(e)=>{
+        const data=e.target.result;
+        if(detected){
+          const idx=c.docs.findIndex(d=>d.id===detected);
+          const docData={id:detected,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:data};
+          if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
+          classified++;
+          toast(`✅ "${file.name}" → ${DOCS_LIST.find(d=>d.id===detected)?.l||detected}`,'s');
+        } else {
+          unknown++;
+          toast(`❓ "${file.name}" non reconnu — uploadez manuellement`,'w');
+        }
+        res();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  c.updated=now_();save();
+  renderCandPanelTab(candId);
+  toast(`${classified} classé(s)${unknown>0?`, ${unknown} à classer manuellement`:''}`,classified>0?'s':'w');
 }
 
 let repPeriod='month'; // 'week' | 'month' | 'quarter' | 'all'
