@@ -402,14 +402,6 @@ select option{background:var(--s2)}
 .btn-full{width:100%;justify-content:center}
 .mt14{margin-top:14px}
 
-/* EMAIL COMPOSE */
-.em-compose{background:var(--s2);border:1px solid var(--bd2);border-radius:3px;padding:12px;margin-bottom:8px}
-.em-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.em-hist-item{padding:7px 10px;background:var(--s3);border-radius:2px;margin-bottom:4px;font-size:11px}
-
-/* DOC requis badge */
-.doc-req-badge{font-size:9px;color:var(--ac3);font-family:'DM Mono',monospace;margin-left:4px;letter-spacing:.04em}
-
 /* REPORTING */
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:20px}
 .rep-kpi{background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:14px 16px;position:relative;overflow:hidden}
@@ -461,6 +453,7 @@ select option{background:var(--s2)}
     <div class="nav-sec">Outils</div>
     <div class="ni" data-v="agenda"><span class="ni-ico">📅</span>Agenda<span class="nbadge nb-red" id="badge-ag" style="display:none">0</span></div>
     <div class="ni" data-v="posts"><span class="ni-ico">📝</span>Annonces</div>
+    <div class="ni" data-v="emails"><span class="ni-ico">✉️</span>Emails</div>
     <div class="ni" data-v="reporting"><span class="ni-ico">📊</span>Reporting</div>
   </div>
   <div class="nav-footer">
@@ -483,6 +476,7 @@ select option{background:var(--s2)}
     <div class="view" id="view-clients"></div>
     <div class="view" id="view-agenda"></div>
     <div class="view" id="view-posts"></div>
+    <div class="view" id="view-emails"></div>
     <div class="view" id="view-reporting"></div>
   </div>
 </div>
@@ -543,157 +537,18 @@ const COMP_ST=[
 ];
 
 const DOCS_LIST=[
-  {id:'cv',         l:'CV',                              ico:'📄', required:true,  stage:'precal'},
-  {id:'dossier',    l:'Dossier candidature signé',       ico:'📋', required:true,  stage:'interview'},
-  {id:'id_card',    l:"Pièce d'identité (recto/verso)",  ico:'🪪', required:true,  stage:'interview'},
-  {id:'permis',     l:'Permis de conduire',               ico:'🚗', required:false, stage:'interview'},
-  {id:'carte_vit',  l:'Carte vitale',                    ico:'💳', required:false, stage:'dossier'},
-  {id:'visite_med', l:'Visite médicale / Aptitude',      ico:'🏥', required:false, stage:'dossier'},
-  {id:'rgpd',       l:'RGPD / Consentement signé',       ico:'🔒', required:true,  stage:'interview'},
-  {id:'auth_ref',   l:'Autorisation contrôle référence', ico:'✅', required:false, stage:'presented'},
-  {id:'diplomes',   l:'Diplômes / Certifications',       ico:'🎓', required:false, stage:'dossier'},
-  {id:'photo',      l:'Photo identité',                  ico:'📸', required:false, stage:'dossier'},
+  {id:'cv',         l:'CV',                              ico:'📄'},
+  {id:'id_card',    l:"Pièce d'identité (recto/verso)",  ico:'🪪'},
+  {id:'carte_vit',  l:'Carte vitale',                    ico:'💳'},
+  {id:'permis',     l:'Permis de conduire',               ico:'🚗'},
+  {id:'att_permis', l:"Attestation honneur permis",       ico:'📝'},
+  {id:'visite_med', l:'Visite médicale',                  ico:'🏥'},
+  {id:'rgpd',       l:'RGPD signé',                       ico:'🔒'},
+  {id:'auth_ref',   l:'Autorisation contrôle référence',  ico:'✅'},
+  {id:'dossier',    l:'Dossier candidature complet signé',ico:'📋'},
 ];
 // Legacy compat — some old candidates stored docs as string arrays
 const DOCS=DOCS_LIST.map(d=>d.l);
-
-// ── EMAIL TEMPLATES PAR ÉTAPE ────────────────────────────
-const EMAIL_TEMPLATES={
-  precal:{
-    label:'Confirmation précal',
-    subject:(c)=>`Suite à notre échange — ${c.role||'Poste BTP'}`,
-    body:(c)=>`Bonjour ${c.name?.split(' ')[0]||''},
-
-Suite à notre échange téléphonique, je me permets de vous faire parvenir le lien pour notre entretien visio ainsi que notre dossier de candidature à compléter.
-
-🎥 Lien de l'entretien : ${c.visio_link||'[LIEN À INSÉRER]'}
-📅 Date et heure : [DATE ET HEURE]
-
-📋 Merci de compléter le dossier de candidature ci-joint et de me le retourner accompagné des documents suivants avant notre entretien :
-- CV à jour
-- Pièce d'identité (recto/verso)
-- Permis de conduire (si applicable)
-
-Ces documents sont indispensables pour que je puisse vous présenter dans les meilleures conditions auprès de nos clients.
-
-En cas de question, n'hésitez pas à me contacter directement.
-
-Bonne journée,
-[VOTRE NOM]
-BTPRecruit — Cabinet de recrutement BTP
-[VOTRE TÉLÉPHONE]`
-  },
-  dossier:{
-    label:'Relance dossier',
-    subject:(c)=>`[Relance] Dossier de candidature — ${c.name}`,
-    body:(c)=>`Bonjour ${c.name?.split(' ')[0]||''},
-
-Je me permets de vous relancer concernant votre dossier de candidature.
-
-Afin de pouvoir vous présenter dans les meilleures conditions auprès de nos clients, j'ai encore besoin des éléments suivants :
-[LISTE DOCUMENTS MANQUANTS]
-
-Sans ces éléments, je ne pourrai malheureusement pas envoyer votre profil.
-
-Merci de votre réactivité,
-[VOTRE NOM]
-BTPRecruit`
-  },
-  interview:{
-    label:'Confirmation entretien',
-    subject:(c)=>`Confirmation de votre entretien — ${c.role||'Poste BTP'}`,
-    body:(c)=>`Bonjour ${c.name?.split(' ')[0]||''},
-
-Je confirme notre entretien visio :
-📅 Date : [DATE]
-⏰ Heure : [HEURE]
-🎥 Lien : ${c.visio_link||'[LIEN À INSÉRER]'}
-
-Pensez à vous connecter quelques minutes avant. Ayez votre CV sous la main.
-
-À très vite,
-[VOTRE NOM]
-BTPRecruit`
-  },
-  presented:{
-    label:'Profil envoyé au client',
-    subject:(c)=>`Profil candidat — ${c.role||'Poste BTP'} — ${c.name}`,
-    body:(c)=>`Bonjour,
-
-Comme convenu, je vous fais parvenir le profil de ${c.name} pour le poste de ${c.role||'[POSTE]'}.
-
-Résumé du profil :
-- Poste : ${c.role||'—'}
-- Expérience : [ANNÉES]
-- Disponibilité : ${c.avail||'—'}
-- Mobilité : ${c.mobility||'—'}
-- Prétentions : ${c.salary?c.salary+'K€/an brut':'—'}
-
-Le dossier complet est disponible sur simple demande.
-
-Je reste disponible pour tout échange,
-[VOTRE NOM]
-BTPRecruit`
-  },
-  placed:{
-    label:'Confirmation placement',
-    subject:(c)=>`🎉 Placement confirmé — ${c.name}`,
-    body:(c)=>`Bonjour,
-
-Je suis heureux de vous confirmer le placement de ${c.name} sur le poste de ${c.role||'[POSTE]'}.
-
-Date de prise de poste : [DATE]
-Salaire convenu : ${c.salary?c.salary+'K€/an brut':'—'}
-
-Conformément à nos accords, notre note d'honoraires vous parviendra prochainement.
-
-Merci pour votre confiance,
-[VOTRE NOM]
-BTPRecruit`
-  }
-};
-
-// ── IA CLASSIFICATION DOCS ───────────────────────────────
-// Mots-clés pour identifier automatiquement un document
-const DOC_AI_KEYWORDS={
-  cv:        ['cv','curriculum','expérience','formation','compétences','profil','parcours'],
-  id_card:   ["carte nationale","carte d'identité","cni","passeport","identité","pièce d'identité"],
-  permis:    ['permis de conduire','permis b','permis a','driving'],
-  carte_vit: ['carte vitale','sécurité sociale','assurance maladie','ameli'],
-  visite_med:['visite médicale','aptitude','médecine du travail','vip','sir','inaptitude'],
-  rgpd:      ['rgpd','consentement','données personnelles','gdpr','protection des données'],
-  auth_ref:  ['référence','autorisation','contrôle','ancien employeur'],
-  dossier:   ['dossier de candidature','candidature','novalem','btprecruit'],
-  diplomes:  ['diplôme','bac','bts','licence','master','cap','bep','certificat','formation'],
-  photo:     ['photo','photographie','portrait'],
-};
-
-async function aiClassifyDoc(fileName, fileData){
-  const nameLower=(fileName||'').toLowerCase();
-  // Essai rapide sur le nom du fichier d'abord
-  for(const [docId, keywords] of Object.entries(DOC_AI_KEYWORDS)){
-    if(keywords.some(kw=>nameLower.includes(kw))) return docId;
-  }
-  // Si le nom ne suffit pas et qu'on a une clé Anthropic → analyse IA
-  const key=localStorage.getItem('btp_anthropic_key');
-  if(!key||!fileData) return null;
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',max_tokens:50,
-        messages:[{role:'user',content:[
-          {type:'text',text:`Nom du fichier: "${fileName}". Quel type de document est-ce ? Réponds UNIQUEMENT avec un de ces codes: cv, id_card, permis, carte_vit, visite_med, rgpd, auth_ref, dossier, diplomes, photo, inconnu`},
-          ...(fileData.startsWith('data:image')?[{type:'image',source:{type:'base64',media_type:fileData.split(';')[0].split(':')[1],data:fileData.split(',')[1]}}]:[])
-        ]}]
-      })
-    });
-    const data=await resp.json();
-    const code=(data.content?.[0]?.text||'').trim().toLowerCase();
-    return DOCS_LIST.find(d=>d.id===code)?code:null;
-  }catch(e){return null;}
-}
 const SOURCES=['LinkedIn','Indeed','France Travail','CVtech','Candidature spontanée','APEC','Welcome to the Jungle','Réseau / Recommandation','Cold outreach'];
 const PRO_TABS=[
   {id:'active',l:'📞 À appeler / En cours'},
@@ -857,11 +712,11 @@ function go(v){
   document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('act',el.dataset.v===v));
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
-  const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',reporting:'Reporting'};
+  const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting'};
   document.getElementById('tbt').textContent=T[v]||v;
   const A={dash:'',cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importProsCsv(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
   document.getElementById('tba').innerHTML=A[v]||'';
-  ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,agenda:rAgenda,posts:rPosts,reporting:rReporting})[v]?.();
+  ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting})[v]?.();
   badges();
 }
 
@@ -1715,9 +1570,10 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
 function setCPTab(i,id){UI.ptab=i;renderCandPanelTab(id);}
 function renderCandPanelTab(id){
   const c=cById(id);if(!c)return;
-  const tabs=[renderCPProfil,renderCPFichiers,renderCPEntretien,renderCPEmails,renderCPRefs];
+  const tabs=[renderCPProfil,renderCPEntretien,renderCPFichiers,renderCPRefs];
   document.getElementById('pb').innerHTML=(tabs[UI.ptab]||tabs[0])(c);
-  if(UI.ptab===1) bindFileInputs(id);
+  // Bind file inputs after render
+  if(UI.ptab===2) bindFileInputs(id);
 }
 
 // TAB 0 — PROFIL
@@ -1760,37 +1616,26 @@ function renderCPEntretien(c){
 function renderCPFichiers(c){
   const docs=c.docs||[];
   const uploaded=docs.filter(d=>d.file).length;
-  const reqDocs=DOCS_LIST.filter(d=>d.required);
-  const reqOk=reqDocs.filter(d=>docs.find(x=>x.id===d.id&&x.file)).length;
-  const reqTotal=reqDocs.length;
-  const allOk=reqOk===reqTotal;
-
   return`
     <div class="flex fjb fac mb8">
-      <div>
-        <span class="fs11">${uploaded}/${DOCS_LIST.length} documents</span>
-        <span style="font-size:10px;margin-left:8px;color:${allOk?'var(--ac2)':'var(--ac3)'}">${allOk?'✅ Obligatoires OK':`⚠️ ${reqTotal-reqOk} requis manquants`}</span>
-      </div>
-      <div class="pgbar" style="width:80px"><div class="pgfill" style="width:${Math.round(uploaded/DOCS_LIST.length*100)}%"></div></div>
+      <span class="fs11">${uploaded}/${DOCS_LIST.length} documents</span>
+      <div class="pgbar" style="width:100px"><div class="pgfill" style="width:${Math.round(uploaded/DOCS_LIST.length*100)}%"></div></div>
     </div>
-    <div style="margin-bottom:10px">
-      <label class="btn bg bsm" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-        ✨ Upload intelligent (IA)
-        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" multiple onchange="handleSmartUpload(event,'${c.id}')">
-      </label>
-      <span style="font-size:10px;color:var(--mu);margin-left:6px">L'IA classe automatiquement vos fichiers</span>
+    <div class="info-box mb10 fs10">
+      💾 Les fichiers sont stockés dans votre navigateur (localStorage).<br>
+      <strong>Pour une solution cloud professionnelle</strong>, je vous expliquerai comment connecter Supabase / Google Drive quand vous êtes prêt.
     </div>
     ${DOCS_LIST.map(d=>{
       const existing=docs.find(x=>x.id===d.id);
       return`<div class="file-row">
         <div class="file-ico">${d.ico}</div>
         <div class="file-info">
-          <div class="file-name">${esc(d.l)}${d.required?`<span style="color:var(--ac3);font-size:9px;margin-left:4px">●requis</span>`:''}</div>
+          <div class="file-name">${esc(d.l)}</div>
           ${existing?.name?`<div class="file-meta">📁 ${esc(existing.name)} · ${existing.size||''} · ${fD(existing.date)}</div>`:`<div class="file-meta mu_">Non reçu</div>`}
         </div>
-        <span class="file-status ${existing?.file?'fs-ok':'fs-miss'}">${existing?.file?'✓':'!'}</span>
+        <span class="file-status ${existing?.file?'fs-ok':'fs-miss'}">${existing?.file?'✓ OK':'Manquant'}</span>
         <label class="file-upload-btn">
-          ${existing?.file?'↑':'↑ Upload'}
+          ${existing?.file?'↑ Remplacer':'↑ Upload'}
           <input type="file" data-docid="${d.id}" data-candid="${c.id}" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="handleFileUpload(event)">
         </label>
         ${existing?.file?`<button class="btn bd_ bxs" onclick="removeDoc('${c.id}','${d.id}')">×</button>`:''}
@@ -1802,137 +1647,38 @@ function renderCPFichiers(c){
         <span class="ai-badge">✨ IA</span>
         <strong>Extraction automatique des données du CV</strong>
       </div>
+      <div style="font-size:10px;color:var(--mu);margin-bottom:8px">Nom, email, téléphone, poste, salaire, disponibilité → pré-remplis automatiquement dans la fiche.</div>
       <button id="ai-btn-${c.id}" class="btn bsm" style="background:rgba(154,74,224,.15);color:var(--ac6);border:1px solid rgba(154,74,224,.3)" onclick="aiExtractCV('${c.id}')">🤖 Analyser CV avec IA</button>
       ${c.cv_extracted?`<div style="font-size:10px;color:var(--ac2);margin-top:5px">✅ Dernière extraction effectuée</div>`:''}
     </div>`:`
     <div style="margin-top:10px;font-size:10px;color:var(--mu2)">💡 Uploadez le CV pour activer l'extraction IA automatique.</div>`}`;
 }
-
-// Upload intelligent : l'IA classe automatiquement le fichier
-async function handleSmartUpload(event, candId){
-  const files=[...event.target.files];if(!files.length)return;
-  const c=cById(candId);if(!c)return;
-  c.docs=c.docs||[];
-  let classified=0, unknown=0;
-  toast(`🔍 Classification de ${files.length} fichier(s)…`,'i');
-  for(const file of files){
-    if(file.size>3*1024*1024){toast(`${file.name} trop lourd (max 3MB)`,'e');continue;}
-    const reader=new FileReader();
-    await new Promise(res=>{
-      reader.onload=async(e)=>{
-        const data=e.target.result;
-        const docId=await aiClassifyDoc(file.name, data);
-        if(docId){
-          const idx=c.docs.findIndex(d=>d.id===docId);
-          const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:data};
-          if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
-          classified++;
-          toast(`✅ "${file.name}" → ${DOCS_LIST.find(d=>d.id===docId)?.l||docId}`,'s');
-        } else {
-          unknown++;
-          toast(`❓ "${file.name}" non reconnu — uploadez manuellement`,'w');
-        }
-        res();
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-  c.updated=now_();save();
-  renderCandPanelTab(candId);
-  toast(`${classified} classé(s)${unknown>0?`, ${unknown} manuel(s)`:''}`, classified>0?'s':'w');
-}
-
-// TAB 3 — EMAILS
-function renderCPEmails(c){
-  const stageTemplates={
-    precal:['precal'],
-    dossier:['dossier'],
-    interview:['interview'],
-    presented:['presented'],
-    placed:['placed'],
+function bindFileInputs(candId){/* inputs already bound via onchange in HTML */}
+function handleFileUpload(event){
+  const input=event.target;
+  const docId=input.dataset.docid;
+  const candId=input.dataset.candid;
+  const file=input.files[0];if(!file)return;
+  const maxSize=3*1024*1024; // 3MB limit
+  if(file.size>maxSize){toast('Fichier trop lourd (max 3MB)','e');return;}
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    const c=cById(candId);if(!c)return;
+    c.docs=c.docs||[];
+    const idx=c.docs.findIndex(d=>d.id===docId);
+    const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:e.target.result};
+    if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
+    c.updated=now_();save();
+    renderCandPanelTab(candId);
+    toast(`${file.name} uploadé ✓`,'s');
   };
-  const relevantKeys=stageTemplates[c.status]||Object.keys(EMAIL_TEMPLATES);
-  const allTpls=Object.keys(EMAIL_TEMPLATES);
-  const hasEmail=!!c.email;
-  const emailHistory=(c.emails||[]);
-
-  return`
-    ${!hasEmail?`<div style="padding:10px;background:rgba(223,74,74,.08);border:1px solid rgba(223,74,74,.25);border-radius:3px;font-size:11px;color:var(--ac3);margin-bottom:12px">⚠️ Pas d'email renseigné pour ce candidat. <button class="btn bg bxs" onclick="openCandForm('${c.id}')">Ajouter →</button></div>`:''}
-
-    <div class="sl mb8">📨 Email suggéré pour cette étape</div>
-    ${relevantKeys.map(key=>{
-      const tpl=EMAIL_TEMPLATES[key];
-      return`<div style="margin-bottom:8px;padding:10px 12px;background:var(--s3);border:1px solid var(--bd2);border-radius:3px">
-        <div class="flex fjb fac mb6">
-          <span style="font-size:11px;font-weight:600">${tpl.label}</span>
-          <div class="flex fg5">
-            <button class="btn bp bxs" onclick="openEmailCompose('${c.id}','${key}')" ${!hasEmail?'disabled':''}>✉️ Composer</button>
-            <button class="btn bg bxs" onclick="sendEmailMailto('${c.id}','${key}')">📬 Ouvrir messagerie</button>
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--mu)">Objet : ${esc(tpl.subject(c))}</div>
-      </div>`;
-    }).join('')}
-
-    <div class="sl mt14">Tous les templates</div>
-    <div class="flex fw fg5 mb12">
-      ${allTpls.map(key=>`<button class="btn bg bxs" onclick="openEmailCompose('${c.id}','${key}')">${EMAIL_TEMPLATES[key].label}</button>`).join('')}
-    </div>
-
-    ${emailHistory.length?`
-    <div class="sl">Historique (${emailHistory.length})</div>
-    ${emailHistory.map((m,i)=>`
-      <div style="padding:8px 10px;background:var(--s3);border-radius:3px;margin-bottom:4px;font-size:11px">
-        <div class="flex fjb"><span style="color:var(--mu)">${fD(m.date)}</span><span class="pill pnew fs9">${m.type||'envoyé'}</span></div>
-        <div style="margin-top:3px">${esc(m.subject||'—')}</div>
-      </div>`).join('')}`:'<div class="mu_ fs11 mt8">Aucun email enregistré</div>'}`;
+  reader.readAsDataURL(file);
 }
-
-function openEmailCompose(candId, tplKey){
+function formatSize(bytes){if(bytes<1024)return bytes+'o';if(bytes<1024*1024)return Math.round(bytes/1024)+'Ko';return(bytes/1024/1024).toFixed(1)+'Mo';}
+function removeDoc(candId,docId){
   const c=cById(candId);if(!c)return;
-  const tpl=EMAIL_TEMPLATES[tplKey];if(!tpl)return;
-  const subject=tpl.subject(c);
-  const body=tpl.body(c);
-  openMo(`✉️ ${tpl.label}`,`
-    <div class="fg">
-      <div class="fgrp"><span class="lbl">À</span><input id="em-to" value="${esc(c.email||'')}" placeholder="email@candidat.fr"></div>
-      <div class="fgrp"><span class="lbl">Objet</span><input id="em-sub" value="${esc(subject)}"></div>
-      <div class="fgrp"><span class="lbl">Message</span><textarea id="em-body" style="min-height:220px;font-size:11px;line-height:1.7">${esc(body)}</textarea></div>
-    </div>`,
-    `<button class="btn bg" onclick="closeMo()">Annuler</button>
-     <button class="btn bg bsm" onclick="sendEmailMailtoFromCompose('${candId}','${tplKey}')">📬 Ouvrir messagerie</button>
-     <button class="btn bp" onclick="logEmailSent('${candId}','${tplKey}');closeMo()">✅ Marquer envoyé</button>`
-  );
-}
-
-function sendEmailMailto(candId, tplKey){
-  const c=cById(candId);if(!c)return;
-  const tpl=EMAIL_TEMPLATES[tplKey];if(!tpl)return;
-  const subject=encodeURIComponent(tpl.subject(c));
-  const body=encodeURIComponent(tpl.body(c));
-  const to=c.email||'';
-  window.open(`mailto:${to}?subject=${subject}&body=${body}`);
-  // Propose de logger
-  setTimeout(()=>{if(confirm('Email ouvert dans votre messagerie. Marquer comme envoyé ?'))logEmailSent(candId,tplKey);},1000);
-}
-
-function sendEmailMailtoFromCompose(candId, tplKey){
-  const to=document.getElementById('em-to')?.value||'';
-  const sub=document.getElementById('em-sub')?.value||'';
-  const body=document.getElementById('em-body')?.value||'';
-  window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
-  logEmailSent(candId, tplKey, sub);
-  closeMo();
-}
-
-function logEmailSent(candId, tplKey, subject){
-  const c=cById(candId);if(!c)return;
-  c.emails=c.emails||[];
-  const tpl=EMAIL_TEMPLATES[tplKey];
-  c.emails.unshift({date:now_(),type:tplKey,subject:subject||tpl?.subject(c)||tplKey});
-  c.updated=now_();save();
-  toast('Email enregistré dans l\'historique ✓','s');
-  renderCandPanelTab(candId);
+  c.docs=(c.docs||[]).filter(d=>d.id!==docId);c.updated=now_();save();
+  renderCandPanelTab(candId);toast('Fichier supprimé','w');
 }
 
 // TAB 3 — RÉFÉRENCES
@@ -2729,25 +2475,18 @@ function setPTab(t){
 
 // ── CANDIDATE PANEL ──────────────────────────────────────
 function openCandPanel(id){
-  UI.ptype='cand';UI.pid=id;if(UI.ptab===undefined)UI.ptab=0;
+  UI.ptype='cand';UI.pid=id;if(!UI.ptab)UI.ptab=0;
   const c=cById(id);if(!c)return;
   const cat=getCat(c.cat);const st=getCS(c.status);
-  // Calcul docs requis manquants
+  const tabNames=['Profil','Fichiers','Entretien','Références'];
+  const tabs=tabNames.map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
   const docs=c.docs||[];
-  const reqMissing=DOCS_LIST.filter(d=>d.required&&!docs.find(x=>x.id===d.id&&x.file)).length;
-  const tabNames=['Profil','Fichiers','Entretien','Emails','Références'];
-  const tabs=tabNames.map((t,i)=>{
-    let badge='';
-    if(i===1&&reqMissing>0)badge=`<span class="nbadge nb-red" style="display:inline-flex;margin-left:4px">${reqMissing}</span>`;
-    return`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}${badge}</div>`;
-  }).join('');
-  const docs2=c.docs||[];
   const B=[
     // 0 PROFIL
     `${c.phone?`<div class="callbox"><div class="callbox-ph">${fPhone(c.phone)}</div><div class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">⧉ Copier</div></div>`:''}
     <div class="dr"><span class="drk">Poste ciblé</span><span class="drv">${esc(c.role||'—')}</span></div>
     <div class="dr"><span class="drk">Salaire brut/an</span><span class="drv">${fM(c.salary)} <span class="mu_ fs10">(hon. ${honor(c.salary)})</span></span></div>
-    <div class="dr"><span class="drk">Email</span><span class="drv">${c.email?`<a href="mailto:${esc(c.email)}" style="color:var(--ac2)">${esc(c.email)}</a>`:'—'}</span></div>
+    <div class="dr"><span class="drk">Email</span><span class="drv">${esc(c.email||'—')}</span></div>
     <div class="dr"><span class="drk">Disponibilité</span><span class="drv">${esc(c.avail||'—')}</span></div>
     <div class="dr"><span class="drk">Mobilité</span><span class="drv">${esc(c.mobility||'—')}</span></div>
     <div class="dr"><span class="drk">Source</span><span class="drv">${esc(c.source||'—')}</span></div>
@@ -2770,9 +2509,7 @@ function openCandPanel(id){
     <div class="sl mt12">Notes générales</div>
     <textarea id="gen-note-${id}" style="min-height:60px">${esc(c.notes||'')}</textarea>
     <button class="btn bg bsm mt6" onclick="saveGenNote('${id}')">Sauvegarder note</button>`,
-    // 3 EMAILS
-    renderCPEmails(c),
-    // 4 RÉFÉRENCES
+    // 3 RÉFÉRENCES
     `<div class="dr"><span class="drk">Contrôle REF</span><span class="drv">${c.ref_done?'✅ Fait':'⏳ À faire'}</span></div>
     <div class="sl">Références <span><button class="btn bg bxs" onclick="addRef('${id}')">+ Ajouter</button></span></div>
     ${(c.refs||[]).length?(c.refs||[]).map((r,i)=>`<div class="refcard">
@@ -3165,21 +2902,7 @@ function savePostForm(id){
 // ═══════════════════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════════════════
-function setCS(id,st){
-  const c=cById(id);if(!c)return;
-  // Bloquer passage en entretien si docs requis manquants
-  if(st==='interview'){
-    const docs=c.docs||[];
-    const missing=DOCS_LIST.filter(d=>d.required&&d.stage==='interview'&&!docs.find(x=>x.id===d.id&&x.file));
-    if(missing.length>0){
-      const cont=confirm(`⚠️ Documents requis manquants avant l'entretien :\n${missing.map(d=>`• ${d.l}`).join('\n')}\n\nVoulez-vous quand même continuer ?`);
-      if(!cont)return;
-    }
-  }
-  c.status=st;c.updated=now_();save();
-  if(UI.pid===id)openCandPanel(id);
-  rCands();badges();toast(`→ ${getCS(st).l}`,'s');
-}
+function setCS(id,st){const c=cById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCandPanel(id);rCands();badges();toast(`→ ${getCS(st).l}`,'s');}
 function setCmpS(id,st){const c=coById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCoPanel(id);if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast(`→ ${getCmpS(st).l}`,'s');}
 function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_();save();if(UI.pid===id)openNeedPanel(id);rNeeds();badges();toast(`→ ${st}`,'s');}
 function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
@@ -3768,6 +3491,479 @@ async function autoPostToBoard(postId,board){
     if(btn){btn.textContent='🚀 Poster auto';btn.disabled=false;}
     toast(`Erreur ${board}: ${err.message}`,'e');
   }
+}
+
+// ═══════════════════════════════════════════════════════
+// EMAILS — vue principale
+// ═══════════════════════════════════════════════════════
+
+// Templates pré-rédigés
+const EMAIL_TPLS={
+  precal:{
+    label:'📞 Confirmation précal',
+    to:(c)=>c.email||'',
+    subject:(c)=>`Suite à notre échange — ${c.role||'Poste BTP'}`,
+    body:(c,nom)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+
+Suite à notre échange téléphonique, je me permets de vous faire parvenir le lien pour notre entretien visio ainsi que notre dossier de candidature à compléter.
+
+🎥 Lien de l'entretien : ${c.visio_link||'[LIEN À INSÉRER]'}
+📅 Date et heure : [DATE ET HEURE]
+
+📋 Merci de me retourner avant notre entretien :
+- Votre CV à jour
+- Votre pièce d'identité (recto/verso)
+- Votre permis de conduire (si applicable)
+- Le dossier de candidature complété et signé
+
+Ces documents sont indispensables pour vous présenter dans les meilleures conditions auprès de nos clients.
+
+N'hésitez pas à me contacter pour toute question.
+
+Bonne journée,
+${nom||'[VOTRE NOM]'}
+BTPRecruit — Cabinet de recrutement BTP`
+  },
+  relance_dossier:{
+    label:'📋 Relance dossier',
+    to:(c)=>c.email||'',
+    subject:(c)=>`[Relance] Dossier de candidature — ${c.name||''}`,
+    body:(c,nom)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+
+Je me permets de vous relancer concernant votre dossier de candidature.
+
+Sans les documents complets, je ne pourrai malheureusement pas transmettre votre profil à nos clients.
+
+Pourriez-vous me faire parvenir les éléments manquants dans les meilleurs délais ?
+
+Merci pour votre réactivité,
+${nom||'[VOTRE NOM]'}
+BTPRecruit`
+  },
+  confirmation_entretien:{
+    label:'🎥 Confirmation entretien visio',
+    to:(c)=>c.email||'',
+    subject:(c)=>`Confirmation de votre entretien — ${c.role||'Poste BTP'}`,
+    body:(c,nom)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+
+Je confirme notre entretien visio :
+
+📅 Date : ${c.int_date_planned?new Date(c.int_date_planned).toLocaleDateString('fr-FR'):'[DATE]'}
+⏰ Heure : ${c.int_time||'[HEURE]'}
+🎥 Lien : ${c.visio_link||'[LIEN À INSÉRER]'}
+
+Pensez à vous connecter quelques minutes avant et à avoir votre CV sous la main.
+
+À très vite,
+${nom||'[VOTRE NOM]'}
+BTPRecruit`
+  },
+  envoi_profil:{
+    label:'📤 Envoi profil au client',
+    to:()=>'',
+    subject:(c)=>`Profil candidat — ${c.role||'Poste BTP'} — ${c.name||''}`,
+    body:(c,nom)=>`Bonjour,
+
+Comme convenu, je vous fais parvenir le profil de ${c.name||'[CANDIDAT]'} pour le poste de ${c.role||'[POSTE]'}.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+RÉSUMÉ DU PROFIL
+━━━━━━━━━━━━━━━━━━━━━━━
+Poste ciblé    : ${c.role||'—'}
+Disponibilité  : ${c.avail||'—'}
+Mobilité       : ${c.mobility||'—'}
+Prétentions    : ${c.salary?c.salary+'K€ brut/an':'—'}
+
+${c.notes_pre?`📝 Notes :\n${c.notes_pre}`:''}
+
+Le dossier complet est disponible sur simple demande.
+
+Je reste disponible pour tout échange,
+${nom||'[VOTRE NOM]'}
+BTPRecruit`
+  },
+  placement:{
+    label:'🎉 Confirmation placement',
+    to:()=>'',
+    subject:(c)=>`Confirmation de placement — ${c.name||''}`,
+    body:(c,nom)=>`Bonjour,
+
+J'ai le plaisir de vous confirmer le placement de ${c.name||'[CANDIDAT]'} sur le poste de ${c.role||'[POSTE]'}.
+
+Date de prise de poste : [DATE]
+Salaire convenu : ${c.salary?c.salary+'K€ brut/an':'[SALAIRE]'}
+
+Conformément à nos accords, notre note d'honoraires vous parviendra prochainement.
+
+Merci pour votre confiance,
+${nom||'[VOTRE NOM]'}
+BTPRecruit`
+  },
+  blank:{
+    label:'✉️ Email vide',
+    to:()=>'',
+    subject:()=>'',
+    body:(c,nom)=>`Bonjour,
+
+
+
+Cordialement,
+${nom||'[VOTRE NOM]'}
+BTPRecruit`
+  }
+};
+
+let EM={to:'',subject:'',body:'',candId:null,tplKey:null};
+
+function rEmails(){
+  const el=document.getElementById('view-emails');
+  if(!el)return;
+  const history=(DB.emails||[]).slice(0,30);
+  const cands=DB.candidates.filter(c=>c.email);
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem('btp_user_tel')||'';
+
+  el.innerHTML=`
+  <!-- Topbar emails -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;flex:1">✉️ Emails</div>
+    ${nom?`<span style="font-size:10px;color:var(--mu2)">Signature : <strong style="color:var(--mu)">${esc(nom)}${tel?' · '+esc(tel):''}</strong></span>`:'<span style="font-size:10px;color:var(--ac3)">⚠️ Signature non configurée</span>'}
+    <button class="btn bg bsm" onclick="openEmailSettings()" style="gap:5px">⚙️ Paramètres emails</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;height:calc(100vh - 155px)">
+
+    <!-- COMPOSEUR -->
+    <div style="display:flex;flex-direction:column;gap:0;background:var(--s2);border:1px solid var(--bd);border-radius:4px;overflow:hidden">
+
+      <!-- Header composeur -->
+      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Nouveau message</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <select id="em-tpl" onchange="applyEmailTpl()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:4px 8px;border-radius:2px">
+            <option value="">— Template —</option>
+            ${Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
+          </select>
+          <select id="em-cand" onchange="prefillEmailCand()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:4px 8px;border-radius:2px;max-width:160px">
+            <option value="">— Candidat —</option>
+            ${cands.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <!-- Champs email -->
+      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:10px;color:var(--mu);min-width:40px">À</span>
+          <input id="em-to" value="${esc(EM.to||'')}" placeholder="destinataire@email.fr" style="flex:1;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--bd2);padding:3px 0;color:var(--tx);outline:none" oninput="EM.to=this.value">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--mu);min-width:40px">Objet</span>
+          <input id="em-sub" value="${esc(EM.subject||'')}" placeholder="Objet de l'email" style="flex:1;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--bd2);padding:3px 0;color:var(--tx);outline:none" oninput="EM.subject=this.value">
+        </div>
+      </div>
+
+      <!-- Corps -->
+      <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px 16px;font-size:12px;line-height:1.75;color:var(--tx);resize:none;outline:none;font-family:'DM Mono',monospace" placeholder="Rédigez votre email ici…" oninput="EM.body=this.value">${esc(EM.body||'')}</textarea>
+
+      <!-- Actions -->
+      <div style="padding:10px 16px;border-top:1px solid var(--bd);display:flex;gap:8px;align-items:center;flex-shrink:0;background:var(--s1)">
+        <button class="btn bp" onclick="sendEmailNow()" style="gap:6px">📤 Envoyer</button>
+        <button class="btn bg" onclick="openInMailClient()">📬 Ouvrir dans ma messagerie</button>
+        <button class="btn bg" onclick="resetEmailCompose()">🗑 Effacer</button>
+        <span id="em-status" style="font-size:10px;color:var(--mu2);margin-left:auto"></span>
+      </div>
+    </div>
+
+    <!-- PANNEAU DROIT : templates + historique -->
+    <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+
+      <!-- Templates rapides -->
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:12px 14px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin-bottom:10px">Templates rapides</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${Object.entries(EMAIL_TPLS).map(([k,t])=>`
+            <button class="btn bg" style="justify-content:flex-start;font-size:11px;padding:7px 10px" onclick="quickLoadTpl('${k}')">${t.label}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Historique envois -->
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:12px 14px;flex:1">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin-bottom:10px">Historique (${history.length})</div>
+        ${history.length?history.map(m=>{
+          const c=m.candId?cById(m.candId):null;
+          return`<div style="padding:8px 10px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;margin-bottom:5px;cursor:pointer;transition:.12s" onclick="reloadEmail(${JSON.stringify(m).replace(/"/g,'&quot;')})" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--bd)'">
+            <div style="font-size:10px;color:var(--mu);margin-bottom:2px">${fD(m.date)}${c?` · <span style="color:var(--ac5)">${esc(c.name)}</span>`:''}</div>
+            <div style="font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.subject||'—')}</div>
+            <div style="font-size:10px;color:var(--mu);margin-top:1px">→ ${esc(m.to||'—')}</div>
+          </div>`;
+        }).join(''):`<div style="font-size:11px;color:var(--mu2)">Aucun email envoyé</div>`}
+      </div>
+    </div>
+
+  </div>`;
+}
+
+function applyEmailTpl(){
+  const key=document.getElementById('em-tpl')?.value;
+  if(!key)return;
+  const candId=document.getElementById('em-cand')?.value;
+  const c=candId?cById(candId):{};
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tpl=EMAIL_TPLS[key];
+  if(!tpl)return;
+  EM.to=tpl.to(c||{});
+  EM.subject=tpl.subject(c||{});
+  EM.body=tpl.body(c||{},nom);
+  EM.candId=candId||null;
+  EM.tplKey=key;
+  // Update fields
+  const toEl=document.getElementById('em-to');
+  const subEl=document.getElementById('em-sub');
+  const bodyEl=document.getElementById('em-body');
+  if(toEl)toEl.value=EM.to;
+  if(subEl)subEl.value=EM.subject;
+  if(bodyEl)bodyEl.value=EM.body;
+}
+
+function prefillEmailCand(){
+  const tplKey=document.getElementById('em-tpl')?.value||EM.tplKey;
+  if(tplKey) applyEmailTpl();
+}
+
+function quickLoadTpl(key){
+  const sel=document.getElementById('em-tpl');
+  if(sel)sel.value=key;
+  applyEmailTpl();
+}
+
+// Ouvrir l'onglet email pré-rempli depuis n'importe où dans le CRM
+function openEmailWith({to='',subject='',body='',candId=null,tplKey=null}={}){
+  EM={to,subject,body,candId,tplKey};
+  go('emails');
+}
+
+// Pré-remplir depuis un candidat + template
+function emailFromCand(candId, tplKey){
+  const c=cById(candId);if(!c)return;
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tpl=EMAIL_TPLS[tplKey||'blank'];
+  openEmailWith({
+    to: tpl.to(c),
+    subject: tpl.subject(c),
+    body: tpl.body(c,nom),
+    candId,
+    tplKey
+  });
+}
+
+function sendEmailNow(){
+  const to=document.getElementById('em-to')?.value||EM.to;
+  const sub=document.getElementById('em-sub')?.value||EM.subject;
+  const body=document.getElementById('em-body')?.value||EM.body;
+  if(!to){toast('Ajoutez un destinataire','e');return;}
+  if(!sub){toast('Ajoutez un objet','e');return;}
+
+  // Envoi via Resend (backend Vercel) si disponible
+  const apiBase=getApiBase();
+  if(apiBase){
+    document.getElementById('em-status').textContent='Envoi en cours…';
+    fetch(`${apiBase}/api/send-email`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to,subject:sub,body})
+    }).then(r=>r.json()).then(data=>{
+      if(data.sent||data.id){
+        logEmail(to,sub,body);
+        toast('✅ Email envoyé !','s');
+        document.getElementById('em-status').textContent='Envoyé ✓';
+      } else {
+        toast('Erreur envoi : '+(data.error||'?'),'e');
+        document.getElementById('em-status').textContent='Échec';
+      }
+    }).catch(()=>{
+      // Fallback mailto
+      openInMailClient();
+    });
+  } else {
+    // Pas de backend → ouvre dans messagerie
+    openInMailClient();
+  }
+}
+
+function openInMailClient(){
+  const to=document.getElementById('em-to')?.value||EM.to;
+  const sub=document.getElementById('em-sub')?.value||EM.subject;
+  const body=document.getElementById('em-body')?.value||EM.body;
+  window.location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+  setTimeout(()=>{logEmail(to,sub,body);},800);
+}
+
+function logEmail(to,subject,body){
+  DB.emails=DB.emails||[];
+  DB.emails.unshift({id:uid(),date:now_(),to,subject,body:body.slice(0,300),candId:EM.candId||null});
+  save();
+  // Refresh historique si on est sur la vue emails
+  if(UI.view==='emails')rEmails();
+}
+
+function reloadEmail(m){
+  EM={to:m.to||'',subject:m.subject||'',body:m.body||'',candId:m.candId||null};
+  const toEl=document.getElementById('em-to');
+  const subEl=document.getElementById('em-sub');
+  const bodyEl=document.getElementById('em-body');
+  if(toEl)toEl.value=EM.to;
+  if(subEl)subEl.value=EM.subject;
+  if(bodyEl)bodyEl.value=EM.body;
+}
+
+function resetEmailCompose(){
+  EM={to:'',subject:'',body:'',candId:null,tplKey:null};
+  ['em-to','em-sub','em-body'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const sel=document.getElementById('em-tpl');if(sel)sel.value='';
+  const csel=document.getElementById('em-cand');if(csel)csel.value='';
+  const st=document.getElementById('em-status');if(st)st.textContent='';
+}
+
+// ─── Paramètres emails ────────────────────────────────
+function openEmailSettings(){
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem('btp_user_tel')||'';
+  // Charger les templates personnalisés depuis localStorage
+  const custom=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+
+  const tplsHtml=Object.entries(EMAIL_TPLS).map(([key,tpl])=>{
+    const cusSubject=custom[key]?.subject||'';
+    const cusBody=custom[key]?.body||'';
+    return`
+    <div style="margin-bottom:16px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac4)">${tpl.label}</div>
+      <div class="fgrp" style="margin-bottom:6px">
+        <span class="lbl" style="font-size:10px">Objet personnalisé <span style="color:var(--mu2)">(laisser vide = défaut)</span></span>
+        <input id="tpl-sub-${key}" value="${esc(cusSubject)}" placeholder="Objet par défaut du template" style="font-size:11px">
+      </div>
+      <div class="fgrp">
+        <span class="lbl" style="font-size:10px">Corps personnalisé <span style="color:var(--mu2)">(laisser vide = défaut)</span></span>
+        <textarea id="tpl-body-${key}" style="min-height:90px;font-size:11px;line-height:1.6" placeholder="Corps par défaut du template…">${esc(cusBody)}</textarea>
+      </div>
+      <button class="btn bd_ bxs" style="font-size:10px;margin-top:6px" onclick="resetTpl('${key}')">↺ Réinitialiser ce template</button>
+    </div>`;
+  }).join('');
+
+  openMo('⚙️ Paramètres Emails',`
+    <div style="max-height:70vh;overflow-y:auto;padding-right:4px">
+      <!-- Signature -->
+      <div style="margin-bottom:20px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd2);border-radius:3px">
+        <div style="font-size:11px;font-weight:700;margin-bottom:10px">✍️ Votre signature</div>
+        <div style="font-size:10px;color:var(--mu);margin-bottom:10px">Utilisée automatiquement dans tous les templates.</div>
+        <div class="fg">
+          <div class="fgrp">
+            <span class="lbl">Votre prénom et nom</span>
+            <input id="es-nom" value="${esc(nom)}" placeholder="ex: Louis Renault">
+          </div>
+          <div class="fgrp">
+            <span class="lbl">Votre numéro de téléphone</span>
+            <input id="es-tel" value="${esc(tel)}" placeholder="ex: 06 12 34 56 78">
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:8px 10px;background:var(--s2);border-radius:2px;font-size:11px;color:var(--mu)">
+          Aperçu signature :<br>
+          <strong style="color:var(--tx)" id="es-preview">${nom||'[Votre nom]'}${tel?' — '+tel:''}<br>BTPRecruit — Cabinet de recrutement BTP</strong>
+        </div>
+      </div>
+
+      <!-- Templates -->
+      <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--tx)">📝 Personnaliser les templates</div>
+      <div style="font-size:10px;color:var(--mu);margin-bottom:12px">
+        Les variables disponibles : <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[NOM]</code> <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[POSTE]</code> <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[LIEN_VISIO]</code> <code style="background:var(--s3);padding:1px 4px;border-radius:2px">[SIGNATURE]</code>
+      </div>
+      ${tplsHtml}
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bp" onclick="saveEmailSettings()">💾 Sauvegarder</button>`
+  );
+
+  // Live preview signature
+  document.getElementById('es-nom')?.addEventListener('input',updateSigPreview);
+  document.getElementById('es-tel')?.addEventListener('input',updateSigPreview);
+}
+
+function updateSigPreview(){
+  const nom=document.getElementById('es-nom')?.value||'';
+  const tel=document.getElementById('es-tel')?.value||'';
+  const prev=document.getElementById('es-preview');
+  if(prev) prev.innerHTML=`${esc(nom)||'[Votre nom]'}${tel?' — '+esc(tel):''}<br>BTPRecruit — Cabinet de recrutement BTP`;
+}
+
+function saveEmailSettings(){
+  const nom=document.getElementById('es-nom')?.value?.trim()||'';
+  const tel=document.getElementById('es-tel')?.value?.trim()||'';
+  localStorage.setItem('btp_user_name', nom);
+  localStorage.setItem('btp_user_tel', tel);
+
+  // Sauvegarder templates personnalisés
+  const custom={};
+  Object.keys(EMAIL_TPLS).forEach(key=>{
+    const sub=document.getElementById(`tpl-sub-${key}`)?.value?.trim()||'';
+    const body=document.getElementById(`tpl-body-${key}`)?.value?.trim()||'';
+    if(sub||body) custom[key]={subject:sub,body};
+  });
+  localStorage.setItem('btp_email_tpls', JSON.stringify(custom));
+
+  closeMo();
+  toast('✅ Paramètres emails sauvegardés','s');
+  rEmails(); // Refresh pour afficher la nouvelle signature
+}
+
+function resetTpl(key){
+  const subEl=document.getElementById(`tpl-sub-${key}`);
+  const bodyEl=document.getElementById(`tpl-body-${key}`);
+  if(subEl)subEl.value='';
+  if(bodyEl)bodyEl.value='';
+  toast(`Template "${EMAIL_TPLS[key]?.label}" réinitialisé`,'i');
+}
+
+// Surcharge applyEmailTpl pour tenir compte des templates personnalisés
+const _applyEmailTplOrig=applyEmailTpl;
+function applyEmailTpl(){
+  const key=document.getElementById('em-tpl')?.value;
+  if(!key)return;
+  const candId=document.getElementById('em-cand')?.value;
+  const c=candId?cById(candId):{};
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem('btp_user_tel')||'';
+  const custom=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+  const tpl=EMAIL_TPLS[key];
+  if(!tpl)return;
+
+  const signature=`${nom||'[Votre nom]'}${tel?'\n'+tel:''}\nBTPRecruit — Cabinet de recrutement BTP`;
+
+  // Utiliser template personnalisé si défini, sinon défaut
+  let subject=custom[key]?.subject||tpl.subject(c||{});
+  let body=custom[key]?.body||tpl.body(c||{},nom);
+
+  // Remplacer les variables dans le body personnalisé
+  if(custom[key]?.body){
+    body=body
+      .replace(/\[NOM\]/g,(c||{}).name||'')
+      .replace(/\[POSTE\]/g,(c||{}).role||'')
+      .replace(/\[LIEN_VISIO\]/g,(c||{}).visio_link||'[LIEN À INSÉRER]')
+      .replace(/\[SIGNATURE\]/g,signature);
+  }
+
+  EM.to=tpl.to(c||{});
+  EM.subject=subject;
+  EM.body=body;
+  EM.candId=candId||null;
+  EM.tplKey=key;
+
+  const toEl=document.getElementById('em-to');
+  const subEl=document.getElementById('em-sub');
+  const bodyEl=document.getElementById('em-body');
+  if(toEl)toEl.value=EM.to;
+  if(subEl)subEl.value=EM.subject;
+  if(bodyEl)bodyEl.value=EM.body;
 }
 
 // ═══════════════════════════════════════════════════════

@@ -1,6 +1,7 @@
 {
   "version": 2,
   "routes": [
+    { "src": "/api/send-email", "dest": "/send-email.js" },
     { "src": "/api/cron-reminders", "dest": "/cron-reminders.js" },
     { "src": "/api/send-reminders", "dest": "/send-reminders.js" },
     { "src": "/api/post-job", "dest": "/post-job.js" },
