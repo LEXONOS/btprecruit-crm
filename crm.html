@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>BTPRecruit — CRM</title>
+<title>Novalem — CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -439,8 +439,8 @@ select option{background:var(--s2)}
 <body>
 <nav id="sb">
   <div class="logo">
-    <div class="logo-t">BTP<b>Recruit</b></div>
-    <div class="logo-s">CRM Cabinet CDI</div>
+    <div class="logo-t">Nova<b>lem</b></div>
+    <div class="logo-s">Cabinet de recrutement</div>
   </div>
   <div class="nav">
     <div class="ni act" data-v="dash"><span class="ni-ico">◈</span>Dashboard<span class="nbadge nb-red" id="badge-urg" style="display:none">!</span></div>
@@ -561,7 +561,7 @@ const AG_TYPES=[{id:'call',ico:'📞',l:'Appel'},{id:'visio',ico:'🎥',l:'Entre
 const BOARDS=['France Travail','Indeed','LinkedIn Jobs','APEC','Welcome to the Jungle','Monster','Meteojob'];
 const WEEK_HOURS=[8,9,10,11,12,13,14,15,16,17,18];
 function fmtDate(d){const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];return`${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;}
-function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`https://meet.jit.si/btprecruit-${id}`;}
+function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`https://meet.jit.si/novalem-${id}`;}
 
 // ═══════════════════════════════════════════════════════
 // STATE
@@ -677,7 +677,7 @@ const ago=(n)=>new Date(Date.now()-n*86400000).toISOString();
 const inDays=(n)=>new Date(Date.now()+n*86400000).toISOString();
 const fD=(iso)=>{if(!iso)return'—';return new Date(iso).toLocaleDateString('fr-FR');};
 const fM=(n)=>{if(!n&&n!==0)return'—';return Number(n).toLocaleString('fr-FR')+'€';};
-const honor=(s)=>s?fM(Math.round(Number(s)*0.18)):'—';
+const honor=(s)=>{const taux=Number(localStorage.getItem('btp_taux_hon')||18)/100;return s?fM(Math.round(Number(s)*taux)):'—';};
 const esc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 // Format phone: 0658212090 → 06 58 21 20 90
 const fPhone=(n)=>{if(!n)return'—';const d=String(n).replace(/\D/g,'');if(d.length===10)return d.match(/.{2}/g).join('\u202f');if(d.length===9)return d.match(/.{2}/g).join('\u202f');return String(n);};
@@ -1503,36 +1503,56 @@ function proceedToEmail(candId){
   const sel=UI.calSelected;
   const d=new Date(sel.dateStr);
   const dateStr=`${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} de ${sel.h}h00 à ${sel.h+1}h00`;
-  // Store visio link and interview date on candidate
-  c.visio_link=visioLink;
-  c.int_date_planned=sel.dateStr;
-  c.int_time=`${sel.h}:00`;
-  c.updated=now_();save();
+  c.visio_link=visioLink;c.int_date_planned=sel.dateStr;c.int_time=`${sel.h}:00`;c.updated=now_();save();
+
+  // Récupérer signature + infos depuis paramètres
+  const nom=localStorage.getItem('btp_user_name')||'[Votre nom]';
+  const tel=localStorage.getItem('btp_user_tel')||'';
+  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
   const firstN=c.name.split(' ')[0];
-  const emailBody=`Bonjour ${firstN},\n\nSuite à notre échange téléphonique, je vous confirme notre entretien visio :\n\n📅 Date : ${dateStr}\n🔗 Lien de connexion : ${visioLink}\n\nMerci de vous connecter 2-3 minutes avant l'heure prévue.\n\n─────────────────────────\n📋 Dossier de candidature\n─────────────────────────\nPour préparer votre dossier, merci de réunir les pièces suivantes :\n\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n• Visite médicale (si disponible)\n\nJe vous transmets en pièce jointe le dossier de candidature à compléter et signer.\n[⚠️ JOINDRE : dossier_candidature_BTPRecruit.pdf]\n\nUne fois complété, merci de me retourner l'ensemble par email.\n\nCordialement,\n[VOTRE NOM]\nBTPRecruit — Cabinet de recrutement spécialisé BTP\n[VOTRE TÉLÉPHONE]`;
-  openMo(`📧 Email à envoyer — ${c.name}`,`
-    <div class="steps">
-      <div class="step"><div class="step-dot done">1</div><span class="step-l done">Qualifier</span></div>
-      <div class="step-arr">→</div>
-      <div class="step"><div class="step-dot done">2</div><span class="step-l done">Planifier</span></div>
-      <div class="step-arr">→</div>
-      <div class="step"><div class="step-dot cur">3</div><span class="step-l cur">Envoyer</span></div>
-    </div>
-    <div class="visio-box">
-      🎥 <strong>Lien visio généré :</strong><br>
-      <span class="visio-link">${esc(visioLink)}</span><br>
-      <button class="btn bg bxs mt4" onclick="cpText('${esc(visioLink)}')">⧉ Copier le lien</button>
-    </div>
-    <div class="email-field"><div class="ef-key">À</div><div>${esc(c.email||'[EMAIL CANDIDAT]')}</div></div>
-    <div class="email-field"><div class="ef-key">Objet</div><div>Confirmation entretien visio — ${esc(dateStr)}</div></div>
-    <div class="email-field"><div class="ef-key">PJ</div><div style="color:var(--ac4)">📎 dossier_candidature_BTPRecruit.pdf <span class="fs10 mu_">(à joindre manuellement)</span></div></div>
-    <div class="lbl mt8">Corps du message :</div>
-    <textarea id="email-body" style="min-height:200px;font-size:11px;line-height:1.6">${esc(emailBody)}</textarea>`,
-    `<button class="btn bg" onclick="renderCalMo('${candId}')">← Retour</button>
-     ${c.email?`<a class="btn bi" href="mailto:${esc(c.email)}?subject=Confirmation+entretien+visio&body=${encodeURIComponent(emailBody)}" target="_blank">📤 Ouvrir dans messagerie</a>`:''}
-     <button class="btn bg" onclick="cpEmail()">⧉ Copier email</button>
-     <button class="btn bp" onclick="confirmEmailSent('${candId}','${esc(visioLink)}','${sel.dateStr}',${sel.h})">✅ Email envoyé — Terminer</button>`
-  );
+
+  const emailBody=`Bonjour ${firstN},
+
+Suite à notre échange téléphonique, je vous confirme notre entretien visio :
+
+📅 Date : ${dateStr}
+🎥 Lien de connexion : ${visioLink}
+
+Merci de vous connecter 2-3 minutes avant l'heure prévue.${dossierUrl?`
+
+─────────────────────────
+📋 Dossier de candidature
+─────────────────────────
+Merci de compléter et signer le dossier de candidature :
+👉 ${dossierUrl}
+
+Et de me retourner les documents suivants :
+• CV à jour
+• Pièce d'identité (recto/verso)
+• Permis de conduire (si applicable)
+• Carte vitale`:``}
+
+Cordialement,
+${nom}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`;
+
+  closeMo();
+
+  // Ouvrir directement dans l'onglet Email
+  openEmailWith({
+    to: c.email||'',
+    subject: `Confirmation entretien visio — ${dateStr}`,
+    body: emailBody,
+    candId: candId,
+    tplKey: 'confirmation_entretien'
+  });
+
+  // Stocker le statut
+  setTimeout(()=>{
+    if(confirm(`Email pré-rempli dans l'onglet Emails.\n\nMarquer le dossier comme envoyé et passer en étape "Dossier" ?`)){
+      confirmEmailSent(candId,visioLink,sel.dateStr,sel.h);
+    }
+  },300);
 }
 function cpEmail(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Email copié ✓','i'));}
 function cpText(t){navigator.clipboard.writeText(t).then(()=>toast('Copié ✓','i'));}
@@ -2925,7 +2945,7 @@ function prosFromRef(id,i){const c=cById(id);if(!c||!c.refs||!c.refs[i])return;c
 function cpPhone(ph){navigator.clipboard.writeText(ph).then(()=>toast(`📞 ${ph} copié`,'i')).catch(()=>toast(ph,'i'));}
 function sendCV(candId){const c=cById(candId);if(!c)return;openMo('📤 CV anonyme à envoyer',`<div class="mu_ fs11 mb8">Envoyer ce profil anonymisé aux prospects avec besoin ouvert dans la même catégorie.</div>${DB.companies.filter(co=>co.type==='prospect'&&['need','cvsent'].includes(co.status)).map(co=>`<div class="aitem" onclick="markCVSent('${candId}','${co.id}')">${esc(co.name)} <span class="mu_ fs10 ml-auto">${esc(co.city||'')}</span></div>`).join('')||'<div class="mu_ fs11">Aucun prospect avec besoin confirmé</div>'}`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function markCVSent(candId,coId){const co=coById(coId);if(!co)return;co.status='cvsent';co.updated=now_();save();closeMo();toast(`CV envoyé à ${co.name} ✓`,'s');}
-function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — BTPRecruit`;openMo('📧 Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">⧉ Copier</button>`);}
+function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo('📧 Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">⧉ Copier</button>`);}
 function cpTpl(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Copié ✓','i'));}
 function genBoardTexts(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;const txt=`═ FRANCE TRAVAIL ═\nIntitulé: ${p.title}\nLocalisation: ${p.location||'—'}\nType: CDI\nSalaire: ${p.salary||'—'}\n\n${p.body||''}\n\n═ INDEED ═\n${p.title} | ${p.location||''}\n${p.salary||''}\n\n${(p.body||'').slice(0,280)}…\n\n═ LINKEDIN ═\nNous recrutons pour notre client : ${p.title}\n📍 ${p.location||'France'} | 💰 ${p.salary||'—'}\n\n${p.body||''}`;openMo('Textes adaptés',`<textarea style="min-height:220px;font-size:11px;line-height:1.6">${txt}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">⧉ Copier tout</button>`);}
 function togPostSt(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;p.status=p.status==='active'?'closed':'active';p.updated=now_();save();openPostPanel(id);rPosts();toast(`Annonce ${p.status==='active'?'activée':'clôturée'}`,'s');}
@@ -3041,74 +3061,178 @@ function openSettings(){
   const sbUrl=getSupabaseUrl();
   const sbKey=getSupabaseKey();
   const sbOk=!!(sbUrl&&sbKey);
-  openMo('⚙ Paramètres',`
-    <div class="sl">🤖 Intelligence Artificielle (Anthropic)</div>
-    <div style="margin-bottom:10px;font-size:11px;color:var(--mu);line-height:1.7">
-      Une seule clé suffit pour toutes les fonctions IA : extraction de CV, génération d'annonces.
-      <br><a href="https://console.anthropic.com" target="_blank" style="color:var(--ac5)">→ console.anthropic.com</a>
-    </div>
-    <div class="fgrp">
-      <span class="lbl">Clé API Anthropic (sk-ant-…)</span>
-      <input id="set-apikey" type="password" value="${esc(apiKey)}" placeholder="sk-ant-api03-…" autocomplete="off">
-    </div>
-    ${apiKey
-      ?`<div style="font-size:10px;color:var(--ac2);margin-top:5px">✅ Clé configurée — extraction IA active</div>`
-      :`<div style="font-size:10px;color:var(--ac4);margin-top:5px">⚠️ Sans clé, les fonctions IA sont désactivées</div>`
-    }
+  // Profil utilisateur
+  const nom=localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem('btp_user_tel')||'';
+  const userEmail=localStorage.getItem('btp_user_email')||'';
+  // Objectif CA
+  const objCA=localStorage.getItem('btp_obj_ca')||'10000';
+  // Taux honoraires
+  const tauxHon=localStorage.getItem('btp_taux_hon')||'18';
+  // Dossier URL
+  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
 
-    <div class="sl mt14">☁ Synchronisation Cloud (Supabase)</div>
-    <div style="margin-bottom:10px;font-size:11px;color:var(--mu);line-height:1.7">
-      Accédez à vos données depuis n'importe quel navigateur ou machine. Gratuit jusqu'à 500 MB.
-      <br><a href="https://app.supabase.com" target="_blank" style="color:var(--ac5)">→ app.supabase.com</a>
-    </div>
-    <div class="fg">
-      <div class="fgrp ff">
-        <span class="lbl">Project URL</span>
-        <input id="set-sburl" value="${esc(sbUrl)}" placeholder="https://xxxxxxxxxxxx.supabase.co" autocomplete="off">
-      </div>
-      <div class="fgrp ff">
-        <span class="lbl">Anon public key</span>
-        <input id="set-sbkey" type="password" value="${esc(sbKey)}" placeholder="eyJhbGciOiJIUzI1NiIs…" autocomplete="off">
-      </div>
-    </div>
-    ${sbOk
-      ?`<div style="font-size:10px;color:var(--ac2);margin-top:5px">✅ Supabase configuré — sync cloud actif</div>`
-      :`<div style="font-size:10px;color:var(--mu2);margin-top:5px">Sans config, les données restent dans ce navigateur uniquement.</div>`
-    }
+  openMo('⚙ Paramètres Novalem',`
+    <div style="max-height:72vh;overflow-y:auto;padding-right:4px">
 
-    <div style="margin-top:12px;padding:9px 11px;background:var(--s3);border-radius:3px;font-size:10px;color:var(--mu2);line-height:1.7">
-      🔒 Toutes les clés sont stockées <strong>uniquement dans votre navigateur</strong>. Elles ne transitent que vers leurs services respectifs (Anthropic / Supabase).
+    <!-- PROFIL -->
+    <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac)">👤 Votre profil</div>
+      <div class="fg">
+        <div class="fgrp"><span class="lbl">Votre nom complet</span>
+          <input id="set-nom" value="${esc(nom)}" placeholder="ex: Louis Renault">
+        </div>
+        <div class="fgrp"><span class="lbl">Votre téléphone</span>
+          <input id="set-tel" value="${esc(tel)}" placeholder="ex: 06 12 34 56 78">
+        </div>
+        <div class="fgrp"><span class="lbl">Votre email (expéditeur)</span>
+          <input id="set-email" value="${esc(userEmail)}" placeholder="contact@novalem-recrutement.fr">
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--mu);margin-top:6px">Ces informations s'utilisent dans tous les emails et la signature.</div>
+    </div>
+
+    <!-- BUSINESS -->
+    <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac4)">💼 Paramètres business</div>
+      <div class="fg">
+        <div class="fgrp"><span class="lbl">Objectif CA mensuel (€)</span>
+          <input id="set-obj-ca" type="number" value="${esc(objCA)}" placeholder="10000">
+        </div>
+        <div class="fgrp"><span class="lbl">Taux d'honoraires (%)</span>
+          <input id="set-taux" type="number" value="${esc(tauxHon)}" placeholder="18" min="1" max="40">
+          <span style="font-size:10px;color:var(--mu);margin-top:3px">Standard cabinet CDI : 15-22% du salaire brut annuel</span>
+        </div>
+        <div class="fgrp"><span class="lbl">URL dossier de candidature (lien de téléchargement)</span>
+          <input id="set-dossier" value="${esc(dossierUrl)}" placeholder="https://… (Google Drive, Dropbox, etc.)">
+          <span style="font-size:10px;color:var(--mu);margin-top:3px">Ce lien sera inclus automatiquement dans les emails de précal</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- IA -->
+    <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac6)">🤖 Intelligence Artificielle (Anthropic)</div>
+      <div style="font-size:11px;color:var(--mu);margin-bottom:8px;line-height:1.6">
+        Extraction de CV, génération d'annonces. <a href="https://console.anthropic.com" target="_blank" style="color:var(--ac5)">→ console.anthropic.com</a>
+      </div>
+      <div class="fgrp"><span class="lbl">Clé API Anthropic</span>
+        <input id="set-apikey" type="password" value="${esc(apiKey)}" placeholder="sk-ant-api03-…" autocomplete="off">
+      </div>
+      ${apiKey?`<div style="font-size:10px;color:var(--ac2);margin-top:4px">✅ IA active</div>`:`<div style="font-size:10px;color:var(--ac4);margin-top:4px">⚠️ IA désactivée</div>`}
+    </div>
+
+    <!-- SUPABASE -->
+    <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac2)">☁ Synchronisation Cloud (Supabase)</div>
+      <div class="fg">
+        <div class="fgrp ff"><span class="lbl">Project URL</span>
+          <input id="set-sburl" value="${esc(sbUrl)}" placeholder="https://xxxx.supabase.co" autocomplete="off">
+        </div>
+        <div class="fgrp ff"><span class="lbl">Anon key</span>
+          <input id="set-sbkey" type="password" value="${esc(sbKey)}" placeholder="eyJ…" autocomplete="off">
+        </div>
+      </div>
+      ${sbOk?`<div style="font-size:10px;color:var(--ac2);margin-top:4px">✅ Sync cloud actif</div>`:`<div style="font-size:10px;color:var(--mu2);margin-top:4px">Sans config, données locales uniquement</div>`}
+    </div>
+
+    <!-- EXPORT -->
+    <div style="padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac5)">💾 Données & Sauvegarde</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn bg bsm" onclick="exportData()">⬇ Exporter JSON</button>
+        <label class="btn bg bsm" style="cursor:pointer">⬆ Importer JSON<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
+        <button class="btn bd_ bsm" onclick="if(confirm('Effacer TOUTES les données ? Irréversible.'))resetAllData()">🗑 Reset données</button>
+      </div>
+      <div style="font-size:10px;color:var(--mu2);margin-top:8px">Exportez régulièrement pour sauvegarder vos données.</div>
+    </div>
+
     </div>`,
     `<button class="btn bg" onclick="closeMo()">Annuler</button>
-     <button class="btn bp" onclick="saveSettings()">Enregistrer</button>`
+     <button class="btn bp" onclick="saveSettings()">💾 Enregistrer</button>`
   );
 }
 function saveSettings(){
+  // Profil utilisateur
+  const nom=(document.getElementById('set-nom')?.value||'').trim();
+  const tel=(document.getElementById('set-tel')?.value||'').trim();
+  const userEmail=(document.getElementById('set-email')?.value||'').trim();
+  localStorage.setItem('btp_user_name', nom);
+  localStorage.setItem('btp_user_tel', tel);
+  localStorage.setItem('btp_user_email', userEmail);
+
+  // Business
+  const objCA=(document.getElementById('set-obj-ca')?.value||'10000').trim();
+  const taux=(document.getElementById('set-taux')?.value||'18').trim();
+  const dossierUrl=(document.getElementById('set-dossier')?.value||'').trim();
+  localStorage.setItem('btp_obj_ca', objCA);
+  localStorage.setItem('btp_taux_hon', taux);
+  localStorage.setItem('btp_dossier_url', dossierUrl);
+
   // API key
   const k=document.getElementById('set-apikey')?.value.trim()||'';
   setApiKey(k);
+
   // Supabase
   const sbUrl=(document.getElementById('set-sburl')?.value||'').trim().replace(/\/$/,'');
   const sbKey=(document.getElementById('set-sbkey')?.value||'').trim();
-  const hadSb=!!(getSupabaseUrl()&&getSupabaseKey());
   setSupabaseUrl(sbUrl);
   setSupabaseKey(sbKey);
-  // Reset client so it's recreated with new credentials
   _sbClient=null;
+
   closeMo();
+
   if(sbUrl&&sbKey){
     const ind=document.getElementById('sync-ind');
     if(ind){ind.textContent='☁ Connexion…';ind.style.color='var(--ac4)';}
-    // Trigger immediate sync to test connection
-    clearTimeout(_syncTimer);
-    _syncTimer=null;
+    clearTimeout(_syncTimer);_syncTimer=null;
     syncToSupabase();
-    toast('Paramètres enregistrés — connexion Supabase en cours…','i');
+    toast('Paramètres enregistrés — sync Supabase en cours…','i');
   } else {
     const ind=document.getElementById('sync-ind');
     if(ind){ind.textContent='☁ Local';ind.style.color='var(--mu2)';}
-    toast(k?'Clé API enregistrée ✓':'Paramètres mis à jour','s');
+    toast('Paramètres enregistrés ✓','s');
   }
+}
+
+function exportData(){
+  const data=JSON.stringify({db:DB,meta:{exported:new Date().toISOString(),version:'20'}},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`novalem-crm-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();URL.revokeObjectURL(url);
+  toast('Données exportées ✓','s');
+}
+
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const parsed=JSON.parse(ev.target.result);
+      if(parsed.db){
+        Object.assign(DB,parsed.db);
+      } else if(parsed.candidates){
+        Object.assign(DB,parsed);
+      } else {
+        toast('Format de fichier non reconnu','e');return;
+      }
+      save();
+      // Refresh current view
+      go(UI.view||'dash');
+      toast('Données importées ✓ — CRM mis à jour','s');
+    }catch(err){
+      toast('Erreur import : '+err.message,'e');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetAllData(){
+  DB.candidates=[];DB.companies=[];DB.needs=[];DB.agenda=[];DB.posts=[];DB.emails=[];
+  save();go('dash');
+  toast('Toutes les données ont été effacées','w');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3248,7 +3372,7 @@ Poste : ${title}
 Secteur BTP : ${cat.l}
 Localisation : ${location||'France'}
 Salaire : ${salary||'Selon profil'}
-Contexte : ${brief||'Cabinet de recrutement spécialisé BTP'}
+Contexte : ${brief||'Cabinet de recrutement'}
 
 Structure :
 1) Présentation cabinet (2 lignes)
@@ -3307,14 +3431,14 @@ function openNobizEmailForm(coId){
     </div>`,
     `<button class="btn bg" onclick="closeMo();rPros()">Fermer sans email</button>
      <button class="btn bg" onclick="copyNobizEmail()">⧉ Copier email</button>
-     ${c.email?`<a class="btn bi" href="mailto:${esc(c.email)}?subject=${encodeURIComponent('Présentation BTPRecruit — Cabinet de recrutement BTP')}&body=${encodeURIComponent(buildNobizEmail(c))}" target="_blank" onclick="saveNobizNote('${coId}')">📤 Ouvrir messagerie</a>`:''}
+     ${c.email?`<a class="btn bi" href="mailto:${esc(c.email)}?subject=${encodeURIComponent('Présentation Novalem — Cabinet de recrutement')}&body=${encodeURIComponent(buildNobizEmail(c))}" target="_blank" onclick="saveNobizNote('${coId}')">📤 Ouvrir messagerie</a>`:''}
      <button class="btn bp" onclick="saveNobizNote('${coId}')">✅ Valider</button>`
   );
 }
 
 function buildNobizEmail(c){
   const fn=c.contact?c.contact.split(' ')[0]:'';
-  return`Bonjour${fn?' '+fn:''},\n\nSuite à notre échange téléphonique, je vous remercie pour votre temps.\n\nJe me permets de vous faire parvenir une courte présentation de BTPRecruit, cabinet de recrutement spécialisé dans le secteur du BTP.\n\nNous accompagnons les entreprises du bâtiment et des travaux publics dans leurs recrutements CDI : conducteurs de travaux, chefs de chantier, ingénieurs études, profils VRD/HSE, management et encadrement.\n\nSi à l'avenir un besoin de recrutement devait se présenter dans votre structure, n'hésitez pas à revenir vers moi — je serai heureux(se) de vous accompagner.\n\nBonne journée,\n[VOTRE NOM]\nBTPRecruit — Cabinet de recrutement spécialisé BTP\n[VOTRE TÉLÉPHONE]`;
+  return`Bonjour${fn?' '+fn:''},\n\nSuite à notre échange téléphonique, je vous remercie pour votre temps.\n\nJe me permets de vous faire parvenir une courte présentation de Novalem, cabinet de recrutement spécialisé dans le secteur du BTP.\n\nNous accompagnons les entreprises du bâtiment et des travaux publics dans leurs recrutements CDI : conducteurs de travaux, chefs de chantier, ingénieurs études, profils VRD/HSE, management et encadrement.\n\nSi à l'avenir un besoin de recrutement devait se présenter dans votre structure, n'hésitez pas à revenir vers moi — je serai heureux(se) de vous accompagner.\n\nBonne journée,\n[VOTRE NOM]\nNovalem — Cabinet de recrutement\n[VOTRE TÉLÉPHONE]`;
 }
 function copyNobizEmail(){
   const ta=document.getElementById('nb-email-body');
@@ -3390,7 +3514,7 @@ const BOARD_CONFIG={
 function getApiBase(){
   const loc=window.location.hostname;
   if(loc==='localhost'||loc===''||loc.endsWith('.html'))return null; // local
-  return window.location.origin; // Ex: https://btprecruit-crm.vercel.app
+  return window.location.origin; // Ex: https://novalem-crm.vercel.app
 }
 
 function openPublishPanel(postId){
@@ -3522,7 +3646,7 @@ N'hésitez pas à me contacter pour toute question.
 
 Bonne journée,
 ${nom||'[VOTRE NOM]'}
-BTPRecruit — Cabinet de recrutement BTP`
+Novalem — Cabinet de recrutement`
   },
   relance_dossier:{
     label:'📋 Relance dossier',
@@ -3538,7 +3662,7 @@ Pourriez-vous me faire parvenir les éléments manquants dans les meilleurs dél
 
 Merci pour votre réactivité,
 ${nom||'[VOTRE NOM]'}
-BTPRecruit`
+Novalem`
   },
   confirmation_entretien:{
     label:'🎥 Confirmation entretien visio',
@@ -3556,7 +3680,7 @@ Pensez à vous connecter quelques minutes avant et à avoir votre CV sous la mai
 
 À très vite,
 ${nom||'[VOTRE NOM]'}
-BTPRecruit`
+Novalem`
   },
   envoi_profil:{
     label:'📤 Envoi profil au client',
@@ -3580,7 +3704,7 @@ Le dossier complet est disponible sur simple demande.
 
 Je reste disponible pour tout échange,
 ${nom||'[VOTRE NOM]'}
-BTPRecruit`
+Novalem`
   },
   placement:{
     label:'🎉 Confirmation placement',
@@ -3597,7 +3721,7 @@ Conformément à nos accords, notre note d'honoraires vous parviendra prochainem
 
 Merci pour votre confiance,
 ${nom||'[VOTRE NOM]'}
-BTPRecruit`
+Novalem`
   },
   blank:{
     label:'✉️ Email vide',
@@ -3609,7 +3733,7 @@ BTPRecruit`
 
 Cordialement,
 ${nom||'[VOTRE NOM]'}
-BTPRecruit`
+Novalem`
   }
 };
 
@@ -3869,7 +3993,7 @@ function openEmailSettings(){
         </div>
         <div style="margin-top:8px;padding:8px 10px;background:var(--s2);border-radius:2px;font-size:11px;color:var(--mu)">
           Aperçu signature :<br>
-          <strong style="color:var(--tx)" id="es-preview">${nom||'[Votre nom]'}${tel?' — '+tel:''}<br>BTPRecruit — Cabinet de recrutement BTP</strong>
+          <strong style="color:var(--tx)" id="es-preview">${nom||'[Votre nom]'}${tel?' — '+tel:''}<br>Novalem — Cabinet de recrutement</strong>
         </div>
       </div>
 
@@ -3893,7 +4017,7 @@ function updateSigPreview(){
   const nom=document.getElementById('es-nom')?.value||'';
   const tel=document.getElementById('es-tel')?.value||'';
   const prev=document.getElementById('es-preview');
-  if(prev) prev.innerHTML=`${esc(nom)||'[Votre nom]'}${tel?' — '+esc(tel):''}<br>BTPRecruit — Cabinet de recrutement BTP`;
+  if(prev) prev.innerHTML=`${esc(nom)||'[Votre nom]'}${tel?' — '+esc(tel):''}<br>Novalem — Cabinet de recrutement`;
 }
 
 function saveEmailSettings(){
@@ -3937,7 +4061,7 @@ function applyEmailTpl(){
   const tpl=EMAIL_TPLS[key];
   if(!tpl)return;
 
-  const signature=`${nom||'[Votre nom]'}${tel?'\n'+tel:''}\nBTPRecruit — Cabinet de recrutement BTP`;
+  const signature=`${nom||'[Votre nom]'}${tel?'\n'+tel:''}\nNovalem — Cabinet de recrutement`;
 
   // Utiliser template personnalisé si défini, sinon défaut
   let subject=custom[key]?.subject||tpl.subject(c||{});
@@ -4175,7 +4299,7 @@ function renderRep(){
   ];
 
   // ── Objectif CA mensuel ────────────────────────────────
-  const CAObjectif=10000;
+  const CAObjectif=Number(localStorage.getItem('btp_obj_ca')||10000);
   const caMonth=months[months.length-1]?.ca||0;
   const caPct=Math.min(Math.round(caMonth/CAObjectif*100),100);
 
