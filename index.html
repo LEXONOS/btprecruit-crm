@@ -4314,7 +4314,7 @@ async function emFetchInbox(forceRefresh=false){
   const main=document.getElementById('em-main');
   if(main&&EM_VIEW==='inbox') main.innerHTML=emRenderInbox();
   try{
-    const resp=await fetch(`${apiBase}/api/imap`,{
+    const resp=await fetch(`${apiBase}/api/inbox`,{
       method:'GET',
       headers:{'Content-Type':'application/json'}
     });
@@ -4363,7 +4363,7 @@ async function emOpenEmail(uid){
   if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}
   // Marquer comme lu sur le serveur (fire & forget)
   const apiBase=getApiBase();
-  if(apiBase) fetch(`${apiBase}/api/imap`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mark-read',uid:email.uid})}).catch(()=>{});
+  if(apiBase) fetch(`${apiBase}/api/mark-read`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:email.uid})}).catch(()=>{});
 
   // Trouver match candidat/entreprise
   const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
