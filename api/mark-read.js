@@ -1,14 +1,9 @@
-// api/mark-read.js — Vercel Serverless Function
-// Marque un email comme lu sur le serveur IMAP
+// api/mark-read.js — Marquer un email comme lu (IMAP)
 // Body attendu : { uid: number }
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST uniquement' });
 
   const IMAP_HOST = process.env.IMAP_HOST;
   const IMAP_PORT = parseInt(process.env.IMAP_PORT || '993', 10);
@@ -38,7 +33,7 @@ export default async function handler(req, res) {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
     try {
-      await client.messageFlagsAdd({ uid }, ['\\Seen'], { uid: true });
+      await client.messageFlagsAdd({ uid: Number(uid) }, ['\\Seen'], { uid: true });
     } finally {
       lock.release();
     }
@@ -46,9 +41,10 @@ export default async function handler(req, res) {
     client = null;
 
     return res.status(200).json({ ok: true });
+
   } catch (err) {
     if (client) try { await client.logout(); } catch {}
     console.error('[api/mark-read]', err.message);
     return res.status(500).json({ error: err.message });
   }
-}
+};
