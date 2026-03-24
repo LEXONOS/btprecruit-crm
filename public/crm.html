@@ -2,8 +2,17 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
 <title>Novalem — CRM</title>
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0b0b09">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS Safari PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Novalem">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -477,9 +486,226 @@ select option{background:var(--s2)}
 .rep-source-row:last-child{border-bottom:none}
 .canvas-wrap{position:relative;width:100%;height:180px}
 
-.nav-settings{padding:7px 12px 10px;font-size:10px;color:var(--mu2);cursor:pointer;display:flex;align-items:center;gap:5px;transition:.12s}
-.nav-settings:hover{color:var(--mu)}
-</style>
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE MOBILE — iPhone / iOS PWA
+   ═══════════════════════════════════════════════════════ */
+
+/* Variables safe area pour iPhone notch/home bar */
+:root{
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --mob-nav-h: 60px;
+}
+
+@media(max-width:768px){
+
+  /* ── Layout principal ── */
+  body{
+    grid-template-columns: 1fr;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar — masquée par défaut, slide depuis la gauche ── */
+  #sb{
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 240px;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform .25s cubic-bezier(.2,.8,.3,1);
+    padding-top: var(--safe-top);
+    box-shadow: 4px 0 30px rgba(0,0,0,.7);
+  }
+  #sb.mob-open{ transform: translateX(0); }
+
+  /* Overlay foncé derrière la sidebar ouverte */
+  #mob-overlay{
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 299;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  #mob-overlay.visible{ display: block; }
+
+  /* ── Main — prend toute la largeur ── */
+  #main{
+    grid-row: 1;
+    grid-column: 1;
+    height: 100dvh;
+    grid-template-rows: calc(48px + var(--safe-top)) 1fr calc(var(--mob-nav-h) + var(--safe-bot));
+  }
+
+  /* ── Topbar mobile ── */
+  .topbar{
+    padding-top: var(--safe-top);
+    padding-left: 12px;
+    padding-right: 12px;
+    height: calc(48px + var(--safe-top));
+  }
+  /* Bouton hamburger */
+  #mob-menu-btn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--mu);
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #mob-menu-btn:active{ background: var(--s3); color: var(--tx); }
+
+  /* ── Content ── */
+  #content{
+    padding: 12px 14px;
+    padding-bottom: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Barre de navigation mobile (bottom) ── */
+  #mob-nav{
+    display: flex;
+    background: var(--s1);
+    border-top: 1px solid var(--bd);
+    padding-bottom: var(--safe-bot);
+    height: calc(var(--mob-nav-h) + var(--safe-bot));
+    flex-shrink: 0;
+  }
+  .mob-ni{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    color: var(--mu);
+    font-size: 9px;
+    padding: 6px 2px;
+    transition: .1s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mob-ni:active{ background: var(--s3); }
+  .mob-ni.act{ color: var(--ac); }
+  .mob-ni.act .mob-ni-ico{ transform: scale(1.1); }
+  .mob-ni-ico{ font-size: 20px; line-height: 1; transition: transform .15s; }
+  .mob-ni-lbl{ letter-spacing: .04em; text-transform: uppercase; font-size: 8px; }
+  .mob-ni-badge{
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 14px);
+    background: var(--ac3);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 8px;
+    min-width: 14px;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  /* ── Topbar : cacher certains éléments sur mobile ── */
+  #sync-ind{ font-size: 9px; }
+  .tbt{ font-size: 13px; }
+  .tba .btn{ font-size: 10px; padding: 5px 8px; }
+
+  /* ── Panneau candidat/entreprise ── */
+  #panel{
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--bd);
+    z-index: 250;
+    padding-top: var(--safe-top);
+    transform: translateY(100%);
+    transition: transform .28s cubic-bezier(.2,.8,.3,1);
+    height: 100dvh;
+  }
+  #panel.open{
+    transform: translateY(0);
+  }
+
+  /* ── Tables responsive ── */
+  .tbl{ font-size: 11px; }
+  .tbl th, .tbl td{ padding: 6px 6px; }
+  /* Cacher certaines colonnes secondaires */
+  .tbl .col-hide{ display: none; }
+
+  /* ── KPIs dashboard ── */
+  .kpi-grid{ grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .kpi{ padding: 10px 12px !important; }
+  .kpi-v{ font-size: 22px !important; }
+
+  /* ── Cards ── */
+  .aitem{ padding: 8px 10px; }
+
+  /* ── Panneau IA — repositionner en bas ── */
+  .ai-panel{
+    right: 8px;
+    bottom: calc(var(--mob-nav-h) + var(--safe-bot) + 8px);
+    width: calc(100vw - 16px);
+    max-width: 360px;
+    max-height: 55vh;
+  }
+
+  /* ── Module Email sur mobile ── */
+  #view-emails .view > div,
+  #view-emails > div{
+    grid-template-columns: 1fr !important;
+  }
+  /* Sidebar email masquée sur mobile, accessible via bouton */
+  .em-sidebar-mob{ display: none; }
+
+  /* ── Modales ── */
+  #mo-bg .mo{
+    width: calc(100vw - 24px) !important;
+    max-width: 100% !important;
+    max-height: 85dvh !important;
+    margin: auto;
+    border-radius: 8px !important;
+  }
+
+  /* ── Agenda ── */
+  .cal-week{ font-size: 10px; }
+
+  /* ── Reporting ── */
+  .rep-row, .rep-row3{
+    grid-template-columns: 1fr !important;
+  }
+  .rep-grid{
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── Boutons ── */
+  .btn{ min-height: 36px; }
+  .bsm{ font-size: 10px !important; padding: 5px 9px !important; }
+
+  /* ── Scroll horizontal → masqué ── */
+  .ptabs{ -webkit-overflow-scrolling: touch; }
+
+}/* fin @media mobile */
+
+/* iPhone très petit (SE) */
+@media(max-width:375px){
+  .mob-ni-lbl{ display: none; }
+  .mob-ni-ico{ font-size: 22px; }
+  #content{ padding: 10px 10px; }
+}
+
 </head>
 <body>
 <nav id="sb">
@@ -509,6 +735,7 @@ select option{background:var(--s2)}
 </nav>
 <div id="main">
   <div class="topbar">
+    <div id="mob-menu-btn" onclick="mobToggleNav()" title="Menu">☰</div>
     <div class="tbt" id="tbt">Dashboard</div>
     <div class="tba" id="tba"></div>
     <div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">☁ Local</div>
@@ -524,7 +751,37 @@ select option{background:var(--s2)}
     <div class="view" id="view-emails"></div>
     <div class="view" id="view-reporting"></div>
   </div>
+  <!-- BOTTOM NAV MOBILE -->
+  <div id="mob-nav">
+    <div class="mob-ni act" data-mv="dash" onclick="go('dash');mobSetActive('dash')">
+      <span class="mob-ni-ico">◈</span>
+      <span class="mob-ni-lbl">Dashboard</span>
+      <span class="mob-ni-badge" id="mob-badge-urg" style="display:none">!</span>
+    </div>
+    <div class="mob-ni" data-mv="cands" onclick="go('cands');mobSetActive('cands')">
+      <span class="mob-ni-ico">👤</span>
+      <span class="mob-ni-lbl">Candidats</span>
+      <span class="mob-ni-badge" id="mob-badge-cands" style="display:none">0</span>
+    </div>
+    <div class="mob-ni" data-mv="pros" onclick="go('pros');mobSetActive('pros')">
+      <span class="mob-ni-ico">📞</span>
+      <span class="mob-ni-lbl">Prospects</span>
+      <span class="mob-ni-badge" id="mob-badge-pros" style="display:none">0</span>
+    </div>
+    <div class="mob-ni" data-mv="agenda" onclick="go('agenda');mobSetActive('agenda')">
+      <span class="mob-ni-ico">📅</span>
+      <span class="mob-ni-lbl">Agenda</span>
+      <span class="mob-ni-badge" id="mob-badge-ag" style="display:none">0</span>
+    </div>
+    <div class="mob-ni" data-mv="emails" onclick="go('emails');mobSetActive('emails')">
+      <span class="mob-ni-ico">✉️</span>
+      <span class="mob-ni-lbl">Emails</span>
+      <span class="mob-ni-badge" id="mob-badge-em" style="display:none">0</span>
+    </div>
+  </div>
 </div>
+<!-- Overlay sidebar mobile -->
+<div id="mob-overlay" onclick="mobCloseNav()"></div>
 <aside id="panel">
   <div class="ph"><div class="ph-l"><div class="ph-name" id="ph-name">—</div><div class="ph-sub" id="ph-sub"></div></div><div class="ph-x" onclick="closePanel()">✕</div></div>
   <div class="ptabs" id="ptabs"></div>
@@ -5085,6 +5342,114 @@ function renderRep(){
     else{ind.textContent='☁ Local';ind.style.color='var(--mu2)';ind.title='Configurez Supabase dans ⚙ Paramètres pour activer le cloud';}
   }
 })();
+</script>
+<script>
+// ═══════════════════════════════════════════════════════
+// MOBILE PWA — Navigation & UI
+// ═══════════════════════════════════════════════════════
+
+function mobIsMobile(){ return window.innerWidth <= 768; }
+
+// ── Sidebar hamburger ────────────────────────────────
+function mobToggleNav(){
+  const sb=document.getElementById('sb');
+  const ov=document.getElementById('mob-overlay');
+  if(!sb||!ov)return;
+  const open=sb.classList.toggle('mob-open');
+  ov.classList.toggle('visible',open);
+}
+function mobCloseNav(){
+  const sb=document.getElementById('sb');
+  const ov=document.getElementById('mob-overlay');
+  if(sb) sb.classList.remove('mob-open');
+  if(ov) ov.classList.remove('visible');
+}
+
+// ── Fermer la nav au clic sur un item sidebar (mobile) ──
+document.querySelectorAll('.ni').forEach(el=>{
+  el.addEventListener('click',()=>{ if(mobIsMobile()) mobCloseNav(); });
+});
+
+// ── Active state bottom nav ──────────────────────────
+function mobSetActive(view){
+  document.querySelectorAll('.mob-ni').forEach(el=>{
+    el.classList.toggle('act', el.dataset.mv===view);
+  });
+}
+
+// ── Synchroniser la bottom nav quand go() est appelé ──
+const _goOrig = go;
+window.go = function(v){
+  _goOrig(v);
+  mobSetActive(v);
+  if(mobIsMobile()) mobCloseNav();
+};
+
+// ── Badges bottom nav ────────────────────────────────
+function mobUpdateBadges(){
+  if(!mobIsMobile()) return;
+  const urg = computeAlerts().length;
+  const bu = document.getElementById('mob-badge-urg');
+  if(bu){ bu.style.display=urg>0?'inline-block':'none'; bu.textContent=urg; }
+
+  const cands = DB.candidates.filter(c=>!['ko','placed'].includes(c.status)).length;
+  const bc = document.getElementById('mob-badge-cands');
+  if(bc){ bc.style.display=cands>0?'inline-block':'none'; bc.textContent=cands; }
+
+  const pros = DB.companies.filter(c=>c.type==='prospect'&&c.status!=='nobiz').length;
+  const bp = document.getElementById('mob-badge-pros');
+  if(bp){ bp.style.display=pros>0?'inline-block':'none'; bp.textContent=pros; }
+
+  const ag = DB.agenda.filter(e=>{ const d=new Date(e.date); const t=new Date(); return d.toDateString()===t.toDateString(); }).length;
+  const ba = document.getElementById('mob-badge-ag');
+  if(ba){ ba.style.display=ag>0?'inline-block':'none'; ba.textContent=ag; }
+
+  const em = INBOX_UNREAD||0;
+  const be = document.getElementById('mob-badge-em');
+  if(be){ be.style.display=em>0?'inline-block':'none'; be.textContent=em; }
+}
+
+// ── Cacher le hamburger sur desktop ─────────────────
+function mobApplyLayout(){
+  const btn=document.getElementById('mob-menu-btn');
+  const nav=document.getElementById('mob-nav');
+  if(!btn||!nav) return;
+  const mob=mobIsMobile();
+  btn.style.display = mob ? 'flex' : 'none';
+  nav.style.display = mob ? 'flex' : 'none';
+  if(!mob) mobCloseNav();
+}
+
+window.addEventListener('resize', mobApplyLayout);
+document.addEventListener('DOMContentLoaded', ()=>{
+  mobApplyLayout();
+  // Mettre à jour badges toutes les 30s
+  setInterval(mobUpdateBadges, 30000);
+});
+
+// ── Mettre à jour badges après chaque save ──────────
+const _saveOrig = typeof save==='function' ? save : null;
+if(_saveOrig){
+  window.save = function(){
+    _saveOrig();
+    mobUpdateBadges();
+  };
+}
+
+// ── Empêcher le double-tap zoom iOS ─────────────────
+let lastTap=0;
+document.addEventListener('touchend',e=>{
+  const now=Date.now();
+  if(now-lastTap<300){ e.preventDefault(); }
+  lastTap=now;
+},{passive:false});
+
+// ── PWA Service Worker (offline cache) ──────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
