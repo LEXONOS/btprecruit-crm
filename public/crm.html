@@ -2684,7 +2684,7 @@ function openNeedPanel(id){
         ${n.veille_url?`<a href="${esc(n.veille_url)}" target="_blank" class="btn bg bsm" style="display:inline-block;font-size:10px;margin-bottom:8px">🔗 Voir l'annonce originale</a>`:''}
         <div style="display:flex;gap:6px">
           <button class="btn bp bsm" onclick="validateNeed('${id}')">✓ Valider ce besoin</button>
-          <button class="btn bd_ bsm" onclick="if(confirm('Ignorer ce besoin ?'))delNeed('${id}')">✕ Ignorer</button>
+          <button class="btn bd_ bsm" onclick="delNeed('${id}')">✕ Ignorer</button>
         </div>
       </div>
       <div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
@@ -2692,7 +2692,7 @@ function openNeedPanel(id){
       <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(n.location||'Nice (06)')}</span></div>
       <div class="dr"><span class="drk">Urgence</span><span class="drv"><select onchange="const n=nById('${id}');if(n){n.urgency=this.value;n.updated=now_();save();}"><option value="m" ${n.urgency==='m'?'selected':''}>🟡 Moyen</option><option value="h" ${n.urgency==='h'?'selected':''}>🔴 Urgent</option><option value="l" ${n.urgency==='l'?'selected':''}>⚪ Long terme</option></select></span></div>
       ${n.notes?`<div class="sl">Descriptif annonce</div><div class="notebox" style="max-height:200px;overflow-y:auto;font-size:10px">${esc(n.notes)}</div>`:''}`,
-      `<button class="btn bp bsm" onclick="validateNeed('${id}')">✓ Valider</button><button class="btn bg bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="if(confirm('Ignorer ?'))delNeed('${id}')">✕ Ignorer</button>`
+      `<button class="btn bp bsm" onclick="validateNeed('${id}')">✓ Valider</button><button class="btn bg bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delNeed('${id}')">✕ Ignorer</button>`
     );
     return;
   }
@@ -3100,7 +3100,7 @@ function parseCandCsv(){const txt=document.getElementById('cc-txt').value;const 
 // ═══════════════════════════════════════════════════════
 function delCand(id){if(!confirm('Supprimer ce candidat ?'))return;DB.candidates=DB.candidates.filter(c=>c.id!==id);save();closePanel();closeMo();rCands();badges();toast('Supprimé','w');}
 function delCo(id){if(!confirm('Supprimer cette entreprise ?'))return;DB.companies=DB.companies.filter(c=>c.id!==id);save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');}
-function delNeed(id){if(!confirm('Supprimer ce besoin ?'))return;DB.needs=DB.needs.filter(n=>n.id!==id);DB.candidates.forEach(c=>{if(c.linked_need===id)c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Supprimé','w');}
+function delNeed(id){DB.needs=DB.needs.filter(n=>n.id!==id);DB.candidates.forEach(c=>{if(c.linked_need===id)c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Supprimé','w');}
 
 // ═══════════════════════════════════════════════════════
 // VEILLE ANNONCES BTP — NICE (06)
