@@ -4442,26 +4442,6 @@ async function emAnalyzeEmail(uid){
   // Afficher le panel en mode "analyse en cours"
   showAiPanelLoading();
 
-// ── Supprimer un email ───────────────────────────────
-async function emDeleteEmail(uid){
-  if(!confirm('Supprimer cet email définitivement ?')) return;
-  const apiBase=getApiBase();
-  if(!apiBase){toast('Disponible uniquement sur Vercel','w');return;}
-  // Supprimer localement du cache immédiatement
-  if(INBOX_CACHE&&INBOX_CACHE.emails){
-    INBOX_CACHE.emails=INBOX_CACHE.emails.filter(e=>String(e.uid)!==String(uid));
-  }
-  // Retour à la liste
-  emShowView('inbox');
-  toast('Email supprimé ✓','s');
-  // Appel serveur en arrière-plan
-  fetch(`${apiBase}/api/imap`,{
-    method:'DELETE',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({uid:Number(uid)})
-  }).catch(()=>{});
-}
-
   const systemPrompt=`Tu es l'assistant IA du CRM NOVALEM — cabinet de recrutement BTP, CDI uniquement, France métropolitaine et DOM-TOM.
 
 CONTEXTE MÉTIER :
@@ -4540,9 +4520,9 @@ ${JSON.stringify(cosList)}`;
   try{
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-6',
         max_tokens:800,
         system:systemPrompt,
         messages:[{role:'user',content:userPrompt}]
@@ -4567,6 +4547,26 @@ ${JSON.stringify(cosList)}`;
       <button class="btn bg bxs" style="margin-top:10px;font-size:10px" onclick="emAnalyzeEmail('${uid}')">Réessayer</button>
     </div>`;
   }
+}
+
+// ── Supprimer un email ───────────────────────────────
+async function emDeleteEmail(uid){
+  if(!confirm('Supprimer cet email définitivement ?')) return;
+  const apiBase=getApiBase();
+  if(!apiBase){toast('Disponible uniquement sur Vercel','w');return;}
+  // Supprimer localement du cache immédiatement
+  if(INBOX_CACHE&&INBOX_CACHE.emails){
+    INBOX_CACHE.emails=INBOX_CACHE.emails.filter(e=>String(e.uid)!==String(uid));
+  }
+  // Retour à la liste
+  emShowView('inbox');
+  toast('Email supprimé ✓','s');
+  // Appel serveur en arrière-plan
+  fetch(`${apiBase}/api/imap`,{
+    method:'DELETE',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({uid:Number(uid)})
+  }).catch(()=>{});
 }
 
 // ── Panel "analyse en cours" ─────────────────────────
