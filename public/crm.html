@@ -3164,7 +3164,7 @@ async function runVeille(){
   toast('🔍 Veille Nice en cours…','i');
   try{
     const resp=await fetch(`${apiBase}/api/find-prospects`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error||`HTTP ${resp.status}`);}
     const data=await resp.json();
     const offers=data.offers||[];
     if(!offers.length){toast('Aucune annonce trouvée (API France Travail)','w');return;}
