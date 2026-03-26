@@ -3108,40 +3108,69 @@ function delNeed(id){if(!confirm('Supprimer ce besoin ?'))return;DB.needs=DB.nee
 
 function romeTocat(rome){return({'F1201':'go','F1101':'so','F1106':'be','F1302':'vrd','H1502':'hse'})[rome]||'go';}
 
-function createPendingNeedFromOffer(offer,companyName,aiDeduced){
-  // Chercher si l'entreprise existe déjà
+// Cherche le téléphone d'une entreprise via France Travail (champ entreprise)
+// Fallback : on stocke juste le nom pour que tu puisses chercher toi-même
+function extractPhone(offreEntreprise){
+  return offreEntreprise?.telephone||offreEntreprise?.contact?.telephone||null;
+}
+
+// Créer un besoin pending + fiche prospect si besoin
+function createPendingNeedFromOffer(offer, companyName, aiDeduced, aiCandidates){
   const norm=companyName.toLowerCase().trim();
-  let co=DB.companies.find(c=>c.name.toLowerCase().includes(norm)||norm.includes(c.name.toLowerCase()));
+  let co=DB.companies.find(c=>c.name.toLowerCase()===norm||norm.includes(c.name.toLowerCase().slice(0,6)));
   const isKnown=!!co;
   if(!co){
-    co={id:uid(),name:companyName,contact:'',phone:'',email:'',city:offer.location||'Nice (06)',cat:romeTocat(offer.rome),type:'prospect',status:'tocall',source:'Veille automatique',notes:`Détecté via annonce France Travail :\n${offer.title}${offer.url?'\n'+offer.url:''}`,created:now_(),updated:now_()};
+    co={
+      id:uid(),name:companyName,contact:'',phone:offer._phone||'',email:'',
+      city:offer.location||'Nice (06)',cat:romeTocat(offer.rome),
+      type:'prospect',status:'tocall',source:'Veille automatique',
+      notes:`Détecté via annonce BTP :\n"${offer.title}"${offer.url?'\n→ '+offer.url:''}${aiDeduced?'\n⚠️ Entreprise identifiée par IA — à vérifier':''}`+
+            (aiCandidates&&aiCandidates.length>1?`\nAutres candidats IA : ${aiCandidates.slice(1).join(', ')}`:``),
+      created:now_(),updated:now_()
+    };
     DB.companies.unshift(co);
   }
-  // Créer le besoin en statut pending
   DB.needs.unshift({
     id:uid(),company_id:co.id,title:offer.title,cat:romeTocat(offer.rome),
     smin:null,smax:null,location:offer.location||'Nice (06)',start:null,urgency:'m',
-    status:'pending',notes:offer.description||'',
-    source:aiDeduced?'veille_ai':'veille_ft',veille_id:offer.id,veille_url:offer.url||null,
-    ai_deduced:!!aiDeduced,created:now_(),updated:now_()
+    status:'pending',
+    notes:offer.description||'',
+    source:aiDeduced?'veille_ai':'veille_ft',
+    veille_id:offer.id,
+    veille_url:offer.url||null,
+    ai_deduced:!!aiDeduced,
+    salary_raw:offer.salary||null,
+    created:now_(),updated:now_()
   });
   return isKnown;
 }
 
-async function identifyCompaniesWithHaiku(offers,key){
-  if(!offers.length||!key) return offers.map(o=>({offer:o,company:null}));
-  const prompt=`Tu es expert BTP France. Pour chaque annonce, identifie l'entreprise BTP qui a probablement publié cette offre (nom précis d'entreprise réelle). Si tu ne peux pas identifier avec certitude, réponds null.
+// Analyse IA des offres anonymes — Haiku uniquement, batch de 5
+// Pour chaque offre sans nom d'entreprise, l'IA essaie d'identifier
+// quelle vraie entreprise BTP de Nice aurait pu publier cette annonce
+async function identifyCompaniesWithHaiku(offers, key){
+  if(!offers.length||!key) return offers.map(o=>({offer:o,company:null,candidates:[]}));
 
-Réponds UNIQUEMENT en JSON valide sans markdown :
-[{"id":"id_offre","company":"Nom Entreprise ou null","confidence":"haute|moyenne|basse"}]
+  const prompt=`Tu es expert du secteur BTP en France, spécialisé sur la région Nice (06).
 
-ANNONCES :
-${offers.map(o=>`ID: ${o.id}\nTitre: ${o.title}\nDescription: ${o.description}`).join('\n\n---\n\n')}`;
+Pour chaque offre d'emploi ci-dessous, identifie quelle(s) vraie(s) entreprise(s) BTP implantée(s) à Nice ou dans les Alpes-Maritimes a pu publier ou sous-tendre cette offre. Analyse : le type de chantier, la taille d'entreprise décrite, les missions, le secteur précis (GO, VRD, structure, etc.), la localisation.
+
+Si l'offre mentionne "notre client", "une entreprise", "groupe", etc., c'est une agence qui cache le nom — essaie de deviner quel type réel de boîte BTP locale correspond.
+
+Réponds UNIQUEMENT en JSON valide, sans markdown :
+[{"id":"id_offre","company":"Nom le plus probable ou null","candidates":["Nom1","Nom2"],"confidence":"haute|moyenne|basse","raison":"1 phrase"}]
+
+OFFRES :
+${offers.map(o=>`ID: ${o.id}
+Titre: ${o.title}
+Localisation: ${o.location}
+Description: ${o.description}`).join('\n\n---\n\n')}`;
+
   try{
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:prompt}]})
     });
     const data=await resp.json();
     const raw=data?.content?.[0]?.text||'[]';
@@ -3149,11 +3178,12 @@ ${offers.map(o=>`ID: ${o.id}\nTitre: ${o.title}\nDescription: ${o.description}`)
     try{results=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch{results=[];}
     return offers.map(o=>{
       const m=results.find(r=>r.id===o.id);
-      return{offer:o,company:(m&&m.company&&m.confidence!=='basse')?m.company:null};
+      const ok=m&&m.company&&m.confidence!=='basse';
+      return{offer:o,company:ok?m.company:null,candidates:m?.candidates||[],raison:m?.raison||''};
     });
   }catch(e){
     console.warn('[veille AI]',e.message);
-    return offers.map(o=>({offer:o,company:null}));
+    return offers.map(o=>({offer:o,company:null,candidates:[]}));
   }
 }
 
@@ -3162,53 +3192,76 @@ async function runVeille(){
   if(!apiBase){toast('Disponible sur Vercel uniquement','w');return;}
   const key=getApiKey();
   toast('🔍 Veille Nice en cours…','i');
+
   try{
     const resp=await fetch(`${apiBase}/api/find-prospects`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
     if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error||`HTTP ${resp.status}`);}
+
     const data=await resp.json();
     const offers=data.offers||[];
-    // Afficher les erreurs FT si présentes
-    if(data.errors&&data.errors.length){
-      console.warn('[veille] erreurs FT:', data.errors);
-      if(!offers.length){
-        const detail=data.errors.map(e=>`${e.rome}: ${e.error}`).join('\n');
-        toast(`France Travail — 0 résultat. Erreurs :\n${detail}`,'e');
-        return;
-      }
+
+    // Debug : afficher ce que l'API a retourné
+    if(data.debug){
+      const summary=data.debug.map(d=>`${d.rome}:${d.count}`).join(' | ');
+      console.log('[veille] FT résultats par ROME:',summary);
     }
-    if(!offers.length){toast('Aucune annonce trouvée (API France Travail)','w');return;}
-    // Filtrer celles déjà vues
+    if(data.errors&&data.errors.length){
+      console.warn('[veille] erreurs FT:',data.errors);
+      const detail=data.errors.map(e=>`${e.rome}: ${e.error}`).join('\n');
+      if(!offers.length){toast(`Erreur France Travail — ${data.errors[0].error}`,'e');return;}
+    }
+    if(!offers.length){
+      const msg=data.debug?`0 annonce trouvée (${data.debug.map(d=>`${d.rome}:${d.count}`).join(' ')})`:'Aucune annonce (API France Travail)';
+      toast(msg,'w');return;
+    }
+
+    // Filtrer celles déjà vues (dédoublonnage par ID offre)
     const seenIds=new Set(DB.needs.filter(n=>n.veille_id).map(n=>n.veille_id));
     const newOffers=offers.filter(o=>!seenIds.has(o.id));
-    if(!newOffers.length){toast('Aucune nouvelle annonce depuis la dernière veille','i');return;}
-    const named=newOffers.filter(o=>o.company&&!o.needsAI);
-    const anonymous=newOffers.filter(o=>o.needsAI);
-    let created=0,knownCoCount=0;
-    // Traiter les annonces avec nom d'entreprise direct
-    for(const o of named){
-      const isKnown=createPendingNeedFromOffer(o,o.company,false);
-      if(isKnown) knownCoCount++;
+    if(!newOffers.length){toast(`${offers.length} annonce(s) trouvée(s) — déjà toutes vues ✓`,'i');return;}
+
+    // Séparer offres avec nom d'entreprise vs anonymes
+    const withCompany=newOffers.filter(o=>o.hasCompany&&o.company);
+    const anonymous  =newOffers.filter(o=>!o.hasCompany||!o.company);
+
+    let created=0,knownCount=0;
+
+    // Traiter les offres avec nom d'entreprise directement
+    for(const o of withCompany){
+      const isKnown=createPendingNeedFromOffer(o,o.company,false,[]);
+      if(isKnown)knownCount++;
       created++;
     }
-    // Traiter les annonces anonymes via Haiku
-    if(anonymous.length&&key){
-      const BATCH=5;
-      for(let i=0;i<anonymous.length;i+=BATCH){
-        const batch=anonymous.slice(i,i+BATCH);
-        const identified=await identifyCompaniesWithHaiku(batch,key);
-        for(const item of identified){
-          if(item.company){
-            const isKnown=createPendingNeedFromOffer(item.offer,item.company,true);
-            if(isKnown) knownCoCount++;
-            created++;
+
+    // Traiter les anonymes via IA Haiku (uniquement si clé dispo)
+    if(anonymous.length){
+      if(!key){
+        toast(`${withCompany.length} besoin(s) créés. ${anonymous.length} offres anonymes ignorées (clé IA non configurée dans ⚙ Paramètres)`, 'w');
+      }else{
+        toast(`Analyse IA de ${anonymous.length} offres anonymes…`,'i');
+        const BATCH=5;
+        for(let i=0;i<anonymous.length;i+=BATCH){
+          const batch=anonymous.slice(i,i+BATCH);
+          const identified=await identifyCompaniesWithHaiku(batch,key);
+          for(const item of identified){
+            if(item.company){
+              const isKnown=createPendingNeedFromOffer(item.offer,item.company,true,item.candidates);
+              if(isKnown)knownCount++;
+              created++;
+            }
+            // Si l'IA ne trouve pas → on ignore (per ta préférence)
           }
         }
       }
     }
+
     save();rNeeds();badges();rDash();
     switchNeedsTab('pending');
-    const msg=`${created} besoin(s) détecté(s)${knownCoCount?` dont ${knownCoCount} entreprise(s) déjà connues`:''}`;
-    toast(msg+' → onglet À valider ✓','s');
+    let msg=`${created} nouveau(x) besoin(s) détecté(s)`;
+    if(knownCount)msg+=` dont ${knownCount} entreprise(s) déjà connues`;
+    if(anonymous.length&&key)msg+=` · ${anonymous.length-Math.max(0,created-withCompany.length)} anonymes ignorées`;
+    toast(msg+' → valide dans "À valider" ✓','s');
+
   }catch(err){
     console.error('[veille]',err);
     toast(`Erreur veille : ${err.message}`,'e');
