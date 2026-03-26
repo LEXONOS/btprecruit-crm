@@ -3167,6 +3167,15 @@ async function runVeille(){
     if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error||`HTTP ${resp.status}`);}
     const data=await resp.json();
     const offers=data.offers||[];
+    // Afficher les erreurs FT si présentes
+    if(data.errors&&data.errors.length){
+      console.warn('[veille] erreurs FT:', data.errors);
+      if(!offers.length){
+        const detail=data.errors.map(e=>`${e.rome}: ${e.error}`).join('\n');
+        toast(`France Travail — 0 résultat. Erreurs :\n${detail}`,'e');
+        return;
+      }
+    }
     if(!offers.length){toast('Aucune annonce trouvée (API France Travail)','w');return;}
     // Filtrer celles déjà vues
     const seenIds=new Set(DB.needs.filter(n=>n.veille_id).map(n=>n.veille_id));
