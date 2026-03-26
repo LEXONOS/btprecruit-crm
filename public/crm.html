@@ -412,6 +412,7 @@ select option{background:var(--s2)}
 .inbox-item:hover{background:var(--s3)}
 .inbox-item.unread{background:rgba(207,224,70,.04)}
 .inbox-item.unread .inbox-subj{color:var(--ac);font-weight:600}
+.inbox-item.inbox-urgent{border-left:2px solid var(--ac4);background:rgba(255,180,0,.04)}
 .inbox-unread-dot{width:6px;height:6px;border-radius:50%;background:var(--ac);flex-shrink:0;margin-top:4px}
 .inbox-subj{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;transition:.1s}
 .inbox-snip{font-size:10px;color:var(--mu);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -612,7 +613,7 @@ function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`h
 // STATE
 // ═══════════════════════════════════════════════════════
 let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[]};
-let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'entrants',agView:'week',agDate:new Date().toISOString().split('T')[0],calWeekOffset:0};
+let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'entrants',needs_tab:'pending',agView:'week',agDate:new Date().toISOString().split('T')[0],calWeekOffset:0};
 
 // ═══════════════════════════════════════════════════════
 // STORAGE — localStorage (cache) + Supabase (cloud sync)
@@ -759,7 +760,7 @@ function go(v){
   document.getElementById('view-'+v).classList.add('active');
   const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting'};
   document.getElementById('tbt').textContent=T[v]||v;
-  const A={dash:'',cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importProsCsv(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
+  const A={dash:'',cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button><button class="btn bg bsm" onclick="runVeille()">🔍 Veille Nice</button>`,pros:`<label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importProsCsv(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
   document.getElementById('tba').innerHTML=A[v]||'';
   ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting})[v]?.();
   badges();
@@ -768,7 +769,7 @@ function go(v){
 function badges(){
   const active=DB.candidates.filter(c=>!['ko','placed'].includes(c.status));
   document.getElementById('badge-cands').textContent=active.length;
-  document.getElementById('badge-needs').textContent=DB.needs.filter(n=>n.status==='open').length;
+  document.getElementById('badge-needs').textContent=DB.needs.filter(n=>n.status==='open'||n.status==='pending').length;
   const pros=DB.companies.filter(c=>c.type==='prospect'&&c.status!=='nobiz').length;
   document.getElementById('badge-pros').textContent=pros;
   // urgency badge
@@ -797,6 +798,11 @@ function computeAlerts(){
     if(c.status==='presented'&&daysDiff(c.updated)>3) a.push({color:'var(--ac3)',msg:`Client sans retour (${daysDiff(c.updated)}j) sur ${c.name}`,act:`openCandPanel('${c.id}')`});
     if(c.status==='interview'&&daysDiff(c.updated)>3) a.push({color:'var(--ac5)',msg:`Synthèse entretien manquante : ${c.name}`,act:`openCandPanel('${c.id}')`});
   });
+  // Besoins à valider (veille automatique)
+  DB.needs.filter(n=>n.status==='pending').forEach(n=>{
+    const co=coById(n.company_id);
+    a.push({color:'var(--ac6)',msg:`Besoin à valider : ${n.title}${co?' — '+co.name:''}`,act:`go('needs');switchNeedsTab('pending')`});
+  });
   // Prospects avec rappel dû aujourd'hui
   const today=new Date();today.setHours(0,0,0,0);
   DB.companies.filter(c=>c.type==='prospect'&&c.status==='nobiz'&&c.nobiz_remind&&new Date(c.nobiz_remind)<=today).forEach(c=>
@@ -824,7 +830,7 @@ function rDash(){
     <div class="dkpi">
       <div class="kpi"><div class="kpi-v ac2">${active.length}</div><div class="kpi-l">Pipeline actif</div><div class="kpi-s">${ents.length} entrant(s) à trier</div></div>
       <div class="kpi"><div class="kpi-v ac">${placed.length}</div><div class="kpi-l">Placements</div><div class="kpi-s">${fM(Math.round(revEnc))} encaissé</div></div>
-      <div class="kpi"><div class="kpi-v" style="color:var(--ac4)">${DB.needs.filter(n=>n.status==='open').length}</div><div class="kpi-l">Besoins ouverts</div><div class="kpi-s">${DB.needs.length} au total</div></div>
+      <div class="kpi"><div class="kpi-v" style="color:var(--ac4)">${DB.needs.filter(n=>n.status==='open').length}</div><div class="kpi-l">Besoins ouverts</div><div class="kpi-s">${DB.needs.filter(n=>n.status==='pending').length} à valider</div></div>
       <div class="kpi"><div class="kpi-v ac5">${DB.companies.filter(co=>co.type==='client').length}</div><div class="kpi-l">Clients</div><div class="kpi-s">${DB.companies.filter(co=>co.type==='prospect').length} prospects</div></div>
       <div class="kpi"><div class="kpi-v" style="color:var(--ac6)">${fM(Math.round(revPot))}</div><div class="kpi-l">Potentiel</div><div class="kpi-s">si tous placés</div></div>
       <div class="kpi"><div class="kpi-v ac3">${alerts.length}</div><div class="kpi-l">Actions req.</div><div class="kpi-s">${todayAg.length} aujourd'hui</div></div>
@@ -1772,31 +1778,63 @@ function renderCPRefs(c){
 // AUTRES VUES (inchangées par rapport à v2)
 // ═══════════════════════════════════════════════════════════
 function rNeeds(){
+  const tab=UI.needs_tab||'pending';
+  const pending=DB.needs.filter(n=>n.status==='pending');
+  const actives=DB.needs.filter(n=>n.status!=='pending');
   const q=(document.getElementById('sn')||{}).value?.toLowerCase()||'';
   const uf=(document.getElementById('fu')||{}).value||'';
   const sf=(document.getElementById('fns')||{}).value||'';
   const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
-  const filt=DB.needs.filter(n=>{
+  const filt=(tab==='pending'?pending:actives).filter(n=>{
     const co=coById(n.company_id);
     const txt=((n.title||'')+(co?co.name:'')).toLowerCase();
     if(q&&!txt.includes(q))return false;
-    if(uf&&n.urgency!==uf)return false;
-    if(sf&&n.status!==sf)return false;
+    if(tab!=='pending'){
+      if(uf&&n.urgency!==uf)return false;
+      if(sf&&n.status!==sf)return false;
+    }
     return true;
   });
   const stOpts=NST.map(s=>`<option value="${s.id}">${s.l}</option>`).join('');
   document.getElementById('view-needs').innerHTML=`
+    <div class="vtabs">
+      <div class="vt ${tab==='pending'?'act':''}" onclick="switchNeedsTab('pending')">
+        🔎 À valider <span class="vt-badge">${pending.length}</span>
+      </div>
+      <div class="vt ${tab==='active'?'act':''}" onclick="switchNeedsTab('active')">
+        🎯 Besoins actifs <span class="vt-badge">${actives.filter(n=>n.status==='open').length}</span>
+      </div>
+    </div>
     <div class="tb">
       <div class="srch"><input id="sn" placeholder="Rechercher besoin…" oninput="rNeeds()"></div>
-      <select id="fu" onchange="rNeeds()" style="max-width:140px"><option value="">Toute urgence</option><option value="h">🔴 Urgent</option><option value="m">🟡 Moyen</option><option value="l">⚪ Long terme</option></select>
-      <select id="fns" onchange="rNeeds()" style="max-width:140px"><option value="">Tous statuts</option>${stOpts}</select>
+      ${tab==='active'?`<select id="fu" onchange="rNeeds()" style="max-width:140px"><option value="">Toute urgence</option><option value="h">🔴 Urgent</option><option value="m">🟡 Moyen</option><option value="l">⚪ Long terme</option></select><select id="fns" onchange="rNeeds()" style="max-width:140px"><option value="">Tous statuts</option>${stOpts}</select>`:''}
     </div>
-    ${filt.length?`<div class="g3">${filt.map(n=>needCard(n)).join('')}</div>`:'<div class="empty">Aucun besoin — <button class="btn bp bxs" onclick="openNeedForm()">+ Créer</button></div>'}`;
+    ${filt.length?`<div class="g3">${filt.map(n=>needCard(n)).join('')}</div>`:
+      tab==='pending'?`<div class="empty">Aucun besoin à valider — <button class="btn bp bxs" onclick="runVeille()">🔍 Lancer la veille Nice</button></div>`:
+      `<div class="empty">Aucun besoin — <button class="btn bp bxs" onclick="openNeedForm()">+ Créer</button></div>`}`;
+}
+function switchNeedsTab(t){UI.needs_tab=t;rNeeds();}
 }
 function needCard(n){
   const co=coById(n.company_id);
   const cat=getCat(n.cat);
   const cands=DB.candidates.filter(c=>c.linked_need===n.id);
+  // ── Carte spéciale pour les besoins à valider ──
+  if(n.status==='pending'){
+    return`<div class="nc ul" onclick="openNeedPanel('${n.id}')">
+      <div class="nc-co">${co?esc(co.name):'— Entreprise ?'}${n.ai_deduced?'<span style="font-size:9px;margin-left:6px;padding:1px 5px;border-radius:3px;background:rgba(154,74,224,.15);color:var(--ac6)">IA</span>':''}</div>
+      <div class="nc-t">${esc(n.title)}</div>
+      <div class="nc-m"><span class="tag ${cat.cls}">${cat.l}</span><br>📍 ${esc(n.location||'Nice (06)')}</div>
+      <div class="nc-ft">
+        <span class="pill" style="background:rgba(255,180,0,.12);color:#c8940a;border:1px solid rgba(255,180,0,.3)">🔎 À valider</span>
+        ${n.veille_url?`<a href="${esc(n.veille_url)}" target="_blank" onclick="event.stopPropagation()" class="btn bxs bg" style="font-size:9px">Annonce</a>`:''}
+        <span style="margin-left:auto;display:flex;gap:4px">
+          <button class="btn bp bxs" style="font-size:9px" onclick="event.stopPropagation();validateNeed('${n.id}')">✓ Valider</button>
+          <button class="btn bd_ bxs" style="font-size:9px" onclick="event.stopPropagation();delNeed('${n.id}')">✕</button>
+        </span>
+      </div>
+    </div>`;
+  }
   const NST=[{id:'open',l:'Ouvert',p:'ppre'},{id:'sent',l:'CV envoyés',p:'pdos'},{id:'interview',l:'Entretiens',p:'pvis'},{id:'won',l:'✓ Placé',p:'pplac'},{id:'lost',l:'Perdu',p:'pko'}];
   const st=NST.find(s=>s.id===n.status)||NST[0];
   const ucls={h:'var(--ac3)',m:'var(--ac4)',l:'var(--mu2)'}[n.urgency]||'var(--mu2)';
@@ -2636,6 +2674,29 @@ function openNeedPanel(id){
   const matched=DB.candidates.filter(c=>c.linked_need===id);
   const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'✓ Placé'},{id:'lost',l:'Perdu'}];
   const tabs=['Détail','Candidats'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
+
+  // ── Affichage spécial pour besoin à valider ──
+  if(n.status==='pending'){
+    const srcLabel=n.ai_deduced?'Entreprise déduite par IA — à vérifier':'France Travail';
+    setPanel(n.title,`${co?`<span>${esc(co.name)}</span> · `:''}${n.ai_deduced?'<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(154,74,224,.15);color:var(--ac6)">IA</span> · ':''}<span class="pill" style="background:rgba(255,180,0,.12);color:#c8940a;border:1px solid rgba(255,180,0,.3);font-size:9px">🔎 À valider</span>`,null,`
+      <div style="padding:10px;background:rgba(255,180,0,.06);border:1px solid rgba(255,180,0,.2);border-radius:4px;margin-bottom:12px">
+        <div style="font-size:10px;color:var(--mu);margin-bottom:4px">Source : ${srcLabel}</div>
+        ${n.ai_deduced?'<div style="font-size:10px;color:var(--ac6);margin-bottom:6px">⚠️ L\'IA a déduit cette entreprise — vérifiez que c\'est correct avant de valider.</div>':''}
+        ${n.veille_url?`<a href="${esc(n.veille_url)}" target="_blank" class="btn bg bsm" style="display:inline-block;font-size:10px;margin-bottom:8px">🔗 Voir l'annonce originale</a>`:''}
+        <div style="display:flex;gap:6px">
+          <button class="btn bp bsm" onclick="validateNeed('${id}')">✓ Valider ce besoin</button>
+          <button class="btn bd_ bsm" onclick="if(confirm('Ignorer ce besoin ?'))delNeed('${id}')">✕ Ignorer</button>
+        </div>
+      </div>
+      <div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
+      <div class="dr"><span class="drk">Catégorie</span><span class="drv"><span class="tag ${cat.cls}">${cat.l}</span></span></div>
+      <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(n.location||'Nice (06)')}</span></div>
+      <div class="dr"><span class="drk">Urgence</span><span class="drv"><select onchange="const n=nById('${id}');if(n){n.urgency=this.value;n.updated=now_();save();}"><option value="m" ${n.urgency==='m'?'selected':''}>🟡 Moyen</option><option value="h" ${n.urgency==='h'?'selected':''}>🔴 Urgent</option><option value="l" ${n.urgency==='l'?'selected':''}>⚪ Long terme</option></select></span></div>
+      ${n.notes?`<div class="sl">Descriptif annonce</div><div class="notebox" style="max-height:200px;overflow-y:auto;font-size:10px">${esc(n.notes)}</div>`:''}`,
+      `<button class="btn bp bsm" onclick="validateNeed('${id}')">✓ Valider</button><button class="btn bg bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="if(confirm('Ignorer ?'))delNeed('${id}')">✕ Ignorer</button>`
+    );
+    return;
+  }
   const B=[
     // 0 DETAIL
     `<div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
@@ -3041,6 +3102,123 @@ function parseCandCsv(){const txt=document.getElementById('cc-txt').value;const 
 function delCand(id){if(!confirm('Supprimer ce candidat ?'))return;DB.candidates=DB.candidates.filter(c=>c.id!==id);save();closePanel();closeMo();rCands();badges();toast('Supprimé','w');}
 function delCo(id){if(!confirm('Supprimer cette entreprise ?'))return;DB.companies=DB.companies.filter(c=>c.id!==id);save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');}
 function delNeed(id){if(!confirm('Supprimer ce besoin ?'))return;DB.needs=DB.needs.filter(n=>n.id!==id);DB.candidates.forEach(c=>{if(c.linked_need===id)c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Supprimé','w');}
+
+// ═══════════════════════════════════════════════════════
+// VEILLE ANNONCES BTP — NICE (06)
+// ═══════════════════════════════════════════════════════
+
+function romeTocat(rome){return({'F1201':'go','F1101':'so','F1106':'be','F1302':'vrd','H1502':'hse'})[rome]||'go';}
+
+function createPendingNeedFromOffer(offer,companyName,aiDeduced){
+  // Chercher si l'entreprise existe déjà
+  const norm=companyName.toLowerCase().trim();
+  let co=DB.companies.find(c=>c.name.toLowerCase().includes(norm)||norm.includes(c.name.toLowerCase()));
+  const isKnown=!!co;
+  if(!co){
+    co={id:uid(),name:companyName,contact:'',phone:'',email:'',city:offer.location||'Nice (06)',cat:romeTocat(offer.rome),type:'prospect',status:'tocall',source:'Veille automatique',notes:`Détecté via annonce France Travail :\n${offer.title}${offer.url?'\n'+offer.url:''}`,created:now_(),updated:now_()};
+    DB.companies.unshift(co);
+  }
+  // Créer le besoin en statut pending
+  DB.needs.unshift({
+    id:uid(),company_id:co.id,title:offer.title,cat:romeTocat(offer.rome),
+    smin:null,smax:null,location:offer.location||'Nice (06)',start:null,urgency:'m',
+    status:'pending',notes:offer.description||'',
+    source:aiDeduced?'veille_ai':'veille_ft',veille_id:offer.id,veille_url:offer.url||null,
+    ai_deduced:!!aiDeduced,created:now_(),updated:now_()
+  });
+  return isKnown;
+}
+
+async function identifyCompaniesWithHaiku(offers,key){
+  if(!offers.length||!key) return offers.map(o=>({offer:o,company:null}));
+  const prompt=`Tu es expert BTP France. Pour chaque annonce, identifie l'entreprise BTP qui a probablement publié cette offre (nom précis d'entreprise réelle). Si tu ne peux pas identifier avec certitude, réponds null.
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+[{"id":"id_offre","company":"Nom Entreprise ou null","confidence":"haute|moyenne|basse"}]
+
+ANNONCES :
+${offers.map(o=>`ID: ${o.id}\nTitre: ${o.title}\nDescription: ${o.description}`).join('\n\n---\n\n')}`;
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await resp.json();
+    const raw=data?.content?.[0]?.text||'[]';
+    let results;
+    try{results=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch{results=[];}
+    return offers.map(o=>{
+      const m=results.find(r=>r.id===o.id);
+      return{offer:o,company:(m&&m.company&&m.confidence!=='basse')?m.company:null};
+    });
+  }catch(e){
+    console.warn('[veille AI]',e.message);
+    return offers.map(o=>({offer:o,company:null}));
+  }
+}
+
+async function runVeille(){
+  const apiBase=getApiBase();
+  if(!apiBase){toast('Disponible sur Vercel uniquement','w');return;}
+  const key=getApiKey();
+  toast('🔍 Veille Nice en cours…','i');
+  try{
+    const resp=await fetch(`${apiBase}/api/find-prospects`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    const offers=data.offers||[];
+    if(!offers.length){toast('Aucune annonce trouvée (API France Travail)','w');return;}
+    // Filtrer celles déjà vues
+    const seenIds=new Set(DB.needs.filter(n=>n.veille_id).map(n=>n.veille_id));
+    const newOffers=offers.filter(o=>!seenIds.has(o.id));
+    if(!newOffers.length){toast('Aucune nouvelle annonce depuis la dernière veille','i');return;}
+    const named=newOffers.filter(o=>o.company&&!o.needsAI);
+    const anonymous=newOffers.filter(o=>o.needsAI);
+    let created=0,knownCoCount=0;
+    // Traiter les annonces avec nom d'entreprise direct
+    for(const o of named){
+      const isKnown=createPendingNeedFromOffer(o,o.company,false);
+      if(isKnown) knownCoCount++;
+      created++;
+    }
+    // Traiter les annonces anonymes via Haiku
+    if(anonymous.length&&key){
+      const BATCH=5;
+      for(let i=0;i<anonymous.length;i+=BATCH){
+        const batch=anonymous.slice(i,i+BATCH);
+        const identified=await identifyCompaniesWithHaiku(batch,key);
+        for(const item of identified){
+          if(item.company){
+            const isKnown=createPendingNeedFromOffer(item.offer,item.company,true);
+            if(isKnown) knownCoCount++;
+            created++;
+          }
+        }
+      }
+    }
+    save();rNeeds();badges();rDash();
+    switchNeedsTab('pending');
+    const msg=`${created} besoin(s) détecté(s)${knownCoCount?` dont ${knownCoCount} entreprise(s) déjà connues`:''}`;
+    toast(msg+' → onglet À valider ✓','s');
+  }catch(err){
+    console.error('[veille]',err);
+    toast(`Erreur veille : ${err.message}`,'e');
+  }
+}
+
+function validateNeed(id){
+  const n=DB.needs.find(x=>x.id===id);
+  if(!n)return;
+  n.status='open';n.urgency=n.urgency||'m';n.updated=now_();
+  save();
+  const co=coById(n.company_id);
+  if(co){
+    const label=co.source==='Veille automatique'?`${co.name} ajouté aux prospects`:`${co.name} (${co.type==='client'?'client existant':'prospect existant'})`;
+    toast(`Besoin validé ✓ — ${label}`,'s');
+  }else toast('Besoin validé ✓','s');
+  rNeeds();badges();rDash();
+}
 function delAg(id){DB.agenda=DB.agenda.filter(a=>a.id!==id);save();closePanel();rAgenda();badges();toast('Supprimé','w');}
 function delPost(id){DB.posts=DB.posts.filter(p=>p.id!==id);save();closePanel();rPosts();toast('Supprimé','w');}
 
@@ -4264,9 +4442,9 @@ function emRenderInbox(){
     const hasAttach=email.attachments&&email.attachments.length>0;
     const safeJson=JSON.stringify(email).replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-    return`<div class="inbox-item ${!email.seen?'unread':''}" onclick="emOpenEmail('${email.uid}')">
+    return`<div class="inbox-item ${!email.seen?'unread':''} ${email.urgent?'inbox-urgent':''}" onclick="emOpenEmail('${email.uid}')">
       <div style="display:flex;align-items:flex-start;gap:8px">
-        ${!email.seen?'<div class="inbox-unread-dot"></div>':'<div style="width:6px;flex-shrink:0"></div>'}
+        ${email.urgent?'<div style="width:6px;flex-shrink:0;margin-top:5px;font-size:9px">⚡</div>':!email.seen?'<div class="inbox-unread-dot"></div>':'<div style="width:6px;flex-shrink:0"></div>'}
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
             <span class="inbox-from">${esc(email.from||email.fromEmail||'—')}</span>
@@ -4489,12 +4667,13 @@ FORMAT :
 }
 
 COMMANDES DISPONIBLES :
-- openCand(id) : ouvrir fiche candidat
-- openCoPanel(id) : ouvrir fiche entreprise  
+- openCand(id) : ouvrir fiche candidat (utilise l'id exact du candidat)
+- openCoPanel(id) : ouvrir fiche entreprise (utilise l'id exact de l'entreprise)
 - addDoc({"candId":"id","doc":"nom exact du document"}) : ajouter document au dossier
 - openAgenda(null) : aller à l'agenda pour planifier
 - replyEmail("uid") : préparer une réponse à cet email
-- flagUrgent(null) : marquer comme urgent
+- flagUrgent(null) : marquer urgent + créer tâche agenda
+- createNeed({"title":"Intitulé du poste","cat":"go|so|be|vrd|hse","location":"Ville (dépt)"}) : créer un besoin depuis un email client
 - none(null) : action manuelle (noter dans la description ce qu'il faut faire)
 
 NOMS DE DOCUMENTS STANDARDS : "CV reçu", "Pièce d'identité (scan recto/verso)", "Carte vitale (scan)", "Permis de conduire", "RGPD signé", "Autorisation contrôle de référence", "Dossier candidature complet signé"
@@ -4633,13 +4812,19 @@ function executeAiAction(actionIndex, emailUid){
   const action=analysis.actions[actionIndex];
   if(!action)return;
 
-  const {cmd,arg}=action;
+  // L'arg peut arriver comme string JSON si Claude ne parse pas correctement
+  let arg=action.arg;
+  if(typeof arg==='string'){
+    try{arg=JSON.parse(arg);}catch{}
+  }
+  const cmd=action.cmd;
+
   switch(cmd){
     case 'openCand':
-      if(arg){openCand(arg);closeAiPanel();}
+      if(arg){closeAiPanel();go('cands');switchCandTab('pipeline');setTimeout(()=>openCandPanel(String(arg)),200);}
       break;
     case 'openCoPanel':
-      if(arg){openCoPanel(arg);closeAiPanel();}
+      if(arg){closeAiPanel();setTimeout(()=>openCoPanel(String(arg)),100);}
       break;
     case 'addDoc':
       if(arg&&arg.candId&&arg.doc){
@@ -4647,29 +4832,45 @@ function executeAiAction(actionIndex, emailUid){
         if(c){
           c.docs=c.docs||[];
           if(!c.docs.includes(arg.doc)){c.docs.push(arg.doc);}
+          c.updated=now_();
           save();
-          toast(`Document "${arg.doc}" ajouté au profil de ${c.name} ✓`,'s');
-          // Ouvrir le profil ensuite
-          setTimeout(()=>{openCand(arg.candId);},400);
-        }
+          toast(`Document "${arg.doc}" ajouté à ${c.name} ✓`,'s');
+          setTimeout(()=>{closeAiPanel();go('cands');switchCandTab('pipeline');setTimeout(()=>openCandPanel(arg.candId),200);},600);
+        }else toast('Candidat introuvable dans le CRM','w');
       }
       break;
     case 'openAgenda':
-      go('agenda');
-      closeAiPanel();
+      closeAiPanel();go('agenda');
       break;
     case 'replyEmail':
-      emReplyTo(emailUid);
-      closeAiPanel();
+      emReplyTo(emailUid);closeAiPanel();
       break;
-    case 'flagUrgent':
-      toast('Email marqué urgent ✓','w');
-      break;
+    case 'flagUrgent':{
+      // Marquer l'email comme urgent localement
+      if(INBOX_CACHE&&INBOX_CACHE.emails){
+        const em=INBOX_CACHE.emails.find(e=>String(e.uid)===String(emailUid));
+        if(em) em.urgent=true;
+      }
+      // Créer un rappel agenda pour aujourd'hui
+      const label=analysis.resume||action.label||'Email urgent à traiter';
+      DB.agenda.unshift({id:uid(),type:'task',title:`⚡ ${label.slice(0,60)}`,date:now_(),time:'',cand_id:analysis.candidat_id||null,comp_id:analysis.entreprise_id||null,notes:`Email UID ${emailUid}`,done:false,created:now_()});
+      save();badges();
+      toast('Email marqué urgent — tâche agenda créée ✓','w');
+      break;}
+    case 'createNeed':{
+      // Créer un besoin brouillon depuis un email client
+      const coId=analysis.entreprise_id||null;
+      const co=coId?coById(coId):null;
+      const need={id:uid(),company_id:coId,title:arg&&arg.title?arg.title:'Besoin à préciser',cat:arg&&arg.cat?arg.cat:'go',smin:null,smax:null,location:arg&&arg.location?arg.location:'Nice (06)',start:null,urgency:'m',status:'pending',notes:`Détecté depuis email — à qualifier par appel.\n${analysis.resume||''}`,source:'email_ai',ai_deduced:true,created:now_(),updated:now_()};
+      DB.needs.unshift(need);save();
+      toast(`Besoin créé${co?' pour '+co.name:''} → onglet À valider ✓`,'s');
+      closeAiPanel();go('needs');switchNeedsTab('pending');
+      break;}
     case 'none':
-      toast(esc(action.label),'i');
+      toast(action.label||'Action notée','i');
       break;
     default:
-      toast(esc(action.label),'i');
+      toast(action.label||cmd,'i');
   }
 }
 
