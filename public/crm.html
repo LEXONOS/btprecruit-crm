@@ -2021,7 +2021,7 @@ function renderProActive(el) {
         <th></th>
       </tr></thead>
       <tbody>
-        ${filtered.length ? filtered.map(c => proRow(c)).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:24px">Aucun prospect actif</td></tr>`}
+        ${filtered.length ? filtered.map(c => proRow(c)).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--mu);padding:24px">Aucun prospect actif</td></tr>`}
       </tbody>
     </table>`;
 
@@ -2034,7 +2034,13 @@ function proRow(c) {
   const marge = c.marge ? `<span style="color:var(--ac2);font-weight:600">${Number(c.marge).toLocaleString('fr-FR')}€</span>` : '<span style="color:var(--mu2)">—</span>';
   return `<tr onclick="openProPopup('${c.id}')" style="cursor:pointer">
     <td><strong>${esc(c.name)}</strong></td>
-    <td style="font-family:'Syne',sans-serif;letter-spacing:.02em">${esc(c.phone || '—')}</td>
+    <td onclick="event.stopPropagation()">
+      ${c.phone
+        ? `<a href="tel:${esc(c.phone)}" style="color:var(--ac2);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;letter-spacing:.04em;text-decoration:none" title="Appeler">${esc(c.phone)}</a>
+           <button onclick="cpPhone('${esc(c.phone)}')" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:11px;margin-left:4px;padding:0" title="Copier">⧉</button>`
+        : `<button onclick="openCoForm('${c.id}')" style="background:none;border:none;color:var(--mu2);cursor:pointer;font-size:10px;padding:0;text-decoration:underline dotted" title="Ajouter le numéro">+ Ajouter</button>`
+      }
+    </td>
     <td>${esc(c.city || '—')}</td>
     <td><span class="pill ${st.p}">${st.l}</span>${callbackDate}</td>
     <td>${marge}</td>
