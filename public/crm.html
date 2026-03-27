@@ -1982,6 +1982,7 @@ function renderProActive(el) {
         <th>Ville</th>
         <th>Statut</th>
         <th style="cursor:pointer" onclick="toggleMargeSort()">Marge ↕</th>
+        <th></th>
       </tr></thead>
       <tbody>
         ${filtered.length ? filtered.map(c => proRow(c)).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:24px">Aucun prospect actif</td></tr>`}
@@ -2001,6 +2002,9 @@ function proRow(c) {
     <td>${esc(c.city || '—')}</td>
     <td><span class="pill ${st.p}">${st.l}</span>${callbackDate}</td>
     <td>${marge}</td>
+    <td onclick="event.stopPropagation()">
+      <button class="btn bd_ bxs" onclick="delCo('${c.id}')" style="font-size:11px;padding:2px 7px;color:var(--ac3);border-color:rgba(224,74,74,.3)" title="Supprimer ce prospect">🗑</button>
+    </td>
   </tr>`;
 }
 
@@ -3111,7 +3115,7 @@ function parseCandCsv(){const txt=document.getElementById('cc-txt').value;const 
 // DELETE
 // ═══════════════════════════════════════════════════════
 function delCand(id){if(!confirm('Supprimer ce candidat ?'))return;DB.candidates=DB.candidates.filter(c=>c.id!==id);save();closePanel();closeMo();rCands();badges();toast('Supprimé','w');}
-function delCo(id){if(!confirm('Supprimer cette entreprise ?'))return;DB.companies=DB.companies.filter(c=>c.id!==id);save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');}
+function delCo(id){DB.companies=DB.companies.filter(c=>c.id!==id);save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');}
 function delNeed(id){DB.needs=DB.needs.filter(n=>n.id!==id);DB.candidates.forEach(c=>{if(c.linked_need===id)c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Supprimé','w');}
 
 // ═══════════════════════════════════════════════════════
