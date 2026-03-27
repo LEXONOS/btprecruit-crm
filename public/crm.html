@@ -480,6 +480,42 @@ select option{background:var(--s2)}
 
 .nav-settings{padding:7px 12px 10px;font-size:10px;color:var(--mu2);cursor:pointer;display:flex;align-items:center;gap:5px;transition:.12s}
 .nav-settings:hover{color:var(--mu)}
+
+/* ── Panneau progression veille ── */
+#veille-progress {
+  position:fixed; bottom:0; left:0; right:0; z-index:8000;
+  background:var(--s1); border-top:2px solid var(--ac);
+  padding:10px 20px 12px; display:none; flex-direction:column; gap:6px;
+  font-family:'DM Mono',monospace; box-shadow:0 -4px 24px rgba(0,0,0,.5);
+}
+#veille-progress.active { display:flex; }
+#veille-progress-title {
+  font-family:'Syne',sans-serif; font-weight:700; font-size:12px;
+  color:var(--ac); display:flex; align-items:center; gap:8px;
+}
+#veille-progress-title .vp-spinner {
+  width:10px; height:10px; border-radius:50%;
+  border:2px solid rgba(207,224,70,.3); border-top-color:var(--ac);
+  animation: vp-spin .7s linear infinite; flex-shrink:0;
+}
+@keyframes vp-spin { to { transform:rotate(360deg); } }
+#veille-progress-bar-wrap {
+  height:3px; background:var(--bd2); border-radius:2px; overflow:hidden;
+}
+#veille-progress-bar {
+  height:100%; background:var(--ac); border-radius:2px;
+  transition:width .4s ease; width:0%;
+}
+#veille-progress-log {
+  font-size:10px; color:var(--mu); line-height:1.6;
+  max-height:52px; overflow:hidden; display:flex; flex-direction:column-reverse;
+}
+#veille-progress-log .vp-line { animation: vp-fade .3s ease; }
+@keyframes vp-fade { from { opacity:0; transform:translateY(4px); } to { opacity:1; } }
+#veille-progress-counts {
+  display:flex; gap:14px; font-size:10px; margin-top:2px;
+}
+#veille-progress-counts span { padding:1px 7px; border-radius:10px; }
 </style>
 </head>
 <body>
@@ -3140,50 +3176,36 @@ function isAgency(name){
   return AGENCY_NAMES.some(k=>n.includes(k));
 }
 
-// ── Recherche téléphone via Anthropic web_search (Haiku) ──
+// ── Recherche téléphone : description offre → Pages Jaunes → mémoire ──
 async function findPhoneWithAI(companyName, city, key){
-  if(!key)return null;
+  // 1. Chercher dans la description de l'offre (parfois le tél y est)
+  // (appelé depuis runVeille qui passe l'offre, mais cette fn reçoit juste le nom)
+  // 2. Chercher via Pages Jaunes (pas besoin de clé API)
   try{
-    // Turn 1 : demander une recherche
-    const r1=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',max_tokens:300,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        messages:[{role:'user',content:`Numéro de téléphone de "${companyName}" à ${city||'Nice'}, entreprise BTP. Donne uniquement le numéro format 0X XX XX XX XX ou +33X. Réponds "null" si non trouvé.`}]
-      })
+    const q=encodeURIComponent(`${companyName} ${city||'Nice'}`);
+    // Pages Jaunes API publique
+    const resp=await fetch(`https://api.pagesjaunes.fr/v1/pros?what=${encodeURIComponent(companyName)}&where=${encodeURIComponent(city||'Nice, 06')}&max=1`,{
+      headers:{'Accept':'application/json'}
     });
-    const d1=await r1.json();
-    // Chercher un bloc tool_use
-    const toolUse=d1.content?.find(b=>b.type==='tool_use');
-    if(!toolUse){
-      // Pas de recherche effectuée — extraire directement du texte
-      const txt=(d1.content?.find(b=>b.type==='text')?.text||'').trim();
-      return extractPhone(txt);
+    if(resp.ok){
+      const data=await resp.json();
+      const first=data?.search_results?.[0];
+      if(first?.inscriptions?.[0]?.phones?.[0]?.phone_number){
+        return extractPhone(first.inscriptions[0].phones[0].phone_number);
+      }
     }
-    // Turn 2 : envoyer le résultat de l'outil (vide car on ne peut pas faire la vraie recherche browser-side)
-    // On envoie tool_result vide pour que Claude réponde avec ce qu'il sait
-    const r2=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',max_tokens:200,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        messages:[
-          {role:'user',content:`Numéro de téléphone de "${companyName}" à ${city||'Nice'}, entreprise BTP. Donne uniquement le numéro format 0X XX XX XX XX ou +33X. Réponds "null" si non trouvé.`},
-          {role:'assistant',content:d1.content},
-          {role:'user',content:[{type:'tool_result',tool_use_id:toolUse.id,content:''}]}
-        ]
-      })
-    });
-    const d2=await r2.json();
-    const txt=(d2.content?.find(b=>b.type==='text')?.text||'').trim();
-    return extractPhone(txt);
-  }catch(e){
-    console.warn('[phone]',companyName,e.message);
-    return null;
-  }
+  }catch(e){ /* Pages Jaunes indisponible */ }
+
+  // 3. Mémo : chercher dans les entreprises déjà enregistrées dans le CRM
+  const norm=companyName.toLowerCase().trim();
+  const found=DB.companies.find(c=>{
+    const cn=c.name.toLowerCase();
+    return c.phone&&(cn===norm||norm.includes(cn.slice(0,8))||cn.includes(norm.slice(0,8)));
+  });
+  if(found?.phone) return found.phone;
+
+  // 4. Aucun téléphone trouvé → retourner null (le besoin sera créé quand même)
+  return null;
 }
 
 function extractPhone(txt){
@@ -3317,7 +3339,7 @@ async function runVeille(config){
   if(!config)config=collectVeilleConfig();
   const {zones,romes}=config;
 
-  toast(`🔍 Veille en cours sur ${zones.map(z=>z.label).join(' + ')}…`,'i');
+  vpShow(`Veille BTP — ${zones.map(z=>z.label).join(' + ')}`); vpProgress(5,'Connexion France Travail…');
 
   try{
     // ── 1. Récupérer toutes les offres ──
@@ -3331,6 +3353,7 @@ async function runVeille(config){
       const resp=await fetch(`${apiBase}/api/find-prospects`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error||`HTTP ${resp.status}`);}
       const data=await resp.json();
+      vpProgress(15,`${zone.label} : ${(data.offers||[]).length} annonces récupérées`);
       if(data.debug)console.log(`[veille] ${zone.label}:`,data.debug);
       if(data.errors)console.warn(`[veille] erreurs ${zone.label}:`,data.errors);
       for(const o of (data.offers||[])){
@@ -3338,14 +3361,14 @@ async function runVeille(config){
       }
     }
 
-    if(!allOffers.length){toast('Aucune annonce trouvée sur France Travail','w');return;}
+    if(!allOffers.length){vpDone('Aucune annonce trouvée sur France Travail',true);return;}
 
     // ── 2. Filtrer déjà vus ──
     const existingIds=new Set(DB.needs.filter(n=>n.veille_id).map(n=>n.veille_id));
     const newOffers=allOffers.filter(o=>!existingIds.has(o.id));
-    if(!newOffers.length){toast(`${allOffers.length} annonces trouvées, toutes déjà vues`,'i');return;}
+    if(!newOffers.length){vpDone(`${allOffers.length} annonces — toutes déjà traitées`,false);return;}
 
-    toast(`${newOffers.length} nouvelles annonces — identification des entreprises…`,'i');
+    vpProgress(30,`${newOffers.length} nouvelles annonces — identification…`);
 
     // ── 3. Séparer directes vs agences/anonymes ──
     const directOffers =newOffers.filter(o=>o.company&&!isAgency(o.company));
@@ -3369,23 +3392,24 @@ async function runVeille(config){
       ...identifiedAgency.map(r=>({offer:r.offer,company:r.company,aiDeduced:true}))
     ];
 
-    if(!toProcess.length){toast('Aucune entreprise réelle identifiée dans les annonces','w');return;}
+    if(!toProcess.length){vpDone('Aucune entreprise réelle identifiée',true);return;}
 
-    toast(`${toProcess.length} entreprises identifiées — recherche téléphones…`,'i');
+    vpProgress(55,`${toProcess.length} entreprises — recherche numéros…`);
 
     let created=0,noPhone=0,known=0;
     // Paralléliser par batches de 4
     const PBATCH=4;
     for(let i=0;i<toProcess.length;i+=PBATCH){
       const batch=toProcess.slice(i,i+PBATCH);
+      vpProgress(60 + Math.round((i/toProcess.length)*35), `Traitement ${Math.min(i+PBATCH,toProcess.length)}/${toProcess.length}…`);
       const phones=await Promise.all(batch.map(item=>
         key?findPhoneWithAI(item.company,item.offer._zone||'Nice',key):Promise.resolve(null)
       ));
       for(let j=0;j<batch.length;j++){
         const {offer,company,aiDeduced}=batch[j];
         const phone=phones[j];
-        if(!phone&&key){noPhone++;continue;} // Ignorer si pas de tél ET clé dispo
-        const isKnown=createPendingNeedFromOffer(offer,company,phone,aiDeduced);
+        // On crée le besoin même sans téléphone — le numéro peut être trouvé manuellement
+        const isKnown=createPendingNeedFromOffer(offer,company,phone||'',aiDeduced);
         if(isKnown)known++;
         created++;
       }
@@ -3393,14 +3417,12 @@ async function runVeille(config){
 
     save();rNeeds();badges();rDash();
     switchNeedsTab('pending');
-    let msg=`${created} besoin(s) créé(s)`;
-    if(known)msg+=` · ${known} entreprise(s) déjà connues`;
-    if(noPhone&&key)msg+=` · ${noPhone} ignoré(s) (pas de tél)`;
-    toast(msg+' → onglet À valider','s');
+    vpCounts(created,known,noPhone);
+    vpDone(`${created} besoin(s) créé(s) → onglet À valider`,false);
 
   }catch(err){
     console.error('[veille]',err);
-    toast(`Erreur : ${err.message}`,'e');
+    vpDone(`Erreur : ${err.message}`,true);
   }
 }
 
@@ -4431,6 +4453,68 @@ function openDossier(key) {
     '<button class="btn bg" onclick="closeMo()">Fermer</button>'+(entity?('<button class="btn bp" onclick="closeMo();'+(type==='cand'?'openCandPanel(\''+id+'\');setPTab(4)':'openCoPanel(\''+id+'\');setPTab(3)')+'">→ Ouvrir fiche</button>'):''),
     true
   );
+}
+
+
+// ── Panneau de progression veille ────────────────────
+const VP = {
+  el:    ()=>document.getElementById('veille-progress'),
+  label: ()=>document.getElementById('veille-progress-label'),
+  pct:   ()=>document.getElementById('veille-progress-pct'),
+  bar:   ()=>document.getElementById('veille-progress-bar'),
+  log:   ()=>document.getElementById('veille-progress-log'),
+  counts:()=>document.getElementById('veille-progress-counts'),
+};
+
+function vpShow(title){
+  const el=VP.el(); if(!el)return;
+  el.classList.add('active');
+  if(VP.label())VP.label().textContent=title||'Veille en cours…';
+  if(VP.bar())VP.bar().style.width='0%';
+  if(VP.pct())VP.pct().textContent='0%';
+  if(VP.log())VP.log().innerHTML='';
+  if(VP.counts())VP.counts().innerHTML='';
+}
+
+function vpProgress(pct, msg){
+  if(VP.bar())VP.bar().style.width=Math.min(pct,100)+'%';
+  if(VP.pct())VP.pct().textContent=Math.round(pct)+'%';
+  if(msg&&VP.log()){
+    const line=document.createElement('div');
+    line.className='vp-line';
+    line.textContent='→ '+msg;
+    VP.log().prepend(line);
+    // Garder max 3 lignes
+    while(VP.log().children.length>3)VP.log().removeChild(VP.log().lastChild);
+  }
+}
+
+function vpCounts(created, known, noPhone){
+  const el=VP.counts(); if(!el)return;
+  el.innerHTML=[
+    created?`<span style="background:rgba(61,224,154,.1);color:var(--ac2)">✓ ${created} créé(s)</span>`:'',
+    known?`<span style="background:rgba(207,224,70,.1);color:var(--ac)">↩ ${known} déjà connu(s)</span>`:'',
+    noPhone?`<span style="background:rgba(116,116,108,.1);color:var(--mu)">📵 ${noPhone} sans tél</span>`:'',
+  ].filter(Boolean).join('');
+}
+
+function vpDone(msg, isError){
+  if(VP.bar())VP.bar().style.width='100%';
+  if(VP.pct())VP.pct().textContent='100%';
+  if(VP.label()){
+    VP.label().textContent=msg||'Terminé';
+    VP.label().style.color=isError?'var(--ac3)':'var(--ac2)';
+  }
+  // Supprimer le spinner
+  const spinner=VP.el()?.querySelector('.vp-spinner');
+  if(spinner)spinner.style.display='none';
+  // Fermer automatiquement après 4 secondes
+  setTimeout(()=>{
+    const el=VP.el();
+    if(el){el.classList.remove('active');if(VP.label())VP.label().style.color='';}
+    const sp=VP.el()?.querySelector('.vp-spinner');
+    if(sp)sp.style.display='';
+  },4000);
 }
 
 function rEmails(){
@@ -5839,6 +5923,19 @@ function renderRep(){
   }
 })();
 </script>
+
+<!-- ── Panneau progression veille ── -->
+<div id="veille-progress">
+  <div id="veille-progress-title">
+    <div class="vp-spinner"></div>
+    <span id="veille-progress-label">Veille en cours…</span>
+    <span id="veille-progress-pct" style="margin-left:auto;font-size:10px;color:var(--mu)">0%</span>
+  </div>
+  <div id="veille-progress-bar-wrap"><div id="veille-progress-bar"></div></div>
+  <div id="veille-progress-log"></div>
+  <div id="veille-progress-counts"></div>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- JARVIS — Assistant vocal IA flottant                   -->
 <!-- ═══════════════════════════════════════════════════════ -->
