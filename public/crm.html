@@ -3760,27 +3760,62 @@ function openSettings(){
     </div>
     <!-- COÛT API -->
     <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
-      <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac6)">💸 Coût API Anthropic (estimé)</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--ac6)">💸 Consommation API Anthropic</div>
+        <a href="https://platform.claude.com/settings/keys" target="_blank" style="margin-left:auto;font-size:10px;color:var(--ac5);text-decoration:none;padding:2px 8px;border:1px solid var(--bd2);border-radius:2px;white-space:nowrap">↗ Dashboard officiel</a>
+      </div>
       ${(()=>{const d=getApiCostDisplay();return`
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-          <div style="text-align:center;padding:8px;background:var(--s2);border-radius:3px">
-            <div style="font-size:18px;font-weight:700;color:var(--ac6)">$${d.dollars}</div>
-            <div style="font-size:9px;color:var(--mu);margin-top:2px">USD</div>
+        <!-- KPIs principaux -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <div style="padding:10px 12px;background:var(--s2);border-radius:3px;border-left:3px solid var(--ac6)">
+            <div style="font-size:22px;font-weight:800;color:var(--ac6);line-height:1">${d.dollarsDisplay}</div>
+            <div style="font-size:9px;color:var(--mu);margin-top:3px">USD — coût total</div>
           </div>
-          <div style="text-align:center;padding:8px;background:var(--s2);border-radius:3px">
-            <div style="font-size:18px;font-weight:700;color:var(--ac4)">€${d.euros}</div>
-            <div style="font-size:9px;color:var(--mu);margin-top:2px">EUR (estimé)</div>
-          </div>
-          <div style="text-align:center;padding:8px;background:var(--s2);border-radius:3px">
-            <div style="font-size:18px;font-weight:700;color:var(--mu)">${d.calls}</div>
-            <div style="font-size:9px;color:var(--mu);margin-top:2px">appels</div>
+          <div style="padding:10px 12px;background:var(--s2);border-radius:3px;border-left:3px solid var(--ac4)">
+            <div style="font-size:22px;font-weight:800;color:var(--ac4);line-height:1">${d.eurosDisplay}</div>
+            <div style="font-size:9px;color:var(--mu);margin-top:3px">EUR estimé (×0.92)</div>
           </div>
         </div>
-        <div style="font-size:10px;color:var(--mu);margin-bottom:8px">
-          ${d.lastCall?'Dernier appel : '+fD(d.lastCall):'Aucun appel enregistré'} · ${d.lastReset?'Depuis le '+fD(d.lastReset):''}
+
+        <!-- Tokens -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px">
+          <div style="padding:7px;background:var(--s2);border-radius:3px;text-align:center">
+            <div style="font-size:14px;font-weight:700;color:var(--tx)">${d.calls}</div>
+            <div style="font-size:9px;color:var(--mu)">requêtes</div>
+          </div>
+          <div style="padding:7px;background:var(--s2);border-radius:3px;text-align:center">
+            <div style="font-size:14px;font-weight:700;color:var(--mu2)">${d.totalIn}K</div>
+            <div style="font-size:9px;color:var(--mu)">tokens entrée</div>
+          </div>
+          <div style="padding:7px;background:var(--s2);border-radius:3px;text-align:center">
+            <div style="font-size:14px;font-weight:700;color:var(--mu2)">${d.totalOut}K</div>
+            <div style="font-size:9px;color:var(--mu)">tokens sortie</div>
+          </div>
         </div>
-        <button class="btn bg bsm" onclick="resetApiCost()">↺ Remettre à zéro</button>
-        <div style="font-size:9px;color:var(--mu2);margin-top:6px">Estimation locale basée sur les tokens. Pour le détail exact : console.anthropic.com</div>
+
+        <!-- Détail par modèle -->
+        ${Object.keys(d.byModel).length?`
+          <div style="font-size:10px;color:var(--mu2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em">Détail par modèle</div>
+          ${Object.values(d.byModel).sort((a,b)=>b.cost-a.cost).map(m=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--s2);border-radius:2px;margin-bottom:3px;font-size:10px">
+              <span style="color:var(--tx);font-weight:600;flex:1">${m.label||'—'}</span>
+              <span style="color:var(--mu)">${m.calls} req</span>
+              <span style="color:var(--mu)">${((m.in||0)/1000).toFixed(1)}K / ${((m.out||0)/1000).toFixed(1)}K tok</span>
+              <span style="color:var(--ac6);font-weight:700;min-width:56px;text-align:right">$${m.cost.toFixed(6)}</span>
+            </div>`).join('')}
+        `:'<div style="font-size:10px;color:var(--mu);font-style:italic">Aucune requête enregistrée depuis le dernier reset</div>'}
+
+        <!-- Méta -->
+        <div style="margin-top:10px;font-size:10px;color:var(--mu);line-height:1.7">
+          ${d.lastCall?'⏱ Dernier appel : '+fD(d.lastCall):'—'}<br>
+          ${d.lastReset?'📅 Compteur depuis : '+fD(d.lastReset):''}
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <button class="btn bg bsm" onclick="resetApiCost()">↺ Remettre à zéro</button>
+          <div style="font-size:9px;color:var(--mu2)">Basé sur les tokens réels de chaque réponse. Le dashboard officiel fait foi.</div>
+        </div>
       `})()}
     </div>
 
@@ -6965,19 +7000,37 @@ function jarvisExecAction(i){
 // ═══════════════════════════════════════════════════
 // COMPTEUR COÛT API ANTHROPIC
 // ═══════════════════════════════════════════════════
+// Tarifs officiels Anthropic (USD / token) — source : anthropic.com/pricing
 const API_COSTS = {
-  'claude-haiku-4-5-20251001': { input: 0.00025/1000, output: 0.00125/1000 },
-  'claude-sonnet-4-6':         { input: 0.003/1000,   output: 0.015/1000   },
-  'claude-opus-4-6':           { input: 0.015/1000,   output: 0.075/1000   },
+  // Haiku 4.5 : $0.80 / MTok in — $4.00 / MTok out
+  'claude-haiku-4-5-20251001': { input: 0.80/1_000_000, output: 4.00/1_000_000, label: 'Haiku 4.5' },
+  // Sonnet 4.6 : $3.00 / MTok in — $15.00 / MTok out
+  'claude-sonnet-4-6':         { input: 3.00/1_000_000, output: 15.00/1_000_000, label: 'Sonnet 4.6' },
+  // Opus 4.6 : $15.00 / MTok in — $75.00 / MTok out
+  'claude-opus-4-6':           { input: 15.00/1_000_000, output: 75.00/1_000_000, label: 'Opus 4.6' },
+  // Sonnet 4 (ancien)
+  'claude-sonnet-4-20250514':  { input: 3.00/1_000_000, output: 15.00/1_000_000, label: 'Sonnet 4' },
 };
 
 function trackApiCall(model, inputTokens, outputTokens){
-  const rates=API_COSTS[model]||API_COSTS['claude-haiku-4-5-20251001'];
-  const cost=(inputTokens||0)*rates.input+(outputTokens||0)*rates.output;
-  DB._apiUsage=DB._apiUsage||{totalCost:0,calls:0,lastReset:now_()};
+  const rates=API_COSTS[model]||{input:0.80/1_000_000,output:4.00/1_000_000,label:model};
+  const costIn=(inputTokens||0)*rates.input;
+  const costOut=(outputTokens||0)*rates.output;
+  const cost=costIn+costOut;
+  DB._apiUsage=DB._apiUsage||{totalCost:0,totalIn:0,totalOut:0,calls:0,byModel:{},lastReset:now_()};
   DB._apiUsage.totalCost=(DB._apiUsage.totalCost||0)+cost;
+  DB._apiUsage.totalIn=(DB._apiUsage.totalIn||0)+(inputTokens||0);
+  DB._apiUsage.totalOut=(DB._apiUsage.totalOut||0)+(outputTokens||0);
   DB._apiUsage.calls=(DB._apiUsage.calls||0)+1;
   DB._apiUsage.lastCall=now_();
+  // Détail par modèle
+  const mk=model.split('-').slice(0,3).join('-');
+  if(!DB._apiUsage.byModel)DB._apiUsage.byModel={};
+  if(!DB._apiUsage.byModel[mk])DB._apiUsage.byModel[mk]={cost:0,calls:0,in:0,out:0,label:rates.label||mk};
+  DB._apiUsage.byModel[mk].cost+=cost;
+  DB._apiUsage.byModel[mk].calls+=1;
+  DB._apiUsage.byModel[mk].in+=(inputTokens||0);
+  DB._apiUsage.byModel[mk].out+=(outputTokens||0);
   save();
 }
 
@@ -6999,11 +7052,22 @@ window.fetch=async function(url,...args){
 };
 
 function getApiCostDisplay(){
-  const u=DB._apiUsage||{totalCost:0,calls:0};
-  const cost=(u.totalCost||0);
-  const euros=(cost*0.92).toFixed(4);
-  const dollars=cost.toFixed(4);
-  return{euros,dollars,calls:u.calls||0,lastReset:u.lastReset||null,lastCall:u.lastCall||null};
+  const u=DB._apiUsage||{totalCost:0,calls:0,totalIn:0,totalOut:0,byModel:{}};
+  const cost=u.totalCost||0;
+  // Taux EUR/USD approximatif
+  const EUR_RATE=0.92;
+  return{
+    dollars:cost.toFixed(6),
+    euros:(cost*EUR_RATE).toFixed(6),
+    dollarsDisplay:cost<0.01?'$'+cost.toFixed(6):'$'+cost.toFixed(4),
+    eurosDisplay:cost<0.01?'€'+(cost*EUR_RATE).toFixed(6):'€'+(cost*EUR_RATE).toFixed(4),
+    calls:u.calls||0,
+    totalIn:((u.totalIn||0)/1000).toFixed(1),   // en K tokens
+    totalOut:((u.totalOut||0)/1000).toFixed(1),
+    byModel:u.byModel||{},
+    lastReset:u.lastReset||null,
+    lastCall:u.lastCall||null
+  };
 }
 
 function resetApiCost(){
