@@ -11,54 +11,53 @@
   --bg:#F2EFE8;--s1:#FFFFFF;--s2:#FAF8F4;--s3:#F0EDE5;--s4:#E8E4DA;
   --bd:#E0DBD0;--bd2:#C8C3B6;--tx:#1C1A14;--mu:#7A7668;--mu2:#ABA89C;
   --ac:#C8820A;--ac2:#1E9B74;--ac3:#C0392B;--ac4:#D4781A;--ac5:#2558D4;--ac6:#6D28D9;
-  --sb:#0D1B2A;--sb2:#142236;--sb-bd:rgba(255,255,255,.07);--sbt:#E2DDD4;--sbm:rgba(226,221,212,.45);
-  --shadow:0 1px 3px rgba(28,26,20,.06),0 4px 16px rgba(28,26,20,.04);
-  --shadow-md:0 2px 8px rgba(28,26,20,.08),0 8px 32px rgba(28,26,20,.06);
+  --sb:#0D1B2A;--sb-bd:rgba(255,255,255,.08);--sbt:#E2DDD4;--sbm:rgba(226,221,212,.5);
+  --shadow:0 1px 3px rgba(28,26,20,.06),0 4px 12px rgba(28,26,20,.04);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:grid;grid-template-columns:210px 1fr}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:grid;grid-template-columns:200px 1fr}
 
 /* NAV */
 #sb{background:var(--sb);border-right:1px solid var(--sb-bd);display:flex;flex-direction:column;height:100vh}
 .logo{padding:18px 14px 14px;border-bottom:1px solid var(--sb-bd)}
-.logo-t{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.3px;color:var(--sbt)}
+.logo-t{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.3px}
 .logo-t b{color:var(--ac)}
 .logo-s{font-size:9px;color:var(--sbm);letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
 .nav{flex:1;padding:8px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
-.nav-sec{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--sbm);padding:10px 8px 3px;margin-top:4px}
-.ni{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:5px;cursor:pointer;color:var(--sbm);border:1px solid transparent;font-size:11px;transition:.12s;user-select:none;font-family:'Plus Jakarta Sans',sans-serif}
+.nav-sec{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--sbm);padding:9px 8px 3px;margin-top:4px}
+.ni{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:5px;cursor:pointer;color:var(--sbm);border:1px solid transparent;font-size:11px;transition:.12s;user-select:none}
 .ni:hover{background:rgba(255,255,255,.07);color:var(--sbt)}
-.ni.act{background:rgba(200,130,10,.15);color:var(--ac);border-color:rgba(200,130,10,.25)}
+.ni.act{background:rgba(200,130,10,.15);color:var(--ac);border-color:rgba(200,130,10,.2)}
 .ni-ico{font-size:13px;width:16px;text-align:center;flex-shrink:0}
 .nbadge{margin-left:auto;font-size:9px;padding:1px 5px;border-radius:8px;min-width:16px;text-align:center;font-weight:600}
-.nb-red{background:rgba(192,57,43,.25);color:#ff8a7a}
-.nb-yel{background:rgba(212,120,26,.25);color:#ffb347}
-.nb-grn{background:rgba(30,155,116,.25);color:#5ddabd}
-.nb-blu{background:rgba(37,88,212,.25);color:#7aaeff}
+.nb-red{background:rgba(192,57,43,.3);color:#ff8a7a}
+.nb-yel{background:rgba(212,120,26,.3);color:#ffb347}
+.nb-grn{background:rgba(30,155,116,.3);color:#5ddabd}
+.nb-blu{background:rgba(37,88,212,.3);color:#7aaeff}
 .nb-mu{background:rgba(255,255,255,.08);color:var(--sbm)}
 .nav-footer{padding:10px 12px;border-top:1px solid var(--sb-bd);font-size:10px;color:var(--sbm)}
 .nav-footer strong{display:block;font-size:12px;color:#5ddabd;margin-bottom:1px;font-family:'Syne',sans-serif;font-weight:700}
 
 /* MAIN */
 #main{display:grid;grid-template-rows:48px 1fr;height:100vh;overflow:hidden}
-.topbar{border-bottom:1px solid var(--bd);padding:0 22px;display:flex;align-items:center;gap:12px;background:var(--s1);flex-shrink:0;box-shadow:0 1px 0 var(--bd)}
-.tbt{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;flex:1;color:var(--tx)}
+.topbar{border-bottom:1px solid var(--bd);padding:0 22px;display:flex;align-items:center;gap:12px;background:var(--s1);flex-shrink:0}
+.tbt{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;flex:1}
 .tba{display:flex;gap:6px;align-items:center}
-#content{overflow:auto;padding:20px 24px;background:var(--bg)}
+#content{overflow:auto;padding:20px 24px}
 .view{display:none}.view.active{display:block}
 
 /* BTNS */
 .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border:none;border-radius:6px;font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:.14s;line-height:1;white-space:nowrap}
-.bp{background:var(--ac);color:#fff;font-weight:600;box-shadow:0 1px 3px rgba(200,130,10,.25)}.bp:hover{background:#b5730a;box-shadow:0 2px 8px rgba(200,130,10,.35)}
-.bg{background:var(--s1);color:var(--mu);border:1px solid var(--bd)}.bg:hover{color:var(--tx);background:var(--s3);border-color:var(--bd2)}
+.bp{background:var(--ac);color:#fff;font-weight:600}.bp:hover{background:#b5730a}
+.bg{background:var(--s1);color:var(--mu);border:1px solid var(--bd)}.bg:hover{color:var(--tx);background:var(--s2)}
 .bd_{background:transparent;color:var(--ac3);border:1px solid rgba(192,57,43,.3)}.bd_:hover{background:rgba(192,57,43,.06)}
-.bi{background:transparent;color:var(--ac5);border:1px solid rgba(37,88,212,.3)}.bi:hover{background:rgba(37,88,212,.06)}
+.bi{background:transparent;color:var(--ac5);border:1px solid rgba(74,130,224,.3)}.bi:hover{background:rgba(74,130,224,.07)}
 .bsm{padding:4px 9px;font-size:10px}.bxs{padding:2px 7px;font-size:10px}
 
 /* INPUTS */
-input,select,textarea{background:var(--s1);border:1px solid var(--bd);border-radius:6px;padding:7px 10px;color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;outline:none;width:100%;transition:.14s;box-shadow:inset 0 1px 2px rgba(28,26,20,.04)}
-input:focus,select:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(200,130,10,.12)}
+input,select,textarea{background:var(--s1);border:1px solid var(--bd);border-radius:6px;padding:7px 10px;color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;outline:none;width:100%;transition:.14s}
+input:focus,select:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(200,130,10,.1)}
 input::placeholder{color:var(--mu2)}
 textarea{min-height:64px;resize:vertical;line-height:1.5}
 select option{background:var(--s2)}
@@ -83,10 +82,10 @@ select option{background:var(--s2)}
 .pa{padding:10px 16px;border-top:1px solid var(--bd);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
 
 /* MODAL */
-#mo{position:fixed;inset:0;background:rgba(13,27,42,.55);backdrop-filter:blur(6px);z-index:80;display:none;align-items:center;justify-content:center;padding:14px}
+#mo{position:fixed;inset:0;background:rgba(13,27,42,.5);backdrop-filter:blur(6px);z-index:80;display:none;align-items:center;justify-content:center;padding:14px}
 #mo.open{display:flex}
 #md{background:var(--s1);border:1px solid var(--bd);border-radius:10px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(13,27,42,.2)}
-.mh{padding:15px 20px 12px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--s1);z-index:1;border-radius:10px 10px 0 0}
+.mh{padding:14px 18px 11px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--s1);z-index:1}
 .mh-t{font-family:'Syne',sans-serif;font-weight:700;font-size:14px}
 .mh-x{cursor:pointer;color:var(--mu);font-size:15px;padding:3px;transition:.12s}.mh-x:hover{color:var(--tx)}
 .mb{padding:14px 18px}
@@ -101,8 +100,8 @@ select option{background:var(--s2)}
 .kbcards{display:flex;flex-direction:column;gap:4px;min-height:40px}
 
 /* CAND CARD */
-.cc{background:var(--s1);border:1px solid var(--bd);border-left:3px solid var(--bd2);border-radius:6px;padding:10px 11px;cursor:pointer;transition:.14s;position:relative;box-shadow:var(--shadow)}
-.cc:hover{background:var(--s2);border-color:var(--bd2);border-left-color:var(--ac);box-shadow:var(--shadow-md)}
+.cc{background:var(--s1);border:1px solid var(--bd);border-left:3px solid var(--bd2);border-radius:7px;padding:10px 11px;cursor:pointer;transition:.14s;position:relative}
+.cc:hover{background:var(--s2);border-left-color:var(--ac)}
 .cc.pep{border-left-color:var(--ac4)}
 .cc-name{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:2px;padding-right:16px}
 .cc-role{font-size:10px;color:var(--mu);margin-bottom:4px}
@@ -110,8 +109,8 @@ select option{background:var(--s2)}
 .cc-nxt{width:100%;margin-top:5px;font-size:10px;padding:3px 7px;background:rgba(61,224,154,.05);border:1px solid rgba(61,224,154,.15);border-radius:2px;color:var(--ac2);line-height:1.4}
 
 /* COMPANY CARD */
-.prcard{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:12px;cursor:pointer;transition:.14s;box-shadow:var(--shadow)}
-.prcard:hover{background:var(--s2);border-color:var(--bd2);box-shadow:var(--shadow-md)}
+.prcard{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:12px;cursor:pointer;transition:.14s}
+.prcard:hover{background:var(--s2);border-color:var(--bd2)}
 .prcard-n{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:3px}
 .prcard-m{font-size:10px;color:var(--mu);line-height:1.5}
 
@@ -126,8 +125,8 @@ select option{background:var(--s2)}
 .nc-m{font-size:10px;color:var(--mu);line-height:1.6}
 .nc-ft{margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 
-/* TAGS — warm light */
-.tag{font-size:9px;padding:2px 7px;border-radius:6px;display:inline-flex;align-items:center;white-space:nowrap;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif}
+/* TAGS */
+.tag{font-size:9px;padding:2px 7px;border-radius:6px;display:inline-flex;align-items:center;white-space:nowrap;font-weight:600}
 .tgo{background:#FEF3E2;color:#92400E;border:1px solid #FDE68A}
 .tso{background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE}
 .tbe{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
@@ -135,26 +134,25 @@ select option{background:var(--s2)}
 .thse{background:#FFF1F2;color:#9F1239;border:1px solid #FECDD3}
 .tmgmt{background:#F0F9FF;color:#0C4A6E;border:1px solid #BAE6FD}
 
-.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;font-family:'Plus Jakarta Sans',sans-serif}
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;white-space:nowrap}
 /* cand status pills */
-.pent{background:rgba(37,88,212,.08);color:var(--ac5);border:1px solid rgba(37,88,212,.2)}
-.pnew{background:rgba(200,130,10,.1);color:#92400E;border:1px solid rgba(200,130,10,.25)}
-.ppre{background:rgba(212,120,26,.1);color:var(--ac4);border:1px solid rgba(212,120,26,.25)}
+.pnew{background:rgba(200,130,10,.1);color:#92400E;border:1px solid rgba(200,130,10,.2)}
+.ppre{background:rgba(212,120,26,.1);color:var(--ac4);border:1px solid rgba(212,120,26,.2)}
 .pdos{background:rgba(37,88,212,.1);color:var(--ac5);border:1px solid rgba(37,88,212,.2)}
 .pvis{background:rgba(109,40,217,.1);color:var(--ac6);border:1px solid rgba(109,40,217,.2)}
 .ppres{background:rgba(200,130,10,.1);color:var(--ac);border:1px solid rgba(200,130,10,.2)}
 .pplac{background:rgba(30,155,116,.12);color:var(--ac2);border:1px solid rgba(30,155,116,.25)}
 .pko{background:rgba(192,57,43,.08);color:var(--ac3);border:1px solid rgba(192,57,43,.2)}
 /* company status pills */
-.ptoc{background:rgba(200,130,10,.08);color:var(--ac);border:1px solid rgba(200,130,10,.2)}
-.pcal{background:rgba(37,88,212,.08);color:var(--ac5);border:1px solid rgba(37,88,212,.2)}
+.ptoc{background:rgba(200,130,10,.08);color:var(--ac);border:1px solid rgba(200,130,10,.15)}
+.pcal{background:rgba(37,88,212,.08);color:var(--ac5);border:1px solid rgba(37,88,212,.15)}
 .pnrp{background:rgba(120,116,104,.08);color:var(--mu);border:1px solid var(--bd)}
-.pint{background:rgba(30,155,116,.1);color:var(--ac2);border:1px solid rgba(30,155,116,.2)}
+.pint{background:rgba(20,140,100,.15);color:var(--ac2)}
 .pbno{background:rgba(192,57,43,.07);color:var(--ac3);border:1px solid rgba(192,57,43,.15)}
-.pnee{background:rgba(30,155,116,.12);color:var(--ac2);border:1px solid rgba(30,155,116,.25)}
-.pcli{background:rgba(200,130,10,.12);color:var(--ac4);border:1px solid rgba(200,130,10,.25)}
+.pnee{background:rgba(30,155,116,.1);color:var(--ac2);border:1px solid rgba(30,155,116,.2)}
+.pcli{background:rgba(200,130,10,.12);color:var(--ac4);border:1px solid rgba(200,130,10,.2)}
 .pcsnt{background:rgba(109,40,217,.1);color:var(--ac6);border:1px solid rgba(109,40,217,.2)}
-.pwin{background:rgba(30,155,116,.15);color:var(--ac2);border:1px solid rgba(30,155,116,.3)}
+.pwin{background:rgba(30,155,116,.12);color:var(--ac2);border:1px solid rgba(30,155,116,.25)}
 
 /* DETAIL */
 .dr{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--bd);gap:8px}
@@ -191,13 +189,13 @@ select option{background:var(--s2)}
 /* DASHBOARD */
 .dg{display:grid;grid-template-columns:1fr 300px;gap:16px}
 .dkpi{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px}
-.kpi{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;box-shadow:var(--shadow)}
+.kpi{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px}
 .kpi-v{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;line-height:1}
 .kpi-l{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;margin-top:3px}
 .kpi-s{font-size:10px;color:var(--mu2);margin-top:4px}
-.dsec{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx)}
-.aitem{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:.14s;font-size:11px;box-shadow:var(--shadow)}
-.aitem:hover{border-color:var(--bd2);background:var(--s2);box-shadow:var(--shadow-md)}
+.dsec{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;margin-bottom:7px}
+.aitem{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:.14s;font-size:11px}
+.aitem:hover{border-color:var(--bd2);background:var(--s2)}
 .adot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 /* PROGRESS */
@@ -206,9 +204,9 @@ select option{background:var(--s2)}
 
 /* TOOLBAR */
 .tb{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-.srch{position:relative;flex:1;min-width:150px;max-width:260px}
-.srch::before{content:'⌕';position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--mu2);font-size:14px;pointer-events:none}
-.srch input{padding-left:28px;border-radius:8px}
+.srch{position:relative;flex:1;min-width:150px;max-width:240px}
+.srch::before{content:'⌕';position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--mu2);font-size:13px;pointer-events:none}
+.srch input{padding-left:26px}
 
 /* GRID */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -217,9 +215,9 @@ select option{background:var(--s2)}
 
 /* TABLE */
 .tbl{width:100%;border-collapse:collapse}
-.tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);padding:8px 12px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap;background:var(--s2)}
-.tbl td{padding:9px 12px;border-bottom:1px solid var(--bd);font-size:11px;vertical-align:middle}
-.tbl tr:hover td{background:var(--s3);cursor:pointer}
+.tbl th{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);padding:6px 10px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--bd);font-size:11px;vertical-align:middle}
+.tbl tr:hover td{background:var(--s2);cursor:pointer}
 .tbl .acol{display:flex;gap:4px;white-space:nowrap}
 
 /* MISC */
@@ -237,13 +235,13 @@ select option{background:var(--s2)}
 
 /* STATUS SELECTOR */
 .st-sel{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.st-btn{padding:5px 11px;font-size:10px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;cursor:pointer;color:var(--mu);transition:.14s;font-family:'Plus Jakarta Sans',sans-serif;font-weight:500}
-.st-btn:hover{color:var(--tx);background:var(--s3)}
-.st-btn.cur{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+.st-btn{padding:4px 9px;font-size:10px;background:var(--s3);border:1px solid var(--bd2);border-radius:2px;cursor:pointer;color:var(--mu);transition:.12s;font-family:'DM Mono',monospace}
+.st-btn:hover{color:var(--tx);background:var(--s4)}
+.st-btn.cur{background:var(--ac);color:#0a0a08;border-color:var(--ac);font-weight:600}
 
 /* TOASTER */
 #toaster{position:fixed;bottom:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:5px;pointer-events:none}
-.toast{background:var(--sb);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 14px;font-size:11px;transform:translateY(40px);opacity:0;transition:all .2s cubic-bezier(.4,0,.2,1);pointer-events:auto;border-left:3px solid var(--mu);color:var(--sbt);box-shadow:0 4px 20px rgba(13,27,42,.25)}
+.toast{background:var(--sb);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 14px;font-size:11px;transform:translateY(40px);opacity:0;transition:all .2s;pointer-events:auto;border-left:3px solid var(--mu);color:var(--sbt)}
 .toast.show{transform:translateY(0);opacity:1}
 .ts{border-left-color:#5ddabd;color:#5ddabd}
 .tw{border-left-color:#ffb347;color:#ffb347}
@@ -261,7 +259,7 @@ select option{background:var(--s2)}
 .pipe-arrow{color:var(--mu2);font-size:11px}
 .pipe-branch{margin-left:16px;display:flex;flex-direction:column;gap:4px;padding-left:12px;border-left:1px solid var(--bd)}
 
-.pent{background:rgba(100,180,255,.15);color:#60b0ff}
+.pent{background:rgba(37,88,212,.08);color:var(--ac5);border:1px solid rgba(37,88,212,.15)}
 /* VTABS */
 .vtabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:16px}
 .vt{padding:8px 14px;font-size:11px;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;transition:.12s;margin-bottom:-1px;display:flex;align-items:center;gap:6px}
@@ -412,12 +410,12 @@ select option{background:var(--s2)}
 .em-nav-item.em-nav-act{background:var(--s3);color:var(--ac);font-weight:600}
 
 /* INBOX */
-.inbox-item{padding:11px 15px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.14s;position:relative}
+.inbox-item{padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.12s;position:relative}
 .inbox-item:hover{background:var(--s3)}
-.inbox-item.unread{background:rgba(200,130,10,.04)}
+.inbox-item.unread{background:rgba(207,224,70,.04)}
 .inbox-item.unread .inbox-subj{color:var(--ac);font-weight:600}
 .inbox-item.inbox-urgent{border-left:2px solid var(--ac4);background:rgba(255,180,0,.04)}
-.inbox-unread-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;margin-top:4px;box-shadow:0 0 0 2px rgba(200,130,10,.2)}
+.inbox-unread-dot{width:6px;height:6px;border-radius:50%;background:var(--ac);flex-shrink:0;margin-top:4px}
 .inbox-subj{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;transition:.1s}
 .inbox-snip{font-size:10px;color:var(--mu);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inbox-from{font-size:10px;color:var(--ac5);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -426,7 +424,7 @@ select option{background:var(--s2)}
 .inbox-cand-match{font-size:9px;color:var(--ac2);background:rgba(61,224,154,.1);padding:1px 6px;border-radius:8px;margin-left:4px;flex-shrink:0;border:1px solid rgba(61,224,154,.2)}
 .inbox-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--mu);font-size:12px}
 .inbox-empty{padding:50px 30px;text-align:center;color:var(--mu2);font-size:12px;line-height:1.8}
-.inbox-refresh-bar{padding:8px 15px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;background:var(--s2);flex-shrink:0}
+.inbox-refresh-bar{padding:7px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;background:var(--s2);flex-shrink:0}
 
 /* EMAIL DETAIL */
 .email-detail-header{padding:14px 16px;border-bottom:1px solid var(--bd);background:var(--s2);flex-shrink:0}
@@ -451,17 +449,20 @@ select option{background:var(--s2)}
 .ai-urgence-normale{background:rgba(207,224,70,.1);color:var(--ac)}
 .ai-urgence-basse{background:var(--s3);color:var(--mu)}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:10px}
 
 /* REPORTING */
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:20px}
-.rep-kpi{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.rep-kpi{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;position:relative;overflow:hidden}
 .rep-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--ac))}
 .rep-v{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;line-height:1;margin-bottom:4px}
 .rep-l{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em}
 .rep-sub{font-size:10px;color:var(--mu2);margin-top:3px}
 .rep-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .rep-row3{grid-template-columns:1fr 1fr 1fr}
-.rep-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;box-shadow:var(--shadow)}
+.rep-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px}
 .rep-card-t{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
 .rep-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px}
 .rep-bar-lbl{min-width:130px;color:var(--mu);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -522,11 +523,11 @@ select option{background:var(--s2)}
 #veille-progress-counts span { padding:1px 7px; border-radius:10px; }
 
 /* ── To-do list ── */
-.todo-item{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;transition:.14s;box-shadow:var(--shadow)}
-.todo-item:hover{background:var(--s2);border-color:var(--bd2);box-shadow:var(--shadow-md)}
-.todo-item.done-item{opacity:.45;box-shadow:none}
-.todo-cb{width:17px;height:17px;border-radius:4px;cursor:pointer;flex-shrink:0;accent-color:var(--ac)}
-.todo-text{flex:1;font-size:12px;color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif}
+.todo-item{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;transition:.14s}
+.todo-item:hover{background:var(--s2);border-color:var(--bd2)}
+.todo-item.done-item{opacity:.45}
+.todo-cb{width:16px;height:16px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--ac)}
+.todo-text{flex:1;font-size:12px;color:var(--tx)}
 .todo-text.done-text{text-decoration:line-through;color:var(--mu)}
 .tp-h{background:rgba(192,57,43,.1);color:var(--ac3);font-size:9px;padding:2px 8px;border-radius:10px;flex-shrink:0;font-weight:600;border:1px solid rgba(192,57,43,.2)}
 .tp-m{background:rgba(200,130,10,.1);color:var(--ac);font-size:9px;padding:2px 8px;border-radius:10px;flex-shrink:0;font-weight:600;border:1px solid rgba(200,130,10,.2)}
@@ -535,71 +536,6 @@ select option{background:var(--s2)}
 .notif-item{background:var(--ac);color:#fff;padding:9px 16px;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;display:flex;align-items:center;gap:10px;pointer-events:all;cursor:pointer;animation:notif-slide .3s ease;border-bottom:1px solid rgba(0,0,0,.15)}
 @keyframes notif-slide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .notif-item:hover{filter:brightness(1.1)}
-
-/* ── Extra polish ── */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:10px}
-::-webkit-scrollbar-thumb:hover{background:var(--mu2)}
-
-.lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:600}
-
-/* Pills warm */
-.pill{display:inline-flex;align-items:center;font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif}
-.pent{background:rgba(37,88,212,.1);color:var(--ac5);border:1px solid rgba(37,88,212,.2)}
-.pnew{background:rgba(200,130,10,.1);color:var(--ac);border:1px solid rgba(200,130,10,.2)}
-.ppre{background:rgba(30,155,116,.1);color:var(--ac2);border:1px solid rgba(30,155,116,.2)}
-.pdos{background:rgba(109,40,217,.1);color:var(--ac6);border:1px solid rgba(109,40,217,.2)}
-.pvis{background:rgba(37,88,212,.12);color:var(--ac5);border:1px solid rgba(37,88,212,.25)}
-.ppres{background:rgba(200,130,10,.15);color:var(--ac4);border:1px solid rgba(200,130,10,.3)}
-.pplac{background:rgba(30,155,116,.15);color:var(--ac2);border:1px solid rgba(30,155,116,.3)}
-.pko{background:rgba(192,57,43,.1);color:var(--ac3);border:1px solid rgba(192,57,43,.2)}
-.ptoc{background:rgba(200,130,10,.1);color:var(--ac);border:1px solid rgba(200,130,10,.2)}
-.pnrp{background:rgba(120,116,104,.1);color:var(--mu);border:1px solid var(--bd)}
-.pcal{background:rgba(37,88,212,.1);color:var(--ac5);border:1px solid rgba(37,88,212,.2)}
-.pbno{background:rgba(192,57,43,.08);color:var(--ac3);border:1px solid rgba(192,57,43,.15)}
-.pnee{background:rgba(30,155,116,.1);color:var(--ac2);border:1px solid rgba(30,155,116,.2)}
-.pcsnt{background:rgba(109,40,217,.1);color:var(--ac6);border:1px solid rgba(109,40,217,.2)}
-.pcli{background:rgba(200,130,10,.12);color:var(--ac4);border:1px solid rgba(200,130,10,.25)}
-.pwin{background:rgba(30,155,116,.15);color:var(--ac2);border:1px solid rgba(30,155,116,.3)}
-
-/* Tags BTP sectors */
-.tag{display:inline-flex;align-items:center;font-size:9px;padding:2px 7px;border-radius:6px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif}
-.tgo{background:#FEF3E2;color:#92400E;border:1px solid #FDE68A}
-.tso{background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE}
-.tbe{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
-.tvrd{background:#FDF4FF;color:#6B21A8;border:1px solid #E9D5FF}
-.thse{background:#FFF1F2;color:#9F1239;border:1px solid #FECDD3}
-.tmgmt{background:#F0F9FF;color:#0C4A6E;border:1px solid #BAE6FD}
-
-/* AI badge */
-.ai-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:3px 8px;border-radius:10px;background:rgba(109,40,217,.08);color:var(--ac6);border:1px solid rgba(109,40,217,.18);white-space:nowrap;font-family:'Plus Jakarta Sans',sans-serif;font-weight:500}
-
-/* VTABS warm */
-.vt.act{color:var(--ac);border-bottom-color:var(--ac)}
-
-/* Kanban header warm */
-.kbh{border-radius:6px}
-
-/* Empty state */
-.empty{text-align:center;padding:50px 20px;color:var(--mu2);font-size:12px;line-height:1.8}
-
-/* Step dots warm */
-.step-dot.cur{border-color:var(--ac);color:var(--ac);background:rgba(200,130,10,.08)}
-.step-dot.done{border-color:var(--ac2);background:var(--ac2);color:#fff}
-.step-l.cur{color:var(--ac)}.step-l.done{color:var(--ac2)}
-
-/* Interview card warm */
-.int-card{background:rgba(37,88,212,.06);border:1px solid rgba(37,88,212,.2)}
-.int-card:hover{background:rgba(37,88,212,.1)}
-.int-time{color:var(--ac5)}
-
-/* TODAY hover warm */
-.mo-day.today{border-color:var(--ac5);background:rgba(37,88,212,.04)}
-.mo-day.today .dn-num{background:var(--ac5);color:#fff}
-
-/* Period btn active warm */
-.rep-period-btn.act{background:var(--ac);color:#fff;border-color:var(--ac)}
 </style>
 </head>
 <body>
@@ -734,7 +670,7 @@ function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`h
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[],emails:[],drafts:[],conversations:{},todos:[],trash:[]};
+let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[],emails:[],drafts:[],conversations:{},todos:[]};
 let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'entrants',needs_tab:'pending',agView:'week',agDate:new Date().toISOString().split('T')[0],calWeekOffset:0};
 
 // ═══════════════════════════════════════════════════════
@@ -807,7 +743,6 @@ async function load(){
       if(!DB.drafts)        DB.drafts=[];
       if(!DB.conversations) DB.conversations={};
       if(!DB.todos)         DB.todos=[];
-      if(!DB.trash)         DB.trash=[];
     }
     else seed();
   }catch(e){seed();}
@@ -2454,56 +2389,27 @@ function saveBesoinForm(coId) {
 
 
 function rClients(){
-  var q=(document.getElementById('scli')||{}).value?document.getElementById('scli').value.toLowerCase():'';
-  var fCat=(document.getElementById('fcli-cat')||{}).value||'';
-  var fSt=(document.getElementById('fcli-st')||{}).value||'';
-  var filt=DB.companies.filter(function(c){
+  const q=(document.getElementById('scli')||{}).value?.toLowerCase()||'';
+  const filt=DB.companies.filter(c=>{
     if(c.type!=='client')return false;
-    var txt=(c.name+' '+(c.contact||'')+' '+(c.city||'')).toLowerCase();
-    if(q&&!txt.includes(q))return false;
-    if(fCat&&c.cat!==fCat)return false;
-    if(fSt&&c.status!==fSt)return false;
-    return true;
+    const txt=(c.name+' '+(c.contact||'')).toLowerCase();
+    return !q||txt.includes(q);
   });
-  var catOpts=BTP_CATS.map(function(b){return '<option value="'+b.id+'">'+b.l+'</option>';}).join('');
-  var stOpts=COMP_ST.map(function(s){return '<option value="'+s.id+'">'+s.l+'</option>';}).join('');
-  var cards=filt.map(function(c){
-    var cat=getCat(c.cat);
-    var needs=DB.needs.filter(function(n){return n.company_id===c.id;});
-    var activeNeeds=needs.filter(function(n){return n.status!=='closed';});
-    var placed=DB.candidates.filter(function(x){return x.linked_need&&needs.find(function(n){return n.id===x.linked_need;})&&x.status==='placed';}).length;
-    var st=getCmpS(c.status);
-    var hist=needs.length>0?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);font-size:10px;color:var(--mu)">Historique: '+needs.length+' besoin(s)</div>':'';
-    var activeLine=activeNeeds.length
-      ?'<span class="fs10" style="color:var(--ac);font-weight:600">&#127919; '+activeNeeds.length+' besoin(s) actif(s)</span>'
-      :'<span class="fs10 mu_">Aucun besoin actif</span>';
-    var placedLine=placed?'<span class="pill pwin fs10">&#10003; '+placed+' plac\u00e9(s)</span>':'';
-    var sinceLine=c.contract_date?'<span class="fs10 mu_" style="margin-left:auto">Depuis '+fD(c.contract_date)+'</span>':'';
-    return '<div class="prcard" onclick="openCoPanel(\''+c.id+'\')">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
-      +'<div class="prcard-n" style="flex:1;margin-bottom:0">'+esc(c.name)+'</div>'
-      +'<span class="pill '+st.p+'" style="font-size:9px;margin-left:6px;flex-shrink:0">'+st.l+'</span>'
-      +'</div>'
-      +'<div class="prcard-m">'+esc(c.contact||'—')+' '+(c.ctitle?'· '+esc(c.ctitle):'')+' &mdash; '+esc(c.city||'—')+'<br><span class="tag '+cat.cls+'">'+cat.l+'</span></div>'
-      +'<div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">'+activeLine+placedLine+sinceLine+'</div>'
-      +hist
-      +'</div>';
-  }).join('');
-  var emptyState='<div class="empty" style="padding:60px 20px"><div style="font-size:28px;margin-bottom:12px">&#127970;</div><div style="font-weight:600;margin-bottom:6px">Aucun client pour cette recherche</div><div>Modifiez les filtres ou convertissez un prospect.</div></div>';
-  document.getElementById('view-clients').innerHTML=''
-    +'<div style="margin-bottom:16px">'
-    +'<div class="tb" style="flex-wrap:wrap;gap:8px">'
-    +'<div class="srch"><input id="scli" placeholder="Nom, contact, ville..." oninput="rClients()"></div>'
-    +'<select id="fcli-cat" onchange="rClients()" style="width:auto;min-width:150px;flex-shrink:0"><option value="">Tous secteurs</option>'+catOpts+'</select>'
-    +'<select id="fcli-st" onchange="rClients()" style="width:auto;min-width:150px;flex-shrink:0"><option value="">Tous statuts</option>'+stOpts+'</select>'
-    +'<button class="btn bp bsm" onclick="openCoForm()" style="margin-left:auto">+ Client</button>'
-    +'</div>'
-    +'<div style="font-size:11px;color:var(--mu);margin-top:6px">'+filt.length+' client'+(filt.length>1?'s':'')+' &middot; '+DB.companies.filter(function(c){return c.type==='client';}).length+' au total</div>'
-    +'</div>'
-    +(filt.length?'<div class="g3">'+cards+'</div>':emptyState);
-  var scliEl=document.getElementById('scli');if(scliEl)scliEl.value=q;
-  var catEl=document.getElementById('fcli-cat');if(catEl)catEl.value=fCat;
-  var stEl=document.getElementById('fcli-st');if(stEl)stEl.value=fSt;
+  document.getElementById('view-clients').innerHTML=`
+    <div class="tb"><div class="srch"><input id="scli" placeholder="Rechercher client…" oninput="rClients()"></div></div>
+    ${filt.length?`<div class="g3">${filt.map(c=>{
+      const cat=getCat(c.cat);
+      const needs=DB.needs.filter(n=>n.company_id===c.id);
+      return `<div class="prcard" onclick="openCoPanel('${c.id}')">
+        <div class="prcard-n">${esc(c.name)}</div>
+        <div class="prcard-m">👤 ${esc(c.contact||'—')} ${c.ctitle?`· ${esc(c.ctitle)}`:''}<br>📍 ${esc(c.city||'—')}<br><span class="tag ${cat.cls}">${cat.l}</span></div>
+        <div class="flex fac fg5 mt8 fw">
+          <span class="fs10 mu_">🎯 ${needs.length} besoin(s)</span>
+          ${c.contract_date?`<span class="fs10 mu_">Depuis ${fD(c.contract_date)}</span>`:''}
+          ${DB.candidates.filter(x=>x.linked_need&&needs.find(n=>n.id===x.linked_need)&&x.status==='placed').length?`<span class="pill pwin fs10">✓ Placé</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}</div>`:'<div class="empty">Aucun client encore. Convertissez un prospect.</div>'}`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3762,7 +3668,6 @@ function openSettings(){
   // Dossier URL
   const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
 
-  setTimeout(()=>tplRefreshList(),50);
   openMo('⚙ Paramètres Novalem',`
     <div style="max-height:72vh;overflow-y:auto;padding-right:4px">
 
@@ -3825,16 +3730,6 @@ function openSettings(){
         </div>
       </div>
       ${sbOk?`<div style="font-size:10px;color:var(--ac2);margin-top:4px">✅ Sync cloud actif</div>`:`<div style="font-size:10px;color:var(--mu2);margin-top:4px">Sans config, données locales uniquement</div>`}
-    </div>
-
-    <!-- EMAIL TEMPLATES -->
-    <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
-      <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac5)">✉️ Templates email personnalisés</div>
-      <div id="tpl-list" style="margin-bottom:10px"></div>
-      <div style="display:flex;gap:6px">
-        <button class="btn bg bsm" onclick="tplAdd()">+ Nouveau template</button>
-      </div>
-      <div style="font-size:10px;color:var(--mu);margin-top:6px">Utilisez {{nom}}, {{poste}}, {{date_visio}}, {{heure}}, {{lien_visio}} comme variables.</div>
     </div>
 
     <!-- GITHUB JARVIS DEV -->
@@ -3931,63 +3826,6 @@ function openSettings(){
      <button class="btn bp" onclick="saveSettings()">💾 Enregistrer</button>`
   );
 }
-// ── Template management ──────────────────────────────
-function getCustomTpls(){return JSON.parse(localStorage.getItem('btp_custom_tpls')||'[]');}
-function saveCustomTpls(arr){localStorage.setItem('btp_custom_tpls',JSON.stringify(arr));}
-
-function tplRefreshList(){
-  const el=document.getElementById('tpl-list');if(!el)return;
-  const tpls=getCustomTpls();
-  if(!tpls.length){el.innerHTML='<div style="font-size:10px;color:var(--mu);font-style:italic">Aucun template personnalisé — les templates par défaut sont toujours actifs.</div>';return;}
-  el.innerHTML=tpls.map((t,i)=>'<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--bd)">'
-    +'<span style="flex:1;font-size:11px;font-weight:600">'+esc(t.label||'Template '+(i+1))+'</span>'
-    +'<button class="btn bg bxs" onclick="tplEdit('+i+')">✏️ Éditer</button>'
-    +'<button class="btn bd_ bxs" onclick="tplDelete('+i+')">×</button>'
-    +'</div>').join('');
-}
-
-function tplAdd(){
-  const tpls=getCustomTpls();
-  tpls.push({label:'Nouveau template',subject:'',body:''});
-  saveCustomTpls(tpls);
-  tplRefreshList();
-  tplEdit(tpls.length-1);
-}
-
-function tplEdit(i){
-  const tpls=getCustomTpls();
-  const t=tpls[i];if(!t)return;
-  openMo('✏️ Éditer le template',
-    '<div class="fgrp mb8"><span class="lbl">Nom du template</span><input id="te-label" value="'+esc(t.label||'')+'" placeholder="Ex: Relance candidat"></div>'
-    +'<div class="fgrp mb8"><span class="lbl">Objet</span><input id="te-subject" value="'+esc(t.subject||'')+'" placeholder="Objet de l\'email"></div>'
-    +'<div class="fgrp"><span class="lbl">Corps du message</span><textarea id="te-body" style="min-height:180px;font-size:12px;line-height:1.7">'+esc(t.body||'')+'</textarea></div>',
-    '<button class="btn bg" onclick="closeMo()">Annuler</button>'
-    +'<button class="btn bp" onclick="tplSave('+i+')">💾 Enregistrer</button>'
-  );
-}
-
-function tplSave(i){
-  const tpls=getCustomTpls();
-  tpls[i]={
-    label:document.getElementById('te-label')?.value||'Template',
-    subject:document.getElementById('te-subject')?.value||'',
-    body:document.getElementById('te-body')?.value||''
-  };
-  saveCustomTpls(tpls);
-  closeMo();
-  // Refresh list if settings still open
-  setTimeout(()=>tplRefreshList(),100);
-  toast('Template enregistré ✓','s');
-}
-
-function tplDelete(i){
-  const tpls=getCustomTpls();
-  tpls.splice(i,1);
-  saveCustomTpls(tpls);
-  tplRefreshList();
-  toast('Template supprimé','w');
-}
-
 function saveSettings(){
   // Profil utilisateur
   const nom=(document.getElementById('set-nom')?.value||'').trim();
@@ -4464,7 +4302,7 @@ async function autoPostToBoard(postId,board){
 
 // ── État global composeur ────────────────────────────
 let EM={to:'',cc:'',subject:'',body:'',candId:null,coId:null,tplKey:null,draft:false,attachments:[]};
-let EM_VIEW='inbox'; // 'inbox' | 'compose' | 'sent' | 'drafts' | 'trash'
+let EM_VIEW='inbox'; // 'inbox' | 'compose' | 'sent' | 'drafts'
 let INBOX_CACHE=null;   // {emails:[], fetchedAt:timestamp}
 let INBOX_LOADING=false;
 let INBOX_UNREAD=0;
@@ -4927,9 +4765,6 @@ function rEmails(){
         <div class="em-nav-item ${EM_VIEW==='drafts'?'em-nav-act':''}" onclick="emShowView('drafts')">
           📝 Brouillons <span class="nbadge nb-mu" style="margin-left:auto">${drafts.length}</span>
         </div>
-        <div class="em-nav-item ${EM_VIEW==='trash'?'em-nav-act':''}" onclick="emShowView('trash')">
-          🗑 Corbeille <span class="nbadge nb-mu" style="margin-left:auto">${(DB.trash||[]).length||''}</span>
-        </div>
 
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);padding:12px 8px 5px">Templates</div>
         ${Object.entries(EMAIL_TPLS).map(([k,t])=>`
@@ -4963,7 +4798,6 @@ function emRenderView(view, cands, cos, history, drafts, nom, tel){
   if(view==='sent')     return emRenderSent(history, cands);
   if(view==='drafts')   return emRenderDrafts(drafts, cands);
   if(view==='dossiers') return emRenderDossiers();
-  if(view==='trash') return emRenderTrash();
   return emRenderCompose(cands, cos, nom, tel);
 }
 function emRenderDossiers(){
@@ -4971,44 +4805,6 @@ function emRenderDossiers(){
     <div style="padding:12px 14px;border-bottom:1px solid var(--bd);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;flex-shrink:0">📁 Dossiers de correspondance</div>
     ${renderEmailDossiers()}
   </div>`;
-}
-
-function emRenderTrash(){
-  const trash=DB.trash||[];
-  if(!trash.length) return '<div style="padding:50px;text-align:center;color:var(--mu2);font-size:12px">Corbeille vide</div>';
-  const rows=trash.map((m,i)=>{
-    const contact=m.candId?cById(m.candId):m.coId?coById(m.coId):null;
-    return '<div style="padding:10px 15px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px">'
-      +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(m.subject||'—')+'</div>'
-      +'<div style="font-size:10px;color:var(--mu);margin-top:2px">→ '+esc(m.to||'—')+(contact?' ('+esc(contact.name)+')':'')+'</div>'
-      +'</div>'
-      +'<span style="font-size:10px;color:var(--mu2);flex-shrink:0">'+fD(m.date)+'</span>'
-      +'<button onclick="emRestoreTrash('+i+')" style="background:none;border:1px solid var(--bd);border-radius:4px;color:var(--mu);cursor:pointer;font-size:10px;padding:2px 7px;flex-shrink:0;transition:.1s" title="Restaurer">↩</button>'
-      +'<button onclick="emPermanentDelete('+i+')" style="background:none;border:none;color:var(--mu2);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0;transition:.1s" title="Supprimer définitivement">×</button>'
-      +'</div>';
-  }).join('');
-  return '<div style="padding:10px 15px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;background:var(--s2);flex-shrink:0">'
-    +'<span style="font-size:11px;color:var(--mu)">'+trash.length+' élément(s)</span>'
-    +'<button class="btn bd_ bxs" onclick="emEmptyTrash()">🗑 Vider la corbeille</button>'
-    +'</div>'
-    +'<div style="overflow-y:auto;flex:1">'+rows+'</div>';
-}
-function emRestoreTrash(i){
-  const m=(DB.trash||[])[i];if(!m)return;
-  DB.emails=DB.emails||[];
-  const restored={...m};delete restored.deletedAt;delete restored.origin;
-  DB.emails.push(restored);
-  DB.trash.splice(i,1);
-  save();emShowView('trash');toast('Email restauré','s');
-}
-function emPermanentDelete(i){
-  DB.trash=(DB.trash||[]);
-  DB.trash.splice(i,1);
-  save();emShowView('trash');toast('Supprimé définitivement','w');
-}
-function emEmptyTrash(){
-  DB.trash=[];save();emShowView('trash');toast('Corbeille vidée','w');
 }
 
 function emShowView(view){
@@ -5030,8 +4826,7 @@ function emShowView(view){
       (view==='compose'&&(t.startsWith('✏️')||t.startsWith('Réd')))||
       (view==='sent'   &&t.startsWith('📤'))||
       (view==='drafts'   &&t.startsWith('📝'))||
-      (view==='dossiers' &&t.includes('Dossiers'))||
-      (view==='trash'    &&t.includes('Corbeille'))
+      (view==='dossiers' &&t.includes('Dossiers'))
     );
   });
   // Si inbox : déclencher le fetch
@@ -5047,7 +4842,7 @@ function emRenderCompose(cands, cos, nom, tel){
       <div style="margin-left:auto;display:flex;gap:6px">
         <select id="em-tpl" onchange="emApplyTpl()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 7px;border-radius:2px">
           <option value="">— Template —</option>
-          ${Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}${getCustomTpls().map((t,i)=>`<option value="custom_${i}">${esc(t.label||'Template '+(i+1))}</option>`).join('')}
+          ${Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
         </select>
         <select id="em-cand" onchange="emPickContact()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 7px;border-radius:2px;max-width:150px">
           <option value="">— Contact —</option>
@@ -5104,16 +4899,13 @@ function emRenderCompose(cands, cos, nom, tel){
 // ── Vue Envoyés ──────────────────────────────────────
 function emRenderSent(history, cands){
   if(!history.length) return`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:12px">Aucun email envoyé</div>`;
-  const unlinked=history.filter(m=>!m.candId&&!m.coId).length;
-  const warnBar=unlinked?`<div style="padding:8px 15px;background:rgba(212,120,26,.08);border-bottom:2px solid var(--ac4);display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ac4);flex-shrink:0">⚠️ ${unlinked} email(s) non lié(s) à un contact &mdash; <button onclick="emShowView('dossiers')" style="background:none;border:none;color:var(--ac5);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">Voir les dossiers</button></div>`:'';
-  return warnBar+`
+  return`
     <div style="overflow-y:auto;flex:1">
       ${history.map((m,i)=>{
         const c=m.candId?cById(m.candId):null;
         const co=m.coId?coById(m.coId):null;
         const contact=c?c.name:co?co.name:'';
-        const unlinkedClass=!m.candId&&!m.coId?'border-left:3px solid var(--ac4);':'';
-        return`<div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.1s;${unlinkedClass}" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="emReopen(${i})">
+        return`<div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="emReopen(${i})">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
             <span style="font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.subject||'—')}</span>
             <span style="font-size:10px;color:var(--mu);flex-shrink:0">${fD(m.date)}</span>
@@ -5121,9 +4913,8 @@ function emRenderSent(history, cands){
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:10px;color:var(--ac2)">→ ${esc(m.to||'—')}</span>
             ${contact?`<span style="font-size:10px;color:var(--mu)">(${esc(contact)})</span>`:''}
-            ${m.sent?`<span style="font-size:9px;background:rgba(30,155,116,.1);color:var(--ac2);padding:1px 5px;border-radius:8px;margin-left:auto">✓ Envoyé</span>`:`<span style="font-size:9px;background:rgba(192,57,43,.1);color:var(--ac3);padding:1px 5px;border-radius:8px;margin-left:auto">⚡ Messagerie</span>`}
+            ${m.sent?`<span style="font-size:9px;background:rgba(61,224,154,.1);color:var(--ac2);padding:1px 5px;border-radius:8px;margin-left:auto">✓ Envoyé</span>`:`<span style="font-size:9px;background:rgba(224,74,74,.1);color:var(--ac3);padding:1px 5px;border-radius:8px;margin-left:auto">⚡ Messagerie</span>`}
             ${m.attachments&&m.attachments.length?`<span style="font-size:9px;color:var(--mu);padding:1px 4px">📎 ${m.attachments.length}</span>`:''}
-            <button onclick="event.stopPropagation();emDeleteSent(${i})" style="background:none;border:none;color:var(--mu2);cursor:pointer;font-size:14px;padding:0 2px;margin-left:4px;line-height:1;flex-shrink:0;transition:.1s" title="Supprimer" >🗑</button>
           </div>
         </div>`;
       }).join('')}
@@ -5169,17 +4960,6 @@ function emPickContact(){
 function emApplyTpl(){
   const key=document.getElementById('em-tpl')?.value;
   if(!key)return;
-  // Custom templates
-  if(key.startsWith('custom_')){
-    const idx=parseInt(key.replace('custom_',''));
-    const t=getCustomTpls()[idx];if(!t)return;
-    const subEl=document.getElementById('em-sub');
-    const bodyEl=document.getElementById('em-body');
-    if(subEl)subEl.value=t.subject||'';
-    if(bodyEl)bodyEl.value=t.body||'';
-    EM.subject=t.subject||'';EM.body=t.body||'';
-    return;
-  }
   const tpl=EMAIL_TPLS[key];if(!tpl)return;
   const candId=EM.candId;const coId=EM.coId;
   const c=candId?cById(candId):{};
@@ -5341,20 +5121,6 @@ function emDeleteDraft(i){
   emShowView('drafts');
 }
 
-function emDeleteSent(i){
-  const reversed=(DB.emails||[]).slice().reverse();
-  const m=reversed[i];if(!m)return;
-  // Mettre en corbeille
-  DB.trash=DB.trash||[];
-  DB.trash.unshift({...m,deletedAt:now_(),origin:'sent'});
-  // Trouver l'index réel dans DB.emails
-  const realIdx=DB.emails.findIndex(e=>e.id===m.id||(e.date===m.date&&e.subject===m.subject&&e.to===m.to));
-  if(realIdx>=0) DB.emails.splice(realIdx,1);
-  save();
-  emShowView('sent');
-  toast('Email déplacé dans la corbeille','s');
-}
-
 function emReopen(i){
   const m=(DB.emails||[]).slice().reverse()[i];if(!m)return;
   EM={to:m.to||'',subject:'Re: '+(m.subject||''),body:'\n\n──────────────────\n'+m.body||'',candId:m.candId||null,coId:m.coId||null,tplKey:null};
@@ -5499,9 +5265,8 @@ function emRenderInbox(){
         ${INBOX_CACHE.emails.length} email${INBOX_CACHE.emails.length>1?'s':''}
         ${fetchedMin>0?` · actualisé il y a ${fetchedMin}min`:''}
       </span>
-      <button class="btn bg bxs" id="inbox-refresh-btn" style="margin-left:auto;font-size:10px;padding:3px 9px;display:flex;align-items:center;gap:5px" onclick="emFetchInbox(true)">
-        <span id="inbox-refresh-ico" style="${INBOX_LOADING?'animation:spin .8s linear infinite;display:inline-block':''}">${INBOX_LOADING?'🔄':'🔄'}</span>
-        ${INBOX_LOADING?'Actualisation…':'Actualiser'}
+      <button class="btn bg bxs" style="margin-left:auto;font-size:10px;padding:3px 9px" onclick="emFetchInbox(true)">
+        ${INBOX_LOADING?'⏳':'🔄'} Actualiser
       </button>
     </div>
     <div style="overflow-y:auto;flex:1">
@@ -5519,12 +5284,10 @@ async function emFetchInbox(forceRefresh=false){
   }
   if(INBOX_LOADING&&!forceRefresh)return;
   INBOX_LOADING=true;
-  const _loadTimeout=setTimeout(()=>{INBOX_LOADING=false;const rb=document.getElementById('inbox-refresh-btn');if(rb){rb.disabled=false;}},30000);
-  // Animer le bouton refresh directement sans re-render
-  const _rbtn=document.getElementById('inbox-refresh-btn');
-  if(_rbtn){_rbtn.disabled=true;_rbtn.innerHTML='<span style="animation:spin .8s linear infinite;display:inline-block">🔄</span> Actualisation…';}
+  const _lt=setTimeout(()=>{INBOX_LOADING=false;},30000);
+  // Si on est dans la vue inbox, montrer l'état de chargement
   const main=document.getElementById('em-main');
-  if(main&&EM_VIEW==='inbox'&&!INBOX_CACHE) main.innerHTML=emRenderInbox();
+  if(main&&EM_VIEW==='inbox') main.innerHTML=emRenderInbox();
   try{
     const resp=await fetch(`${apiBase}/api/imap`,{
       method:'GET',
@@ -5534,7 +5297,6 @@ async function emFetchInbox(forceRefresh=false){
     if(!resp.ok) throw new Error(data.error||'Erreur serveur');
     INBOX_CACHE={emails:data.emails||[],fetchedAt:Date.now()};
     INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;
-    const _rbOk=document.getElementById('inbox-refresh-btn');if(_rbOk){_rbOk.disabled=false;_rbOk.innerHTML='🔄 Actualiser';}
     // Mettre à jour le badge
     const badge=document.getElementById('em-inbox-badge');
     if(badge){
@@ -5556,12 +5318,10 @@ async function emFetchInbox(forceRefresh=false){
         <button class="btn bp" onclick="emFetchInbox(true)">🔄 Réessayer</button>
       </div>`;
     }
-    clearTimeout(_loadTimeout);
-    INBOX_LOADING=false;
+    clearTimeout(_lt);INBOX_LOADING=false;
     return;
   }
-  clearTimeout(_loadTimeout);
-  INBOX_LOADING=false;
+  clearTimeout(_lt);INBOX_LOADING=false;
   // Re-render si on est toujours dans la vue inbox
   if(main&&EM_VIEW==='inbox') main.innerHTML=emRenderInbox();
 }
@@ -6395,27 +6155,765 @@ function renderRep(){
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
+<!-- JARVIS — Assistant vocal IA flottant                   -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<style>
+#jarvis-btn {
+  position:fixed; bottom:22px; right:22px; z-index:9999;
+  width:52px; height:52px; border-radius:50%;
+  background:linear-gradient(135deg, #1a1a16 0%, #2a2a20 100%);
+  border:2px solid var(--bd2, #3a3a30);
+  box-shadow:0 4px 20px rgba(0,0,0,.5), 0 0 0 0 rgba(207,224,70,.3);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:22px; transition:border-color .2s, box-shadow .2s;
+  user-select:none;
+}
+#jarvis-btn:hover { border-color:var(--ac, #cfe046); box-shadow:0 4px 24px rgba(0,0,0,.6), 0 0 0 4px rgba(207,224,70,.15); }
+#jarvis-btn.listening {
+  border-color:#e04a4a;
+  animation: jarvis-pulse 1.2s infinite;
+}
+@keyframes jarvis-pulse {
+  0%   { box-shadow:0 4px 20px rgba(0,0,0,.5), 0 0 0 0 rgba(224,74,74,.5); }
+  70%  { box-shadow:0 4px 20px rgba(0,0,0,.5), 0 0 0 12px rgba(224,74,74,.0); }
+  100% { box-shadow:0 4px 20px rgba(0,0,0,.5), 0 0 0 0 rgba(224,74,74,.0); }
+}
+#jarvis-btn.thinking { border-color:var(--ac4, #e0983a); animation: jarvis-think 1s infinite alternate; }
+@keyframes jarvis-think { from { opacity:.6; } to { opacity:1; } }
 
+#jarvis-panel {
+  position:fixed; bottom:86px; right:22px; z-index:9998;
+  width:320px; background:var(--s2, #181814); border:1px solid var(--bd2, #3a3a30);
+  border-radius:6px; box-shadow:0 8px 32px rgba(0,0,0,.6);
+  display:none; flex-direction:column; overflow:hidden;
+  font-family:'DM Mono', monospace;
+}
+#jarvis-panel.open { display:flex; }
+#jarvis-header {
+  padding:10px 14px; background:var(--s3, #1f1f18);
+  border-bottom:1px solid var(--bd, #272724);
+  display:flex; align-items:center; gap:8px;
+}
+#jarvis-transcript {
+  padding:12px 14px; min-height:60px; max-height:120px; overflow-y:auto;
+  font-size:12px; line-height:1.7; color:var(--tx, #e4e4db);
+  border-bottom:1px solid var(--bd, #272724);
+  white-space:pre-wrap; word-break:break-word;
+}
+#jarvis-response {
+  padding:12px 14px; font-size:11px; line-height:1.7;
+  color:var(--tx, #e4e4db); max-height:180px; overflow-y:auto;
+  display:none;
+}
+#jarvis-actions {
+  padding:8px 12px; border-top:1px solid var(--bd, #272724);
+  display:flex; gap:6px; flex-wrap:wrap; display:none;
+}
+#jarvis-status {
+  padding:6px 14px; font-size:10px; color:var(--mu, #74746c);
+  border-top:1px solid var(--bd, #272724); text-align:center;
+}
+</style>
+
+<!-- Bouton flottant -->
+
+<!-- ── Barre de notifications agenda ── -->
+<div id="notif-bar"></div>
+<div id="jarvis-btn" onclick="jarvisToggle()" title="Jarvis — Assistant vocal">🎙️</div>
+
+<!-- Panneau Jarvis -->
+<div id="jarvis-panel">
+  <div id="jarvis-header">
+    <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--ac,#cfe046)">JARVIS</span>
+    <span id="jarvis-mode" style="font-size:10px;color:var(--mu)">En attente</span>
+    <button onclick="jarvisClose()" style="margin-left:auto;background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:0 2px">×</button>
+  </div>
+  <div id="jarvis-transcript" style="color:var(--mu);font-style:italic">Cliquez sur le micro pour parler…</div>
+  <div id="jarvis-response"></div>
+  <div id="jarvis-actions"></div>
+  <div id="jarvis-status"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// JARVIS — Logique principale
+// ═══════════════════════════════════════════════════════
+let JARVIS_STATE = 'idle'; // idle | listening | thinking | ready
+let JARVIS_SR = null;      // SpeechRecognition instance
+let JARVIS_TRANSCRIPT = '';
+let JARVIS_PENDING_ACTIONS = [];
+
+function jarvisToggle() {
+  const panel = document.getElementById('jarvis-panel');
+  if (!panel.classList.contains('open')) {
+    panel.classList.add('open');
+    if (JARVIS_STATE === 'idle') jarvisStartListen();
+  } else {
+    if (JARVIS_STATE === 'listening') jarvisStopListen();
+    else jarvisStartListen();
+  }
+}
+
+function jarvisClose() {
+  jarvisStopListen();
+  document.getElementById('jarvis-panel').classList.remove('open');
+  JARVIS_STATE = 'idle';
+  jarvisSetMode('idle');
+}
+
+function jarvisSetMode(mode) {
+  JARVIS_STATE = mode;
+  const btn = document.getElementById('jarvis-btn');
+  const modeEl = document.getElementById('jarvis-mode');
+  btn.className = '';
+  if (mode === 'listening') {
+    btn.textContent = '🔴';
+    btn.classList.add('listening');
+    if (modeEl) modeEl.textContent = 'Écoute en cours…';
+  } else if (mode === 'thinking') {
+    btn.textContent = '⚙️';
+    btn.classList.add('thinking');
+    if (modeEl) modeEl.textContent = 'Analyse…';
+  } else if (mode === 'ready') {
+    btn.textContent = '✅';
+    if (modeEl) modeEl.textContent = 'Actions prêtes';
+  } else {
+    btn.textContent = '🎙️';
+    if (modeEl) modeEl.textContent = 'En attente';
+  }
+}
+
+function jarvisSetStatus(txt) {
+  const el = document.getElementById('jarvis-status');
+  if (el) el.textContent = txt;
+}
+
+function jarvisSetTranscript(txt) {
+  const el = document.getElementById('jarvis-transcript');
+  if (!el) return;
+  el.style.fontStyle = txt ? 'normal' : 'italic';
+  el.style.color = txt ? 'var(--tx)' : 'var(--mu)';
+  el.textContent = txt || 'Cliquez sur le micro pour parler…';
+}
+
+function jarvisStartListen() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    toast('Reconnaissance vocale non supportée sur ce navigateur. Utilisez Chrome ou Edge.', 'w');
+    return;
+  }
+  // Reset UI
+  jarvisSetTranscript('');
+  document.getElementById('jarvis-response').style.display = 'none';
+  document.getElementById('jarvis-actions').style.display = 'none';
+  JARVIS_TRANSCRIPT = '';
+  JARVIS_PENDING_ACTIONS = [];
+
+  JARVIS_SR = new SpeechRec();
+  JARVIS_SR.lang = 'fr-FR';
+  JARVIS_SR.interimResults = true;
+  JARVIS_SR.continuous = false;
+  JARVIS_SR.maxAlternatives = 1;
+
+  JARVIS_SR.onstart = () => { jarvisSetMode('listening'); jarvisSetStatus('Parlez maintenant…'); };
+
+  JARVIS_SR.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (final) JARVIS_TRANSCRIPT += final;
+    jarvisSetTranscript((JARVIS_TRANSCRIPT + interim).trim() || '…');
+  };
+
+  JARVIS_SR.onend = () => {
+    if (JARVIS_STATE === 'listening') {
+      const text = JARVIS_TRANSCRIPT.trim();
+      if (text) jarvisAnalyze(text);
+      else { jarvisSetMode('idle'); jarvisSetStatus('Rien entendu — réessayez.'); }
+    }
+  };
+
+  JARVIS_SR.onerror = (e) => {
+    if (e.error !== 'no-speech') toast('Erreur micro : ' + e.error, 'w');
+    jarvisSetMode('idle');
+    jarvisSetStatus('Erreur : ' + e.error);
+  };
+
+  JARVIS_SR.start();
+}
+
+function jarvisStopListen() {
+  if (JARVIS_SR) { try { JARVIS_SR.stop(); } catch(e){} JARVIS_SR = null; }
+  if (JARVIS_STATE === 'listening') jarvisSetMode('idle');
+}
+
+// ── Analyse IA ───────────────────────────────────────
+async function jarvisAnalyze(text) {
+  jarvisSetMode('thinking');
+  jarvisSetStatus('Analyse en cours…');
+
+  const key = getApiKey();
+  if (!key) {
+    toast('Clé API Anthropic manquante dans ⚙ Paramètres', 'w');
+    jarvisSetMode('idle');
+    return;
+  }
+
+  // Contexte CRM pour l'IA
+  const today = new Date().toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const cands = (DB.candidates||[]).slice(0,30).map(c=>({id:c.id,name:c.name,status:c.status,role:c.role}));
+  const cos = (DB.companies||[]).slice(0,30).map(c=>({id:c.id,name:c.name,type:c.type,status:c.status}));
+  const agToday = (DB.agenda||[]).filter(a=>!a.done&&a.date&&a.date.startsWith(new Date().toISOString().split('T')[0])).slice(0,10).map(a=>({title:a.title,time:a.time,type:a.type}));
+
+  const systemPrompt = `Tu es Jarvis, l'assistant IA intégré au CRM NOVALEM, une agence de recrutement BTP CDI.
+Date et heure actuelles : ${today}, ${new Date().toLocaleTimeString('fr-FR')}.
+
+Contexte CRM :
+- Candidats actifs (extrait) : ${JSON.stringify(cands)}
+- Entreprises/clients (extrait) : ${JSON.stringify(cos)}
+- Agenda du jour : ${JSON.stringify(agToday)}
+
+Tu dois analyser la commande vocale de l'utilisateur et retourner UNIQUEMENT un objet JSON valide, sans aucun texte avant ou après, avec cette structure :
+{
+  "message": "Réponse courte et naturelle à afficher (max 2 phrases)",
+  "actions": [
+    {
+      "type": "agenda_add",
+      "title": "Titre de l'entrée agenda",
+      "date": "YYYY-MM-DD",
+      "time": "HH:MM",
+      "agtype": "call|task|relance|visio",
+      "notes": "notes optionnelles",
+      "candId": null,
+      "coId": null
+    }
+  ]
+}
+
+Types d'action disponibles :
+- "agenda_add" : ajouter un rappel/tâche dans l'agenda
+- "conv_note" : ajouter une note de conversation sur un client ou candidat (nécessite coId ou candId + notes)
+- "status_change" : changer le statut d'un candidat ou entreprise (nécessite candId/coId + newStatus)
+- "email_open" : ouvrir le composeur email avec un destinataire pré-rempli (nécessite to, subject, body)
+- "navigate" : naviguer vers une section du CRM (section: dash|cands|clients|pros|agenda|emails|reporting)
+- "none" : si la commande n'est pas clairement une action CRM, mettre un tableau vide
+
+Pour les dates relatives ("demain", "lundi prochain", etc.) calcule la date réelle à partir d'aujourd'hui.
+Pour les heures en "heure de France" ou sans précision, utilise le fuseau Europe/Paris.
+Réponds UNIQUEMENT avec le JSON, rien d'autre.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': key,
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        messages: [{ role: 'user', content: text }],
+        system: systemPrompt
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || 'Erreur API');
+
+    const raw = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
+    const clean = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
+    const parsed = JSON.parse(clean);
+
+    JARVIS_PENDING_ACTIONS = parsed.actions || [];
+    jarvisShowResponse(parsed.message || '…', JARVIS_PENDING_ACTIONS);
+
+  } catch(err) {
+    console.error('Jarvis error:', err);
+    const respEl = document.getElementById('jarvis-response');
+    if (respEl) { respEl.style.display='block'; respEl.textContent = '❌ Erreur : ' + err.message; }
+    jarvisSetMode('idle');
+    jarvisSetStatus('Erreur de traitement.');
+  }
+}
+
+function jarvisShowResponse(message, actions) {
+  const respEl = document.getElementById('jarvis-response');
+  const actEl = document.getElementById('jarvis-actions');
+  if (respEl) { respEl.style.display = 'block'; respEl.textContent = message; }
+
+  if (!actions || !actions.length) {
+    if (actEl) actEl.style.display = 'none';
+    jarvisSetMode('idle');
+    jarvisSetStatus('');
+    return;
+  }
+
+  // Construire les boutons de confirmation
+  const btns = actions.map((a, i) => {
+    const labels = {
+      agenda_add:    `✅ Créer "${a.title}" (${a.date||''} ${a.time||''})`,
+      conv_note:     `📝 Note : ${(a.notes||'').slice(0,30)}…`,
+      status_change: `🔄 Changer statut`,
+      email_open:    `✉️ Ouvrir email → ${a.to||''}`,
+      navigate:      `→ Aller à ${a.section||''}`,
+    };
+    const label = labels[a.type] || `Action ${i+1}`;
+    return `<button class="btn bp bsm" onclick="jarvisExecAction(${i})" style="font-size:10px">${label}</button>`;
+  }).join('');
+
+  if (actEl) {
+    actEl.style.display = 'flex';
+    actEl.innerHTML = btns + `<button class="btn bg bsm" onclick="jarvisReset()" style="font-size:10px;margin-left:auto">✕ Ignorer</button>`;
+  }
+
+  jarvisSetMode('ready');
+  jarvisSetStatus(`${actions.length} action(s) détectée(s) — confirmez ou ignorez.`);
+}
+
+function jarvisExecAction(i) {
+  const action = JARVIS_PENDING_ACTIONS[i];
+  if (!action) return;
+
+  if (action.type === 'agenda_add') {
+    DB.agenda = DB.agenda || [];
+    DB.agenda.push({
+      id: uid(),
+      type: action.agtype || 'task',
+      title: action.title || 'Rappel Jarvis',
+      date: action.date || new Date().toISOString().split('T')[0],
+      time: action.time || '',
+      notes: action.notes || '',
+      cand_id: action.candId || null,
+      comp_id: action.coId || null,
+      done: false,
+      created: now_()
+    });
+    save();
+    toast(`📅 Ajouté : ${action.title}`, 's');
+    if (UI.view === 'agenda') rAgenda();
+    if (UI.view === 'dash') rDash();
+    badges();
+  }
+
+  else if (action.type === 'conv_note') {
+    const type = action.candId ? 'cand' : 'co';
+    const id = action.candId || action.coId;
+    if (id) {
+      addConv(type, id, { type: 'note', title: 'Note Jarvis', notes: action.notes || '' });
+      toast('📝 Note enregistrée', 's');
+    }
+  }
+
+  else if (action.type === 'status_change') {
+    if (action.candId) { setCS(action.candId, action.newStatus); toast('Statut candidat mis à jour', 's'); }
+    else if (action.coId) { setCmpS(action.coId, action.newStatus); toast('Statut entreprise mis à jour', 's'); }
+  }
+
+  else if (action.type === 'email_open') {
+    openEmailWith({ to: action.to || '', subject: action.subject || '', body: action.body || '' });
+    toast('Composeur email ouvert', 'i');
+  }
+
+  else if (action.type === 'navigate') {
+    go(action.section);
+  }
+
+  // Remove executed action from list
+  JARVIS_PENDING_ACTIONS.splice(i, 1);
+  const actEl = document.getElementById('jarvis-actions');
+  if (!JARVIS_PENDING_ACTIONS.length) {
+    if (actEl) actEl.style.display = 'none';
+    jarvisSetMode('idle');
+    jarvisSetStatus('');
+  } else {
+    // Re-render remaining actions
+    jarvisShowResponse('', JARVIS_PENDING_ACTIONS);
+  }
+}
+
+function jarvisReset() {
+  JARVIS_PENDING_ACTIONS = [];
+  jarvisSetTranscript('');
+  const respEl = document.getElementById('jarvis-response');
+  const actEl = document.getElementById('jarvis-actions');
+  if (respEl) respEl.style.display = 'none';
+  if (actEl) actEl.style.display = 'none';
+  jarvisSetMode('idle');
+  jarvisSetStatus('');
+}
+
+// ═══════════════════════════════════════════════════════
+// JARVIS DEV — Modification du CRM via GitHub
+// ═══════════════════════════════════════════════════════
+
+function getGHToken(){ return localStorage.getItem('btp_gh_token')||''; }
+function getGHRepo(){  return localStorage.getItem('btp_gh_repo')||''; }
+
+// Étend le système prompt Jarvis pour détecter les intents dev
+// Dans jarvisAnalyze(), on ajoute "crm_patch" comme type d'action possible
+// Le flow complet est géré par jarvisDevFlow()
+
+let JARVIS_DEV_PANEL_OPEN = false;
+
+// ── Détection de l'intent dev dans la réponse Jarvis ────
+// Si l'action retournée est "crm_patch", on lance le flow dev
+const _origExecAction = jarvisExecAction;
+function jarvisExecAction(i) {
+  const action = JARVIS_PENDING_ACTIONS[i];
+  if (action && action.type === 'crm_patch') {
+    jarvisDevFlow(action.instruction || '');
+    return;
+  }
+  _origExecAction(i);
+}
+
+// Étendre le system prompt de base pour inclure crm_patch
+const _origAnalyze = jarvisAnalyze;
+async function jarvisAnalyze(text) {
+  // Vérifier si c'est une commande dev avant d'appeler l'IA générale
+  const devKeywords = ['modifie', 'rajoute', 'ajoute', 'change', 'améliore', 'crée un champ', 'intègre', 'implante', 'développe', 'code', 'bouton', 'onglet', 'fonctionnalité', 'feature', 'amélioration'];
+  const crmKeywords = ['crm', 'fiche', 'onglet', 'section', 'interface', 'page', 'dans le crm', 'dans la fiche'];
+  const textL = text.toLowerCase();
+  const isDevIntent = devKeywords.some(k => textL.includes(k)) && crmKeywords.some(k => textL.includes(k));
+
+  if (isDevIntent && getGHToken() && getGHRepo()) {
+    jarvisSetMode('thinking');
+    jarvisSetStatus('Intent développement détecté…');
+    // Montrer directement le panneau dev
+    JARVIS_PENDING_ACTIONS = [{ type: 'crm_patch', instruction: text }];
+    jarvisShowResponse(`🛠 Demande de modification CRM détectée. Je vais analyser et préparer le code.`, JARVIS_PENDING_ACTIONS);
+    return;
+  }
+  return _origAnalyze(text);
+}
+
+// ── Flow principal développement ────────────────────────
+async function jarvisDevFlow(instruction) {
+  // 1. Fermer le panneau Jarvis et ouvrir le panneau dev
+  document.getElementById('jarvis-panel').classList.remove('open');
+  JARVIS_PENDING_ACTIONS = [];
+  openJarvisDevPanel(instruction);
+}
+
+function openJarvisDevPanel(instruction) {
+  // Panneau modal dédié dev
+  const ghOk = !!(getGHToken() && getGHRepo());
+  openMo('🛠 Jarvis Dev — Modification CRM', `
+    <div style="display:flex;flex-direction:column;gap:10px;max-height:75vh;overflow-y:auto">
+
+      <!-- Instruction -->
+      <div class="fgrp ff">
+        <span class="lbl">Modification demandée</span>
+        <textarea id="jdev-instr" style="min-height:70px;font-size:12px">${esc(instruction)}</textarea>
+      </div>
+
+      <!-- Contexte optionnel -->
+      <div class="fgrp ff">
+        <span class="lbl">Contexte supplémentaire (optionnel)</span>
+        <input id="jdev-ctx" placeholder="Ex: dans la fiche candidat, onglet Profil, après le champ Disponibilité">
+      </div>
+
+      <!-- Statut GitHub -->
+      <div style="font-size:10px;padding:8px 10px;border-radius:3px;background:${ghOk?'rgba(61,224,154,.08)':'rgba(224,74,74,.08)'};color:${ghOk?'var(--ac2)':'var(--ac3)'}">
+        ${ghOk
+          ? `✅ GitHub configuré : <strong>${esc(getGHRepo())}</strong> — push automatique après confirmation`
+          : `⚠️ GitHub non configuré → allez dans <strong>⚙ Paramètres</strong> pour ajouter le repo et le token`}
+      </div>
+
+      <!-- Zone résultat -->
+      <div id="jdev-result" style="display:none;background:var(--s1);border:1px solid var(--bd);border-radius:3px;padding:10px">
+        <div id="jdev-result-content" style="font-size:11px;line-height:1.7;white-space:pre-wrap;font-family:monospace;max-height:220px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Zone push -->
+      <div id="jdev-push-zone" style="display:none">
+        <div style="font-size:10px;color:var(--mu);margin-bottom:6px">Vérifiez le code ci-dessus avant de pousser.</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn bp" onclick="jarvisConfirmPush()" style="flex:1">🚀 Confirmer & Pousser sur GitHub</button>
+          <button class="btn bg" onclick="jarvisDiscardPatch()">✕ Annuler</button>
+        </div>
+        <div id="jdev-push-status" style="font-size:10px;color:var(--mu);margin-top:6px;text-align:center"></div>
+      </div>
+
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Fermer</button>
+     <button class="btn bp" id="jdev-gen-btn" onclick="jarvisGeneratePatch()">⚙️ Générer la modification</button>`,
+    true
+  );
+}
+
+let JARVIS_PATCH = null; // {find, replace, description, fullFileB64, sha}
+
+async function jarvisGeneratePatch() {
+  const instruction = document.getElementById('jdev-instr')?.value.trim() || '';
+  const ctx = document.getElementById('jdev-ctx')?.value.trim() || '';
+  const key = getApiKey();
+  const ghToken = getGHToken();
+  const ghRepo = getGHRepo();
+
+  if (!instruction) { toast('Décrivez la modification souhaitée','w'); return; }
+  if (!key) { toast('Clé API Anthropic manquante dans ⚙ Paramètres','w'); return; }
+  if (!ghToken || !ghRepo) { toast('Configurez GitHub dans ⚙ Paramètres','w'); return; }
+
+  const btn = document.getElementById('jdev-gen-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération…'; }
+  jarvisSetStatus('Récupération du code source…');
+
+  try {
+    // 1. Fetch du fichier depuis GitHub
+    const ghResp = await fetch(`https://api.github.com/repos/${ghRepo}/contents/public/crm.html`, {
+      headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!ghResp.ok) {
+      const err = await ghResp.json();
+      throw new Error(`GitHub (${ghResp.status}) : ${err.message || 'Erreur'}`);
+    }
+    const ghData = await ghResp.json();
+    const sha = ghData.sha;
+    const fullContent = atob(ghData.content.replace(/\n/g,''));
+
+    // 2. Extraire une section pertinente (éviter d'envoyer 300K+ à Claude)
+    const excerpt = extractRelevantSection(fullContent, instruction + ' ' + ctx);
+
+    // 3. Appel Claude Sonnet pour générer le patch
+    jarvisSetStatus('Génération du code…');
+    const patchResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': key,
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        system: `Tu es un développeur expert intégré au CRM NOVALEM (single-file HTML/CSS/JS vanilla).
+Le CRM utilise : DM Mono, Syne (polices), variables CSS (--bg, --tx, --bd, --s1/s2/s3, --ac, --ac2, --ac3, --ac4, --mu), fonctions existantes : uid(), now_(), save(), toast(), openMo(), setPanel(), esc(), fD(), etc.
+Tu dois générer un patch JSON UNIQUEMENT — aucun texte avant ou après, aucun markdown.
+
+Format de réponse attendu :
+{
+  "description": "Description courte de la modification (1 phrase)",
+  "patches": [
+    {
+      "find": "chaîne EXACTE à rechercher dans le fichier (unique, courte, identifiable)",
+      "replace": "chaîne de remplacement complète",
+      "comment": "explication de ce patch"
+    }
+  ]
+}
+
+Règles impératives :
+- "find" doit être une chaîne UNIQUE dans le fichier (vérifiable)
+- "find" ne doit pas dépasser 300 caractères
+- "replace" doit conserver le code environnant modifié + nouvelles additions
+- Utilise le style de code existant (template literals JS, inline styles, pas de class CSS externe)
+- Pas de dépendances externes
+- Génère entre 1 et 4 patches maximum
+- Réponds UNIQUEMENT avec le JSON valide`,
+        messages: [{
+          role: 'user',
+          content: `Instruction : ${instruction}
+${ctx ? 'Contexte : ' + ctx + '\n' : ''}\nExtrait du fichier existant autour de la zone concernée :\n\`\`\`\n${excerpt}\n\`\`\``
+        }]
+      })
+    });
+
+    const patchData = await patchResp.json();
+    if (!patchResp.ok) throw new Error(patchData.error?.message || 'Erreur API patch');
+
+    const rawPatch = (patchData.content||[]).map(b=>b.type==='text'?b.text:'').join('').trim();
+    const cleanPatch = rawPatch.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
+    const parsed = JSON.parse(cleanPatch);
+
+    if (!parsed.patches || !parsed.patches.length) throw new Error('Aucun patch généré');
+
+    // 4. Appliquer les patches au fichier complet (dry run)
+    let patched = fullContent;
+    const patchLog = [];
+    for (const p of parsed.patches) {
+      if (!patched.includes(p.find)) {
+        patchLog.push(`⚠️ Chaîne introuvable : "${p.find.slice(0,60)}…"`);
+        continue;
+      }
+      patched = patched.replace(p.find, p.replace);
+      patchLog.push(`✅ ${p.comment || 'Patch appliqué'}`);
+    }
+
+    JARVIS_PATCH = { patches: parsed.patches, description: parsed.description, fullContent: patched, sha, patchLog };
+
+    // 5. Afficher le résultat
+    const resultEl = document.getElementById('jdev-result');
+    const resultContent = document.getElementById('jdev-result-content');
+    if (resultEl) resultEl.style.display = 'block';
+    if (resultContent) {
+      resultContent.innerHTML = `<div style="color:var(--ac4);font-weight:700;margin-bottom:6px">${esc(parsed.description)}</div>` +
+        parsed.patches.map((p,i) => `
+          <div style="margin-bottom:10px;border-left:2px solid var(--bd2);padding-left:8px">
+            <div style="color:var(--mu);font-size:10px;margin-bottom:3px">Patch ${i+1} — ${esc(p.comment||'')}</div>
+            <div style="color:var(--ac3);font-size:10px">REMPLACE :</div>
+            <div style="background:rgba(224,74,74,.08);padding:4px 6px;border-radius:2px;margin:2px 0;overflow-x:auto">${esc(p.find.slice(0,200))}${p.find.length>200?'…':''}</div>
+            <div style="color:var(--ac2);font-size:10px;margin-top:4px">PAR :</div>
+            <div style="background:rgba(61,224,154,.08);padding:4px 6px;border-radius:2px;overflow-x:auto">${esc(p.replace.slice(0,300))}${p.replace.length>300?'…':''}</div>
+          </div>`).join('') +
+        `<div style="margin-top:8px;border-top:1px solid var(--bd);padding-top:8px">` +
+        patchLog.map(l=>`<div style="font-size:10px;color:var(--mu)">${esc(l)}</div>`).join('') + `</div>`;
+    }
+
+    const pushZone = document.getElementById('jdev-push-zone');
+    if (pushZone) pushZone.style.display = 'block';
+    if (btn) { btn.disabled = false; btn.textContent = '♻️ Regénérer'; }
+
+  } catch(err) {
+    console.error('Jarvis Dev error:', err);
+    toast('Erreur Jarvis Dev : ' + err.message, 'e');
+    const resultEl = document.getElementById('jdev-result');
+    const resultContent = document.getElementById('jdev-result-content');
+    if (resultEl) resultEl.style.display = 'block';
+    if (resultContent) resultContent.textContent = '❌ Erreur : ' + err.message;
+    if (btn) { btn.disabled = false; btn.textContent = '⚙️ Réessayer'; }
+  }
+}
+
+function extractRelevantSection(fullContent, query) {
+  // Chercher les 3-4K chars autour des mots-clés de la requête
+  const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+  const MAX_EXCERPT = 6000;
+
+  // Chercher le point d'ancrage le plus pertinent
+  let bestIdx = -1;
+  let bestScore = 0;
+  for (let i = 0; i < fullContent.length - 100; i += 200) {
+    const chunk = fullContent.slice(i, i+500).toLowerCase();
+    const score = words.reduce((s,w) => s + (chunk.includes(w) ? 1 : 0), 0);
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+
+  if (bestIdx < 0) bestIdx = 0;
+  const start = Math.max(0, bestIdx - 1000);
+  const end = Math.min(fullContent.length, bestIdx + MAX_EXCERPT);
+  const excerpt = fullContent.slice(start, end);
+
+  // Toujours inclure les définitions globales importantes
+  const globalDefs = fullContent.slice(0, 800);
+  return globalDefs + '\n// … (extrait autour de la zone concernée) …\n' + excerpt;
+}
+
+async function jarvisConfirmPush() {
+  if (!JARVIS_PATCH) return;
+  const ghToken = getGHToken();
+  const ghRepo = getGHRepo();
+  const statusEl = document.getElementById('jdev-push-status');
+  const btn = document.querySelector('[onclick="jarvisConfirmPush()"]');
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Push en cours…'; }
+  if (statusEl) statusEl.textContent = 'Envoi vers GitHub…';
+
+  try {
+    // Encoder en base64 (UTF-8 safe)
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(JARVIS_PATCH.fullContent);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    const b64 = btoa(binary);
+
+    const pushResp = await fetch(`https://api.github.com/repos/${ghRepo}/contents/public/crm.html`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${ghToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `Jarvis Dev: ${JARVIS_PATCH.description}`,
+        content: b64,
+        sha: JARVIS_PATCH.sha
+      })
+    });
+
+    const pushData = await pushResp.json();
+    if (!pushResp.ok) throw new Error(`GitHub (${pushResp.status}) : ${pushData.message || 'Erreur push'}`);
+
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--ac2)">✅ Poussé sur GitHub ! Vercel redéploie automatiquement (~30s).</span>`;
+    toast('✅ Code poussé sur GitHub — Vercel redéploie…', 's');
+    JARVIS_PATCH = null;
+
+    // Fermer la modale après 3s
+    setTimeout(() => closeMo(), 3000);
+
+  } catch(err) {
+    console.error('GitHub push error:', err);
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--ac3)">❌ ${esc(err.message)}</span>`;
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Réessayer'; }
+    toast('Erreur push GitHub : ' + err.message, 'e');
+  }
+}
+
+function jarvisDiscardPatch() {
+  JARVIS_PATCH = null;
+  const resultEl = document.getElementById('jdev-result');
+  const pushZone = document.getElementById('jdev-push-zone');
+  if (resultEl) resultEl.style.display = 'none';
+  if (pushZone) pushZone.style.display = 'none';
+}
+
+
+// ═══════════════════════════════════════════════════
+// TO-DO LIST
+// ═══════════════════════════════════════════════════
+function rTodos(){
+  const el=document.getElementById('view-todos');
+  if(!el)return;
+  DB.todos=DB.todos||[];
+  const open=DB.todos.filter(t=>!t.done).sort((a,b)=>{const p={h:0,m:1,l:2};return(p[a.priority]||1)-(p[b.priority]||1);});
+  const done=DB.todos.filter(t=>t.done).slice(0,8);
+  el.innerHTML=`
+    <div style="max-width:640px;margin:0 auto;padding:0 8px">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <input id="todo-input" placeholder="Nouvelle tâche… (Entrée pour valider)" style="flex:1;font-size:13px" onkeydown="if(event.key==='Enter')addTodo()">
+        <select id="todo-priority" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:4px 8px;border-radius:2px">
+          <option value="h">🔴 Urgent</option><option value="m" selected>🟡 Normal</option><option value="l">⚪ Long terme</option>
+        </select>
+        <button class="btn bp" onclick="addTodo()">+ Ajouter</button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn bg bsm" onclick="go('agenda')" style="font-size:10px">📅 Agenda complet</button>
+      </div>
+      <div id="todo-open">
+        ${open.length?open.map(t=>todoItemHtml(t)).join(''):'<div style="color:var(--mu);font-size:12px;text-align:center;padding:30px">Aucune tâche — profitez-en ✓</div>'}
+      </div>
+      ${done.length?`<div style="font-size:10px;color:var(--mu2);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.08em">Terminées</div><div style="opacity:.45">${done.map(t=>todoItemHtml(t)).join('')}</div>`:''}
+    </div>`;
+}
 function todoItemHtml(t){
   const pc={h:'tp-h',m:'tp-m',l:'tp-l'}[t.priority]||'tp-m';
   const pl={h:'Urgent',m:'Normal',l:'Long terme'}[t.priority]||'';
-  return'<div class="todo-item'+(t.done?' done-item':'')+'"><input type="checkbox" class="todo-cb" '+(t.done?'checked':'')+' onchange="toggleTodo(\''+t.id+'\')">'
-    +'<span class="todo-text'+(t.done?' done-text':'')+'" onclick="editTodoInline(\''+t.id+'\',this)">'+esc(t.text)+'</span>'
-    +(t.dueDate?'<span style="font-size:9px;color:var(--ac4)">'+fD(t.dueDate)+'</span>':'')
-    +'<span class="'+pc+'">'+pl+'</span>'
-    +'<button onclick="deleteTodo(\''+t.id+'\')" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:13px;padding:0 4px;opacity:.5" title="Supprimer">\xd7</button>'
-    +'</div>';
+  return`<div class="todo-item${t.done?' done-item':''}">
+    <input type="checkbox" class="todo-cb" ${t.done?'checked':''} onchange="toggleTodo('${t.id}')">
+    <span class="todo-text${t.done?' done-text':''}" onclick="editTodoInline('${t.id}',this)">${esc(t.text)}</span>
+    ${t.dueDate?`<span style="font-size:9px;color:var(--ac4)">${fD(t.dueDate)}</span>`:''}
+    <span class="${pc}">${pl}</span>
+    <button onclick="deleteTodo('${t.id}')" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:13px;padding:0 4px;opacity:.5" title="Supprimer">×</button>
+  </div>`;
 }
 function addTodo(text,priority){
   const inp=document.getElementById('todo-input');
   const sel=document.getElementById('todo-priority');
   const txt=(text||inp?.value||'').trim();
-  if(!txt){if(inp){inp.style.borderColor='var(--ac3)';setTimeout(()=>{inp.style.borderColor='';},900);}return;}
+  if(!txt){
+    if(inp){inp.style.borderColor='var(--ac3)';inp.focus();setTimeout(()=>{inp.style.borderColor='';},900);}
+    return;
+  }
   const p=priority||sel?.value||'m';
   DB.todos=DB.todos||[];
   DB.todos.unshift({id:uid(),text:txt,priority:p,done:false,created:now_()});
   save();if(inp)inp.value='';rTodos();badges();
-  toast('T\u00e2che ajout\u00e9e \u2713','s');
 }
 function toggleTodo(id){
   const t=(DB.todos||[]).find(x=>x.id===id);if(!t)return;
@@ -6426,7 +6924,7 @@ function deleteTodo(id){DB.todos=(DB.todos||[]).filter(x=>x.id!==id);save();rTod
 function editTodoInline(id,el){
   const t=(DB.todos||[]).find(x=>x.id===id);if(!t||t.done)return;
   const inp=document.createElement('input');
-  inp.value=t.text;inp.style.cssText='flex:1;font-size:12px;background:var(--s1);border:1px solid var(--ac);border-radius:6px;padding:4px 8px;color:var(--tx);outline:none;width:100%';
+  inp.value=t.text;inp.style.cssText='flex:1;font-size:12px;background:var(--s1);border:1px solid var(--ac);border-radius:2px;padding:2px 6px;color:var(--tx);outline:none';
   el.replaceWith(inp);inp.focus();
   const sv=()=>{t.text=inp.value.trim()||t.text;t.updated=now_();save();rTodos();};
   inp.onblur=sv;inp.onkeydown=e=>{if(e.key==='Enter')sv();if(e.key==='Escape')rTodos();};
@@ -6450,405 +6948,132 @@ function showAgendaNotif(a){
   const bar=document.getElementById('notif-bar');if(!bar)return;
   const div=document.createElement('div');div.className='notif-item';
   const tp=AG_TYPES.find(x=>x.id===a.type)||AG_TYPES[2];
-  div.innerHTML='<span>'+tp.ico+'</span><span>Dans moins de 5 min\u00a0: <strong>'+esc(a.title)+'</strong> \u00e0 '+esc(a.time)+'</span><span onclick="go(\'agenda\');this.closest(\'.notif-item\').remove()" style="margin-left:auto;font-size:10px;text-decoration:underline;cursor:pointer;white-space:nowrap">Voir agenda \u2192</span><span onclick="this.closest(\'.notif-item\').remove()" style="font-size:16px;padding:0 6px;cursor:pointer;opacity:.5;flex-shrink:0">\xd7</span>';
+  div.innerHTML=`<span>${tp.ico}</span><span>Dans moins de 5 min : <strong>${esc(a.title)}</strong> à ${esc(a.time)}</span><span onclick="go('agenda');this.closest('.notif-item').remove()" style="margin-left:auto;font-size:10px;text-decoration:underline;cursor:pointer;white-space:nowrap">Voir agenda →</span><span onclick="this.closest('.notif-item').remove()" style="font-size:16px;padding:0 6px;cursor:pointer;opacity:.5;flex-shrink:0">×</span>`;
   bar.appendChild(div);
   setTimeout(()=>{if(div.parentNode)div.remove();},30000);
 }
 setInterval(checkAgendaNotifications,30000);
 setTimeout(checkAgendaNotifications,4000);
 
-<!-- JARVIS — Assistant vocal push-to-talk -->
-<style>
-#jarvis-btn {
-  position: fixed; bottom: 20px; right: 20px;
-  width: 52px; height: 52px; border-radius: 50%;
-  background: var(--sb); border: 2px solid rgba(200,130,10,.5);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; cursor: pointer; z-index: 8500; transition: .2s;
-  box-shadow: 0 4px 20px rgba(13,27,42,.3);
-  user-select: none;
-}
-#jarvis-btn:hover { border-color:var(--ac); box-shadow:0 6px 28px rgba(13,27,42,.4), 0 0 0 4px rgba(200,130,10,.12); }
-#jarvis-btn.listening { border-color:var(--ac2); animation: jp-pulse 1.2s infinite; }
-@keyframes jp-pulse {
-  0%,100% { box-shadow: 0 4px 20px rgba(13,27,42,.3), 0 0 0 0 rgba(30,155,116,.5); }
-  50%      { box-shadow: 0 4px 20px rgba(13,27,42,.3), 0 0 0 12px rgba(30,155,116,0); }
-}
-#jarvis-btn.thinking { border-color:var(--ac4); animation: jp-think .9s infinite alternate; }
-@keyframes jp-think { from { opacity:.5; transform:scale(.94); } to { opacity:1; transform:scale(1); } }
-#jarvis-btn.ready { border-color:var(--ac2); }
-
-#jv-panel {
-  position: fixed; bottom: 80px; right: 20px; width: 340px;
-  background: var(--sb); border: 1px solid rgba(255,255,255,.1);
-  border-radius: 14px; box-shadow: 0 16px 60px rgba(13,27,42,.5);
-  z-index: 8490; display: none; flex-direction: column; overflow: hidden;
-}
-#jv-panel.open { display: flex; animation: jv-in .2s cubic-bezier(.2,.8,.3,1); }
-@keyframes jv-in { from { transform:translateY(16px);opacity:0; } to { transform:translateY(0);opacity:1; } }
-#jv-head { padding:12px 14px; background:rgba(200,130,10,.12); border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:8px; flex-shrink:0; }
-#jv-head-title { font-family:'Syne',sans-serif; font-weight:700; font-size:13px; color:var(--ac); flex:1; }
-#jv-mode { font-size:10px; color:rgba(226,221,212,.5); }
-#jv-close { background:none; border:none; color:rgba(226,221,212,.4); cursor:pointer; font-size:16px; padding:0 2px; line-height:1; }
-#jv-transcript { padding:12px 14px; min-height:52px; max-height:100px; overflow-y:auto; font-size:12px; color:rgba(226,221,212,.85); font-style:italic; line-height:1.7; border-bottom:1px solid rgba(255,255,255,.06); font-family:'Plus Jakarta Sans',sans-serif; }
-#jv-messages { max-height:220px; overflow-y:auto; padding:10px 14px; display:flex; flex-direction:column; gap:8px; }
-.jv-msg-ai { background:rgba(255,255,255,.07); border-radius:10px 10px 10px 2px; padding:8px 12px; font-size:11px; color:rgba(226,221,212,.9); line-height:1.6; font-family:'Plus Jakarta Sans',sans-serif; }
-.jv-msg-user { background:rgba(200,130,10,.15); border-radius:10px 10px 2px 10px; padding:8px 12px; font-size:11px; color:rgba(226,221,212,.9); line-height:1.6; align-self:flex-end; max-width:85%; font-family:'Plus Jakarta Sans',sans-serif; }
-#jv-actions { padding:8px 12px; border-top:1px solid rgba(255,255,255,.06); display:flex; gap:5px; flex-wrap:wrap; }
-.jv-action-btn { padding:5px 10px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:8px; color:rgba(226,221,212,.9); font-size:10px; cursor:pointer; font-family:'Plus Jakarta Sans',sans-serif; font-weight:500; transition:.15s; }
-.jv-action-btn:hover { background:rgba(200,130,10,.2); border-color:rgba(200,130,10,.4); color:var(--ac); }
-#jv-footer { padding:8px 12px; border-top:1px solid rgba(255,255,255,.06); display:flex; gap:6px; align-items:center; }
-#jv-text-input { flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:6px 10px; color:rgba(226,221,212,.9); font-size:11px; font-family:'Plus Jakarta Sans',sans-serif; outline:none; }
-#jv-text-input::placeholder { color:rgba(226,221,212,.3); }
-#jv-text-input:focus { border-color:rgba(200,130,10,.5); }
-#jv-send-btn { background:rgba(200,130,10,.2); border:1px solid rgba(200,130,10,.4); border-radius:8px; color:var(--ac); cursor:pointer; padding:6px 10px; font-size:12px; transition:.15s; flex-shrink:0; }
-#jv-send-btn:hover { background:rgba(200,130,10,.3); }
-#jv-mic-btn { background:rgba(30,155,116,.15); border:1px solid rgba(30,155,116,.3); border-radius:8px; color:var(--ac2); cursor:pointer; padding:6px 8px; font-size:12px; transition:.15s; flex-shrink:0; }
-#jv-mic-btn:hover { background:rgba(30,155,116,.25); }
-#jv-status { padding:5px 14px 8px; font-size:10px; color:rgba(226,221,212,.35); text-align:center; font-family:'Plus Jakarta Sans',sans-serif; }
-</style>
-
-<div id="notif-bar"></div>
-<div id="jarvis-btn" onclick="jvToggle()" title="Jarvis — Clic pour parler / re-clic pour stop">🎙️</div>
-
-<div id="jv-panel">
-  <div id="jv-head">
-    <span id="jv-head-title">✦ JARVIS</span>
-    <span id="jv-mode">En attente</span>
-    <button id="jv-close" onclick="jvClose()">×</button>
-  </div>
-  <div id="jv-transcript" style="color:rgba(226,221,212,.35)">Cliquez sur le micro pour parler…</div>
-  <div id="jv-messages"></div>
-  <div id="jv-actions" style="display:none"></div>
-  <div id="jv-footer">
-    <input id="jv-text-input" placeholder="Ou tapez votre commande…" onkeydown="if(event.key==='Enter')jvSendText()">
-    <button id="jv-send-btn" onclick="jvSendText()" title="Envoyer">↵</button>
-    <button id="jv-mic-btn" onclick="jvToggle()" title="Micro">🎙</button>
-  </div>
-  <div id="jv-status"></div>
-</div>
-
-<script>
 // ═══════════════════════════════════════════════════
-// JARVIS — Push-to-talk + conversation multi-tour
+// JARVIS SIMPLIFIÉ — mode dev désactivé, todo+rappels
 // ═══════════════════════════════════════════════════
-let JV = {
-  state: 'idle', // idle | listening | thinking | ready
-  sr: null,
-  transcript: '',
-  history: [], // [{role:'user'|'assistant', content:'...'}]
-  pendingActions: []
-};
-
-function jvToggle() {
-  const panel = document.getElementById('jv-panel');
-  panel.classList.add('open');
-  if (JV.state === 'idle' || JV.state === 'ready') {
-    jvStartListen();
-  } else if (JV.state === 'listening') {
-    jvStopListen(); // clic = stop → envoyer
-  } else if (JV.state === 'thinking') {
-    // En cours d'analyse, ne rien faire
+const _jarvisAnalyzeBase=jarvisAnalyze;
+async function jarvisAnalyze(text){
+  const tl=text.toLowerCase().trim();
+  // Bloquer intent dev
+  if(['modifie le crm','rajoute dans le crm','change le code','implante','développe une feature'].some(k=>tl.includes(k))){
+    const r=document.getElementById('jarvis-response');
+    if(r){r.style.display='block';r.textContent='Le mode modification du code est désactivé. Tu peux me demander de créer des rappels ou des to-do à la place !';}
+    jarvisSetMode('idle');jarvisSetStatus('');return;
   }
-}
-
-function jvClose() {
-  jvStopListen();
-  document.getElementById('jv-panel').classList.remove('open');
-  JV.state = 'idle';
-  jvSetMode('idle');
-}
-
-function jvSetMode(mode) {
-  JV.state = mode;
-  const btn = document.getElementById('jarvis-btn');
-  const modeEl = document.getElementById('jv-mode');
-  if (!btn) return;
-  btn.className = '';
-  const modes = {
-    idle:      { ico: '🎙️', cls: '',         txt: 'En attente' },
-    listening: { ico: '🔴', cls: 'listening', txt: 'Écoute en cours — cliquez pour stop' },
-    thinking:  { ico: '⚙️',  cls: 'thinking',  txt: 'Analyse…' },
-    ready:     { ico: '✅',  cls: 'ready',     txt: 'Actions prêtes' }
-  };
-  const m = modes[mode] || modes.idle;
-  btn.textContent = m.ico;
-  if (m.cls) btn.classList.add(m.cls);
-  if (modeEl) modeEl.textContent = m.txt;
-}
-
-function jvSetTranscript(txt) {
-  const el = document.getElementById('jv-transcript');
-  if (!el) return;
-  el.textContent = txt || '';
-  el.style.color = txt ? 'rgba(226,221,212,.85)' : 'rgba(226,221,212,.35)';
-  el.style.fontStyle = txt ? 'normal' : 'italic';
-}
-
-function jvSetStatus(txt) {
-  const el = document.getElementById('jv-status');
-  if (el) el.textContent = txt;
-}
-
-function jvAddMessage(role, text) {
-  const el = document.getElementById('jv-messages');
-  if (!el) return;
-  const div = document.createElement('div');
-  div.className = role === 'user' ? 'jv-msg-user' : 'jv-msg-ai';
-  div.textContent = text;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-}
-
-function jvStartListen() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { toast('Reconnaissance vocale non supportée sur ce navigateur', 'w'); return; }
-
-  jvSetTranscript('');
-  JV.transcript = '';
-  jvSetMode('listening');
-  jvSetStatus('Parlez — cliquez à nouveau sur le micro pour terminer');
-
-  JV.sr = new SR();
-  JV.sr.lang = 'fr-FR';
-  JV.sr.continuous = true;       // Ne s'arrête pas après le silence
-  JV.sr.interimResults = true;
-  JV.sr.maxAlternatives = 1;
-
-  JV.sr.onresult = (e) => {
-    let interim = '', final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t;
-      else interim += t;
-    }
-    if (final) JV.transcript += final;
-    jvSetTranscript((JV.transcript + interim).trim() || '…');
-  };
-
-  JV.sr.onerror = (e) => {
-    if (e.error === 'no-speech') return; // Silence normal, on continue
-    if (e.error === 'not-allowed') { toast('Accès micro refusé — autorisez le micro dans le navigateur', 'e'); jvSetMode('idle'); return; }
-    console.warn('SR error:', e.error);
-  };
-
-  JV.sr.onend = () => {
-    // continuous=true → onend ne se déclenche qu'après jvStopListen
-    // Si on était encore en écoute, redémarrer (ex: délai navigateur)
-    if (JV.state === 'listening') {
-      try { JV.sr.start(); } catch(err) { /* already started */ }
-    }
-  };
-
-  try { JV.sr.start(); } catch(err) { toast('Impossible de démarrer le micro', 'e'); jvSetMode('idle'); }
-}
-
-function jvStopListen() {
-  if (JV.sr) {
-    JV.sr.onend = null; // Désactiver l'auto-restart
-    try { JV.sr.stop(); } catch(e) {}
-    JV.sr = null;
-  }
-  const text = JV.transcript.trim();
-  if (text && JV.state === 'listening') {
-    jvAnalyze(text);
-  } else if (JV.state === 'listening') {
-    jvSetMode('idle');
-    jvSetStatus('Rien entendu — recliquez pour réessayer');
-  }
-}
-
-function jvSendText() {
-  const inp = document.getElementById('jv-text-input');
-  const text = inp ? inp.value.trim() : '';
-  if (!text) return;
-  if (inp) inp.value = '';
-  jvAnalyze(text);
-}
-
-async function jvAnalyze(text) {
-  jvSetMode('thinking');
-  jvSetStatus('Jarvis analyse…');
-  jvSetTranscript('');
-  jvAddMessage('user', text);
-
-  // Actions panel hidden while thinking
-  const actEl = document.getElementById('jv-actions');
-  if (actEl) actEl.style.display = 'none';
-
-  const key = getApiKey();
-  if (!key) {
-    jvAddMessage('assistant', '⚠️ Clé API Anthropic manquante — configurez-la dans ⚙ Paramètres.');
-    jvSetMode('idle'); return;
-  }
-
-  const today = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-  const cands = (DB.candidates||[]).slice(0,25).map(c=>({id:c.id,name:c.name,status:c.status,role:c.role,email:c.email}));
-  const cos   = (DB.companies||[]).slice(0,25).map(c=>({id:c.id,name:c.name,type:c.type,status:c.status,email:c.email}));
-  const agToday = (DB.agenda||[]).filter(a=>!a.done&&a.date&&a.date.startsWith(new Date().toISOString().split('T')[0])).slice(0,8);
-  const todos = (DB.todos||[]).filter(t=>!t.done).slice(0,10).map(t=>t.text);
-
-  const systemPrompt = `Tu es Jarvis, l'assistant IA du CRM NOVALEM, cabinet de recrutement BTP CDI.
-Date : ${today}.
-Candidats actifs : ${JSON.stringify(cands)}
-Entreprises/clients : ${JSON.stringify(cos)}
-Agenda du jour : ${JSON.stringify(agToday)}
-To-do actives : ${JSON.stringify(todos)}
-
-Ton rôle : comprendre ce que demande l'utilisateur et proposer des actions concrètes dans le CRM.
-Tu peux poser une question de clarification si nécessaire.
-
-TOUJOURS répondre UNIQUEMENT en JSON valide (sans markdown, sans backticks) :
-{
-  "message": "Réponse courte et naturelle (1-3 phrases max)",
-  "question": "Question de clarification si besoin, sinon null",
-  "actions": [
-    {
-      "type": "agenda_add|todo_add|cand_status|co_status|email_open|navigate|note_add",
-      "label": "Description courte de l'action pour le bouton de confirmation",
-      "data": { /* données selon le type */ }
-    }
-  ]
-}
-
-Types d'actions et leur data :
-- agenda_add: { title, date (YYYY-MM-DD), time (HH:MM), agtype (call|task|relance|visio), notes, candId, coId }
-- todo_add: { text, priority (h|m|l), dueDate (YYYY-MM-DD optionnel) }
-- cand_status: { candId, newStatus }
-- co_status: { coId, newStatus }
-- email_open: { to, subject, body, candId, coId }
-- navigate: { section (dash|cands|clients|pros|agenda|emails|reporting|todos) }
-- note_add: { type (cand|co), id, notes }
-
-Pour les dates relatives, calcule depuis aujourd'hui. Réponds uniquement en JSON.`;
-
-  // Build messages with history for multi-turn
-  const messages = [
-    ...JV.history.slice(-8), // Keep last 4 exchanges
-    { role: 'user', content: text }
-  ];
-
-  try {
-    const resp = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages
-      })
-    });
-
-    // Fallback : appel direct si /api/ai indisponible (local ou erreur)
-    let data;
-    if (!resp.ok && resp.status === 404) {
-      const r2 = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-          'x-api-key': key,
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1000, system: systemPrompt, messages })
-      });
-      data = await r2.json();
-    } else {
-      data = await resp.json();
-    }
-
-    const raw = (data.content||[]).map(b=>b.type==='text'?b.text:'').join('').trim();
-    const clean = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
-    const parsed = JSON.parse(clean);
-
-    // Update history
-    JV.history.push({ role: 'user', content: text });
-    JV.history.push({ role: 'assistant', content: parsed.message || '' });
-
-    jvAddMessage('assistant', parsed.message || '…');
-    if (parsed.question) jvAddMessage('assistant', '❓ ' + parsed.question);
-
-    JV.pendingActions = parsed.actions || [];
-    jvShowActions(JV.pendingActions);
-
-  } catch(err) {
-    console.error('Jarvis error:', err);
-    jvAddMessage('assistant', '❌ Erreur : ' + err.message);
-    jvSetMode('idle');
-    jvSetStatus('');
-  }
-}
-
-function jvShowActions(actions) {
-  const actEl = document.getElementById('jv-actions');
-  if (!actEl) return;
-  if (!actions || !actions.length) {
-    actEl.style.display = 'none';
-    jvSetMode('idle');
-    jvSetStatus('');
+  // To-do express sans appel IA
+  const todoMatch=tl.match(/^(il faut|faut que je|pense à|note|n'oublie pas|ajoute une? tâche?|rajoute)\s+(.{3,80})$/);
+  if(todoMatch&&!tl.includes('agenda')&&!tl.includes('rappel')){
+    const txt=todoMatch[2].trim();
+    JARVIS_PENDING_ACTIONS=[{type:'todo_add',text:txt.charAt(0).toUpperCase()+txt.slice(1),priority:'m'}];
+    jarvisShowResponse(`To-do : "${txt}"`,JARVIS_PENDING_ACTIONS);
     return;
   }
-  actEl.style.display = 'flex';
-  actEl.innerHTML = actions.map((a,i)=>`<button class="jv-action-btn" onclick="jvExec(${i})">✓ ${esc(a.label||'Action '+(i+1))}</button>`).join('')
-    + '<button class="jv-action-btn" onclick="jvClearActions()" style="opacity:.6;margin-left:auto">✕ Ignorer</button>';
-  jvSetMode('ready');
-  jvSetStatus(actions.length + ' action(s) — confirmez ou ignorez');
+  return _jarvisAnalyzeBase(text);
+}
+const _execBase=jarvisExecAction;
+function jarvisExecAction(i){
+  const a=JARVIS_PENDING_ACTIONS[i];
+  if(a&&a.type==='todo_add'){
+    addTodo(a.text,a.priority||'m');
+    toast('To-do ajoutée dans la liste ✓','s');
+    JARVIS_PENDING_ACTIONS.splice(i,1);
+    const actEl=document.getElementById('jarvis-actions');
+    if(!JARVIS_PENDING_ACTIONS.length){if(actEl)actEl.style.display='none';jarvisSetMode('idle');jarvisSetStatus('');}
+    return;
+  }
+  _execBase(i);
 }
 
-function jvExec(i) {
-  const action = JV.pendingActions[i];
-  if (!action) return;
-  const d = action.data || {};
 
-  if (action.type === 'agenda_add') {
-    DB.agenda = DB.agenda||[];
-    DB.agenda.push({ id:uid(), type:d.agtype||'task', title:d.title||'Rappel Jarvis',
-      date:d.date||new Date().toISOString().split('T')[0], time:d.time||'',
-      notes:d.notes||'', cand_id:d.candId||null, comp_id:d.coId||null,
-      done:false, created:now_() });
-    save(); badges();
-    if(UI.view==='agenda')rAgenda(); if(UI.view==='dash')rDash();
-    toast('📅 Agenda : ' + (d.title||'Rappel ajouté'), 's');
-  }
-  else if (action.type === 'todo_add') {
-    DB.todos = DB.todos||[];
-    DB.todos.unshift({ id:uid(), text:d.text||'Tâche Jarvis', priority:d.priority||'m',
-      done:false, dueDate:d.dueDate||null, created:now_() });
-    save(); badges();
-    if(UI.view==='todos')rTodos();
-    toast('✅ Tâche ajoutée : ' + (d.text||''), 's');
-  }
-  else if (action.type === 'cand_status') {
-    setCS(d.candId, d.newStatus); toast('Statut candidat mis à jour', 's');
-  }
-  else if (action.type === 'co_status') {
-    setCmpS(d.coId, d.newStatus); toast('Statut entreprise mis à jour', 's');
-  }
-  else if (action.type === 'email_open') {
-    openEmailWith({ to:d.to||'', subject:d.subject||'', body:d.body||'', candId:d.candId||null, coId:d.coId||null });
-    toast('✉️ Composeur email ouvert', 'i');
-  }
-  else if (action.type === 'navigate') {
-    go(d.section); toast('Navigation vers ' + (d.section||''), 'i');
-  }
-  else if (action.type === 'note_add') {
-    addConv(d.type||'co', d.id, { type:'note', title:'Note Jarvis', notes:d.notes||'' });
-    toast('📝 Note enregistrée', 's');
-  }
+// ═══════════════════════════════════════════════════
+// COMPTEUR COÛT API ANTHROPIC
+// ═══════════════════════════════════════════════════
+// Tarifs officiels Anthropic (USD / token) — source : anthropic.com/pricing
+const API_COSTS = {
+  // Haiku 4.5 : $0.80 / MTok in — $4.00 / MTok out
+  'claude-haiku-4-5-20251001': { input: 0.80/1_000_000, output: 4.00/1_000_000, label: 'Haiku 4.5' },
+  // Sonnet 4.6 : $3.00 / MTok in — $15.00 / MTok out
+  'claude-sonnet-4-6':         { input: 3.00/1_000_000, output: 15.00/1_000_000, label: 'Sonnet 4.6' },
+  // Opus 4.6 : $15.00 / MTok in — $75.00 / MTok out
+  'claude-opus-4-6':           { input: 15.00/1_000_000, output: 75.00/1_000_000, label: 'Opus 4.6' },
+  // Sonnet 4 (ancien)
+  'claude-sonnet-4-20250514':  { input: 3.00/1_000_000, output: 15.00/1_000_000, label: 'Sonnet 4' },
+};
 
-  JV.pendingActions.splice(i, 1);
-  jvShowActions(JV.pendingActions);
+function trackApiCall(model, inputTokens, outputTokens){
+  const rates=API_COSTS[model]||{input:0.80/1_000_000,output:4.00/1_000_000,label:model};
+  const costIn=(inputTokens||0)*rates.input;
+  const costOut=(outputTokens||0)*rates.output;
+  const cost=costIn+costOut;
+  DB._apiUsage=DB._apiUsage||{totalCost:0,totalIn:0,totalOut:0,calls:0,byModel:{},lastReset:now_()};
+  DB._apiUsage.totalCost=(DB._apiUsage.totalCost||0)+cost;
+  DB._apiUsage.totalIn=(DB._apiUsage.totalIn||0)+(inputTokens||0);
+  DB._apiUsage.totalOut=(DB._apiUsage.totalOut||0)+(outputTokens||0);
+  DB._apiUsage.calls=(DB._apiUsage.calls||0)+1;
+  DB._apiUsage.lastCall=now_();
+  // Détail par modèle
+  const mk=model.split('-').slice(0,3).join('-');
+  if(!DB._apiUsage.byModel)DB._apiUsage.byModel={};
+  if(!DB._apiUsage.byModel[mk])DB._apiUsage.byModel[mk]={cost:0,calls:0,in:0,out:0,label:rates.label||mk};
+  DB._apiUsage.byModel[mk].cost+=cost;
+  DB._apiUsage.byModel[mk].calls+=1;
+  DB._apiUsage.byModel[mk].in+=(inputTokens||0);
+  DB._apiUsage.byModel[mk].out+=(outputTokens||0);
+  save();
 }
 
-function jvClearActions() {
-  JV.pendingActions = [];
-  const actEl = document.getElementById('jv-actions');
-  if (actEl) actEl.style.display = 'none';
-  jvSetMode('idle');
-  jvSetStatus('');
+// Wrapper pour fetch Anthropic (patch global)
+const _origFetch=window.fetch;
+window.fetch=async function(url,...args){
+  const resp=await _origFetch(url,...args);
+  if(typeof url==='string'&&url.includes('anthropic.com/v1/messages')){
+    try{
+      const clone=resp.clone();
+      clone.json().then(data=>{
+        if(data.usage&&data.model){
+          trackApiCall(data.model,data.usage.input_tokens,data.usage.output_tokens);
+        }
+      }).catch(()=>{});
+    }catch(e){}
+  }
+  return resp;
+};
+
+function getApiCostDisplay(){
+  const u=DB._apiUsage||{totalCost:0,calls:0,totalIn:0,totalOut:0,byModel:{}};
+  const cost=u.totalCost||0;
+  // Taux EUR/USD approximatif
+  const EUR_RATE=0.92;
+  return{
+    dollars:cost.toFixed(6),
+    euros:(cost*EUR_RATE).toFixed(6),
+    dollarsDisplay:cost<0.01?'$'+cost.toFixed(6):'$'+cost.toFixed(4),
+    eurosDisplay:cost<0.01?'€'+(cost*EUR_RATE).toFixed(6):'€'+(cost*EUR_RATE).toFixed(4),
+    calls:u.calls||0,
+    totalIn:((u.totalIn||0)/1000).toFixed(1),   // en K tokens
+    totalOut:((u.totalOut||0)/1000).toFixed(1),
+    byModel:u.byModel||{},
+    lastReset:u.lastReset||null,
+    lastCall:u.lastCall||null
+  };
 }
+
+function resetApiCost(){
+  DB._apiUsage={totalCost:0,calls:0,lastReset:now_(),lastCall:null};
+  save();toast('Compteur API remis à zéro','s');
+  openSettings();
+}
+
 </script>
+
+
 
 </body>
 </html>
