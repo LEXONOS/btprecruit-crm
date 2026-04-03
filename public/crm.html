@@ -2453,56 +2453,56 @@ function saveBesoinForm(coId) {
 
 
 function rClients(){
-  const q=(document.getElementById('scli')||{}).value?.toLowerCase()||'';
-  const fCat=(document.getElementById('fcli-cat')||{}).value||'';
-  const fSt=(document.getElementById('fcli-st')||{}).value||'';
-  const filt=DB.companies.filter(c=>{
+  var q=(document.getElementById('scli')||{}).value?document.getElementById('scli').value.toLowerCase():'';
+  var fCat=(document.getElementById('fcli-cat')||{}).value||'';
+  var fSt=(document.getElementById('fcli-st')||{}).value||'';
+  var filt=DB.companies.filter(function(c){
     if(c.type!=='client')return false;
-    const txt=(c.name+' '+(c.contact||'')+' '+(c.city||'')).toLowerCase();
+    var txt=(c.name+' '+(c.contact||'')+' '+(c.city||'')).toLowerCase();
     if(q&&!txt.includes(q))return false;
     if(fCat&&c.cat!==fCat)return false;
     if(fSt&&c.status!==fSt)return false;
     return true;
   });
-  const catOpts=BTP_CATS.map(b=>`<option value="${b.id}">${b.l}</option>`).join('');
-  const stOpts=COMP_ST.map(s=>`<option value="${s.id}">${s.l}</option>`).join('');
-  document.getElementById('view-clients').innerHTML=`
-    <div style="margin-bottom:16px">
-      <div class="tb" style="flex-wrap:wrap;gap:8px">
-        <div class="srch"><input id="scli" placeholder="Nom, contact, ville…" oninput="rClients()" value="${esc(q)}"></div>
-        <select id="fcli-cat" onchange="rClients()" style="width:auto;min-width:150px;flex-shrink:0">
-          <option value="">Tous secteurs</option>${catOpts}
-        </select>
-        <select id="fcli-st" onchange="rClients()" style="width:auto;min-width:150px;flex-shrink:0">
-          <option value="">Tous statuts</option>${stOpts}
-        </select>
-        <button class="btn bp bsm" onclick="openCoForm(null,'client')" style="margin-left:auto">+ Client</button>
-      </div>
-      <div style="font-size:11px;color:var(--mu);margin-top:6px">${filt.length} client${filt.length>1?'s':''} · ${DB.companies.filter(c=>c.type==='client').length} au total</div>
-    </div>
-    ${filt.length?`<div class="g3">${filt.map(c=>{
-      const cat=getCat(c.cat);
-      const needs=DB.needs.filter(n=>n.company_id===c.id);
-      const activeNeeds=needs.filter(n=>n.status!=='closed');
-      const placed=DB.candidates.filter(x=>x.linked_need&&needs.find(n=>n.id===x.linked_need)&&x.status==='placed').length;
-      const st=getCmpS(c.status);
-      return \`<div class="prcard" onclick="openCoPanel('\${c.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-          <div class="prcard-n" style="flex:1;margin-bottom:0">\${esc(c.name)}</div>
-          <span class="pill \${st.p}" style="font-size:9px;margin-left:6px;flex-shrink:0">\${st.l}</span>
-        </div>
-        <div class="prcard-m">👤 \${esc(c.contact||'—')} \${c.ctitle?\`· \${esc(c.ctitle)}\`:''}<br>📍 \${esc(c.city||'—')}<br><span class="tag \${cat.cls}">\${cat.l}</span></div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">
-          \${activeNeeds.length?\`<span class="fs10" style="color:var(--ac);font-weight:600">🎯 \${activeNeeds.length} besoin(s) actif(s)</span>\`:\`<span class="fs10 mu_">Aucun besoin actif</span>\`}
-          \${placed?\`<span class="pill pwin fs10">✓ \${placed} placé(s)</span>\`:''}
-          \${c.contract_date?\`<span class="fs10 mu_" style="margin-left:auto">Depuis \${fD(c.contract_date)}</span>\`:''}
-        </div>
-        \${needs.length>\`0\`?\`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);font-size:10px;color:var(--mu)">Historique: \${needs.length} besoin(s)</div>\`:''}
-      </div>\`;
-    }).join('')}</div>`:'<div class="empty" style="padding:60px 20px"><div style="font-size:28px;margin-bottom:12px">🏢</div><div style="font-weight:600;margin-bottom:6px">Aucun client pour cette recherche</div><div>Modifiez les filtres ou convertissez un prospect.</div></div>'}`;
-  // Restore filter values after innerHTML replace
-  const catEl=document.getElementById('fcli-cat');if(catEl)catEl.value=fCat;
-  const stEl=document.getElementById('fcli-st');if(stEl)stEl.value=fSt;
+  var catOpts=BTP_CATS.map(function(b){return '<option value="'+b.id+'">'+b.l+'</option>';}).join('');
+  var stOpts=COMP_ST.map(function(s){return '<option value="'+s.id+'">'+s.l+'</option>';}).join('');
+  var cards=filt.map(function(c){
+    var cat=getCat(c.cat);
+    var needs=DB.needs.filter(function(n){return n.company_id===c.id;});
+    var activeNeeds=needs.filter(function(n){return n.status!=='closed';});
+    var placed=DB.candidates.filter(function(x){return x.linked_need&&needs.find(function(n){return n.id===x.linked_need;})&&x.status==='placed';}).length;
+    var st=getCmpS(c.status);
+    var hist=needs.length>0?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);font-size:10px;color:var(--mu)">Historique: '+needs.length+' besoin(s)</div>':'';
+    var activeLine=activeNeeds.length
+      ?'<span class="fs10" style="color:var(--ac);font-weight:600">&#127919; '+activeNeeds.length+' besoin(s) actif(s)</span>'
+      :'<span class="fs10 mu_">Aucun besoin actif</span>';
+    var placedLine=placed?'<span class="pill pwin fs10">&#10003; '+placed+' plac\u00e9(s)</span>':'';
+    var sinceLine=c.contract_date?'<span class="fs10 mu_" style="margin-left:auto">Depuis '+fD(c.contract_date)+'</span>':'';
+    return '<div class="prcard" onclick="openCoPanel(\''+c.id+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+      +'<div class="prcard-n" style="flex:1;margin-bottom:0">'+esc(c.name)+'</div>'
+      +'<span class="pill '+st.p+'" style="font-size:9px;margin-left:6px;flex-shrink:0">'+st.l+'</span>'
+      +'</div>'
+      +'<div class="prcard-m">'+esc(c.contact||'—')+' '+(c.ctitle?'· '+esc(c.ctitle):'')+' &mdash; '+esc(c.city||'—')+'<br><span class="tag '+cat.cls+'">'+cat.l+'</span></div>'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">'+activeLine+placedLine+sinceLine+'</div>'
+      +hist
+      +'</div>';
+  }).join('');
+  var emptyState='<div class="empty" style="padding:60px 20px"><div style="font-size:28px;margin-bottom:12px">&#127970;</div><div style="font-weight:600;margin-bottom:6px">Aucun client pour cette recherche</div><div>Modifiez les filtres ou convertissez un prospect.</div></div>';
+  document.getElementById('view-clients').innerHTML=''
+    +'<div style="margin-bottom:16px">'
+    +'<div class="tb" style="flex-wrap:wrap;gap:8px">'
+    +'<div class="srch"><input id="scli" placeholder="Nom, contact, ville..." oninput="rClients()"></div>'
+    +'<select id="fcli-cat" onchange="rClients()" style="width:auto;min-width:150px;flex-shrink:0"><option value="">Tous secteurs</option>'+catOpts+'</select>'
+    +'<select id="fcli-st" onchange="rClients()" style="width:auto;min-width:150px;flex-shrink:0"><option value="">Tous statuts</option>'+stOpts+'</select>'
+    +'<button class="btn bp bsm" onclick="openCoForm()" style="margin-left:auto">+ Client</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-top:6px">'+filt.length+' client'+(filt.length>1?'s':'')+' &middot; '+DB.companies.filter(function(c){return c.type==='client';}).length+' au total</div>'
+    +'</div>'
+    +(filt.length?'<div class="g3">'+cards+'</div>':emptyState);
+  var scliEl=document.getElementById('scli');if(scliEl)scliEl.value=q;
+  var catEl=document.getElementById('fcli-cat');if(catEl)catEl.value=fCat;
+  var stEl=document.getElementById('fcli-st');if(stEl)stEl.value=fSt;
 }
 
 // ═══════════════════════════════════════════════════════
