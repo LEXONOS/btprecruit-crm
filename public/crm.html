@@ -6395,6 +6395,68 @@ function renderRep(){
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
+
+function todoItemHtml(t){
+  const pc={h:'tp-h',m:'tp-m',l:'tp-l'}[t.priority]||'tp-m';
+  const pl={h:'Urgent',m:'Normal',l:'Long terme'}[t.priority]||'';
+  return'<div class="todo-item'+(t.done?' done-item':'')+'"><input type="checkbox" class="todo-cb" '+(t.done?'checked':'')+' onchange="toggleTodo(\''+t.id+'\')">'
+    +'<span class="todo-text'+(t.done?' done-text':'')+'" onclick="editTodoInline(\''+t.id+'\',this)">'+esc(t.text)+'</span>'
+    +(t.dueDate?'<span style="font-size:9px;color:var(--ac4)">'+fD(t.dueDate)+'</span>':'')
+    +'<span class="'+pc+'">'+pl+'</span>'
+    +'<button onclick="deleteTodo(\''+t.id+'\')" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:13px;padding:0 4px;opacity:.5" title="Supprimer">\xd7</button>'
+    +'</div>';
+}
+function addTodo(text,priority){
+  const inp=document.getElementById('todo-input');
+  const sel=document.getElementById('todo-priority');
+  const txt=(text||inp?.value||'').trim();
+  if(!txt){if(inp){inp.style.borderColor='var(--ac3)';setTimeout(()=>{inp.style.borderColor='';},900);}return;}
+  const p=priority||sel?.value||'m';
+  DB.todos=DB.todos||[];
+  DB.todos.unshift({id:uid(),text:txt,priority:p,done:false,created:now_()});
+  save();if(inp)inp.value='';rTodos();badges();
+  toast('T\u00e2che ajout\u00e9e \u2713','s');
+}
+function toggleTodo(id){
+  const t=(DB.todos||[]).find(x=>x.id===id);if(!t)return;
+  t.done=!t.done;t.updated=now_();if(t.done)t.doneAt=now_();
+  save();rTodos();badges();
+}
+function deleteTodo(id){DB.todos=(DB.todos||[]).filter(x=>x.id!==id);save();rTodos();badges();}
+function editTodoInline(id,el){
+  const t=(DB.todos||[]).find(x=>x.id===id);if(!t||t.done)return;
+  const inp=document.createElement('input');
+  inp.value=t.text;inp.style.cssText='flex:1;font-size:12px;background:var(--s1);border:1px solid var(--ac);border-radius:6px;padding:4px 8px;color:var(--tx);outline:none;width:100%';
+  el.replaceWith(inp);inp.focus();
+  const sv=()=>{t.text=inp.value.trim()||t.text;t.updated=now_();save();rTodos();};
+  inp.onblur=sv;inp.onkeydown=e=>{if(e.key==='Enter')sv();if(e.key==='Escape')rTodos();};
+}
+
+// ═══════════════════════════════════════════════════
+// NOTIFICATIONS AGENDA 5 min avant
+// ═══════════════════════════════════════════════════
+const _notifiedAgenda=new Set();
+function checkAgendaNotifications(){
+  const now=new Date();
+  const todayStr=now.toISOString().split('T')[0];
+  (DB.agenda||[]).filter(a=>!a.done&&a.date===todayStr&&a.time).forEach(a=>{
+    if(_notifiedAgenda.has(a.id))return;
+    const evTime=new Date(todayStr+'T'+a.time);
+    const diff=(evTime-now)/60000;
+    if(diff>0&&diff<=5){_notifiedAgenda.add(a.id);showAgendaNotif(a);}
+  });
+}
+function showAgendaNotif(a){
+  const bar=document.getElementById('notif-bar');if(!bar)return;
+  const div=document.createElement('div');div.className='notif-item';
+  const tp=AG_TYPES.find(x=>x.id===a.type)||AG_TYPES[2];
+  div.innerHTML='<span>'+tp.ico+'</span><span>Dans moins de 5 min\u00a0: <strong>'+esc(a.title)+'</strong> \u00e0 '+esc(a.time)+'</span><span onclick="go(\'agenda\');this.closest(\'.notif-item\').remove()" style="margin-left:auto;font-size:10px;text-decoration:underline;cursor:pointer;white-space:nowrap">Voir agenda \u2192</span><span onclick="this.closest(\'.notif-item\').remove()" style="font-size:16px;padding:0 6px;cursor:pointer;opacity:.5;flex-shrink:0">\xd7</span>';
+  bar.appendChild(div);
+  setTimeout(()=>{if(div.parentNode)div.remove();},30000);
+}
+setInterval(checkAgendaNotifications,30000);
+setTimeout(checkAgendaNotifications,4000);
+
 <!-- JARVIS — Assistant vocal push-to-talk -->
 <style>
 #jarvis-btn {
