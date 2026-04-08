@@ -4785,7 +4785,6 @@ function emRenderInbox(){
       Connexion au serveur IMAP…
     </div>`;
   }
-  }
   if(!INBOX_CACHE.emails||INBOX_CACHE.emails.length===0){
     return`<div class="inbox-empty">
       <div style="font-size:28px;margin-bottom:12px">📭</div>
@@ -4795,7 +4794,7 @@ function emRenderInbox(){
     </div>`;
   }
 
-  const ago=(iso)=>{
+  const agoStr=(iso)=>{
     const diff=Date.now()-new Date(iso).getTime();
     const m=Math.floor(diff/60000);
     if(m<1)return'maintenant';
@@ -4823,7 +4822,7 @@ function emRenderInbox(){
             <span class="inbox-from">${esc(email.from||email.fromEmail||'—')}</span>
             ${matchLabel?`<span class="inbox-cand-match">${matchLabel}</span>`:''}
             ${hasAttach?`<span class="inbox-attach">📎 ${email.attachments.length}</span>`:''}
-            <span class="inbox-date">${ago(email.date)}</span>
+            <span class="inbox-date">${agoStr(email.date)}</span>
           </div>
           <div class="inbox-subj">${esc(email.subject||'(sans objet)')}</div>
           <div class="inbox-snip">${esc(email.snippet||'')}</div>
