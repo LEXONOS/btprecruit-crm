@@ -1999,6 +1999,7 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
 // ═══════════════════════════════════════════════════════════
 // openCandPanel defined below
 function setCPTab(i,id){UI.ptab=i;renderCandPanelTab(id);}
+function setCoTab(i,id){UI.ptab=i;openCoPanel(id);}
 function renderCandPanelTab(id){
   const c=cById(id);if(!c)return;
   const tabs=[renderCPProfil,renderCPEntretien,renderCPFichiers,renderCPRefs];
@@ -2316,11 +2317,16 @@ function renderProActive(el) {
   if (q) { const qel = document.getElementById('pro-q'); if (qel) qel.value = q; }
 }
 
+let _proSelectMode=false;
+let _proSelected=new Set();
+
 function proRow(c) {
   const st = { tocall: { l: 'À appeler', p: 'ptoc' }, nrp: { l: 'NRP', p: 'pnrp' }, callback: { l: 'À rappeler', p: 'pdos' } }[c.status] || { l: c.status, p: 'ptoc' };
   const callbackDate = c.status === 'callback' && c.next_call_date ? `<br><span style="font-size:9px;color:var(--ac5)">${fD(c.next_call_date)}</span>` : '';
   const marge = c.marge ? `<span style="color:var(--ac2);font-weight:600">${Number(c.marge).toLocaleString('fr-FR')}€</span>` : '<span style="color:var(--mu2)">—</span>';
-  return `<tr onclick="openProPopup('${c.id}')" style="cursor:pointer">
+  const chk=_proSelectMode?`<td onclick="event.stopPropagation()" style="width:24px;padding-left:8px"><input type="checkbox" ${_proSelected.has(c.id)?'checked':''} onchange="toggleProSelect('${c.id}',this.checked)" style="width:12px;accent-color:var(--ac3)"></td>`:'';
+  return `<tr onclick="${_proSelectMode?`toggleProSelect('${c.id}')`:` openProPopup('${c.id}')`}" style="cursor:pointer${_proSelected.has(c.id)?';background:rgba(224,74,74,.04)':''}">
+    ${chk}
     <td><strong>${esc(c.name)}</strong></td>
     <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(c.phone || '—')}</td>
     <td>${esc(c.city || '—')}</td>
@@ -2330,6 +2336,27 @@ function proRow(c) {
       <span onclick="delCoConfirm('${c.id}')" style="color:var(--mu2);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:2px;transition:.1s" onmouseover="this.style.color='var(--ac3)'" onmouseout="this.style.color='var(--mu2)'" title="Supprimer">×</span>
     </td>
   </tr>`;
+}
+function toggleProSelect(id, checked){
+  if(checked===undefined)checked=!_proSelected.has(id);
+  if(checked)_proSelected.add(id);else _proSelected.delete(id);
+  renderProSub();
+  const badge=document.getElementById('pro-sel-badge');
+  if(badge)badge.textContent=_proSelected.size>0?`${_proSelected.size} sélectionné(s)  ·  `:'';
+}
+function toggleProSelectMode(){
+  _proSelectMode=!_proSelectMode;
+  _proSelected.clear();
+  renderProSub();
+}
+function deleteSelectedPros(){
+  if(!_proSelected.size)return;
+  const n=_proSelected.size;
+  openMo(`Supprimer ${n} prospect(s) ?`,
+    `<div style="font-size:12px;color:var(--mu)">Cette action est irréversible.</div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bd_" onclick="(()=>{DB.companies=DB.companies.filter(c=>!_proSelected.has(c.id));_proSelected.clear();_proSelectMode=false;save();closeMo();rPros();badges();toast('${n} supprimé(s)','w');})()">Supprimer ${n}</button>`
+  );
 }
 
 let margeSortAsc = false;
@@ -2406,6 +2433,7 @@ function resetPros(id) {
 // ═══════════════════════════════════════════════════════
 function openProPopup(id) {
   proSelectedId = id;
+  _proPopupTab='appel'; // always start on Appel tab
   const c = coById(id); if (!c) return;
   renderProPopup(c);
 }
@@ -2448,274 +2476,255 @@ function renderTimeline(coId){
 // ═══════════════════════════════════════════════════════
 // PROSPECT POPUP — redesign complet avec onglets
 // ═══════════════════════════════════════════════════════
-let _proPopupTab='appel'; // 'appel' | 'infos' | 'besoin' | 'timeline'
+
+
+// ═══════════════════════════════════════════════════════
+// PROSPECT POPUP — 3 onglets: Appel | Infos | Besoin
+// (Historique retiré pour les prospects non contactés)
+// ═══════════════════════════════════════════════════════
+let _proPopupTab='appel';
 
 function renderProPopup(c) {
-  _proPopupTab=_proPopupTab||'appel';
   const cat = getCat(c.cat);
   const lastContact=c.timeline&&c.timeline.length?new Date(c.timeline[0].date):null;
   const daysSince=lastContact?Math.floor((Date.now()-lastContact)/86400000):null;
-  const tl=c.timeline||[];
 
-  const tabBtn=(id,label)=>`<div onclick="setProTab2('${c.id}','${id}')" style="padding:7px 14px;font-size:11px;cursor:pointer;border-bottom:2px solid ${_proPopupTab===id?'var(--ac)':'transparent'};color:${_proPopupTab===id?'var(--ac)':'var(--mu)'};transition:.12s;white-space:nowrap">${label}</div>`;
+  const tabBtn=(id,label)=>`<div onclick="setProTab2('${c.id}','${id}')" style="padding:8px 16px;font-size:11px;cursor:pointer;border-bottom:2px solid ${_proPopupTab===id?'var(--ac)':'transparent'};color:${_proPopupTab===id?'var(--ac)':'var(--mu)'};transition:.12s;white-space:nowrap;user-select:none">${label}</div>`;
+  const tabs=[tabBtn('appel','📞 Appel'),tabBtn('infos','ℹ️ Infos'),tabBtn('besoin','🎯 Besoin')].join('');
 
-  const tabs=[
-    tabBtn('appel','📞 Appel'),
-    tabBtn('infos','ℹ️ Infos'),
-    tabBtn('besoin','🎯 Besoin'),
-    tabBtn('timeline',`📋 Historique${tl.length?` (${tl.length})`:''}`)
-  ].join('');
-
-  // ── TAB APPEL ──
+  // ── TAB APPEL ────────────────────────────────────────
   const tabAppel=`
-    <div style="padding:14px 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2)">Résultat de l'appel</div>
-    <div id="pro-action-area">
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <button onclick="selectProAction('${c.id}','nrp')" class="pro-act-btn" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s">
-          <span style="font-size:15px">📵</span>
-          <div><div style="font-weight:600">NRP — Pas de réponse</div><div style="font-size:10px;color:var(--mu)">Remis automatiquement demain</div></div>
-        </button>
-        <button onclick="selectProAction('${c.id}','callback')" class="pro-act-btn" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s">
-          <span style="font-size:15px">📅</span>
-          <div><div style="font-weight:600">À rappeler — choisir date</div><div style="font-size:10px;color:var(--mu)">Planifier un rappel ultérieur</div></div>
-        </button>
-        <button onclick="selectProAction('${c.id}','nobiz')" class="pro-act-btn" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s">
-          <span style="font-size:15px">🙅</span>
-          <div><div style="font-weight:600">Contacté — Pas de besoin</div><div style="font-size:10px;color:var(--mu)">Rappel automatique dans 2 mois</div></div>
-        </button>
-        <button onclick="setProTab2('${c.id}','besoin')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(61,223,152,.07);border:1px solid rgba(61,223,152,.25);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s">
-          <span style="font-size:15px">✅</span>
-          <div><div style="font-weight:600;color:var(--ac2)">Besoin confirmé</div><div style="font-size:10px;color:var(--mu)">Remplir le besoin → converti en client</div></div>
-        </button>
-        <button onclick="selectProAction('${c.id}','refused')" class="pro-act-btn" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s">
-          <span style="font-size:15px">🚫</span>
-          <div><div style="font-weight:600">Ne veut pas de cabinet</div><div style="font-size:10px;color:var(--mu)">Archivé définitivement</div></div>
-        </button>
+    <div style="display:flex;flex-direction:column;gap:6px" id="pro-actions-list">
+      <button onclick="proActNRP('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s" onmouseover="this.style.borderColor='var(--ac4)'" onmouseout="this.style.borderColor='var(--bd)'">
+        <span style="font-size:15px">📵</span>
+        <div><div style="font-weight:600">NRP — Pas de réponse</div><div style="font-size:10px;color:var(--mu)">Remis automatiquement demain matin</div></div>
+      </button>
+      <button onclick="proActCallback('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s" onmouseover="this.style.borderColor='var(--ac5)'" onmouseout="this.style.borderColor='var(--bd)'">
+        <span style="font-size:15px">📅</span>
+        <div><div style="font-weight:600">À rappeler</div><div style="font-size:10px;color:var(--mu)">Planifier une date et heure de rappel</div></div>
+      </button>
+      <button onclick="proActNobiz('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s" onmouseover="this.style.borderColor='var(--mu)'" onmouseout="this.style.borderColor='var(--bd)'">
+        <span style="font-size:15px">🙅</span>
+        <div><div style="font-weight:600">Contacté — Pas de besoin</div><div style="font-size:10px;color:var(--mu)">Rappel automatique dans 2 mois</div></div>
+      </button>
+      <button onclick="setProTab2('${c.id}','besoin')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.25);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s" onmouseover="this.style.background='rgba(61,224,154,.14)'" onmouseout="this.style.background='rgba(61,224,154,.07)'">
+        <span style="font-size:15px">✅</span>
+        <div><div style="font-weight:600;color:var(--ac2)">Besoin confirmé → Remplir le besoin</div><div style="font-size:10px;color:var(--mu)">Crée le client + besoin automatiquement</div></div>
+      </button>
+      <button onclick="proActRefused('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;cursor:pointer;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:left;width:100%;transition:.15s" onmouseover="this.style.borderColor='var(--ac3)'" onmouseout="this.style.borderColor='var(--bd)'">
+        <span style="font-size:15px">🚫</span>
+        <div><div style="font-weight:600">Ne veut pas de cabinet</div><div style="font-size:10px;color:var(--mu)">Archivé définitivement</div></div>
+      </button>
+    </div>
+    <!-- Zone callback inline -->
+    <div id="pro-callback-zone" style="display:none;margin-top:12px;padding:12px;background:rgba(74,130,224,.06);border:1px solid rgba(74,130,224,.2);border-radius:3px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:10px">📅 Planifier le rappel</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><span class="lbl">Date *</span><input type="date" id="pro-cb-date" value="${new Date(Date.now()+86400000).toISOString().split('T')[0]}" min="${new Date().toISOString().split('T')[0]}"></div>
+        <div><span class="lbl">Heure (optionnelle)</span><select id="pro-cb-time" style="font-family:'DM Mono',monospace"><option value="">— Pas d'heure —</option>${AG_HALF_HOURS.map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div>
       </div>
-      <!-- Zone note (cachée par défaut) -->
-      <div id="pro-note-zone" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)">
-        <div style="font-size:10px;color:var(--mu2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em">Note d'appel (facultative)</div>
-        <textarea id="pro-call-note" style="min-height:60px;margin-bottom:8px" placeholder="Ce qu'il a dit, point important à retenir…"></textarea>
-        <div id="pro-note-extra" style="margin-bottom:8px"></div>
-        <div style="display:flex;gap:6px">
-          <button id="pro-confirm-btn" class="btn bp" style="flex:1" onclick="confirmProAction()">Confirmer ✓</button>
-          <button class="btn bg bsm" onclick="cancelProAction()">Annuler</button>
-        </div>
+      <div style="margin-bottom:8px"><span class="lbl">Note (optionnelle)</span><textarea id="pro-cb-note" style="min-height:50px" placeholder="Ce qu'il a dit, point à retenir…"></textarea></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn bp" style="flex:1" onclick="confirmCallback('${c.id}')">Confirmer le rappel ✓</button>
+        <button class="btn bg bsm" onclick="document.getElementById('pro-callback-zone').style.display='none';document.getElementById('pro-actions-list').style.display='flex'">Annuler</button>
       </div>
     </div>`;
 
-  // ── TAB INFOS ──
+  // ── TAB INFOS ─────────────────────────────────────────
   const contacts=c.contacts||[];
   const tabInfos=`
     <div style="margin-bottom:14px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Contact principal</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div><span class="lbl">Nom contact</span><input id="pi-contact" value="${esc(c.contact||'')}" placeholder="Jean Dupont" oninput="saveProInfoDraft('${c.id}')"></div>
-        <div><span class="lbl">Poste / Titre</span><input id="pi-ctitle" value="${esc(c.ctitle||'')}" placeholder="DRH, Directeur travaux…" oninput="saveProInfoDraft('${c.id}')"></div>
-        <div><span class="lbl">Email</span><input id="pi-email" value="${esc(c.email||'')}" placeholder="contact@entreprise.fr" oninput="saveProInfoDraft('${c.id}')"></div>
-        <div><span class="lbl">Ville</span><input id="pi-city" value="${esc(c.city||'')}" placeholder="Nice, Monaco…" oninput="saveProInfoDraft('${c.id}')"></div>
-        <div><span class="lbl">Secteur BTP</span><select id="pi-cat" onchange="saveProInfoDraft('${c.id}')">
-          ${['go','so','be','vrd','hse','mgmt'].map(id=>{const cat2=getCat(id);return`<option value="${id}" ${(c.cat||'go')===id?'selected':''}>${cat2.l}</option>`;}).join('')}
-        </select></div>
-        <div><span class="lbl">Source</span><input id="pi-source" value="${esc(c.source||'')}" placeholder="LinkedIn, France Travail…" oninput="saveProInfoDraft('${c.id}')"></div>
+        <div><span class="lbl">Nom contact</span><input id="pi-contact" value="${esc(c.contact||'')}" placeholder="Jean Dupont"></div>
+        <div><span class="lbl">Poste / Titre</span><input id="pi-ctitle" value="${esc(c.ctitle||'')}" placeholder="DRH, Dir. travaux…"></div>
+        <div><span class="lbl">Email</span><input id="pi-email" value="${esc(c.email||'')}" placeholder="contact@entreprise.fr"></div>
+        <div><span class="lbl">Ville</span><input id="pi-city" value="${esc(c.city||'')}" placeholder="Nice, Monaco…"></div>
       </div>
-      <div><span class="lbl">Notes libres</span><textarea id="pi-notes" style="min-height:60px" oninput="saveProInfoDraft('${c.id}')">${esc(c.notes||'')}</textarea></div>
-      <button class="btn bp bsm btn-full" style="margin-top:8px" onclick="saveProInfos('${c.id}')">💾 Sauvegarder</button>
+      <!-- Modifier le téléphone -->
+      <div style="margin-bottom:8px">
+        <span class="lbl">Téléphone</span>
+        <div style="display:flex;gap:6px">
+          <input id="pi-phone" value="${esc(c.phone||'')}" placeholder="04 93 00 00 00" style="font-family:'DM Mono',monospace">
+        </div>
+      </div>
+      <div style="margin-bottom:10px"><span class="lbl">Notes</span><textarea id="pi-notes" style="min-height:60px">${esc(c.notes||'')}</textarea></div>
+      <button class="btn bp bsm btn-full" onclick="saveProInfos('${c.id}')">💾 Sauvegarder les infos</button>
     </div>
-    ${contacts.length?`
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Contacts supplémentaires</div>
+    ${contacts.length?`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:6px">Contacts supplémentaires</div>
     ${contacts.map((ct,i)=>`<div style="padding:7px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;margin-bottom:4px;display:flex;align-items:center;gap:8px">
-      <div style="flex:1"><div style="font-size:11px;font-weight:600">${esc(ct.name)}</div><div style="font-size:10px;color:var(--mu)">${esc(ct.role||'')}${ct.phone?' · '+fPhone(ct.phone):''}</div></div>
+      <div style="flex:1"><div class="fs11" style="font-weight:600">${esc(ct.name)}</div><div class="mu_ fs10">${esc(ct.role||'')}${ct.phone?' · '+fPhone(ct.phone):''}${ct.email?' · '+esc(ct.email):''}</div></div>
       ${ct.phone?`<button class="btn bg bxs" onclick="cpPhone('${esc(ct.phone)}')">⧉</button>`:''}
       <button class="btn bd_ bxs" onclick="removeProContact('${c.id}',${i});openProPopup('${c.id}')">×</button>
-    </div>`).join('')}`:'' }
+    </div>`).join('')}`:''}
     <button class="btn bg bsm" onclick="addProContact('${c.id}')">+ Contact supplémentaire</button>`;
 
-  // ── TAB BESOIN ──
+  // ── TAB BESOIN ────────────────────────────────────────
   const catOpts=getBTPCatOpts(c.cat);
   const tabBesoin=`
-    <div style="background:rgba(61,223,152,.07);border:1px solid rgba(61,223,152,.2);border-radius:3px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--ac2)">
+    <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ac2)">
       ✅ Remplissez le besoin — la fiche client sera créée automatiquement.
     </div>
+    <!-- Champs obligatoires -->
+    <div style="background:rgba(224,152,58,.06);border:1px solid rgba(224,152,58,.2);border-radius:3px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:600;color:var(--ac4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Infos client — obligatoires pour créer la fiche</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><span class="lbl">Nom du contact *</span><input id="bb-contact" value="${esc(c.contact||'')}" placeholder="Prénom Nom du décideur"></div>
+        <div><span class="lbl">Email *</span><input id="bb-email" value="${esc(c.email||'')}" placeholder="contact@entreprise.fr" oninput="document.getElementById('bb-nomail-wrap').style.display=this.value?'none':'flex'"></div>
+      </div>
+      <div id="bb-nomail-wrap" style="margin-top:6px;display:${c.email?'none':'flex'};align-items:center;gap:6px">
+        <input type="checkbox" id="bb-nomail" style="width:12px;accent-color:var(--ac4)">
+        <label for="bb-nomail" style="font-size:10px;color:var(--mu);cursor:pointer">Le contact ne souhaite pas communiquer son email</label>
+      </div>
+    </div>
+    <!-- Besoin -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <div style="grid-column:1/-1"><span class="lbl">Poste recherché *</span><input id="bb-title" placeholder="Conducteur de travaux GO, Chef de chantier…" list="bb-jobs"><datalist id="bb-jobs">${['go','so','be','vrd','hse','mgmt'].flatMap(id=>getCat(id).jobs||[]).map(j=>`<option value="${esc(j)}">`).join('')}</datalist></div>
-      <div><span class="lbl">Catégorie BTP</span><select id="bb-cat">${catOpts}</select></div>
-      <div><span class="lbl">Urgence</span><select id="bb-urg"><option value="h">🔴 Urgent (ASAP)</option><option value="m" selected>🟡 Moyen terme</option><option value="l">⚪ Long terme</option></select></div>
+      <div style="grid-column:1/-1"><span class="lbl">Poste recherché *</span><input id="bb-title" placeholder="Conducteur de travaux GO…" list="bb-jobs"><datalist id="bb-jobs">${BTP_CATS.flatMap(cat=>cat.jobs||[]).map(j=>`<option value="${esc(j)}">`).join('')}</datalist></div>
+      <div><span class="lbl">Secteur BTP</span><select id="bb-cat">${catOpts}</select></div>
+      <div><span class="lbl">Urgence</span><select id="bb-urg"><option value="h">🔴 Urgent</option><option value="m" selected>🟡 Moyen terme</option><option value="l">⚪ Long terme</option></select></div>
       <div><span class="lbl">Salaire min (€/an)</span><input id="bb-smin" type="number" placeholder="40000"></div>
       <div><span class="lbl">Salaire max (€/an)</span><input id="bb-smax" type="number" placeholder="55000"></div>
       <div style="grid-column:1/-1"><span class="lbl">Localisation</span><input id="bb-loc" value="${esc(c.city||'')}" placeholder="Nice, Monaco, Côte d'Azur…"></div>
-      <div style="grid-column:1/-1"><span class="lbl">Critères / Notes</span><textarea id="bb-notes" style="min-height:70px" placeholder="Expérience requise, spécificités du poste…"></textarea></div>
+      <div style="grid-column:1/-1"><span class="lbl">Notes / Critères</span><textarea id="bb-notes" style="min-height:60px" placeholder="Expérience requise, spécificités du poste…"></textarea></div>
     </div>
     <button class="btn bp btn-full" onclick="saveBesoinInline('${c.id}')">✅ Valider — Créer client + besoin</button>`;
 
-  // ── TAB TIMELINE ──
-  const tabTimeline=`
-    <div style="margin-bottom:10px;display:flex;gap:6px;align-items:center">
-      <span class="fs10 mu_">${tl.length} interaction(s)</span>
-      <button class="btn bg bxs" style="margin-left:auto" onclick="addManualNote('${c.id}')">+ Note manuelle</button>
-    </div>
-    <div style="max-height:320px;overflow-y:auto">${renderTimeline(c.id)}</div>`;
+  const tabContent={appel:tabAppel,infos:tabInfos,besoin:tabBesoin}[_proPopupTab]||tabAppel;
 
-  const tabContent={appel:tabAppel,infos:tabInfos,besoin:tabBesoin,timeline:tabTimeline}[_proPopupTab]||tabAppel;
-
-  const html = `
+  const html=`
     <div id="pro-popup-ov" onclick="closeProPopup(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(5px);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div onclick="event.stopPropagation()" style="background:var(--s1);border:1px solid var(--bd2);border-radius:6px;width:100%;max-width:500px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;position:relative">
-
+      <div onclick="event.stopPropagation()" style="background:var(--s1);border:1px solid var(--bd2);border-radius:6px;width:100%;max-width:500px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column">
         <!-- Header -->
         <div style="padding:16px 20px 12px;border-bottom:1px solid var(--bd);flex-shrink:0">
           <div style="display:flex;align-items:flex-start;gap:10px">
             <div style="flex:1">
               <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:3px">${esc(c.name)}</div>
               <div style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                <span>${esc(c.city||'—')}</span>
+                ${c.city?`<span>${esc(c.city)}</span>`:''}
                 <span class="tag ${cat.cls}">${cat.l}</span>
-                ${daysSince!==null?`<span style="font-size:9px;background:var(--s3);padding:1px 6px;border-radius:8px;color:var(--mu2)">Dernier contact il y a ${daysSince}j</span>`:'<span style="font-size:9px;background:rgba(224,74,74,.1);padding:1px 6px;border-radius:8px;color:var(--ac3)">Jamais contacté</span>'}
+                ${daysSince!==null?`<span style="font-size:9px;background:var(--s3);padding:1px 6px;border-radius:8px;color:var(--mu2)">Contacté il y a ${daysSince}j</span>`:'<span style="font-size:9px;background:rgba(224,74,74,.1);padding:1px 6px;border-radius:8px;color:var(--ac3)">Jamais contacté</span>'}
               </div>
             </div>
             <div onclick="closeProPopup_direct()" style="cursor:pointer;color:var(--mu);font-size:17px;padding:2px;line-height:1;transition:.12s;flex-shrink:0" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--mu)'">✕</div>
           </div>
-
           <!-- Téléphone -->
-          <div style="margin-top:12px;padding:10px 14px;background:rgba(61,224,154,.04);border:1px solid rgba(61,224,154,.15);border-radius:3px;display:flex;align-items:center;gap:10px">
-            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--ac2);letter-spacing:.05em;flex:1">
+          <div style="margin-top:10px;padding:10px 14px;background:rgba(61,224,154,.04);border:1px solid rgba(61,224,154,.15);border-radius:3px;display:flex;align-items:center;gap:10px">
+            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--ac2);letter-spacing:.04em;flex:1">
               📞 ${c.phone?fPhone(c.phone):'<span style="font-size:14px;color:var(--mu)">Non renseigné</span>'}
             </div>
-            ${c.phone?`<button class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">⧉ Copier</button>`:''}
+            ${c.phone?`<button class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">⧉</button>`:''}
           </div>
         </div>
-
         <!-- Tabs -->
-        <div style="display:flex;border-bottom:1px solid var(--bd);background:var(--s2);flex-shrink:0;overflow-x:auto">${tabs}</div>
-
-        <!-- Tab content -->
-        <div style="flex:1;overflow-y:auto;padding:14px 20px" id="pro-tab-content">
-          ${tabContent}
-        </div>
-
+        <div style="display:flex;border-bottom:1px solid var(--bd);background:var(--s2);flex-shrink:0">${tabs}</div>
+        <!-- Content -->
+        <div style="flex:1;overflow-y:auto;padding:14px 20px" id="pro-tab-content">${tabContent}</div>
         <!-- Footer -->
         <div style="padding:10px 20px;border-top:1px solid var(--bd);display:flex;gap:6px;flex-shrink:0;background:var(--s2)">
-          <button class="btn bg bsm" onclick="closeProPopup_direct();openCoForm('${c.id}')">✎ Fiche</button>
-          <button class="btn bd_ bsm" onclick="closeProPopup_direct();delCo('${c.id}')">🗑</button>
+          <button class="btn bg bsm" onclick="closeProPopup_direct();openCoForm('${c.id}')">✎ Modifier fiche</button>
+          <button class="btn bd_ bsm" onclick="closeProPopup_direct();delCo('${c.id}')">🗑 Supprimer</button>
         </div>
       </div>
     </div>`;
 
-  const existing = document.getElementById('pro-popup-ov');
-  if (existing) existing.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
-  // Store pending action state
-  window._proAction={id:null,action:null};
+  const existing=document.getElementById('pro-popup-ov');
+  if(existing)existing.remove();
+  document.body.insertAdjacentHTML('beforeend',html);
 }
 
-function setProTab2(coId, tab){
+function setProTab2(coId,tab){
   _proPopupTab=tab;
   const c=coById(coId);if(!c)return;
   renderProPopup(c);
 }
 
-// Helper: BTP category options HTML
 function getBTPCatOpts(selected){
   return BTP_CATS.map(cat=>`<option value="${cat.id}" ${(selected||'go')===cat.id?'selected':''}>${cat.l}</option>`).join('');
 }
 
-function closeProPopup(e) {
-  if (e && e.target !== document.getElementById('pro-popup-ov')) return;
+function closeProPopup(e){
+  if(e&&e.target!==document.getElementById('pro-popup-ov'))return;
   closeProPopup_direct();
 }
-function closeProPopup_direct() {
-  const el = document.getElementById('pro-popup-ov');
-  if (el) el.remove();
-  proSelectedId = null;
+function closeProPopup_direct(){
+  document.getElementById('pro-popup-ov')?.remove();
+  proSelectedId=null;
   _proPopupTab='appel';
 }
 
-// ── Action flow avec note ──────────────────────────────
-function selectProAction(coId, action){
-  window._proAction={id:coId,action};
-  const noteZone=document.getElementById('pro-note-zone');
-  const extraZone=document.getElementById('pro-note-extra');
-  if(!noteZone)return;
+// ── Actions individuelles ─────────────────────────────
+function proActNRP(coId){
+  const c=coById(coId);if(!c)return;
+  c.status='nrp';
+  const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);tomorrow.setHours(0,0,0,0);
+  c.next_call_date=tomorrow.toISOString();c.updated=now_();
+  addTimeline(coId,'nrp','NRP — pas de réponse');
+  save();closeProPopup_direct();rPros();badges();
+  toast(`NRP — ${c.name} remis demain`,'w');
+}
 
-  // Labels
-  const labels={nrp:'NRP — Pas de réponse',callback:'À rappeler',nobiz:'Contacté — Pas de besoin',refused:'Refus cabinet — Ne plus rappeler'};
-  document.getElementById('pro-confirm-btn').textContent='Confirmer : '+labels[action]+' ✓';
+function proActCallback(coId){
+  // Show callback zone, hide action list
+  const list=document.getElementById('pro-actions-list');
+  const zone=document.getElementById('pro-callback-zone');
+  if(list)list.style.display='none';
+  if(zone)zone.style.display='block';
+}
 
-  // Extra input for callback date
-  if(action==='callback'){
-    const tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
-    extraZone.innerHTML=`<div style="margin-bottom:6px"><span class="lbl">Date de rappel</span><input type="date" id="pro-cb-date" value="${tomorrow}" min="${new Date().toISOString().split('T')[0]}" style="margin-top:3px"></div>`;
-  } else {
-    extraZone.innerHTML='';
+function confirmCallback(coId){
+  const c=coById(coId);if(!c)return;
+  const dateEl=document.getElementById('pro-cb-date');
+  const timeEl=document.getElementById('pro-cb-time');
+  const noteEl=document.getElementById('pro-cb-note');
+  if(!dateEl?.value){toast('Date requise','e');return;}
+  c.status='callback';
+  c.next_call_date=new Date(dateEl.value).toISOString();
+  c.updated=now_();
+  const note=noteEl?.value||'';
+  const timeLabel=timeEl?.value?` à ${timeEl.value}`:'';
+  addTimeline(coId,'callback',note||`Rappel planifié le ${fD(c.next_call_date)}${timeLabel}`,timeEl?.value||null);
+  // Ajouter à l'agenda si heure renseignée
+  if(timeEl?.value){
+    DB.agenda.unshift({id:uid(),title:`Rappel ${c.name}`,type:'call',date:dateEl.value,time:timeEl.value,comp_id:coId,done:false,created:now_(),updated:now_()});
   }
-
-  // Highlight selected button
-  document.querySelectorAll('.pro-act-btn').forEach(b=>b.style.opacity='.4');
-  noteZone.style.display='block';
-  document.getElementById('pro-call-note')?.focus();
+  save();closeProPopup_direct();rPros();badges();
+  toast(`📅 ${c.name} — rappel le ${fD(c.next_call_date)}${timeLabel}`,'s');
 }
 
-function cancelProAction(){
-  window._proAction={id:null,action:null};
-  document.querySelectorAll('.pro-act-btn').forEach(b=>b.style.opacity='1');
-  const nz=document.getElementById('pro-note-zone');
-  if(nz)nz.style.display='none';
+function proActNobiz(coId){
+  const c=coById(coId);if(!c)return;
+  c.status='nobiz';
+  const remind=new Date();remind.setMonth(remind.getMonth()+2);
+  c.nobiz_remind=remind.toISOString();c.nobiz_date=now_();c.updated=now_();
+  addTimeline(coId,'nobiz','Pas de besoin actuellement',`Rappel : ${fD(c.nobiz_remind)}`);
+  save();closeProPopup_direct();rPros();badges();
+  toast(`${c.name} — pas de besoin · Rappel dans 2 mois`,'s');
 }
 
-function confirmProAction(){
-  const {id,action}=window._proAction||{};
-  if(!id||!action)return;
-  const c=coById(id);if(!c)return;
-  const note=document.getElementById('pro-call-note')?.value||'';
-  const today=new Date();today.setHours(0,0,0,0);
-
-  if(action==='nrp'){
-    c.status='nrp';
-    const tomorrow=new Date(today);tomorrow.setDate(tomorrow.getDate()+1);
-    c.next_call_date=tomorrow.toISOString();
-    c.updated=now_();
-    addTimeline(id,'nrp',note||'Pas de réponse');
-    save();closeProPopup_direct();rPros();
-    toast(`NRP — ${c.name} rappelé demain`,'w');
-
-  } else if(action==='callback'){
-    const dateEl=document.getElementById('pro-cb-date');
-    if(!dateEl||!dateEl.value){toast('Choisir une date','e');return;}
-    c.status='callback';
-    c.next_call_date=new Date(dateEl.value).toISOString();
-    c.updated=now_();
-    addTimeline(id,'callback',note||'',fD(c.next_call_date));
-    save();closeProPopup_direct();rPros();
-    toast(`📅 ${c.name} — rappel le ${fD(c.next_call_date)}`,'s');
-
-  } else if(action==='nobiz'){
-    c.status='nobiz';
-    // Rappel 2 mois
-    const remind=new Date(today);remind.setMonth(remind.getMonth()+2);
-    c.nobiz_remind=remind.toISOString();
-    c.nobiz_date=now_();
-    c.updated=now_();
-    addTimeline(id,'nobiz',note||'Pas de besoin actuellement',`Rappel auto : ${fD(c.nobiz_remind)}`);
-    save();closeProPopup_direct();rPros();
-    toast(`${c.name} — pas de besoin · Rappel dans 2 mois`,'s');
-
-  } else if(action==='refused'){
-    c.status='refused';
-    c.updated=now_();
-    addTimeline(id,'refused',note||'Refus de travailler avec un cabinet');
-    save();closeProPopup_direct();rPros();
-    toast(`${c.name} → Refus archivé`,'w');
-  }
+function proActRefused(coId){
+  const c=coById(coId);if(!c)return;
+  openMo('Ne plus rappeler ce prospect ?',`<div style="font-size:12px;color:var(--mu);line-height:1.6"><strong>${esc(c.name)}</strong> sera archivé définitivement.<br>Vous pouvez le remettre dans la liste depuis l'onglet "Refus".</div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bd_" onclick="(()=>{const c=coById('${coId}');if(c){c.status='refused';c.updated=now_();addTimeline('${coId}','refused','Refus de travailler avec un cabinet');save();closeProPopup_direct();closeMo();rPros();badges();toast('${esc(c.name)} → Archivé','w');}})()">Confirmer</button>`
+  );
 }
 
-// ── Besoin inline (dans le popup) ─────────────────────
+// ── Besoin inline avec champs obligatoires ────────────
 function saveBesoinInline(coId){
   const title=document.getElementById('bb-title')?.value.trim();
-  if(!title){toast('Poste requis','e');return;}
+  const contact=document.getElementById('bb-contact')?.value.trim();
+  const email=document.getElementById('bb-email')?.value.trim();
+  const nomail=document.getElementById('bb-nomail')?.checked;
+
+  if(!title){toast('Poste recherché requis','e');document.getElementById('bb-title')?.focus();return;}
+  if(!contact){toast('Nom du contact requis','e');document.getElementById('bb-contact')?.focus();return;}
+  if(!email&&!nomail){toast('Email requis — ou cochez "ne souhaite pas donner son email"','e');document.getElementById('bb-email')?.focus();return;}
+
   const c=coById(coId);if(!c)return;
-
+  // Update contact info
+  if(contact)c.contact=contact;
+  if(email)c.email=email;
+  // Convert to client
   c.type='client';c.status='active';c.contract=true;c.contract_date=now_();c.updated=now_();
-
   const need={
     id:uid(),company_id:coId,title,
     cat:document.getElementById('bb-cat')?.value||'go',
@@ -2731,30 +2740,31 @@ function saveBesoinInline(coId){
   save();
   closeProPopup_direct();
   toast(`✅ ${c.name} → Client · Besoin "${title}" créé`,'s');
-  setTimeout(()=>toast('📋 Besoin visible dans l\'onglet "Besoins"','i'),600);
+  setTimeout(()=>toast('📋 Visible dans l\'onglet "Besoins"','i'),600);
   badges();rPros();
 }
 
-// ── Infos contact ──────────────────────────────────────
-function saveProInfoDraft(coId){/* auto-saved on blur */}
+// ── Sauvegarder infos contact ─────────────────────────
 function saveProInfos(coId){
   const c=coById(coId);if(!c)return;
+  const phone=document.getElementById('pi-phone')?.value.trim();
   c.contact=document.getElementById('pi-contact')?.value||c.contact;
   c.ctitle=document.getElementById('pi-ctitle')?.value||c.ctitle;
   c.email=document.getElementById('pi-email')?.value||c.email;
   c.city=document.getElementById('pi-city')?.value||c.city;
-  c.cat=document.getElementById('pi-cat')?.value||c.cat;
-  c.source=document.getElementById('pi-source')?.value||c.source;
+  if(phone)c.phone=phone;
   c.notes=document.getElementById('pi-notes')?.value||c.notes;
   c.updated=now_();save();
+  // Refresh phone display in popup header
+  openProPopup(coId);
   toast('Infos sauvegardées ✓','s');
 }
 
 function addProContact(coId){
   openMo('Ajouter un contact',`
     <div class="fg">
-      <div class="fgrp"><span class="lbl">Nom complet *</span><input id="nc-name" placeholder="Jean Dupont"></div>
-      <div class="fgrp"><span class="lbl">Poste / Rôle</span><input id="nc-role" placeholder="DRH, Directeur de travaux…"></div>
+      <div class="fgrp"><span class="lbl">Nom *</span><input id="nc-name" placeholder="Jean Dupont"></div>
+      <div class="fgrp"><span class="lbl">Rôle</span><input id="nc-role" placeholder="DRH, Responsable RH…"></div>
       <div class="fgrp"><span class="lbl">Téléphone</span><input id="nc-phone" placeholder="06 00 00 00 00"></div>
       <div class="fgrp"><span class="lbl">Email</span><input id="nc-email" placeholder="nom@entreprise.fr"></div>
     </div>`,
@@ -2762,7 +2772,6 @@ function addProContact(coId){
      <button class="btn bp" onclick="saveProContact('${coId}')">Ajouter</button>`
   );
 }
-
 function saveProContact(coId){
   const name=document.getElementById('nc-name')?.value.trim();
   if(!name){toast('Nom requis','e');return;}
@@ -2770,10 +2779,8 @@ function saveProContact(coId){
   c.contacts=c.contacts||[];
   c.contacts.push({id:uid(),name,role:document.getElementById('nc-role')?.value||'',phone:document.getElementById('nc-phone')?.value||'',email:document.getElementById('nc-email')?.value||''});
   c.updated=now_();save();closeMo();
-  openProPopup(coId);
-  toast('Contact ajouté ✓','s');
+  openProPopup(coId);toast('Contact ajouté ✓','s');
 }
-
 function removeProContact(coId,idx){
   const c=coById(coId);if(!c||!c.contacts)return;
   c.contacts.splice(idx,1);c.updated=now_();save();
@@ -2781,8 +2788,7 @@ function removeProContact(coId,idx){
 }
 
 function addManualNote(coId){
-  openMo('📝 Ajouter une note',`
-    <textarea id="mn-note" style="min-height:100px" placeholder="Note d'appel, info importante, résumé d'échange…"></textarea>`,
+  openMo('📝 Note',`<textarea id="mn-note" style="min-height:80px" placeholder="Note d'appel, info importante…"></textarea>`,
     `<button class="btn bg" onclick="closeMo()">Annuler</button>
      <button class="btn bp" onclick="saveManualNote('${coId}')">Enregistrer</button>`
   );
@@ -2790,23 +2796,30 @@ function addManualNote(coId){
 function saveManualNote(coId){
   const note=document.getElementById('mn-note')?.value.trim();
   if(!note){toast('Note vide','e');return;}
-  addTimeline(coId,'note',note);
-  closeMo();
-  // Refresh timeline tab if popup is open
+  addTimeline(coId,'note',note);closeMo();
   const c=coById(coId);
-  if(c&&document.getElementById('pro-popup-ov')){_proPopupTab='timeline';renderProPopup(c);}
+  if(c&&document.getElementById('pro-popup-ov')){_proPopupTab='appel';renderProPopup(c);}
   toast('Note enregistrée ✓','s');
 }
 
-// ── Legacy compat (kept for other code that calls these) ──
+// ── Compat legacy ─────────────────────────────────────
 function toggleCallbackPicker(id){}
 function openBesoinForm(coId){setProTab2(coId,'besoin');openProPopup(coId);}
 function saveBesoinForm(coId){saveBesoinInline(coId);}
-function openNobizEmailForm(id){selectProAction(id,'nobiz');}
+function openNobizEmailForm(id){proActNobiz(id);}
+function selectProAction(id,action){
+  if(action==='nrp')proActNRP(id);
+  else if(action==='callback'){openProPopup(id);setTimeout(()=>proActCallback(id),100);}
+  else if(action==='nobiz')proActNobiz(id);
+  else if(action==='refused')proActRefused(id);
+}
+function confirmProAction(){}
+function cancelProAction(){}
 function proAction(id,action){
-  if(action==='need'){setProTab2(id,'besoin');return;}
+  if(action==='need'){setProTab2(id,'besoin');openProPopup(id);return;}
   selectProAction(id,action);
 }
+
 
 
 function rClients(){
@@ -3232,16 +3245,28 @@ function openCoPanel(id){
   const contacts=c.contacts||[];
   const tl=c.timeline||[];
 
-  const tabs=['Fiche','Besoins',`Timeline (${tl.length})`,'Notes'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setCPTab(${i},'${id}')">${t}</div>`).join('');
+  const tabs=['Fiche','Besoins',`Timeline (${tl.length})`,'Notes'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setCoTab(${i},'${id}')">${t}</div>`).join('');
   const B=[
     // 0 FICHE
     `${c.phone?`<div class="callbox"><div class="callbox-ph">${fPhone(c.phone)}</div><div class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">⧉</div></div>`:''}
     <div class="dr"><span class="drk">Contact</span><span class="drv">${esc(c.contact||'—')}${c.ctitle?` <span class="mu_ fs10">${esc(c.ctitle)}</span>`:''}</span></div>
     <div class="dr"><span class="drk">Email</span><span class="drv">${c.email?`<a href="mailto:${esc(c.email)}" style="color:var(--ac5)">${esc(c.email)}</a>`:'—'}</span></div>
     <div class="dr"><span class="drk">Ville</span><span class="drv">${esc(c.city||'—')}</span></div>
-    <div class="dr"><span class="drk">Source</span><span class="drv">${esc(c.source||'—')}</span></div>
     <div class="dr"><span class="drk">Client depuis</span><span class="drv">${c.contract_date?fD(c.contract_date):'—'}</span></div>
-    ${contacts.length?`<div class="sl">Contacts supplémentaires</div>${contacts.map((ct,i)=>`<div class="refcard"><div class="flex fac fjb"><strong class="fs11">${esc(ct.name)}</strong></div><div class="mu_ fs10">${esc(ct.role||'—')}${ct.phone?' · '+fPhone(ct.phone):''}${ct.email?' · '+esc(ct.email):''}</div></div>`).join('')}`:''}
+    ${contacts.length?`<div class="sl">Contacts</div>${contacts.map((ct,i)=>`<div class="refcard"><div class="flex fac fjb"><strong class="fs11">${esc(ct.name)}</strong></div><div class="mu_ fs10">${esc(ct.role||'—')}${ct.phone?' · '+fPhone(ct.phone):''}${ct.email?' · '+esc(ct.email):''}</div></div>`).join('')}`:''}
+    ${needs.length?`
+    <div class="sl">Besoins en cours <span><button class="btn bp bxs" onclick="setCoTab(1,'${id}')">Voir tous →</button></span></div>
+    ${needs.filter(n=>n.status==='open').slice(0,3).map(n=>{
+      const ns=getNS(n.status);const matched=DB.candidates.filter(cx=>cx.linked_need===n.id).length;
+      return`<div class="nc u${n.urgency||'l'} mb8" onclick="openNeedPanel('${n.id}')" style="cursor:pointer">
+        <div class="nc-t" style="font-size:12px">${esc(n.title)}</div>
+        <div class="nc-ft">
+          <span class="pill ppre">${ns.l}</span>
+          <span class="fs10 mu_">${esc(n.location||'')}</span>
+          <span class="fs10 mu_" style="margin-left:auto">👤 ${matched} candidat(s)</span>
+        </div>
+      </div>`;
+    }).join('')||(needs.length?`<div class="mu_ fs11">Aucun besoin ouvert</div>`:'')}`:''}
     <div class="sl">Pipeline <span><button class="btn bg bxs" onclick="openStatusMo('co','${id}')">Voir arbre →</button></span></div>
     <div class="st-sel">${COMP_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCmpS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>`,
     // 1 BESOINS
