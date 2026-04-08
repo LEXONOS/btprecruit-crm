@@ -574,6 +574,7 @@ select option{background:var(--s2)}
     <div class="ni" data-v="posts"><span class="ni-ico">📝</span>Annonces</div>
     <div class="ni" data-v="emails"><span class="ni-ico">✉️</span>Emails</div>
     <div class="ni" data-v="reporting"><span class="ni-ico">📊</span>Reporting</div>
+    <div class="ni" data-v="facturation"><span class="ni-ico">💰</span>Facturation<span class="nbadge nb-red" id="badge-inv" style="display:none">0</span></div>
   </div>
   <div class="nav-footer">
     <strong id="nf-rev">—</strong>
@@ -597,6 +598,7 @@ select option{background:var(--s2)}
     <div class="view" id="view-posts"></div>
     <div class="view" id="view-emails"></div>
     <div class="view" id="view-reporting"></div>
+    <div class="view" id="view-facturation"></div>
   </div>
 </div>
 <aside id="panel">
@@ -685,7 +687,7 @@ function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`h
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[]};
+let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[],invoices:[],email_rules:[]};
 let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'trier',agView:'week',agDate:new Date().toISOString().split('T')[0],calWeekOffset:0};
 
 // ═══════════════════════════════════════════════════════
@@ -831,11 +833,11 @@ function go(v){
   document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('act',el.dataset.v===v));
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
-  const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting'};
+  const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting',facturation:'💰 Facturation'};
   document.getElementById('tbt').textContent=T[v]||v;
-  const A={dash:'',cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importProsCsv(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
+  const A={dash:'',facturation:`<button class="btn bp bsm" onclick="openInvoiceForm()">+ Facture</button>`,cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<button class="btn bg bsm" onclick="downloadCsvTemplate()">↓ Modèle CSV</button><label class="btn bg bsm" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv,.txt" style="display:none" onchange="importProsCsv(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
   document.getElementById('tba').innerHTML=A[v]||'';
-  ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting})[v]?.();
+  ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting,facturation:rFacturation})[v]?.();
   badges();
 }
 
@@ -856,6 +858,10 @@ function badges(){
   // revenue
   const rev=DB.candidates.filter(c=>c.status==='placed').reduce((a,c)=>a+(Number(c.salary||0)*.18),0);
   document.getElementById('nf-rev').textContent=rev?fM(Math.round(rev)):'0€';
+  // Invoice badge: unpaid/overdue
+  const unpaid=(DB.invoices||[]).filter(inv=>['sent','overdue'].includes(inv.status)).length;
+  const ib=document.getElementById('badge-inv');
+  if(ib){ib.textContent=unpaid;ib.style.display=unpaid?'':'none';}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -879,6 +885,12 @@ function computeAlerts(){
   DB.agenda.filter(a=>!a.done&&isPast(a.date)&&!isToday(a.date)).forEach(ev=>
     a.push({color:'var(--ac6)',msg:`En retard : ${ev.title}`,act:`go('agenda')`})
   );
+  // Factures en retard
+  const todayStr=new Date().toISOString().split('T')[0];
+  (DB.invoices||[]).filter(inv=>inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr).forEach(inv=>{
+    const co=coById(inv.company_id);
+    a.push({color:'var(--ac3)',msg:`Facture impayée en retard — ${co?co.name:'?'} (${fM(inv.amount)})`,act:`go('facturation')`});
+  });
   return a;
 }
 
@@ -2293,6 +2305,7 @@ function renderProActive(el) {
         <th>Ville</th>
         <th>Statut</th>
         <th style="cursor:pointer" onclick="toggleMargeSort()">Marge ↕</th>
+        <th style="width:32px"></th>
       </tr></thead>
       <tbody>
         ${filtered.length ? filtered.map(c => proRow(c)).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:24px">Aucun prospect actif</td></tr>`}
@@ -2308,10 +2321,13 @@ function proRow(c) {
   const marge = c.marge ? `<span style="color:var(--ac2);font-weight:600">${Number(c.marge).toLocaleString('fr-FR')}€</span>` : '<span style="color:var(--mu2)">—</span>';
   return `<tr onclick="openProPopup('${c.id}')" style="cursor:pointer">
     <td><strong>${esc(c.name)}</strong></td>
-    <td style="font-family:'Syne',sans-serif;letter-spacing:.02em">${esc(c.phone || '—')}</td>
+    <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(c.phone || '—')}</td>
     <td>${esc(c.city || '—')}</td>
     <td><span class="pill ${st.p}">${st.l}</span>${callbackDate}</td>
     <td>${marge}</td>
+    <td onclick="event.stopPropagation()" style="width:32px;text-align:center">
+      <span onclick="delCoConfirm('${c.id}')" style="color:var(--mu2);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:2px;transition:.1s" onmouseover="this.style.color='var(--ac3)'" onmouseout="this.style.color='var(--mu2)'" title="Supprimer">×</span>
+    </td>
   </tr>`;
 }
 
@@ -2837,69 +2853,74 @@ function rClients(){
 }
 
 
+
+// ═══════════════════════════════════════════════════════
+// AGENDA — refonte complète
+// ═══════════════════════════════════════════════════════
+
+const AG_HOURS=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+const AG_HALF_HOURS=['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00'];
+
 function rAgenda(){
-  if(!UI.agView) UI.agView='week';
-  if(!UI.agDate) UI.agDate=new Date().toISOString().split('T')[0];
+  if(!UI.agView)UI.agView='week';
+  if(!UI.agDate)UI.agDate=new Date().toISOString().split('T')[0];
   const vt=UI.agView;
-  const viewTabs=`<div class="ag-view-tabs">
-    <div class="ag-vt ${vt==='day'?'act':''}" onclick="setAgView('day')">Jour</div>
-    <div class="ag-vt ${vt==='week'?'act':''}" onclick="setAgView('week')">Semaine</div>
-    <div class="ag-vt ${vt==='month'?'act':''}" onclick="setAgView('month')">Mois</div>
-  </div>`;
-  const navRow=buildAgNav(vt);
   const showDone=(document.getElementById('ag-show-done')||{}).checked||false;
+  const d=new Date(UI.agDate);
+  const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const todayStr=new Date().toISOString().split('T')[0];
+  let label='';
+  if(vt==='day'){
+    const diff=Math.round((new Date(UI.agDate)-new Date(todayStr))/86400000);
+    const dn=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    label=diff===0?`📌 Aujourd'hui — ${d.getDate()} ${MONTHS[d.getMonth()]}`:diff===1?`Demain — ${d.getDate()} ${MONTHS[d.getMonth()]}`:diff===-1?`Hier — ${d.getDate()} ${MONTHS[d.getMonth()]}`:dn[d.getDay()]+` ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  } else if(vt==='week'){
+    const mon=getMonday(d);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+    label=`${mon.getDate()} ${MONTHS[mon.getMonth()]} — ${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
+  } else {
+    label=`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
   document.getElementById('view-agenda').innerHTML=`
-    <div class="flex fac" style="gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      ${viewTabs}
-      ${navRow}
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <!-- Vue tabs -->
+      <div style="display:flex;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:3px;gap:2px">
+        ${['day','week','month'].map(v=>`<div onclick="setAgView('${v}')" style="padding:5px 14px;border-radius:2px;font-size:11px;cursor:pointer;user-select:none;transition:.12s;${vt===v?'background:var(--s1);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.3)':'color:var(--mu)'}">${{day:'Jour',week:'Semaine',month:'Mois'}[v]}</div>`).join('')}
+      </div>
+      <!-- Nav -->
+      <div style="display:flex;align-items:center;gap:6px">
+        <div onclick="agNav(-1)" style="cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd2);border-radius:3px;font-size:14px;color:var(--mu);background:var(--s2);transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">‹</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;min-width:180px;text-align:center">${label}</div>
+        <div onclick="agNav(1)" style="cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd2);border-radius:3px;font-size:14px;color:var(--mu);background:var(--s2);transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">›</div>
+        ${UI.agDate!==todayStr?`<button class="btn bg bxs" onclick="agGoToday()" style="font-size:10px">Aujourd'hui</button>`:''}
+      </div>
+      <!-- Done toggle -->
       <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mu);cursor:pointer;margin-left:auto">
         <input type="checkbox" id="ag-show-done" onchange="rAgenda()" style="width:11px;accent-color:var(--ac)"> Terminés
       </label>
     </div>
     <div id="ag-body"></div>`;
+
   const body=document.getElementById('ag-body');
   if(vt==='day') renderAgDay(body, UI.agDate, showDone);
   else if(vt==='week') renderAgWeek(body, UI.agDate, showDone);
   else renderAgMonth(body, UI.agDate, showDone);
 }
+
 function setAgView(v){UI.agView=v;rAgenda();}
 function agNav(dir){
   const d=new Date(UI.agDate);
-  const v=UI.agView;
-  if(v==='day') d.setDate(d.getDate()+dir);
-  else if(v==='week') d.setDate(d.getDate()+(7*dir));
+  if(UI.agView==='day') d.setDate(d.getDate()+dir);
+  else if(UI.agView==='week') d.setDate(d.getDate()+(7*dir));
   else d.setMonth(d.getMonth()+dir);
-  UI.agDate=d.toISOString().split('T')[0];
-  rAgenda();
+  UI.agDate=d.toISOString().split('T')[0];rAgenda();
 }
 function agGoToday(){UI.agDate=new Date().toISOString().split('T')[0];rAgenda();}
-function buildAgNav(vt){
-  const d=new Date(UI.agDate||new Date());
-  const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-  let label='';
-  const today=new Date().toISOString().split('T')[0];
-  const isNow=UI.agDate===today;
-  if(vt==='day'){
-    const diff=Math.round((new Date(UI.agDate)-new Date(today))/86400000);
-    label=diff===0?'📌 Aujourd\'hui':diff===1?'Demain':diff===-1?'Hier':`${d.getDate()} ${MONTHS[d.getMonth()]}`;
-  } else if(vt==='week'){
-    const mon=getMonday(d);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
-    label=`${mon.getDate()} ${MONTHS[mon.getMonth()]} — ${sun.getDate()} ${MONTHS[sun.getMonth()]}`;
-  } else {
-    label=`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  }
-  return`<div class="flex fac" style="gap:6px">
-    <div style="cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd2);border-radius:3px;font-size:13px;color:var(--mu);background:var(--s3)" onclick="agNav(-1)">‹</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;min-width:160px;text-align:center">${label}</div>
-    <div style="cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd2);border-radius:3px;font-size:13px;color:var(--mu);background:var(--s3)" onclick="agNav(1)">›</div>
-    ${!isNow?`<button class="btn bg bxs" onclick="agGoToday()">Aujourd'hui</button>`:''}
-  </div>`;
-}
 function getMonday(d){const day=d.getDay(),diff=d.getDate()-(day===0?6:day-1);const m=new Date(d);m.setDate(diff);return m;}
 
 // ── DAY VIEW ──────────────────────────────────────────
 function renderAgDay(el, dateStr, showDone){
-  const HOURS=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
   const items=DB.agenda.filter(a=>{
     if(!showDone&&a.done)return false;
     if(!a.date)return false;
@@ -2907,79 +2928,95 @@ function renderAgDay(el, dateStr, showDone){
   });
   const noTime=items.filter(a=>!a.time);
   const withTime=items.filter(a=>a.time);
+  const nowH=new Date().getHours();
+  const isToday=dateStr===new Date().toISOString().split('T')[0];
+  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
+
   let html='';
-  if(!items.length){
-    html=`<div class="day-empty">Aucun événement ce jour<br><button class="btn bp bxs mt8" onclick="openAgForm()">+ Ajouter</button></div>`;
-    el.innerHTML=html;return;
-  }
   if(noTime.length){
-    html+=`<div style="margin-bottom:10px">${noTime.map(a=>agItemHtml(a,'day_evt')).join('')}</div>`;
+    html+=`<div style="margin-bottom:10px;display:flex;gap:5px;flex-wrap:wrap">${noTime.map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="day-evt ${a.type} ${a.done?'done':''}" style="flex:1;min-width:140px" onclick="openAgPanel('${a.id}')">${t.ico} <span class="day-evt-t">${esc(a.title)}</span></div>`;}).join('')}</div>`;
   }
-  html+=`<div class="day-grid">`;
+
+  html+=`<div class="day-grid" style="height:calc(100vh - 180px);overflow-y:auto">`;
   HOURS.forEach(h=>{
-    const nowH=new Date().getHours();const nowMin=new Date().getMinutes();
     const hNum=parseInt(h);
-    const isNow=new Date(dateStr).toDateString()===new Date().toDateString()&&hNum===nowH;
+    const isNow=isToday&&hNum===nowH;
     const evts=withTime.filter(a=>a.time&&parseInt(a.time)===hNum);
-    html+=`<div class="day-time">${h}</div><div class="day-col ${isNow?'now-hour':''}">
+    html+=`<div class="day-time" style="${isNow?'color:var(--ac5);font-weight:700':''}">${h}:00</div>
+    <div class="day-col ${isNow?'now-hour':''}" onclick="openAgForm(null,null,null,'${dateStr}','${h}:00')" style="cursor:pointer;min-height:42px" title="Ajouter un événement à ${h}h">
       ${evts.map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];const ca=a.cand_id?cById(a.cand_id):null;
-        return`<div class="day-evt ${a.type} ${a.done?'done':''}" onclick="openAgPanel('${a.id}')">
-          <span style="font-size:11px">${t.ico}</span>
+        return`<div class="day-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">
+          <span>${t.ico}</span>
           <div style="flex:1"><div class="day-evt-t">${esc(a.title)}</div>${ca?`<div style="font-size:9px;color:var(--mu)">${esc(ca.name)}</div>`:''}</div>
           <div class="day-evt-time">${a.time}</div>
-          <div class="ai-chk ${a.done?'done':''}" onclick="event.stopPropagation();togAgDone('${a.id}')" style="margin-top:0;flex-shrink:0">${a.done?'✓':''}</div>
+          <div class="ai-chk ${a.done?'done':''}" onclick="event.stopPropagation();togAgDone('${a.id}')" style="margin-top:0">${a.done?'✓':''}</div>
         </div>`;}).join('')}
     </div>`;
   });
   html+=`</div>`;
+
+  if(!items.length){
+    el.innerHTML=`<div class="day-empty">Aucun événement — cliquez sur une heure pour en ajouter<br><button class="btn bp bxs mt8" onclick="openAgForm(null,null,null,'${dateStr}')">+ Ajouter</button></div>`;
+    return;
+  }
   el.innerHTML=html;
 }
 
 // ── WEEK VIEW ─────────────────────────────────────────
 function renderAgWeek(el, dateStr, showDone){
-  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19'];
+  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
   const mon=getMonday(new Date(dateStr));
   const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return d;});
   const DAYNAMES=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const todayStr=new Date().toDateString();
-  // Build headers
-  let html=`<div class="wk-grid" style="border-radius:3px;overflow:hidden;border:1px solid var(--bd);grid-template-columns:48px repeat(7,1fr)">`;
-  html+=`<div class="wk-hd" style="background:var(--s1)"></div>`;
+  const nowH=new Date().getHours();
+
+  let html=`<div style="overflow:auto;height:calc(100vh - 160px)">
+  <div class="wk-grid" style="grid-template-columns:44px repeat(7,1fr);min-width:600px">`;
+  // Header row
+  html+=`<div class="wk-hd" style="background:var(--s1);border-right:1px solid var(--bd)"></div>`;
   days.forEach((d,i)=>{
     const isToday=d.toDateString()===todayStr;
-    html+=`<div class="wk-hd ${isToday?'today-col':''}" style="padding:7px 2px">
-      <div style="font-size:10px;color:var(--mu)">${DAYNAMES[i]}</div>
-      <div style="font-size:14px;font-weight:800">${d.getDate()}</div>
+    const ds=d.toISOString().split('T')[0];
+    html+=`<div class="wk-hd ${isToday?'today-col':''}" onclick="UI.agDate='${ds}';setAgView('day')" style="cursor:pointer;padding:7px 2px;text-align:center">
+      <div style="font-size:10px;color:${isToday?'var(--ac5)':'var(--mu)'}">${DAYNAMES[i]}</div>
+      <div style="font-size:${isToday?'16':'14'}px;font-weight:800;color:${isToday?'var(--ac5)':'inherit'}">${d.getDate()}</div>
     </div>`;
   });
-  // Build rows per hour
+  // Hour rows
   HOURS.forEach(h=>{
-    html+=`<div class="wk-time">${h}:00</div>`;
+    const hNum=parseInt(h);
+    html+=`<div class="wk-time" style="border-top:1px solid var(--bd);padding-top:4px">${h}</div>`;
     days.forEach((d,di)=>{
       const isToday=d.toDateString()===todayStr;
+      const isNow=isToday&&hNum===nowH;
+      const ds=d.toISOString().split('T')[0];
       const evts=DB.agenda.filter(a=>{
         if(!showDone&&a.done)return false;
         if(!a.date||!a.time)return false;
         return new Date(a.date).toDateString()===d.toDateString()&&a.time.startsWith(h);
       });
-      html+=`<div class="wk-cell ${isToday?'today-col':''}">
-        ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" onclick="openAgPanel('${a.id}')" title="${esc(a.title)}">${AG_TYPES.find(t=>t.id===a.type)?.ico||'✅'} ${esc(a.title)}</div>`).join('')}
+      html+=`<div class="wk-cell ${isToday?'today-col':''} ${isNow?'now-hour':''}" onclick="openAgForm(null,null,null,'${ds}','${h}:00')" style="cursor:pointer;min-height:42px" title="${h}h — ${DAYNAMES[di]} ${d.getDate()}">
+        ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')" title="${esc(a.title)}">${AG_TYPES.find(t=>t.id===a.type)?.ico||'✅'} ${esc(a.title.length>18?a.title.slice(0,16)+'…':a.title)}</div>`).join('')}
       </div>`;
     });
   });
-  // All-day items (no time)
+  // All-day items
   const allDay=DB.agenda.filter(a=>{
     if(!showDone&&a.done)return false;
     return a.date&&!a.time&&days.some(d=>new Date(a.date).toDateString()===d.toDateString());
   });
   if(allDay.length){
-    html+=`<div class="wk-time" style="font-size:9px;color:var(--ac4)">Libre</div>`;
+    html+=`<div class="wk-time" style="font-size:9px;color:var(--ac4);border-top:1px solid var(--bd)">All-day</div>`;
     days.forEach(d=>{
       const evts=allDay.filter(a=>new Date(a.date).toDateString()===d.toDateString());
-      html+=`<div class="wk-cell">${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" onclick="openAgPanel('${a.id}')">${esc(a.title)}</div>`).join('')}</div>`;
+      const ds=d.toISOString().split('T')[0];
+      html+=`<div class="wk-cell" onclick="openAgForm(null,null,null,'${ds}')" style="cursor:pointer">
+        ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${esc(a.title)}</div>`).join('')}
+      </div>`;
     });
   }
-  html+=`</div>`;
+  html+=`</div></div>`;
   el.innerHTML=html;
 }
 
@@ -2991,32 +3028,33 @@ function renderAgMonth(el, dateStr, showDone){
   let startDow=first.getDay();if(startDow===0)startDow=7;startDow--;
   const todayStr=new Date().toDateString();
   const DAYNAMES=['L','M','M','J','V','S','D'];
+  const EVT_COLORS={call:'var(--ac4)',visio:'var(--ac5)',task:'var(--ac2)',relance:'var(--ac6)'};
+
   let html=`<div class="mo-grid">`;
   DAYNAMES.forEach(dn=>html+=`<div class="mo-dh">${dn}</div>`);
-  // Prev month padding
   for(let i=0;i<startDow;i++){
     const pd=new Date(y,m,-(startDow-1-i));
     html+=`<div class="mo-day other-month"><div class="mo-dn"><span class="dn-num">${pd.getDate()}</span></div></div>`;
   }
-  // Days of month
   for(let day=1;day<=last.getDate();day++){
     const cur=new Date(y,m,day);
+    const curStr=cur.toISOString().split('T')[0];
     const isToday=cur.toDateString()===todayStr;
     const isPast=cur<new Date(new Date().setHours(0,0,0,0));
     const evts=DB.agenda.filter(a=>{
       if(!showDone&&a.done)return false;
       if(!a.date)return false;
       return new Date(a.date).toDateString()===cur.toDateString();
-    });
-    const EVT_COLORS={call:'var(--ac4)',visio:'var(--ac5)',task:'var(--ac2)',relance:'var(--ac6)'};
+    }).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     const maxShow=3;
-    html+=`<div class="mo-day ${isToday?'today':''} ${isPast&&!isToday?'past':''}">
-      <div class="mo-dn"><span class="dn-num">${day}</span></div>
-      ${evts.slice(0,maxShow).map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="mo-evt" style="background:var(--s3);color:${EVT_COLORS[a.type]||'var(--mu)'}" onclick="UI.agDate='${cur.toISOString().split('T')[0]}';setAgView('day')">${t.ico} ${esc(a.title)}</div>`;}).join('')}
-      ${evts.length>maxShow?`<div class="mo-more" onclick="UI.agDate='${cur.toISOString().split('T')[0]}';setAgView('day')">+${evts.length-maxShow} autres</div>`:''}
+    html+=`<div class="mo-day ${isToday?'today':''} ${isPast&&!isToday?'past':''}" onclick="UI.agDate='${curStr}';setAgView('day')" style="cursor:pointer">
+      <div class="mo-dn"><span class="dn-num">${day}</span>
+        ${evts.length?`<span style="font-size:8px;color:var(--mu2);margin-left:3px">${evts.length}</span>`:''}
+      </div>
+      ${evts.slice(0,maxShow).map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="mo-evt" style="background:var(--s3);color:${EVT_COLORS[a.type]||'var(--mu)'};${a.done?'opacity:.45;text-decoration:line-through':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${t.ico} ${esc(a.title)}</div>`;}).join('')}
+      ${evts.length>maxShow?`<div class="mo-more">+${evts.length-maxShow} autres</div>`:''}
     </div>`;
   }
-  // Next month padding
   const endDow=(last.getDay()===0?7:last.getDay());
   for(let i=1;i<=7-endDow;i++){
     html+=`<div class="mo-day other-month"><div class="mo-dn"><span class="dn-num">${i}</span></div></div>`;
@@ -3025,7 +3063,7 @@ function renderAgMonth(el, dateStr, showDone){
   el.innerHTML=html;
 }
 
-// ── ITEM UTIL (kept for compat) ──────────────────────
+// ── ITEM HTML (compat) ────────────────────────────────
 function agItemHtml(a, mode){
   const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];
   const ca=a.cand_id?cById(a.cand_id):null;const co=a.comp_id?coById(a.comp_id):null;
@@ -3038,8 +3076,61 @@ function agItemHtml(a, mode){
   </div>`;
 }
 
-function fmtDay(ds){if(!ds||ds==='sd')return'Sans date';const d=new Date(ds),t=new Date(),diff=Math.round((new Date(d.toDateString())-new Date(t.toDateString()))/86400000);if(diff===0)return"📌 Aujourd'hui";if(diff===1)return'Demain';if(diff===-1)return'Hier';const dn=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];return`${dn[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;}
 function togAgDone(id){const a=agById(id);if(!a)return;a.done=!a.done;save();rAgenda();badges();toast(a.done?'Terminé ✓':'Remis en attente','s');}
+
+// ── FORM ÉVÉNEMENT — moderne avec time dropdown ───────
+function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
+  const a=id?agById(id):{};if(!a)return;
+  const typeOpts=AG_TYPES.map(t=>`<option value="${t.id}" ${(a.type||'task')===t.id?'selected':''}>${t.ico} ${t.l}</option>`).join('');
+  const candOpts=`<option value="">— Aucun —</option>`+DB.candidates.map(c=>`<option value="${c.id}" ${(a.cand_id||candId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  const coOpts=`<option value="">— Aucun —</option>`+DB.companies.map(c=>`<option value="${c.id}" ${(a.comp_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  const today=new Date().toISOString().split('T')[0];
+  const initDate=a.date?new Date(a.date).toISOString().split('T')[0]:(preDate||today);
+  const initTime=a.time||(preTime||'');
+
+  // Time dropdown options — every 30min
+  const timeOpts=`<option value="">— Pas d'heure —</option>`+
+    AG_HALF_HOURS.map(t=>`<option value="${t}" ${initTime===t?'selected':''}>${t}</option>`).join('');
+
+  openMo(id?'Modifier événement':'Nouvel événement',`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fgrp" style="grid-column:1/-1"><span class="lbl">Titre *</span><input id="af-t" value="${esc(a.title||'')}" placeholder="Précal Thomas / Relance SARL Martin…" autofocus></div>
+      <div class="fgrp"><span class="lbl">Type</span><select id="af-type">${typeOpts}</select></div>
+      <div class="fgrp"><span class="lbl">Statut</span><select id="af-done"><option value="0" ${!a.done?'selected':''}>⏳ En cours</option><option value="1" ${a.done?'selected':''}>✅ Terminé</option></select></div>
+      <div class="fgrp"><span class="lbl">Date</span><input id="af-d" type="date" value="${initDate}"></div>
+      <div class="fgrp"><span class="lbl">Heure</span>
+        <select id="af-h" style="font-family:'DM Mono',monospace">${timeOpts}</select>
+      </div>
+      <div class="fgrp"><span class="lbl">Candidat lié</span><select id="af-ca">${candOpts}</select></div>
+      <div class="fgrp"><span class="lbl">Entreprise liée</span><select id="af-co">${coOpts}</select></div>
+      <div class="fgrp" style="grid-column:1/-1"><span class="lbl">Notes</span><textarea id="af-notes" style="min-height:60px">${esc(a.notes||'')}</textarea></div>
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer</button>`
+  );
+}
+
+function saveAgForm(id){
+  const t=document.getElementById('af-t')?.value.trim();
+  if(!t){toast('Titre requis','e');return;}
+  const n=now_();
+  const newDate=document.getElementById('af-d')?.value;
+  const newTime=document.getElementById('af-h')?.value;
+  const isDone=document.getElementById('af-done')?.value==='1';
+  const data={title:t,type:document.getElementById('af-type')?.value||'task',date:newDate,time:newTime||null,cand_id:document.getElementById('af-ca')?.value||null,comp_id:document.getElementById('af-co')?.value||null,notes:document.getElementById('af-notes')?.value||'',done:isDone,updated:n};
+  if(id){
+    const a=agById(id);if(!a)return;
+    Object.assign(a,data);
+  } else {
+    data.id=uid();data.created=n;DB.agenda.unshift(data);
+  }
+  save();closeMo();
+  // Navigate to the event's date after save
+  if(newDate){UI.agDate=newDate;}
+  rAgenda();badges();
+  toast(id?'Événement mis à jour ✓':'Événement ajouté ✓','s');
+}
+
+
 function rPosts(){
   document.getElementById('view-posts').innerHTML=DB.posts.length?`<div class="g3">${DB.posts.map(p=>{
     const cat=getCat(p.cat);
@@ -3511,7 +3602,52 @@ function savePostForm(id){
 // ═══════════════════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════════════════
-function setCS(id,st){const c=cById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCandPanel(id);rCands();badges();toast(`→ ${getCS(st).l}`,'s');}
+function setCS(id,st){
+  const c=cById(id);if(!c)return;
+  const prev=c.status;
+  c.status=st;c.updated=now_();save();
+  if(UI.pid===id)openCandPanel(id);
+  rCands();badges();
+  toast(`→ ${getCS(st).l}`,'s');
+  // Proposer création facture si → Placé
+  if(st==='placed'&&prev!=='placed'){
+    const existing=(DB.invoices||[]).find(inv=>inv.cand_id===id);
+    if(!existing){
+      setTimeout(()=>{
+        const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+        const co=need?coById(need.company_id):null;
+        toast(`💰 Créer la facture pour ${c.name} ?`,'i');
+        openMo('💰 Facturation — Placement confirmé',`
+          <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;padding:10px 12px;margin-bottom:14px;font-size:11px">
+            ✅ <strong>${esc(c.name)}</strong> vient d'être placé.${co?` Chez <strong>${esc(co.name)}</strong>.`:''} Créez la facture maintenant.
+          </div>
+          <div class="fg">
+            <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
+            <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
+          </div>
+          <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
+            <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
+            <span style="font-size:10px;color:var(--mu)">Montant honoraires</span>
+          </div>`,
+          `<button class="btn bg" onclick="closeMo()">Plus tard</button>
+           <button class="btn bp" onclick="createInvoiceFromModal('${id}')">💰 Créer la facture</button>`
+        );
+        // Live preview
+        ['inv-sal','inv-taux'].forEach(fid=>{
+          const el=document.getElementById(fid);
+          if(el)el.oninput=()=>{
+            const sal=Number(document.getElementById('inv-sal')?.value||0);
+            const taux=Number(document.getElementById('inv-taux')?.value||18);
+            const amt=Math.round(sal*taux/100);
+            const prev=document.getElementById('inv-preview');
+            if(prev)prev.innerHTML=`<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">${fM(amt)}</span><br><span style="font-size:10px;color:var(--mu)">= ${sal.toLocaleString('fr-FR')}€ × ${taux}%</span>`;
+          };
+          if(el)el.oninput();
+        });
+      },400);
+    }
+  }
+}
 function setCmpS(id,st){const c=coById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCoPanel(id);if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast(`→ ${getCmpS(st).l}`,'s');}
 function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_();save();if(UI.pid===id)openNeedPanel(id);rNeeds();badges();toast(`→ ${st}`,'s');}
 function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
@@ -3564,7 +3700,128 @@ function openStatusMo(type,id){
 // ═══════════════════════════════════════════════════════
 // IMPORT
 // ═══════════════════════════════════════════════════════
-function importProsCsv(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const lines=ev.target.result.trim().split('\n').filter(l=>l.trim());let n=0;lines.forEach(l=>{const cols=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));if(!cols[0])return;const c={id:uid(),name:cols[0],contact:cols[1]||'',phone:cols[2]||'',email:cols[3]||'',city:cols[4]||'',cat:'go',type:'prospect',status:'tocall',source:'Import CSV',created:now_(),updated:now_()};DB.companies.unshift(c);n++;});save();rPros();badges();toast(`${n} prospect(s) importés ✓`,'s');};r.readAsText(f,'UTF-8');}
+function importProsCsv(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const raw=ev.target.result;
+    // Auto-detect separator: ; or ,
+    const firstLine=raw.split('\n')[0]||'';
+    const sep=firstLine.includes(';')?';':',';
+    const lines=raw.trim().split('\n').filter(l=>l.trim());
+    if(!lines.length){toast('Fichier vide','e');return;}
+
+    // Parse all rows (strip quotes)
+    const parseRow=l=>l.split(sep).map(s=>s.trim().replace(/^["']|["']$/g,''));
+    const headers=parseRow(lines[0]).map(h=>h.toLowerCase().trim());
+    const hasHeaders=['raison','nom','name','société','societe','company','entreprise'].some(k=>headers.some(h=>h.includes(k)));
+    const rows=(hasHeaders?lines.slice(1):lines).map(parseRow).filter(r=>r[0]?.trim());
+
+    // Auto-map columns from header names
+    const mapCol=(names)=>{
+      if(!hasHeaders)return -1;
+      for(let i=0;i<headers.length;i++){
+        if(names.some(n=>headers[i].includes(n)))return i;
+      }
+      return -1;
+    };
+    const cols={
+      name:  hasHeaders?mapCol(['raison','nom','name','société','societe','entreprise','company']):0,
+      phone: hasHeaders?mapCol(['tel','phone','portable','mobile','fixe']):1,
+      email: hasHeaders?mapCol(['email','mail','courriel']):2,
+      city:  hasHeaders?mapCol(['ville','city','localité','localite']):3,
+      contact:hasHeaders?mapCol(['contact','interlocuteur','nom contact','prenom']):4,
+      cat:   hasHeaders?mapCol(['secteur','categorie','catégorie','spécialité']):5,
+    };
+    // Fallback positional if no header detection
+    if(cols.name===-1)cols.name=0;
+    if(cols.phone===-1)cols.phone=1;
+    if(cols.email===-1)cols.email=2;
+    if(cols.city===-1)cols.city=3;
+    if(cols.contact===-1)cols.contact=4;
+
+    // Show preview modal
+    const preview=rows.slice(0,5).map(r=>{
+      return{name:r[cols.name]||'—',phone:r[cols.phone]||'—',email:r[cols.email]||'—',city:r[cols.city]||'—',contact:r[cols.contact]||'—'};
+    });
+    window._csvImportRows=rows;
+    window._csvImportCols=cols;
+
+    const previewHtml=preview.map(p=>`
+      <tr><td style="font-size:10px"><strong>${esc(p.name)}</strong></td>
+      <td style="font-size:10px;color:var(--ac2)">${esc(p.phone)}</td>
+      <td style="font-size:10px;color:var(--ac5)">${esc(p.email)}</td>
+      <td style="font-size:10px;color:var(--mu)">${esc(p.city)}</td>
+      <td style="font-size:10px;color:var(--mu)">${esc(p.contact)}</td></tr>`).join('');
+
+    openMo(`Import CSV — ${rows.length} ligne(s) détectée(s)`,`
+      <div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span class="fs10" style="color:var(--ac2)">✓ Séparateur : <strong>${sep===';"'?'point-virgule':','}</strong></span>
+          ${hasHeaders?'<span class="fs10" style="color:var(--ac2)">✓ En-têtes détectés</span>':'<span class="fs10" style="color:var(--ac4)">⚠ Pas d\'en-têtes — ordre supposé : Nom, Tél, Email, Ville, Contact</span>'}
+        </div>
+        <div style="font-size:10px;color:var(--mu);margin-bottom:8px">Aperçu des ${Math.min(5,rows.length)} premières lignes :</div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="font-size:10px">
+            <thead><tr>
+              <th>Raison sociale</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Contact</th>
+            </tr></thead>
+            <tbody>${previewHtml}</tbody>
+          </table>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--mu2);padding:8px 10px;background:var(--s3);border-radius:3px">
+        💡 Tous les prospects seront importés avec le statut <strong>"À appeler"</strong>. Les emails sont enregistrés sur chaque fiche même s'ils n'apparaissent pas dans la liste.
+      </div>`,
+      `<button class="btn bg" onclick="closeMo()">Annuler</button>
+       <button class="btn bp" onclick="confirmCsvImport()">Importer ${rows.length} prospect(s) →</button>`
+    );
+  };
+  r.readAsText(f,'UTF-8');
+}
+
+function confirmCsvImport(){
+  const rows=window._csvImportRows||[];
+  const cols=window._csvImportCols||{name:0,phone:1,email:2,city:3,contact:4};
+  const BTP_MAP={'go':['go','gros','maçon','coffrage','béton'],'so':['so','second','élec','plomb','carrel','menuiserie'],'be':['be','bureau','étude','ingénieur','métreur'],'vrd':['vrd','vrd','voirie','réseaux','tp','engins'],'hse':['hse','qse','sécurité','qualité'],'mgmt':['mgmt','management','direction','chargé']};
+  function guesscat(v){if(!v)return'go';const vl=v.toLowerCase();for(const[id,kws]of Object.entries(BTP_MAP)){if(kws.some(k=>vl.includes(k)))return id;}return'go';}
+  let n=0;
+  rows.forEach(r=>{
+    const name=(r[cols.name]||'').trim();
+    if(!name)return;
+    // Skip duplicates by phone or name
+    const phone=(r[cols.phone]||'').replace(/\D/g,'');
+    const dup=DB.companies.find(c=>(c.name.toLowerCase()===name.toLowerCase())||(phone&&c.phone&&c.phone.replace(/\D/g,'')===phone&&phone.length>5));
+    if(dup){return;} // skip exact duplicate
+    const c={
+      id:uid(),
+      name,
+      phone:r[cols.phone]||'',
+      email:r[cols.email]||'',
+      city:r[cols.city]||'',
+      contact:r[cols.contact]||'',
+      cat:cols.cat>=0?guesscat(r[cols.cat]):'go',
+      type:'prospect',status:'tocall',
+      source:'Import CSV',
+      created:now_(),updated:now_(),
+    };
+    DB.companies.unshift(c);n++;
+  });
+  save();closeMo();rPros();badges();
+  toast(`${n} prospect(s) importés ✓${rows.length-n>0?' ('+String(rows.length-n)+' doublons ignorés)':''}`, 's');
+  window._csvImportRows=null;window._csvImportCols=null;
+}
+
+function downloadCsvTemplate(){
+  const header='Raison sociale;Téléphone;Email;Ville;Contact;Secteur BTP';
+  const ex1='Bouygues Construction;0491234567;contact@bouygues.fr;Marseille;Jean Martin;Gros Œuvre';
+  const ex2='SARL Martin Elec;0612345678;martin.elec@gmail.com;Nice;Pierre Martin;Second Œuvre';
+  const blob=new Blob([header+'\n'+ex1+'\n'+ex2],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='prospects_template.csv';a.click();
+  URL.revokeObjectURL(url);
+  toast('Modèle téléchargé ✓','s');
+}
 function importCandCsv(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const lines=ev.target.result.trim().split('\n').filter(l=>l.trim());let n=0;lines.forEach(l=>{const cols=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));if(!cols[0])return;const c={id:uid(),name:cols[0],role:cols[1]||'',phone:cols[2]||'',email:cols[3]||'',source:cols[4]||'Import CSV',cat:'go',status:'entrant',docs:[],pepite:false,created:now_(),updated:now_()};DB.candidates.unshift(c);n++;});save();rCands();badges();toast(`${n} entrant(s) importés → onglet À trier`,'s');};r.readAsText(f,'UTF-8');}
 function importCandCSV(){
   // Programmatically trigger a hidden file input
@@ -3579,9 +3836,22 @@ function parseCandCsv(){const txt=document.getElementById('cc-txt').value;const 
 // ═══════════════════════════════════════════════════════
 // DELETE
 // ═══════════════════════════════════════════════════════
-function delCand(id){if(!confirm('Supprimer ce candidat ?'))return;DB.candidates=DB.candidates.filter(c=>c.id!==id);save();closePanel();closeMo();rCands();badges();toast('Supprimé','w');}
-function delCo(id){if(!confirm('Supprimer cette entreprise ?'))return;DB.companies=DB.companies.filter(c=>c.id!==id);save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');}
-function delNeed(id){if(!confirm('Supprimer ce besoin ?'))return;DB.needs=DB.needs.filter(n=>n.id!==id);DB.candidates.forEach(c=>{if(c.linked_need===id)c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Supprimé','w');}
+function delCand(id){
+  const c=cById(id);if(!c)return;
+  openMo('Supprimer ce candidat ?',`<div style="font-size:12px;color:var(--mu);line-height:1.6">Voulez-vous vraiment supprimer <strong>${esc(c.name)}</strong> ?<br>Cette action est irréversible.</div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="DB.candidates=DB.candidates.filter(x=>x.id!=='${id}');save();closePanel();closeMo();rCands();badges();toast('${esc(c.name)} supprimé','w')">Supprimer</button>`);
+}
+function delCo(id){
+  const c=coById(id);if(!c)return;
+  openMo(`Supprimer ${esc(c.name)} ?`,`<div style="font-size:12px;color:var(--mu);line-height:1.6">Voulez-vous vraiment supprimer <strong>${esc(c.name)}</strong> ?<br>Cette action est irréversible.</div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.companies=DB.companies.filter(x=>x.id!=='${id}');save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');})()">Supprimer</button>`);
+}
+function delCoConfirm(id){delCo(id);}
+function delNeed(id){
+  const n=nById(id);if(!n)return;
+  openMo(`Supprimer ce besoin ?`,`<div style="font-size:12px;color:var(--mu);line-height:1.6">Supprimer <strong>${esc(n.title)}</strong> ?<br>Cette action est irréversible.</div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.needs=DB.needs.filter(x=>x.id!=='${id}');DB.candidates.forEach(c=>{if(c.linked_need==='${id}')c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Besoin supprimé','w');})()">Supprimer</button>`);
+}
 function delAg(id){DB.agenda=DB.agenda.filter(a=>a.id!==id);save();closePanel();rAgenda();badges();toast('Supprimé','w');}
 function delPost(id){DB.posts=DB.posts.filter(p=>p.id!==id);save();closePanel();rPosts();toast('Supprimé','w');}
 
@@ -4872,6 +5142,7 @@ async function emFetchInbox(forceRefresh=false){
     if(!resp.ok) throw new Error(data.error||'Erreur serveur');
     INBOX_CACHE={emails:data.emails||[],fetchedAt:Date.now()};
     INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;
+    applyEmailRules();
     // Mettre à jour le badge
     const badge=document.getElementById('em-inbox-badge');
     if(badge){
@@ -4915,9 +5186,47 @@ async function emOpenEmail(uid){
   const apiBase=getApiBase();
   if(apiBase) fetch(`${apiBase}/api/imap`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mark-read',uid:email.uid})}).catch(()=>{});
 
-  // Trouver match candidat/entreprise
+  // Trouver match candidat/entreprise par email expéditeur
   const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
   const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
+  const existingRule=getEmailRule(email.fromEmail);
+
+  // Auto-log si règle existante
+  if(existingRule?.autoLog&&existingRule.entityType==='co'){
+    const already=(coById(existingRule.entityId)?.timeline||[]).find(t=>t.extra===String(email.uid));
+    if(!already){addTimeline(existingRule.entityId,'email',`De : ${email.from||email.fromEmail}\nObjet : ${email.subject||'(sans objet)'}\n${(email.snippet||'').slice(0,150)}`,String(email.uid));}
+  }
+
+  // Banner de liaison email → fiche
+  const linkedEntity=existingRule?
+    (existingRule.entityType==='co'?coById(existingRule.entityId):cById(existingRule.entityId)):null;
+  const linkBanner=(()=>{
+    if(linkedEntity&&existingRule?.autoLog){
+      return`<div style="padding:8px 14px;background:rgba(61,224,154,.07);border-bottom:1px solid rgba(61,224,154,.2);font-size:11px;display:flex;align-items:center;gap:8px">
+        <span style="color:var(--ac2)">✅ Auto-lié à</span>
+        <strong style="cursor:pointer;color:var(--ac2)" onclick="${existingRule.entityType==='co'?`openCoPanel('${existingRule.entityId}')`:""}">${esc(linkedEntity.name)}</strong>
+        <button class="btn bg bxs" style="margin-left:auto;font-size:9px" onclick="DB.email_rules=(DB.email_rules||[]).filter(r=>r.id!=='${existingRule.id}');save();emOpenEmail('${uid}');toast('Règle supprimée','w')">Désactiver</button>
+      </div>`;
+    }
+    if(matchCo||matchCand){
+      const entity=matchCo||matchCand;
+      const etype=matchCo?'co':'cand';
+      const eid=entity.id;
+      return`<div style="padding:10px 14px;background:rgba(74,130,224,.07);border-bottom:1px solid rgba(74,130,224,.2);font-size:11px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span>${matchCo?'🏢':'👤'}</span>
+          <strong>${esc(entity.name)}</strong>
+          <span style="font-size:10px;color:var(--mu)">correspond à ${email.fromEmail}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn bp bxs" onclick="linkEmailToFiche('${uid}','${etype}','${eid}',false)">📋 Ajouter à la fiche</button>
+          <button class="btn bi bxs" onclick="linkEmailToFiche('${uid}','${etype}','${eid}',true)">🔗 Toujours lier cet expéditeur</button>
+          <button class="btn bg bxs" onclick="${etype==='co'?`openCoPanel('${eid}')`:`openCandPanel('${eid}')`}">→ Voir la fiche</button>
+        </div>
+      </div>`;
+    }
+    return'';
+  })();
 
   // Formatter les pièces jointes
   const attachHtml=(email.attachments||[]).map(a=>`
@@ -4927,6 +5236,7 @@ async function emOpenEmail(uid){
   const main=document.getElementById('em-main');
   if(!main)return;
   main.innerHTML=`
+    ${linkBanner}
     <div class="email-detail-header">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
         <button class="btn bg bxs" style="font-size:11px;flex-shrink:0" onclick="emShowView('inbox')">← Retour</button>
@@ -5637,6 +5947,256 @@ function renderRep(){
 })();
 
 // ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// FACTURATION — Suivi des honoraires et paiements
+// ═══════════════════════════════════════════════════════
+
+function getInvoiceNumber(){
+  const year=new Date().getFullYear();
+  const existing=(DB.invoices||[]).filter(inv=>inv.invoice_number&&inv.invoice_number.includes(String(year)));
+  const seq=existing.length+1;
+  return`NOVALEM-${year}-${String(seq).padStart(3,'0')}`;
+}
+
+function rFacturation(){
+  DB.invoices=DB.invoices||[];
+  const invs=DB.invoices;
+  const filter=UI.invFilter||'all';
+
+  // Auto-mark overdue
+  const todayStr=new Date().toISOString().split('T')[0];
+  let changed=false;
+  invs.forEach(inv=>{if(inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr){inv.status='overdue';changed=true;}});
+  if(changed)save();
+
+  const totPaid=invs.filter(i=>i.status==='paid').reduce((a,i)=>a+Number(i.amount||0),0);
+  const totPending=invs.filter(i=>i.status==='sent').reduce((a,i)=>a+Number(i.amount||0),0);
+  const totOverdue=invs.filter(i=>i.status==='overdue').reduce((a,i)=>a+Number(i.amount||0),0);
+
+  const stStyle={
+    draft:{bg:'var(--s3)',tx:'var(--mu)',l:'Brouillon'},
+    sent:{bg:'rgba(74,130,224,.12)',tx:'var(--ac5)',l:'Envoyée'},
+    overdue:{bg:'rgba(224,74,74,.1)',tx:'var(--ac3)',l:'⚠️ En retard'},
+    paid:{bg:'rgba(61,224,154,.1)',tx:'var(--ac2)',l:'✓ Payée'},
+    disputed:{bg:'rgba(224,152,58,.1)',tx:'var(--ac4)',l:'⚠ Litige'},
+  };
+
+  const filters=[
+    {id:'all',l:`Toutes (${invs.length})`},
+    {id:'draft',l:`Brouillons (${invs.filter(i=>i.status==='draft').length})`},
+    {id:'sent',l:`Envoyées (${invs.filter(i=>i.status==='sent').length})`},
+    {id:'overdue',l:`En retard (${invs.filter(i=>i.status==='overdue').length})`},
+    {id:'paid',l:`Payées (${invs.filter(i=>i.status==='paid').length})`},
+  ];
+
+  const visible=(filter==='all'?invs:invs.filter(i=>i.status===filter))
+    .slice().sort((a,b)=>new Date(b.created)-new Date(a.created));
+
+  document.getElementById('view-facturation').innerHTML=`
+    <div class="dkpi" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+      <div class="kpi" style="cursor:pointer" onclick="UI.invFilter='paid';rFacturation()"><div class="kpi-v ac">${fM(Math.round(totPaid))}</div><div class="kpi-l">CA encaissé</div></div>
+      <div class="kpi" style="cursor:pointer" onclick="UI.invFilter='sent';rFacturation()"><div class="kpi-v ac5">${fM(Math.round(totPending))}</div><div class="kpi-l">En attente paiement</div></div>
+      <div class="kpi" style="cursor:pointer" onclick="UI.invFilter='overdue';rFacturation()"><div class="kpi-v ac3">${fM(Math.round(totOverdue))}</div><div class="kpi-l">En retard</div></div>
+      <div class="kpi" style="cursor:pointer" onclick="openInvoiceForm()"><div class="kpi-v" style="color:var(--mu)">${invs.filter(i=>i.status==='draft').length}</div><div class="kpi-l">Brouillons</div></div>
+    </div>
+    <div class="vtabs" style="margin-bottom:14px">
+      ${filters.map(f=>`<div class="vt ${filter===f.id?'act':''}" onclick="UI.invFilter='${f.id}';rFacturation()">${f.l}</div>`).join('')}
+    </div>
+    ${visible.length?`
+    <table class="tbl">
+      <thead><tr>
+        <th>N° Facture</th><th>Client</th><th>Candidat</th>
+        <th>Montant HT</th><th>Émission</th><th>Échéance</th><th>Statut</th><th></th>
+      </tr></thead>
+      <tbody>${visible.map(inv=>{
+        const co=coById(inv.company_id);
+        const cand=cById(inv.cand_id);
+        const ss=stStyle[inv.status]||stStyle.draft;
+        return`<tr onclick="openInvoicePanel('${inv.id}')" style="cursor:pointer">
+          <td><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--ac)">${esc(inv.invoice_number||'—')}</span></td>
+          <td><strong>${co?esc(co.name):'—'}</strong></td>
+          <td>${cand?esc(cand.name):'—'}</td>
+          <td><strong style="color:var(--ac);font-family:'Syne',sans-serif">${fM(inv.amount)}</strong></td>
+          <td style="font-size:10px;color:var(--mu)">${inv.invoice_date?fD(inv.invoice_date):'—'}</td>
+          <td style="font-size:10px;color:${inv.status==='overdue'?'var(--ac3)':'var(--mu)'}">${inv.due_date?fD(inv.due_date):'—'}</td>
+          <td><span style="padding:2px 8px;border-radius:10px;font-size:10px;background:${ss.bg};color:${ss.tx}">${ss.l}</span></td>
+          <td onclick="event.stopPropagation()" class="acol">
+            ${inv.status==='draft'?`<button class="btn bi bxs" onclick="markInvoiceSent('${inv.id}')">Envoyer</button>`:''}
+            ${['sent','overdue'].includes(inv.status)?`<button class="btn bp bxs" onclick="markInvoicePaid('${inv.id}')">Payée ✓</button>`:''}
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+    `:`<div style="text-align:center;padding:60px 20px;color:var(--mu2)">
+      <div style="font-size:36px;margin-bottom:12px">💰</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:6px">Aucune facture</div>
+      <div style="font-size:11px;margin-bottom:16px">Les factures sont créées automatiquement quand vous marquez un candidat comme "Placé".</div>
+      <button class="btn bp bsm" onclick="openInvoiceForm()">+ Créer manuellement</button>
+    </div>`}`;
+}
+
+function openInvoicePanel(id){
+  const inv=(DB.invoices||[]).find(i=>i.id===id);if(!inv)return;
+  UI.ptype='inv';UI.pid=id;
+  const co=coById(inv.company_id);const cand=cById(inv.cand_id);
+  const stStyle={draft:{bg:'var(--s3)',tx:'var(--mu)',l:'Brouillon'},sent:{bg:'rgba(74,130,224,.12)',tx:'var(--ac5)',l:'Envoyée'},overdue:{bg:'rgba(224,74,74,.1)',tx:'var(--ac3)',l:'⚠️ En retard'},paid:{bg:'rgba(61,224,154,.1)',tx:'var(--ac2)',l:'✓ Payée'},disputed:{bg:'rgba(224,152,58,.1)',tx:'var(--ac4)',l:'⚠ Litige'}};
+  const ss=stStyle[inv.status]||stStyle.draft;
+  const taux=inv.salary&&inv.amount?Math.round(inv.amount/inv.salary*100):18;
+  setPanel(inv.invoice_number||'Facture',
+    `<span style="padding:2px 8px;border-radius:10px;font-size:10px;background:${ss.bg};color:${ss.tx}">${ss.l}</span>`,
+    null,
+    `<div class="dr"><span class="drk">Client</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
+    <div class="dr"><span class="drk">Candidat</span><span class="drv">${cand?`<span class="ac5" style="cursor:pointer" onclick="openCandPanel('${cand.id}')">${esc(cand.name)}</span>`:'—'}</span></div>
+    <div class="dr"><span class="drk">Salaire brut</span><span class="drv">${fM(inv.salary)}</span></div>
+    <div class="dr"><span class="drk">Taux honoraires</span><span class="drv">${taux}%</span></div>
+    <div class="dr"><span class="drk">Montant HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--ac)">${fM(inv.amount)}</span></div>
+    <div class="dr"><span class="drk">Émission</span><span class="drv">${inv.invoice_date?fD(inv.invoice_date):'—'}</span></div>
+    <div class="dr"><span class="drk">Échéance</span><span class="drv" style="color:${inv.status==='overdue'?'var(--ac3)':'inherit'}">${inv.due_date?fD(inv.due_date):'—'}</span></div>
+    ${inv.paid_date?`<div class="dr"><span class="drk">Payée le</span><span class="drv ac2">✓ ${fD(inv.paid_date)}</span></div>`:''}
+    ${inv.notes?`<div class="sl">Notes</div><div class="notebox">${esc(inv.notes)}</div>`:''}
+    <div class="sl mt12">Récapitulatif</div>
+    <div class="notebox fs10" style="line-height:1.9">${esc(inv.invoice_number||'')} · ${co?esc(co.name):'?'}<br>Placement de ${cand?esc(cand.name):'?'}<br>Honoraires ${taux}% × ${fM(inv.salary)} = <strong style="color:var(--ac)">${fM(inv.amount)}</strong><br>${inv.due_date?`Échéance ${fD(inv.due_date)}`:''}</div>`,
+    `${inv.status==='draft'?`<button class="btn bi bsm" onclick="markInvoiceSent('${id}')">📤 Envoyée</button>`:''}
+     ${['sent','overdue'].includes(inv.status)?`<button class="btn bp bsm" onclick="markInvoicePaid('${id}')">✓ Payée</button>`:''}
+     <button class="btn bg bsm" onclick="editInvoiceNotes('${id}')">📝</button>
+     <button class="btn bd_ bsm" onclick="deleteInvoice('${id}')">🗑</button>`
+  );
+}
+
+function openInvoiceForm(candId){
+  const cands=DB.candidates.filter(c=>c.status==='placed');
+  const candOpts=cands.map(c=>{const n=c.linked_need?DB.needs.find(nd=>nd.id===c.linked_need):null;const co=n?coById(n.company_id):null;return`<option value="${c.id}" ${c.id===candId?'selected':''}>${esc(c.name)}${co?' — '+esc(co.name):''}`;}).join('');
+  openMo('+ Nouvelle facture',`
+    <div class="fg">
+      <div class="fgrp ff"><span class="lbl">Candidat placé *</span>
+        <select id="nif-cand" onchange="updateInvoicePreview()">${cands.length?`<option value="">— Choisir —</option>${candOpts}`:`<option value="">Aucun candidat placé</option>`}</select>
+      </div>
+      <div class="fgrp"><span class="lbl">Salaire brut annuel (€) *</span><input id="nif-sal" type="number" placeholder="45000" oninput="updateInvoicePreview()"></div>
+      <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="nif-taux" type="number" value="${localStorage.getItem('btp_taux_hon')||18}" step="0.5" oninput="updateInvoicePreview()"></div>
+      <div class="fgrp ff" id="nif-preview" style="background:rgba(207,224,70,.07);border:1px solid rgba(207,224,70,.2);border-radius:3px;padding:10px 12px;text-align:center;display:none">
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</div>
+        <div style="font-size:10px;color:var(--mu)">Montant honoraires HT</div>
+      </div>
+      <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="nif-notes" style="min-height:50px" placeholder="Informations complémentaires…"></textarea></div>
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bp" onclick="saveInvoiceForm()">Créer la facture</button>`
+  );
+  if(candId){const c=cById(candId);if(c?.salary)setTimeout(()=>{const el=document.getElementById('nif-sal');if(el){el.value=c.salary;updateInvoicePreview();}},80);}
+}
+
+function updateInvoicePreview(){
+  const sal=Number(document.getElementById('nif-sal')?.value||0);
+  const taux=Number(document.getElementById('nif-taux')?.value||18);
+  const prev=document.getElementById('nif-preview');if(!prev)return;
+  if(sal>0){prev.style.display='block';const amt=Math.round(sal*taux/100);prev.children[0].textContent=fM(amt);prev.children[1].textContent=`= ${sal.toLocaleString('fr-FR')}€ × ${taux}%`;}
+  else prev.style.display='none';
+}
+
+function createInvoiceFromModal(candId){
+  const sal=Number(document.getElementById('inv-sal')?.value||0);
+  const taux=Number(document.getElementById('inv-taux')?.value||18);
+  if(!sal){toast('Salaire requis','e');return;}
+  _createInvoice(candId,sal,taux,'');closeMo();
+}
+
+function saveInvoiceForm(){
+  const candId=document.getElementById('nif-cand')?.value;
+  const sal=Number(document.getElementById('nif-sal')?.value||0);
+  const taux=Number(document.getElementById('nif-taux')?.value||18);
+  if(!candId||!sal){toast('Candidat et salaire requis','e');return;}
+  _createInvoice(candId,sal,taux,document.getElementById('nif-notes')?.value||'');closeMo();
+}
+
+function _createInvoice(candId,salary,taux,notes){
+  DB.invoices=DB.invoices||[];
+  const c=cById(candId);
+  const need=c?.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+  const co=need?coById(need.company_id):null;
+  const amount=Math.round(Number(salary)*taux/100);
+  const today=new Date().toISOString().split('T')[0];
+  const due=new Date();due.setDate(due.getDate()+30);
+  const inv={id:uid(),invoice_number:getInvoiceNumber(),cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,salary:Number(salary),taux,amount,status:'draft',invoice_date:today,due_date:due.toISOString().split('T')[0],paid_date:null,notes,created:now_(),updated:now_()};
+  DB.invoices.unshift(inv);save();
+  if(UI.view==='facturation')rFacturation();
+  badges();toast(`💰 Facture ${inv.invoice_number} créée — ${fM(amount)}`,'s');
+}
+
+function markInvoiceSent(id){
+  const inv=(DB.invoices||[]).find(i=>i.id===id);if(!inv)return;
+  inv.status='sent';const d=new Date();d.setDate(d.getDate()+30);inv.due_date=d.toISOString().split('T')[0];inv.updated=now_();save();
+  if(UI.view==='facturation')rFacturation();if(UI.pid===id)openInvoicePanel(id);badges();
+  toast(`📤 Facture envoyée — échéance ${fD(inv.due_date)}`,'s');
+}
+
+function markInvoicePaid(id){
+  const inv=(DB.invoices||[]).find(i=>i.id===id);if(!inv)return;
+  inv.status='paid';inv.paid_date=new Date().toISOString().split('T')[0];inv.updated=now_();save();
+  if(UI.view==='facturation')rFacturation();if(UI.pid===id)openInvoicePanel(id);badges();
+  toast(`✅ ${inv.invoice_number} payée — ${fM(inv.amount)} encaissé`,'s');
+}
+
+function editInvoiceNotes(id){
+  const inv=(DB.invoices||[]).find(i=>i.id===id);if(!inv)return;
+  openMo('Notes facture',`<textarea id="inv-ne" style="min-height:80px">${esc(inv.notes||'')}</textarea>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bp" onclick="(()=>{const i=(DB.invoices||[]).find(x=>x.id==='${id}');if(i){i.notes=document.getElementById('inv-ne')?.value||'';i.updated=now_();save();closeMo();openInvoicePanel('${id}');toast('Sauvegardé ✓','s');}})()">Sauvegarder</button>`
+  );
+}
+
+function deleteInvoice(id){
+  if(!confirm('Supprimer cette facture ?'))return;
+  DB.invoices=(DB.invoices||[]).filter(i=>i.id!==id);save();closePanel();if(UI.view==='facturation')rFacturation();badges();toast('Supprimé','w');
+}
+
+// ═══════════════════════════════════════════════════════
+// EMAIL → TIMELINE — Lien automatique inbox ↔ fiches
+// ═══════════════════════════════════════════════════════
+
+function getEmailRule(fromEmail){
+  if(!fromEmail)return null;
+  return(DB.email_rules||[]).find(r=>r.fromEmail.toLowerCase()===fromEmail.toLowerCase());
+}
+
+function addEmailRule(fromEmail,entityType,entityId,autoLog){
+  DB.email_rules=DB.email_rules||[];
+  const ex=getEmailRule(fromEmail);
+  if(ex){ex.entityType=entityType;ex.entityId=entityId;ex.autoLog=!!autoLog;}
+  else DB.email_rules.push({id:uid(),fromEmail,entityType,entityId,autoLog:!!autoLog});
+  save();
+  toast(autoLog?`✅ Emails de ${fromEmail} auto-liés désormais`:'Lié à la fiche ✓','s');
+}
+
+function applyEmailRules(){
+  if(!INBOX_CACHE?.emails)return;
+  const rules=(DB.email_rules||[]).filter(r=>r.autoLog);
+  if(!rules.length)return;
+  INBOX_CACHE.emails.forEach(email=>{
+    if(!email.fromEmail||email._ruleApplied)return;
+    const rule=rules.find(r=>r.fromEmail.toLowerCase()===email.fromEmail.toLowerCase());
+    if(!rule)return;
+    if(rule.entityType==='co'){
+      const already=(coById(rule.entityId)?.timeline||[]).find(t=>t.extra===String(email.uid));
+      if(!already){addTimeline(rule.entityId,'email',`De : ${email.from||email.fromEmail}\nObjet : ${email.subject||'(sans objet)'}\n${(email.snippet||'').slice(0,120)}`,String(email.uid));}
+    }
+    email._ruleApplied=true;
+  });
+}
+
+function linkEmailToFiche(uid,entityType,entityId,autoLog){
+  if(!INBOX_CACHE)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));if(!email)return;
+  addEmailRule(email.fromEmail,entityType,entityId,autoLog);
+  if(entityType==='co'){
+    const already=(coById(entityId)?.timeline||[]).find(t=>t.extra===String(uid));
+    if(!already){addTimeline(entityId,'email',`De : ${email.from||email.fromEmail}\nObjet : ${email.subject||'(sans objet)'}\n${(email.snippet||'').slice(0,150)}`,String(uid));}
+    toast('Email ajouté à la timeline ✓','s');
+  }
+  emOpenEmail(uid);
+}
+
+
 // GLOBAL SEARCH — Ctrl+K
 // ═══════════════════════════════════════════════════════
 function openGS(){
