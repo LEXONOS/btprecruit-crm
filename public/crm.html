@@ -6,6 +6,7 @@
 <title>Novalem — CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#0b0b09;--s1:#111110;--s2:#171715;--s3:#1d1d1b;--s4:#242422;
@@ -835,7 +836,7 @@ function go(v){
   document.getElementById('view-'+v).classList.add('active');
   const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting',facturation:'💰 Facturation'};
   document.getElementById('tbt').textContent=T[v]||v;
-  const A={dash:'',facturation:`<button class="btn bp bsm" onclick="openInvoiceForm()">+ Facture</button>`,cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<button class="btn bg bsm" onclick="downloadCsvTemplate()">↓ Modèle CSV</button><label class="btn bg bsm" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv,.txt" style="display:none" onchange="importProsCsv(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
+  const A={dash:'',facturation:`<button class="btn bp bsm" onclick="openInvoiceForm()">+ Facture</button>`,cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<button class="btn bg bsm" onclick="downloadCsvTemplate()">↓ Modèle CSV</button><label class="btn bg bsm" style="cursor:pointer">↑ Import Excel / CSV<input type="file" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="importProspects(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
   document.getElementById('tba').innerHTML=A[v]||'';
   ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting,facturation:rFacturation})[v]?.();
   badges();
@@ -3700,128 +3701,251 @@ function openStatusMo(type,id){
 // ═══════════════════════════════════════════════════════
 // IMPORT
 // ═══════════════════════════════════════════════════════
-function importProsCsv(e){
+
+// ═══════════════════════════════════════════════════════
+// IMPORT PROSPECTS — Excel (.xlsx) + CSV intelligent
+// Analyse ton fichier réel : col 0=Nom, col 1=Ville, col 2=Tél, col 3=Email
+// Détection automatique par contenu si colonnes dans un autre ordre
+// ═══════════════════════════════════════════════════════
+
+function importProspects(e){
   const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    const raw=ev.target.result;
-    // Auto-detect separator: ; or ,
-    const firstLine=raw.split('\n')[0]||'';
-    const sep=firstLine.includes(';')?';':',';
-    const lines=raw.trim().split('\n').filter(l=>l.trim());
-    if(!lines.length){toast('Fichier vide','e');return;}
-
-    // Parse all rows (strip quotes)
-    const parseRow=l=>l.split(sep).map(s=>s.trim().replace(/^["']|["']$/g,''));
-    const headers=parseRow(lines[0]).map(h=>h.toLowerCase().trim());
-    const hasHeaders=['raison','nom','name','société','societe','company','entreprise'].some(k=>headers.some(h=>h.includes(k)));
-    const rows=(hasHeaders?lines.slice(1):lines).map(parseRow).filter(r=>r[0]?.trim());
-
-    // Auto-map columns from header names
-    const mapCol=(names)=>{
-      if(!hasHeaders)return -1;
-      for(let i=0;i<headers.length;i++){
-        if(names.some(n=>headers[i].includes(n)))return i;
-      }
-      return -1;
-    };
-    const cols={
-      name:  hasHeaders?mapCol(['raison','nom','name','société','societe','entreprise','company']):0,
-      phone: hasHeaders?mapCol(['tel','phone','portable','mobile','fixe']):1,
-      email: hasHeaders?mapCol(['email','mail','courriel']):2,
-      city:  hasHeaders?mapCol(['ville','city','localité','localite']):3,
-      contact:hasHeaders?mapCol(['contact','interlocuteur','nom contact','prenom']):4,
-      cat:   hasHeaders?mapCol(['secteur','categorie','catégorie','spécialité']):5,
-    };
-    // Fallback positional if no header detection
-    if(cols.name===-1)cols.name=0;
-    if(cols.phone===-1)cols.phone=1;
-    if(cols.email===-1)cols.email=2;
-    if(cols.city===-1)cols.city=3;
-    if(cols.contact===-1)cols.contact=4;
-
-    // Show preview modal
-    const preview=rows.slice(0,5).map(r=>{
-      return{name:r[cols.name]||'—',phone:r[cols.phone]||'—',email:r[cols.email]||'—',city:r[cols.city]||'—',contact:r[cols.contact]||'—'};
-    });
-    window._csvImportRows=rows;
-    window._csvImportCols=cols;
-
-    const previewHtml=preview.map(p=>`
-      <tr><td style="font-size:10px"><strong>${esc(p.name)}</strong></td>
-      <td style="font-size:10px;color:var(--ac2)">${esc(p.phone)}</td>
-      <td style="font-size:10px;color:var(--ac5)">${esc(p.email)}</td>
-      <td style="font-size:10px;color:var(--mu)">${esc(p.city)}</td>
-      <td style="font-size:10px;color:var(--mu)">${esc(p.contact)}</td></tr>`).join('');
-
-    openMo(`Import CSV — ${rows.length} ligne(s) détectée(s)`,`
-      <div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-          <span class="fs10" style="color:var(--ac2)">✓ Séparateur : <strong>${sep===';"'?'point-virgule':','}</strong></span>
-          ${hasHeaders?'<span class="fs10" style="color:var(--ac2)">✓ En-têtes détectés</span>':'<span class="fs10" style="color:var(--ac4)">⚠ Pas d\'en-têtes — ordre supposé : Nom, Tél, Email, Ville, Contact</span>'}
-        </div>
-        <div style="font-size:10px;color:var(--mu);margin-bottom:8px">Aperçu des ${Math.min(5,rows.length)} premières lignes :</div>
-        <div style="overflow-x:auto">
-          <table class="tbl" style="font-size:10px">
-            <thead><tr>
-              <th>Raison sociale</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Contact</th>
-            </tr></thead>
-            <tbody>${previewHtml}</tbody>
-          </table>
-        </div>
-      </div>
-      <div style="font-size:10px;color:var(--mu2);padding:8px 10px;background:var(--s3);border-radius:3px">
-        💡 Tous les prospects seront importés avec le statut <strong>"À appeler"</strong>. Les emails sont enregistrés sur chaque fiche même s'ils n'apparaissent pas dans la liste.
-      </div>`,
-      `<button class="btn bg" onclick="closeMo()">Annuler</button>
-       <button class="btn bp" onclick="confirmCsvImport()">Importer ${rows.length} prospect(s) →</button>`
-    );
-  };
-  r.readAsText(f,'UTF-8');
+  const ext=f.name.split('.').pop().toLowerCase();
+  if(['xlsx','xls'].includes(ext)){
+    _importExcel(f);
+  } else {
+    _importCsv(f);
+  }
 }
 
-function confirmCsvImport(){
-  const rows=window._csvImportRows||[];
-  const cols=window._csvImportCols||{name:0,phone:1,email:2,city:3,contact:4};
-  const BTP_MAP={'go':['go','gros','maçon','coffrage','béton'],'so':['so','second','élec','plomb','carrel','menuiserie'],'be':['be','bureau','étude','ingénieur','métreur'],'vrd':['vrd','vrd','voirie','réseaux','tp','engins'],'hse':['hse','qse','sécurité','qualité'],'mgmt':['mgmt','management','direction','chargé']};
-  function guesscat(v){if(!v)return'go';const vl=v.toLowerCase();for(const[id,kws]of Object.entries(BTP_MAP)){if(kws.some(k=>vl.includes(k)))return id;}return'go';}
-  let n=0;
-  rows.forEach(r=>{
-    const name=(r[cols.name]||'').trim();
-    if(!name)return;
-    // Skip duplicates by phone or name
-    const phone=(r[cols.phone]||'').replace(/\D/g,'');
-    const dup=DB.companies.find(c=>(c.name.toLowerCase()===name.toLowerCase())||(phone&&c.phone&&c.phone.replace(/\D/g,'')===phone&&phone.length>5));
-    if(dup){return;} // skip exact duplicate
-    const c={
-      id:uid(),
-      name,
-      phone:r[cols.phone]||'',
-      email:r[cols.email]||'',
-      city:r[cols.city]||'',
-      contact:r[cols.contact]||'',
-      cat:cols.cat>=0?guesscat(r[cols.cat]):'go',
-      type:'prospect',status:'tocall',
-      source:'Import CSV',
-      created:now_(),updated:now_(),
+// Alias kept for toolbar button that still calls old name
+function importProsCsv(e){importProspects(e);}
+
+// ── Excel import via SheetJS ──────────────────────────
+function _importExcel(file){
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:false});
+      const rows=raw.filter(r=>r.some(c=>c!=null&&String(c).trim()));
+      _analyzeAndPreview(rows,'Excel');
+    }catch(err){
+      toast('Erreur lecture Excel — '+err.message,'e');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── CSV import — multi-encoding, multi-separator ──────
+function _importCsv(file){
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    // Try encodings: UTF-8 first, then Latin-1
+    let text='';
+    try{text=new TextDecoder('utf-8').decode(new Uint8Array(e.target.result));}
+    catch(err){text=new TextDecoder('latin-1').decode(new Uint8Array(e.target.result));}
+    // Handle different line endings
+    text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    // Detect separator
+    const firstLine=text.split('\n')[0]||'';
+    const sep=firstLine.split(';').length>firstLine.split(',').length?';':',';
+    // Parse CSV properly (handle quoted multiline cells)
+    const rows=_parseCSV(text,sep);
+    _analyzeAndPreview(rows,'CSV');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Proper CSV parser that handles quoted cells with newlines
+function _parseCSV(text,sep){
+  const rows=[];let cur=[],cell='',inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(inQ&&text[i+1]==='"'){cell+='"';i++;}
+      else inQ=!inQ;
+    } else if(ch===sep&&!inQ){
+      cur.push(cell.trim());cell='';
+    } else if(ch==='\n'&&!inQ){
+      cur.push(cell.trim());
+      if(cur.some(c=>c)){rows.push(cur);}
+      cur=[];cell='';
+    } else {
+      cell+=ch;
+    }
+  }
+  if(cell||cur.length)cur.push(cell.trim());
+  if(cur.some(c=>c))rows.push(cur);
+  return rows;
+}
+
+// ── Smart column detection by content ────────────────
+function _detectColumns(rows){
+  // Score each column position for each type
+  const testSample=rows.slice(0,Math.min(20,rows.length));
+  const maxCols=Math.max(...testSample.map(r=>r.length));
+  const scores={name:[],phone:[],email:[],city:[]};
+
+  for(let col=0;col<maxCols;col++){
+    const vals=testSample.map(r=>(r[col]||'').toString().trim()).filter(v=>v);
+    let phoneScore=0,emailScore=0,cityScore=0,nameScore=0;
+    vals.forEach(v=>{
+      const vl=v.toLowerCase();
+      // Email detection
+      if(v.includes('@')&&v.includes('.')){emailScore+=10;}
+      // Phone detection (French: 04/06/07/09 + digits, Monaco: 377)
+      if(/^[\d\s\(\)\.+\-]{8,20}$/.test(v.replace(/\s/g,''))&&(/^0[0-9]/.test(v)||/^(\+33|33|377)/.test(v)||/^\(0\)/.test(v))){phoneScore+=8;}
+      if(/^\d{2}\s\d{2}\s\d{2}\s\d{2}\s\d{2}$/.test(v.trim())){phoneScore+=5;}
+      // City: short, capitalized, no digits
+      if(v.length<30&&!/\d/.test(v)&&!/[@;]/.test(v)&&v===v.trim()){cityScore+=3;}
+      if(/^[A-ZÁÀÂÄÉÈÊËÎÏÔÙÛÜ][a-záàâäéèêëîïôùûü\s\-']+$/.test(v)&&v.length<25){cityScore+=4;}
+      // Name: longer, may have uppercase, no @ 
+      if(!v.includes('@')&&v.length>3&&v.length<60&&!/^\d+$/.test(v)){nameScore+=2;}
+      if(v===v.toUpperCase()&&v.length>3&&!v.includes('@')){nameScore+=3;} // ALL CAPS = likely company name
+    });
+    scores.name.push(nameScore);
+    scores.phone.push(phoneScore);
+    scores.email.push(emailScore);
+    scores.city.push(cityScore);
+  }
+
+  // Assign columns greedily: highest score wins, no repeat
+  const assigned={name:-1,phone:-1,email:-1,city:-1};
+  const types=['email','phone','name','city']; // priority order
+  const used=new Set();
+  types.forEach(type=>{
+    let best=-1,bestScore=-1;
+    for(let col=0;col<maxCols;col++){
+      if(used.has(col))continue;
+      if(scores[type][col]>bestScore){bestScore=scores[type][col];best=col;}
+    }
+    if(best>=0&&bestScore>0){assigned[type]=best;used.add(best);}
+  });
+
+  return assigned;
+}
+
+// ── Preview modal before import ───────────────────────
+function _analyzeAndPreview(rows, fileType){
+  if(!rows.length){toast('Fichier vide ou illisible','e');return;}
+
+  // Detect if first row is a header
+  const firstRow=rows[0];
+  const isHeader=firstRow.some(c=>c&&/^(nom|raison|soci|entreprise|tel|phone|mail|email|ville|city|contact|secteur|cat)/i.test(String(c).trim()));
+  const dataRows=isHeader?rows.slice(1):rows;
+  const cols=_detectColumns(dataRows);
+
+  // Clean rows
+  const parsed=dataRows.map(r=>{
+    const raw_email=(r[cols.email]!=null?String(r[cols.email]):'').trim();
+    // Handle multiple emails in one cell (split by newline, semicolon, comma)
+    const emails=raw_email.split(/[\n;,]/).map(e=>e.trim()).filter(e=>e.includes('@'));
+    return{
+      name:(r[cols.name]!=null?String(r[cols.name]):'').trim(),
+      phone:(r[cols.phone]!=null?String(r[cols.phone]):'').replace(/\(0\)/g,'0').trim(),
+      email:emails.join(';'), // store multiple emails separated by ;
+      city:(r[cols.city]!=null?String(r[cols.city]):'').trim(),
+      _raw:r,
     };
-    DB.companies.unshift(c);n++;
+  }).filter(p=>p.name&&p.name.length>1);
+
+  window._importParsed=parsed;
+  window._importCols=cols;
+
+  // Estimate duplicates
+  const dups=parsed.filter(p=>{
+    const ph=p.phone.replace(/\D/g,'');
+    return DB.companies.some(c=>
+      c.name.toLowerCase()===p.name.toLowerCase()||
+      (ph.length>=8&&c.phone&&c.phone.replace(/\D/g,'')===ph)
+    );
+  }).length;
+
+  // Preview table
+  const preview=parsed.slice(0,6);
+  const colLabels={name:'Raison sociale',phone:'Téléphone',email:'Email',city:'Ville'};
+  const detectedCols=['name','phone','city','email'].filter(k=>cols[k]>=0);
+
+  const previewHtml=preview.map(p=>`
+    <tr>
+      <td style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong title="${esc(p.name)}">${esc(p.name)}</strong></td>
+      <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--ac2)">${esc(p.phone||'—')}</td>
+      <td style="font-size:10px;color:var(--mu)">${esc(p.city||'—')}</td>
+      <td style="font-size:10px;color:var(--ac5);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.email)}">${esc(p.email||'—')}</td>
+    </tr>`).join('');
+
+  openMo(`Import ${fileType} — ${parsed.length} prospect(s)`,`
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="padding:6px 10px;background:rgba(61,224,154,.08);border:1px solid rgba(61,224,154,.2);border-radius:3px;font-size:10px">
+        ✓ <strong>${parsed.length}</strong> lignes valides
+      </div>
+      <div style="padding:6px 10px;background:rgba(74,130,224,.08);border:1px solid rgba(74,130,224,.2);border-radius:3px;font-size:10px">
+        📧 <strong>${parsed.filter(p=>p.email).length}</strong> avec email
+      </div>
+      ${dups>0?`<div style="padding:6px 10px;background:rgba(224,152,58,.08);border:1px solid rgba(224,152,58,.2);border-radius:3px;font-size:10px">⚠ <strong>${dups}</strong> doublon(s) ignorés</div>`:''}
+      ${isHeader?`<div style="padding:6px 10px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:10px">✓ En-têtes détectés</div>`:''}
+    </div>
+    <div style="font-size:10px;color:var(--mu2);margin-bottom:8px">Colonnes détectées : ${detectedCols.map(k=>`<strong>${colLabels[k]}</strong> → col. ${cols[k]+1}`).join(' · ')}</div>
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table class="tbl" style="min-width:100%">
+        <thead><tr>
+          <th>Raison sociale</th><th>Téléphone</th><th>Ville</th><th>Email</th>
+        </tr></thead>
+        <tbody>${previewHtml}</tbody>
+      </table>
+    </div>
+    <div style="font-size:10px;color:var(--mu2);padding:8px 10px;background:var(--s3);border-radius:3px;line-height:1.7">
+      💡 Les emails sont stockés sur chaque fiche même s'ils n'apparaissent pas dans la liste.<br>
+      Les doublons (même nom ou même numéro) seront ignorés.
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bp" onclick="confirmProspectImport()">Importer ${parsed.length} prospect(s) →</button>`
+  );
+}
+
+function confirmProspectImport(){
+  const parsed=window._importParsed||[];
+  let imported=0,skipped=0;
+  parsed.forEach(p=>{
+    const ph=p.phone.replace(/\D/g,'');
+    const dup=DB.companies.find(c=>
+      c.name.toLowerCase()===p.name.toLowerCase()||
+      (ph.length>=8&&c.phone&&c.phone.replace(/\D/g,'')===ph)
+    );
+    if(dup){
+      // Update email if we now have it and didn't before
+      if(!dup.email&&p.email){dup.email=p.email;dup.updated=now_();}
+      skipped++;return;
+    }
+    DB.companies.unshift({
+      id:uid(),name:p.name,phone:p.phone,email:p.email,city:p.city,
+      contact:'',ctitle:'',cat:'go',type:'prospect',status:'tocall',
+      source:'Import',created:now_(),updated:now_(),
+    });
+    imported++;
   });
   save();closeMo();rPros();badges();
-  toast(`${n} prospect(s) importés ✓${rows.length-n>0?' ('+String(rows.length-n)+' doublons ignorés)':''}`, 's');
-  window._csvImportRows=null;window._csvImportCols=null;
+  window._importParsed=null;
+  toast(`✅ ${imported} prospect(s) importé(s)${skipped>0?` · ${skipped} doublon(s) ignoré(s)`:''}`,'s');
 }
 
+// Kept for compat
+function confirmCsvImport(){confirmProspectImport();}
+
 function downloadCsvTemplate(){
-  const header='Raison sociale;Téléphone;Email;Ville;Contact;Secteur BTP';
-  const ex1='Bouygues Construction;0491234567;contact@bouygues.fr;Marseille;Jean Martin;Gros Œuvre';
-  const ex2='SARL Martin Elec;0612345678;martin.elec@gmail.com;Nice;Pierre Martin;Second Œuvre';
-  const blob=new Blob([header+'\n'+ex1+'\n'+ex2],{type:'text/csv;charset=utf-8;'});
+  const header='Raison sociale;Ville;Telephone;Email';
+  const ex1='Bouygues Construction Nice;Nice;04 93 00 00 00;contact@bouygues.fr';
+  const ex2='SARL Martin Elec;Cannes;06 12 34 56 78;martin@martin-elec.fr';
+  const ex3='TP Dupont;Monaco;377 93 30 00 00;';
+  const blob=new Blob(['\ufeff'+header+'\n'+ex1+'\n'+ex2+'\n'+ex3],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='prospects_template.csv';a.click();
-  URL.revokeObjectURL(url);
-  toast('Modèle téléchargé ✓','s');
+  const a=document.createElement('a');a.href=url;a.download='prospects_novalem.csv';a.click();
+  URL.revokeObjectURL(url);toast('Modèle téléchargé ✓','s');
 }
+
+
 function importCandCsv(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const lines=ev.target.result.trim().split('\n').filter(l=>l.trim());let n=0;lines.forEach(l=>{const cols=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));if(!cols[0])return;const c={id:uid(),name:cols[0],role:cols[1]||'',phone:cols[2]||'',email:cols[3]||'',source:cols[4]||'Import CSV',cat:'go',status:'entrant',docs:[],pepite:false,created:now_(),updated:now_()};DB.candidates.unshift(c);n++;});save();rCands();badges();toast(`${n} entrant(s) importés → onglet À trier`,'s');};r.readAsText(f,'UTF-8');}
 function importCandCSV(){
   // Programmatically trigger a hidden file input
