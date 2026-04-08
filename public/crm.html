@@ -689,7 +689,7 @@ function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`h
 // STATE
 // ═══════════════════════════════════════════════════════
 let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[],invoices:[],email_rules:[]};
-let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'trier',agView:'week',agDate:new Date().toISOString().split('T')[0],calWeekOffset:0};
+let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'trier',agView:'week',agDate:(()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})(),calWeekOffset:0};
 
 // ═══════════════════════════════════════════════════════
 // STORAGE — localStorage (cache) + Supabase (cloud sync)
@@ -2654,12 +2654,15 @@ function closeProPopup_direct(){
 // ── Actions individuelles ─────────────────────────────
 function proActNRP(coId){
   const c=coById(coId);if(!c)return;
-  c.status='nrp';
-  const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);tomorrow.setHours(0,0,0,0);
-  c.next_call_date=tomorrow.toISOString();c.updated=now_();
-  addTimeline(coId,'nrp','NRP — pas de réponse');
-  save();closeProPopup_direct();rPros();badges();
-  toast(`NRP — ${c.name} remis demain`,'w');
+  openMo('🚧 Personne au bout du fil ?',`
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:48px;margin-bottom:8px">🏗️</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;margin-bottom:6px">${esc(c.name)} n'a pas répondu</div>
+      <div style="font-size:11px;color:var(--mu);line-height:1.6">La grue tourne mais personne au bureau ? 📵<br>Ce prospect sera remis en tête de liste demain matin.</div>
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Attendre encore</button>
+     <button class="btn bd_" onclick="(()=>{const c=coById('${coId}');if(c){c.status='nrp';const t=new Date();t.setDate(t.getDate()+1);t.setHours(0,0,0,0);c.next_call_date=t.toISOString();c.updated=now_();addTimeline('${coId}','nrp','NRP — pas de réponse');save();closeProPopup_direct();closeMo();rPros();badges();toast('NRP — '+c.name+' remis demain','w');}})()">📵 Confirmer NRP</button>`
+  );
 }
 
 function proActCallback(coId){
@@ -2692,12 +2695,15 @@ function confirmCallback(coId){
 
 function proActNobiz(coId){
   const c=coById(coId);if(!c)return;
-  c.status='nobiz';
-  const remind=new Date();remind.setMonth(remind.getMonth()+2);
-  c.nobiz_remind=remind.toISOString();c.nobiz_date=now_();c.updated=now_();
-  addTimeline(coId,'nobiz','Pas de besoin actuellement',`Rappel : ${fD(c.nobiz_remind)}`);
-  save();closeProPopup_direct();rPros();badges();
-  toast(`${c.name} — pas de besoin · Rappel dans 2 mois`,'s');
+  openMo('🧱 Chantiers complets ?',`
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:48px;margin-bottom:8px">🙅</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;margin-bottom:6px">${esc(c.name)} — pas de besoin</div>
+      <div style="font-size:11px;color:var(--mu);line-height:1.6">Ils ont les équipes qu'il faut pour l'instant.<br>Un rappel automatique sera créé dans <strong>2 mois</strong>.</div>
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bp" onclick="(()=>{const c=coById('${coId}');if(c){c.status='nobiz';const r=new Date();r.setMonth(r.getMonth()+2);c.nobiz_remind=r.toISOString();c.nobiz_date=now_();c.updated=now_();addTimeline('${coId}','nobiz','Pas de besoin actuellement','Rappel : '+fD(c.nobiz_remind));save();closeProPopup_direct();closeMo();rPros();badges();toast(c.name+' — pas de besoin · Rappel dans 2 mois','s');}})()">✅ Confirmer</button>`
+  );
 }
 
 function proActRefused(coId){
@@ -2717,7 +2723,11 @@ function saveBesoinInline(coId){
 
   if(!title){toast('Poste recherché requis','e');document.getElementById('bb-title')?.focus();return;}
   if(!contact){toast('Nom du contact requis','e');document.getElementById('bb-contact')?.focus();return;}
-  if(!email&&!nomail){toast('Email requis — ou cochez "ne souhaite pas donner son email"','e');document.getElementById('bb-email')?.focus();return;}
+  // Email recommandé mais pas bloquant si case cochée ou champ vide (juste un avertissement)
+  if(!email&&!nomail&&!contact){
+    // si vraiment rien → on continue quand même mais on avertit
+    toast('💡 Pensez à noter le contact et l\'email pour la fiche client','i');
+  }
 
   const c=coById(coId);if(!c)return;
   // Update contact info
@@ -2875,41 +2885,66 @@ function rClients(){
 const AG_HOURS=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
 const AG_HALF_HOURS=['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00'];
 
+
+// ═══════════════════════════════════════════════════════
+// AGENDA — complet, timezone-safe, UX moderne
+// ═══════════════════════════════════════════════════════
+
+// Helper timezone-safe: toujours date locale, jamais UTC
+const localDateStr=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const todayLocal=()=>localDateStr(new Date());
+
+// Noms jours/mois en français
+const FR_DAYS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const FR_DAYS_SHORT=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const FR_MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const FR_MONTHS_SHORT=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+// Formater une date lisiblement
+function fmtDateHuman(dateStr){
+  if(!dateStr)return'—';
+  const d=new Date(dateStr+'T12:00:00'); // midi = sans risque TZ
+  const today=todayLocal();
+  const tomorrow=localDateStr(new Date(Date.now()+86400000));
+  if(dateStr===today)return"Aujourd'hui";
+  if(dateStr===tomorrow)return'Demain';
+  const diff=Math.round((new Date(dateStr+'T12:00:00')-new Date(today+'T12:00:00'))/86400000);
+  if(diff===-1)return'Hier';
+  if(diff>0&&diff<7)return`${FR_DAYS[d.getDay()]} ${d.getDate()} ${FR_MONTHS_SHORT[d.getMonth()]}`;
+  return`${FR_DAYS_SHORT[d.getDay()]} ${d.getDate()} ${FR_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+const AG_HOURS_FULL=['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00'];
+
 function rAgenda(){
   if(!UI.agView)UI.agView='week';
-  if(!UI.agDate)UI.agDate=new Date().toISOString().split('T')[0];
+  if(!UI.agDate)UI.agDate=todayLocal();
   const vt=UI.agView;
   const showDone=(document.getElementById('ag-show-done')||{}).checked||false;
-  const d=new Date(UI.agDate);
-  const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-  const todayStr=new Date().toISOString().split('T')[0];
+  const d=new Date(UI.agDate+'T12:00:00');
+  const today=todayLocal();
+
   let label='';
   if(vt==='day'){
-    const diff=Math.round((new Date(UI.agDate)-new Date(todayStr))/86400000);
-    const dn=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-    label=diff===0?`📌 Aujourd'hui — ${d.getDate()} ${MONTHS[d.getMonth()]}`:diff===1?`Demain — ${d.getDate()} ${MONTHS[d.getMonth()]}`:diff===-1?`Hier — ${d.getDate()} ${MONTHS[d.getMonth()]}`:dn[d.getDay()]+` ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    label=fmtDateHuman(UI.agDate);
   } else if(vt==='week'){
     const mon=getMonday(d);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
-    label=`${mon.getDate()} ${MONTHS[mon.getMonth()]} — ${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
+    label=`${mon.getDate()} ${FR_MONTHS_SHORT[mon.getMonth()]} — ${sun.getDate()} ${FR_MONTHS_SHORT[sun.getMonth()]} ${sun.getFullYear()}`;
   } else {
-    label=`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    label=`${FR_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   }
 
   document.getElementById('view-agenda').innerHTML=`
-    <!-- Toolbar -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <!-- Vue tabs -->
       <div style="display:flex;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:3px;gap:2px">
         ${['day','week','month'].map(v=>`<div onclick="setAgView('${v}')" style="padding:5px 14px;border-radius:2px;font-size:11px;cursor:pointer;user-select:none;transition:.12s;${vt===v?'background:var(--s1);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.3)':'color:var(--mu)'}">${{day:'Jour',week:'Semaine',month:'Mois'}[v]}</div>`).join('')}
       </div>
-      <!-- Nav -->
       <div style="display:flex;align-items:center;gap:6px">
         <div onclick="agNav(-1)" style="cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd2);border-radius:3px;font-size:14px;color:var(--mu);background:var(--s2);transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">‹</div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;min-width:180px;text-align:center">${label}</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;min-width:200px;text-align:center">${label}</div>
         <div onclick="agNav(1)" style="cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd2);border-radius:3px;font-size:14px;color:var(--mu);background:var(--s2);transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">›</div>
-        ${UI.agDate!==todayStr?`<button class="btn bg bxs" onclick="agGoToday()" style="font-size:10px">Aujourd'hui</button>`:''}
+        ${UI.agDate!==today?`<button class="btn bg bxs" onclick="agGoToday()" style="font-size:10px">Aujourd'hui</button>`:''}
       </div>
-      <!-- Done toggle -->
       <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mu);cursor:pointer;margin-left:auto">
         <input type="checkbox" id="ag-show-done" onchange="rAgenda()" style="width:11px;accent-color:var(--ac)"> Terminés
       </label>
@@ -2917,116 +2952,154 @@ function rAgenda(){
     <div id="ag-body"></div>`;
 
   const body=document.getElementById('ag-body');
-  if(vt==='day') renderAgDay(body, UI.agDate, showDone);
-  else if(vt==='week') renderAgWeek(body, UI.agDate, showDone);
-  else renderAgMonth(body, UI.agDate, showDone);
+  if(vt==='day') renderAgDay(body,UI.agDate,showDone);
+  else if(vt==='week') renderAgWeek(body,UI.agDate,showDone);
+  else renderAgMonth(body,UI.agDate,showDone);
 }
 
 function setAgView(v){UI.agView=v;rAgenda();}
 function agNav(dir){
-  const d=new Date(UI.agDate);
+  const d=new Date(UI.agDate+'T12:00:00');
   if(UI.agView==='day') d.setDate(d.getDate()+dir);
   else if(UI.agView==='week') d.setDate(d.getDate()+(7*dir));
   else d.setMonth(d.getMonth()+dir);
-  UI.agDate=d.toISOString().split('T')[0];rAgenda();
+  UI.agDate=localDateStr(d);rAgenda();
 }
-function agGoToday(){UI.agDate=new Date().toISOString().split('T')[0];rAgenda();}
-function getMonday(d){const day=d.getDay(),diff=d.getDate()-(day===0?6:day-1);const m=new Date(d);m.setDate(diff);return m;}
+function agGoToday(){UI.agDate=todayLocal();rAgenda();}
+function getMonday(d){
+  const day=d.getDay(),diff=d.getDate()-(day===0?6:day-1);
+  const m=new Date(d);m.setDate(diff);return m;
+}
 
 // ── DAY VIEW ──────────────────────────────────────────
-function renderAgDay(el, dateStr, showDone){
+function renderAgDay(el,dateStr,showDone){
+  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
+  const today=todayLocal();
+  const isToday=dateStr===today;
+  const nowH=new Date().getHours();
+
   const items=DB.agenda.filter(a=>{
     if(!showDone&&a.done)return false;
     if(!a.date)return false;
-    return new Date(a.date).toDateString()===new Date(dateStr).toDateString();
+    return a.date===dateStr||new Date(a.date+'T12:00:00').toDateString()===new Date(dateStr+'T12:00:00').toDateString();
   });
   const noTime=items.filter(a=>!a.time);
   const withTime=items.filter(a=>a.time);
-  const nowH=new Date().getHours();
-  const isToday=dateStr===new Date().toISOString().split('T')[0];
-  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
 
   let html='';
   if(noTime.length){
-    html+=`<div style="margin-bottom:10px;display:flex;gap:5px;flex-wrap:wrap">${noTime.map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="day-evt ${a.type} ${a.done?'done':''}" style="flex:1;min-width:140px" onclick="openAgPanel('${a.id}')">${t.ico} <span class="day-evt-t">${esc(a.title)}</span></div>`;}).join('')}</div>`;
+    html+=`<div style="margin-bottom:10px;display:flex;gap:5px;flex-wrap:wrap">${noTime.map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return agDayEvt(a,t);}).join('')}</div>`;
   }
 
-  html+=`<div class="day-grid" style="height:calc(100vh - 180px);overflow-y:auto">`;
+  html+=`<div class="day-grid" style="height:calc(100vh - 200px);overflow-y:auto">`;
   HOURS.forEach(h=>{
     const hNum=parseInt(h);
     const isNow=isToday&&hNum===nowH;
     const evts=withTime.filter(a=>a.time&&parseInt(a.time)===hNum);
-    html+=`<div class="day-time" style="${isNow?'color:var(--ac5);font-weight:700':''}">${h}:00</div>
-    <div class="day-col ${isNow?'now-hour':''}" onclick="openAgForm(null,null,null,'${dateStr}','${h}:00')" style="cursor:pointer;min-height:42px" title="Ajouter un événement à ${h}h">
-      ${evts.map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];const ca=a.cand_id?cById(a.cand_id):null;
-        return`<div class="day-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">
-          <span>${t.ico}</span>
-          <div style="flex:1"><div class="day-evt-t">${esc(a.title)}</div>${ca?`<div style="font-size:9px;color:var(--mu)">${esc(ca.name)}</div>`:''}</div>
-          <div class="day-evt-time">${a.time}</div>
-          <div class="ai-chk ${a.done?'done':''}" onclick="event.stopPropagation();togAgDone('${a.id}')" style="margin-top:0">${a.done?'✓':''}</div>
-        </div>`;}).join('')}
+    html+=`
+    <div class="day-time" style="${isNow?'color:var(--ac5);font-weight:700':''};position:relative">
+      ${h}:00
+      ${isNow?`<div style="position:absolute;right:0;top:50%;width:6px;height:6px;background:var(--ac5);border-radius:50%;transform:translateY(-50%)"></div>`:''}
+    </div>
+    <div class="day-col ${isNow?'now-hour':''}" 
+         onclick="openAgForm(null,null,null,'${dateStr}','${h}:00')" 
+         style="cursor:pointer;min-height:44px;transition:.1s" 
+         onmouseover="if(!event.target.closest('.day-evt'))this.style.background='rgba(207,224,70,.04)'" 
+         onmouseout="this.style.background=''">
+      ${evts.map(a=>agDayEvt(a,AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2])).join('')}
     </div>`;
   });
   html+=`</div>`;
 
   if(!items.length){
-    el.innerHTML=`<div class="day-empty">Aucun événement — cliquez sur une heure pour en ajouter<br><button class="btn bp bxs mt8" onclick="openAgForm(null,null,null,'${dateStr}')">+ Ajouter</button></div>`;
+    el.innerHTML=`<div class="day-empty" style="padding:50px 20px;text-align:center;color:var(--mu2)">
+      <div style="font-size:36px;margin-bottom:12px">📅</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:6px">Aucun événement — ${fmtDateHuman(dateStr)}</div>
+      <div style="font-size:11px;margin-bottom:14px">Cliquez sur une plage horaire pour ajouter un événement</div>
+      <button class="btn bp bsm" onclick="openAgForm(null,null,null,'${dateStr}')">+ Ajouter un événement</button>
+    </div>`;
     return;
   }
   el.innerHTML=html;
 }
 
-// ── WEEK VIEW ─────────────────────────────────────────
-function renderAgWeek(el, dateStr, showDone){
-  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
-  const mon=getMonday(new Date(dateStr));
-  const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return d;});
-  const DAYNAMES=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-  const todayStr=new Date().toDateString();
-  const nowH=new Date().getHours();
+function agDayEvt(a,t){
+  const ca=a.cand_id?cById(a.cand_id):null;
+  return`<div class="day-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')" style="transition:.15s">
+    <span>${t.ico}</span>
+    <div style="flex:1;min-width:0">
+      <div class="day-evt-t">${esc(a.title)}</div>
+      ${ca?`<div style="font-size:9px;color:var(--mu)">${esc(ca.name)}</div>`:''}
+    </div>
+    ${a.time?`<div class="day-evt-time">${a.time}</div>`:''}
+    <div class="ai-chk ${a.done?'done':''}" 
+         onclick="event.stopPropagation();animToggleDone('${a.id}',this)" 
+         title="${a.done?'Remettre en attente':'Marquer terminé'}"
+         style="transition:.2s;flex-shrink:0;margin-top:0">
+      ${a.done?'✓':''}
+    </div>
+  </div>`;
+}
 
-  let html=`<div style="overflow:auto;height:calc(100vh - 160px)">
+// ── WEEK VIEW ─────────────────────────────────────────
+function renderAgWeek(el,dateStr,showDone){
+  const HOURS=['07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
+  const mon=getMonday(new Date(dateStr+'T12:00:00'));
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return d;});
+  const today=todayLocal();
+  const nowH=new Date().getHours();
+  const DAYNAMES=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+  let html=`<div style="overflow:auto;height:calc(100vh - 165px)">
   <div class="wk-grid" style="grid-template-columns:44px repeat(7,1fr);min-width:600px">`;
-  // Header row
+
+  // Header
   html+=`<div class="wk-hd" style="background:var(--s1);border-right:1px solid var(--bd)"></div>`;
   days.forEach((d,i)=>{
-    const isToday=d.toDateString()===todayStr;
-    const ds=d.toISOString().split('T')[0];
+    const ds=localDateStr(d); // ← TIMEZONE FIX
+    const isToday=ds===today;
     html+=`<div class="wk-hd ${isToday?'today-col':''}" onclick="UI.agDate='${ds}';setAgView('day')" style="cursor:pointer;padding:7px 2px;text-align:center">
       <div style="font-size:10px;color:${isToday?'var(--ac5)':'var(--mu)'}">${DAYNAMES[i]}</div>
-      <div style="font-size:${isToday?'16':'14'}px;font-weight:800;color:${isToday?'var(--ac5)':'inherit'}">${d.getDate()}</div>
+      <div style="width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:${isToday?'14':'13'}px;font-weight:800;${isToday?'background:var(--ac5);color:#000':'color:inherit'}">${d.getDate()}</div>
     </div>`;
   });
-  // Hour rows
+
+  // Hours
   HOURS.forEach(h=>{
     const hNum=parseInt(h);
-    html+=`<div class="wk-time" style="border-top:1px solid var(--bd);padding-top:4px">${h}</div>`;
+    html+=`<div class="wk-time" style="border-top:1px solid var(--bd);padding-top:4px;font-size:9px">${h}</div>`;
     days.forEach((d,di)=>{
-      const isToday=d.toDateString()===todayStr;
+      const ds=localDateStr(d); // ← TIMEZONE FIX
+      const isToday=ds===today;
       const isNow=isToday&&hNum===nowH;
-      const ds=d.toISOString().split('T')[0];
       const evts=DB.agenda.filter(a=>{
         if(!showDone&&a.done)return false;
         if(!a.date||!a.time)return false;
-        return new Date(a.date).toDateString()===d.toDateString()&&a.time.startsWith(h);
+        return a.date===ds&&a.time.startsWith(h);
       });
-      html+=`<div class="wk-cell ${isToday?'today-col':''} ${isNow?'now-hour':''}" onclick="openAgForm(null,null,null,'${ds}','${h}:00')" style="cursor:pointer;min-height:42px" title="${h}h — ${DAYNAMES[di]} ${d.getDate()}">
-        ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')" title="${esc(a.title)}">${AG_TYPES.find(t=>t.id===a.type)?.ico||'✅'} ${esc(a.title.length>18?a.title.slice(0,16)+'…':a.title)}</div>`).join('')}
+      html+=`<div class="wk-cell ${isToday?'today-col':''} ${isNow?'now-hour':''}" 
+             onclick="openAgForm(null,null,null,'${ds}','${h}:00')" 
+             style="cursor:pointer;min-height:44px" 
+             title="${h}h — ${DAYNAMES[di]} ${d.getDate()}">
+        ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" 
+          onclick="event.stopPropagation();openAgPanel('${a.id}')" 
+          title="${esc(a.title)}">${AG_TYPES.find(t=>t.id===a.type)?.ico||'✅'} ${esc(a.title.length>16?a.title.slice(0,14)+'…':a.title)}</div>`).join('')}
       </div>`;
     });
   });
-  // All-day items
+
+  // All-day
   const allDay=DB.agenda.filter(a=>{
     if(!showDone&&a.done)return false;
-    return a.date&&!a.time&&days.some(d=>new Date(a.date).toDateString()===d.toDateString());
+    return a.date&&!a.time&&days.some(d=>localDateStr(d)===a.date);
   });
   if(allDay.length){
     html+=`<div class="wk-time" style="font-size:9px;color:var(--ac4);border-top:1px solid var(--bd)">All-day</div>`;
     days.forEach(d=>{
-      const evts=allDay.filter(a=>new Date(a.date).toDateString()===d.toDateString());
-      const ds=d.toISOString().split('T')[0];
+      const ds=localDateStr(d);
+      const evts=allDay.filter(a=>a.date===ds);
       html+=`<div class="wk-cell" onclick="openAgForm(null,null,null,'${ds}')" style="cursor:pointer">
-        ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${esc(a.title)}</div>`).join('')}
+        ${evts.map(a=>`<div class="wk-evt ${a.type}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${esc(a.title)}</div>`).join('')}
       </div>`;
     });
   }
@@ -3035,41 +3108,42 @@ function renderAgWeek(el, dateStr, showDone){
 }
 
 // ── MONTH VIEW ────────────────────────────────────────
-function renderAgMonth(el, dateStr, showDone){
-  const d=new Date(dateStr);
+function renderAgMonth(el,dateStr,showDone){
+  const d=new Date(dateStr+'T12:00:00');
   const y=d.getFullYear(),m=d.getMonth();
   const first=new Date(y,m,1);const last=new Date(y,m+1,0);
   let startDow=first.getDay();if(startDow===0)startDow=7;startDow--;
-  const todayStr=new Date().toDateString();
+  const today=todayLocal();
   const DAYNAMES=['L','M','M','J','V','S','D'];
   const EVT_COLORS={call:'var(--ac4)',visio:'var(--ac5)',task:'var(--ac2)',relance:'var(--ac6)'};
 
   let html=`<div class="mo-grid">`;
   DAYNAMES.forEach(dn=>html+=`<div class="mo-dh">${dn}</div>`);
   for(let i=0;i<startDow;i++){
-    const pd=new Date(y,m,-(startDow-1-i));
+    const pd=new Date(y,m,1-(startDow-i));
     html+=`<div class="mo-day other-month"><div class="mo-dn"><span class="dn-num">${pd.getDate()}</span></div></div>`;
   }
   for(let day=1;day<=last.getDate();day++){
     const cur=new Date(y,m,day);
-    const curStr=cur.toISOString().split('T')[0];
-    const isToday=cur.toDateString()===todayStr;
-    const isPast=cur<new Date(new Date().setHours(0,0,0,0));
+    const curStr=localDateStr(cur); // ← TIMEZONE FIX
+    const isToday=curStr===today;
+    const isPast=cur<new Date(today+'T12:00:00');
     const evts=DB.agenda.filter(a=>{
       if(!showDone&&a.done)return false;
-      if(!a.date)return false;
-      return new Date(a.date).toDateString()===cur.toDateString();
+      return a.date===curStr;
     }).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     const maxShow=3;
-    html+=`<div class="mo-day ${isToday?'today':''} ${isPast&&!isToday?'past':''}" onclick="UI.agDate='${curStr}';setAgView('day')" style="cursor:pointer">
-      <div class="mo-dn"><span class="dn-num">${day}</span>
+    html+=`<div class="mo-day ${isToday?'today':''} ${isPast&&!isToday?'past':''}" 
+           onclick="UI.agDate='${curStr}';setAgView('day')" style="cursor:pointer">
+      <div class="mo-dn">
+        <span class="dn-num">${day}</span>
         ${evts.length?`<span style="font-size:8px;color:var(--mu2);margin-left:3px">${evts.length}</span>`:''}
       </div>
-      ${evts.slice(0,maxShow).map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="mo-evt" style="background:var(--s3);color:${EVT_COLORS[a.type]||'var(--mu)'};${a.done?'opacity:.45;text-decoration:line-through':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${t.ico} ${esc(a.title)}</div>`;}).join('')}
-      ${evts.length>maxShow?`<div class="mo-more">+${evts.length-maxShow} autres</div>`:''}
+      ${evts.slice(0,maxShow).map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="mo-evt" style="background:var(--s3);color:${EVT_COLORS[a.type]||'var(--mu)'};${a.done?'opacity:.4;text-decoration:line-through':''}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${t.ico} ${esc(a.title)}</div>`;}).join('')}
+      ${evts.length>maxShow?`<div class="mo-more">+${evts.length-maxShow}</div>`:''}
     </div>`;
   }
-  const endDow=(last.getDay()===0?7:last.getDay());
+  const endDow=last.getDay()===0?7:last.getDay();
   for(let i=1;i<=7-endDow;i++){
     html+=`<div class="mo-day other-month"><div class="mo-dn"><span class="dn-num">${i}</span></div></div>`;
   }
@@ -3078,70 +3152,134 @@ function renderAgMonth(el, dateStr, showDone){
 }
 
 // ── ITEM HTML (compat) ────────────────────────────────
-function agItemHtml(a, mode){
+function agItemHtml(a,mode){
   const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];
   const ca=a.cand_id?cById(a.cand_id):null;const co=a.comp_id?coById(a.comp_id):null;
   const sub=[ca?ca.name:'',co?co.name:''].filter(Boolean).join(' · ');
   return`<div class="ai ${a.done?'done':''}" onclick="openAgPanel('${a.id}')">
     <span style="font-size:12px;flex-shrink:0;margin-top:1px">${t.ico}</span>
-    <div class="ai-chk" onclick="event.stopPropagation();togAgDone('${a.id}')">${a.done?'✓':''}</div>
+    <div class="ai-chk ${a.done?'done':''}" onclick="event.stopPropagation();animToggleDone('${a.id}',this)">${a.done?'✓':''}</div>
     <div class="ai-body"><div class="ai-t">${esc(a.title)}</div>${sub?`<div class="ai-sub">${esc(sub)}</div>`:''}</div>
     <div class="ai-time">${a.time||''}</div>
   </div>`;
 }
 
-function togAgDone(id){const a=agById(id);if(!a)return;a.done=!a.done;save();rAgenda();badges();toast(a.done?'Terminé ✓':'Remis en attente','s');}
+// Terminé avec animation
+function animToggleDone(id, btn){
+  const a=agById(id);if(!a)return;
+  if(btn){
+    btn.style.transform='scale(1.4)';
+    btn.style.background=a.done?'var(--bd2)':'var(--ac2)';
+    setTimeout(()=>{btn.style.transform='scale(1)';},200);
+  }
+  a.done=!a.done;save();
+  setTimeout(()=>{rAgenda();badges();},220);
+  toast(a.done?'✅ Terminé !':'↩ Remis en attente','s');
+}
+function togAgDone(id){animToggleDone(id,null);}
 
-// ── FORM ÉVÉNEMENT — moderne avec time dropdown ───────
+// ═══════════════════════════════════════════════════════
+// FORM ÉVÉNEMENT — UX moderne
+// date: navigation ←→ + raccourcis | heure: select large
+// ═══════════════════════════════════════════════════════
+
+let _agFormDate=''; // date courante dans le form
+
 function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
   const a=id?agById(id):{};if(!a)return;
+  const today=todayLocal();
+  _agFormDate=a.date||(preDate||today);
+
   const typeOpts=AG_TYPES.map(t=>`<option value="${t.id}" ${(a.type||'task')===t.id?'selected':''}>${t.ico} ${t.l}</option>`).join('');
   const candOpts=`<option value="">— Aucun —</option>`+DB.candidates.map(c=>`<option value="${c.id}" ${(a.cand_id||candId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
   const coOpts=`<option value="">— Aucun —</option>`+DB.companies.map(c=>`<option value="${c.id}" ${(a.comp_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
-  const today=new Date().toISOString().split('T')[0];
-  const initDate=a.date?new Date(a.date).toISOString().split('T')[0]:(preDate||today);
   const initTime=a.time||(preTime||'');
+  const timeOpts=`<option value="">— Pas d'heure —</option>`+AG_HOURS_FULL.map(t=>`<option value="${t}" ${initTime===t?'selected':''}>${t}</option>`).join('');
 
-  // Time dropdown options — every 30min
-  const timeOpts=`<option value="">— Pas d'heure —</option>`+
-    AG_HALF_HOURS.map(t=>`<option value="${t}" ${initTime===t?'selected':''}>${t}</option>`).join('');
+  openMo(id?'✏️ Modifier événement':'📅 Nouvel événement',`
+    <!-- Titre + type -->
+    <div class="fgrp" style="margin-bottom:10px">
+      <span class="lbl">Titre *</span>
+      <input id="af-t" value="${esc(a.title||'')}" placeholder="Précal Thomas · Relance SARL Martin · Entretien visio…" autofocus style="font-size:13px;padding:9px 10px">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="fgrp" style="margin:0"><span class="lbl">Type</span><select id="af-type">${typeOpts}</select></div>
+      <div class="fgrp" style="margin:0"><span class="lbl">Statut</span><select id="af-done"><option value="0" ${!a.done?'selected':''}>⏳ En cours</option><option value="1" ${a.done?'selected':''}>✅ Terminé</option></select></div>
+    </div>
 
-  openMo(id?'Modifier événement':'Nouvel événement',`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="fgrp" style="grid-column:1/-1"><span class="lbl">Titre *</span><input id="af-t" value="${esc(a.title||'')}" placeholder="Précal Thomas / Relance SARL Martin…" autofocus></div>
-      <div class="fgrp"><span class="lbl">Type</span><select id="af-type">${typeOpts}</select></div>
-      <div class="fgrp"><span class="lbl">Statut</span><select id="af-done"><option value="0" ${!a.done?'selected':''}>⏳ En cours</option><option value="1" ${a.done?'selected':''}>✅ Terminé</option></select></div>
-      <div class="fgrp"><span class="lbl">Date</span><input id="af-d" type="date" value="${initDate}"></div>
-      <div class="fgrp"><span class="lbl">Heure</span>
-        <select id="af-h" style="font-family:'DM Mono',monospace">${timeOpts}</select>
+    <!-- Date — navigation intuitive -->
+    <div style="margin-bottom:12px">
+      <span class="lbl">📅 Date</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+        <button type="button" onclick="agFormDateNav(-1)" style="width:30px;height:36px;background:var(--s3);border:1px solid var(--bd2);border-radius:3px;cursor:pointer;color:var(--mu);font-size:14px;display:flex;align-items:center;justify-content:center;transition:.1s" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--mu)'">‹</button>
+        <div id="af-date-display" style="flex:1;text-align:center;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:8px 12px;background:var(--s3);border:1px solid var(--bd2);border-radius:3px;cursor:default">${fmtDateHuman(_agFormDate)}</div>
+        <button type="button" onclick="agFormDateNav(1)" style="width:30px;height:36px;background:var(--s3);border:1px solid var(--bd2);border-radius:3px;cursor:pointer;color:var(--mu);font-size:14px;display:flex;align-items:center;justify-content:center;transition:.1s" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--mu)'">›</button>
       </div>
-      <div class="fgrp"><span class="lbl">Candidat lié</span><select id="af-ca">${candOpts}</select></div>
-      <div class="fgrp"><span class="lbl">Entreprise liée</span><select id="af-co">${coOpts}</select></div>
-      <div class="fgrp" style="grid-column:1/-1"><span class="lbl">Notes</span><textarea id="af-notes" style="min-height:60px">${esc(a.notes||'')}</textarea></div>
-    </div>`,
-    `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer</button>`
+      <!-- Raccourcis rapides -->
+      <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+        ${[["Aujourd'hui",todayLocal()],['Demain',localDateStr(new Date(Date.now()+86400000))],['+2j',localDateStr(new Date(Date.now()+2*86400000))],['+1 sem',localDateStr(new Date(Date.now()+7*86400000))]].map(([l,v])=>`<button type="button" onclick="agFormSetDate('${v}')" style="padding:3px 9px;font-size:10px;background:var(--s3);border:1px solid var(--bd2);border-radius:2px;cursor:pointer;color:var(--mu);font-family:'DM Mono',monospace;transition:.1s" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--mu)'">${l}</button>`).join('')}
+      </div>
+      <input type="hidden" id="af-d" value="${_agFormDate}">
+    </div>
+
+    <!-- Heure — select large et lisible -->
+    <div style="margin-bottom:12px">
+      <span class="lbl">🕐 Heure</span>
+      <select id="af-h" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;padding:9px 12px;margin-top:4px;letter-spacing:.04em">${timeOpts}</select>
+    </div>
+
+    <!-- Liens -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="fgrp" style="margin:0"><span class="lbl">Candidat lié</span><select id="af-ca">${candOpts}</select></div>
+      <div class="fgrp" style="margin:0"><span class="lbl">Entreprise liée</span><select id="af-co">${coOpts}</select></div>
+    </div>
+    <div class="fgrp"><span class="lbl">Notes</span><textarea id="af-notes" style="min-height:55px">${esc(a.notes||'')}</textarea></div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}');closeMo()">🗑</button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer ✓</button>`
   );
+}
+
+function agFormDateNav(dir){
+  const d=new Date(_agFormDate+'T12:00:00');
+  d.setDate(d.getDate()+dir);
+  agFormSetDate(localDateStr(d));
+}
+
+function agFormSetDate(dateStr){
+  _agFormDate=dateStr;
+  const inp=document.getElementById('af-d');
+  if(inp)inp.value=dateStr;
+  const disp=document.getElementById('af-date-display');
+  if(disp){
+    disp.textContent=fmtDateHuman(dateStr);
+    disp.style.transform='scale(1.04)';
+    setTimeout(()=>{if(disp)disp.style.transform='scale(1)';},150);
+  }
 }
 
 function saveAgForm(id){
   const t=document.getElementById('af-t')?.value.trim();
-  if(!t){toast('Titre requis','e');return;}
+  if(!t){toast('Titre requis','e');document.getElementById('af-t')?.focus();return;}
   const n=now_();
-  const newDate=document.getElementById('af-d')?.value;
-  const newTime=document.getElementById('af-h')?.value;
+  const newDate=document.getElementById('af-d')?.value||_agFormDate;
+  const newTime=document.getElementById('af-h')?.value||null;
   const isDone=document.getElementById('af-done')?.value==='1';
-  const data={title:t,type:document.getElementById('af-type')?.value||'task',date:newDate,time:newTime||null,cand_id:document.getElementById('af-ca')?.value||null,comp_id:document.getElementById('af-co')?.value||null,notes:document.getElementById('af-notes')?.value||'',done:isDone,updated:n};
-  if(id){
-    const a=agById(id);if(!a)return;
-    Object.assign(a,data);
-  } else {
-    data.id=uid();data.created=n;DB.agenda.unshift(data);
-  }
+  const data={
+    title:t,
+    type:document.getElementById('af-type')?.value||'task',
+    date:newDate,
+    time:newTime||null,
+    cand_id:document.getElementById('af-ca')?.value||null,
+    comp_id:document.getElementById('af-co')?.value||null,
+    notes:document.getElementById('af-notes')?.value||'',
+    done:isDone,
+    updated:n
+  };
+  if(id){const a=agById(id);if(!a)return;Object.assign(a,data);}
+  else{data.id=uid();data.created=n;DB.agenda.unshift(data);}
   save();closeMo();
-  // Navigate to the event's date after save
-  if(newDate){UI.agDate=newDate;}
+  if(newDate)UI.agDate=newDate;
   rAgenda();badges();
-  toast(id?'Événement mis à jour ✓':'Événement ajouté ✓','s');
+  toast(id?'✅ Événement mis à jour':'📅 Événement ajouté','s');
 }
 
 
@@ -3561,35 +3699,6 @@ function saveNeedForm(id,dco){
 }
 
 // ── AGENDA FORM ──────────────────────────────────────────
-function openAgForm(id=null,candId=null,coId=null){
-  const a=id?agById(id):{};if(!a)return;
-  const typeOpts=AG_TYPES.map(t=>`<option value="${t.id}" ${(a.type||'task')===t.id?'selected':''}>${t.ico} ${t.l}</option>`).join('');
-  const candOpts=`<option value="">— Aucun —</option>`+DB.candidates.map(c=>`<option value="${c.id}" ${(a.cand_id||candId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
-  const coOpts=`<option value="">— Aucun —</option>`+DB.companies.map(c=>`<option value="${c.id}" ${(a.comp_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
-  const today=new Date().toISOString().split('T')[0];
-  openMo(id?'Modifier événement':'Nouvel événement',`
-    <div class="fg">
-      <div class="fgrp ff"><span class="lbl">Titre *</span><input id="af-t" value="${esc(a.title||'')}" placeholder="Précal Thomas / Relance SARL Martin…"></div>
-      <div class="fgrp"><span class="lbl">Type</span><select id="af-type">${typeOpts}</select></div>
-      <div class="fgrp"><span class="lbl">Date</span><input id="af-d" type="date" value="${a.date?new Date(a.date).toISOString().split('T')[0]:today}"></div>
-      <div class="fgrp"><span class="lbl">Heure</span><input id="af-h" type="time" value="${a.time||''}"></div>
-      <div class="fgrp"><span class="lbl">Candidat lié</span><select id="af-ca">${candOpts}</select></div>
-      <div class="fgrp"><span class="lbl">Entreprise liée</span><select id="af-co">${coOpts}</select></div>
-      <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="af-notes">${esc(a.notes||'')}</textarea></div>
-    </div>`,
-    `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer</button>`
-  );
-}
-function saveAgForm(id){
-  const t=document.getElementById('af-t').value.trim();
-  if(!t){toast('Titre requis','e');return;}
-  const n=now_();
-  const data={title:t,type:document.getElementById('af-type').value,date:document.getElementById('af-d').value,time:document.getElementById('af-h').value,cand_id:document.getElementById('af-ca').value||null,comp_id:document.getElementById('af-co').value||null,notes:document.getElementById('af-notes').value,done:false,updated:n};
-  if(id){const a=agById(id);Object.assign(a,data,{done:a.done});}
-  else{data.id=uid();data.created=n;DB.agenda.unshift(data);}
-  save();closeMo();rAgenda();badges();toast(id?'Mis à jour ✓':'Événement ajouté ✓','s');
-}
-
 // ── POST FORM ────────────────────────────────────────────
 function openPostForm(id=null){
   const p=id?DB.posts.find(x=>x.id===id):{};if(!p)return;
