@@ -3,55 +3,200 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Novalem — Connexion</title>
+<title>Novalem — Accès</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0b09;--s1:#111110;--s2:#171715;--bd:#282825;--bd2:#363630;--tx:#e3e3da;--mu:#707068;--mu2:#424240;--ac:#cee044;--ac2:#3ddf98;--ac3:#df4a4a;}
+:root{
+  --bg:#09090a;--s1:#111112;--s2:#18181a;--s3:#202022;
+  --bd:#2a2a2e;--bd2:#38383d;
+  --tx:#f0f0ec;--mu:#8c8c84;--mu2:#4a4a44;
+  --ac:#c8e040;--green:#2dd4a0;--red:#f04b4b;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
-.grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(206,224,68,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(206,224,68,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
-.glow{position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(61,223,152,.06) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
-.card{position:relative;z-index:1;width:100%;max-width:380px;padding:0 20px;}
-.logo{text-align:center;margin-bottom:40px;}
-.logo-t{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.5px;}
-.logo-t b{color:var(--ac)}
-.logo-s{font-size:11px;color:var(--mu2);letter-spacing:.2em;text-transform:uppercase;margin-top:4px;}
-.box{background:var(--s1);border:1px solid var(--bd2);border-radius:4px;padding:32px 28px;}
-.box-t{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:5px;}
-.box-s{font-size:11px;color:var(--mu);margin-bottom:28px;line-height:1.6;}
-.pin-display{display:flex;gap:8px;justify-content:center;margin-bottom:24px;}
-.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--bd2);background:transparent;transition:.15s;}
-.pin-dot.filled{background:var(--ac2);border-color:var(--ac2);}
-.pin-dot.error{background:var(--ac3);border-color:var(--ac3);animation:shake .3s ease;}
-.pin-dot.ok{background:var(--ac);border-color:var(--ac);}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.k{background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:14px;text-align:center;font-family:'Syne',sans-serif;font-weight:700;font-size:17px;cursor:pointer;transition:.12s;user-select:none;}
-.k:hover{background:#1e1e1b;border-color:var(--bd2);}
-.k:active{transform:scale(.95);}
-.k.del{font-size:14px;color:var(--mu);}
-.k.empty{background:transparent;border-color:transparent;cursor:default;}
-.msg{text-align:center;font-size:11px;margin-top:16px;height:16px;transition:.2s;}
-.msg.err{color:var(--ac3);}
-.msg.ok_{color:var(--ac2);}
-.footer{text-align:center;margin-top:24px;font-size:10px;color:var(--mu2);letter-spacing:.06em;}
-.loader{display:none;text-align:center;padding:20px 0;}
-.loader-ring{width:32px;height:32px;border:2px solid var(--bd2);border-top-color:var(--ac2);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
+html{font-size:13px;-webkit-font-smoothing:antialiased}
+body{
+  font-family:'DM Mono',monospace;
+  background:var(--bg);color:var(--tx);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+
+/* Background */
+.bg-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(200,224,64,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,224,64,.025) 1px, transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;
+}
+.bg-glow{
+  position:absolute;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle, rgba(45,212,160,.05) 0%, transparent 65%);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.bg-noise{
+  position:absolute;inset:0;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  pointer-events:none;
+}
+
+/* Card */
+.card{
+  position:relative;z-index:1;
+  width:100%;max-width:360px;
+  padding:0 20px;
+  animation:fadeUp .4s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Logo */
+.logo{text-align:center;margin-bottom:36px}
+.logo-mark{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:30px;letter-spacing:-.5px;color:var(--tx);
+}
+.logo-mark span{color:var(--ac)}
+.logo-sub{
+  font-size:10px;color:var(--mu2);
+  letter-spacing:.22em;text-transform:uppercase;margin-top:5px;
+}
+
+/* Box */
+.box{
+  background:var(--s1);
+  border:1px solid var(--bd2);
+  border-radius:12px;
+  padding:28px 24px 24px;
+  box-shadow:0 8px 40px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3);
+}
+
+/* User selector */
+.user-sel{
+  display:flex;gap:6px;margin-bottom:24px;
+}
+.user-btn{
+  flex:1;padding:10px 8px;
+  background:var(--s2);
+  border:1px solid var(--bd);
+  border-radius:8px;
+  cursor:pointer;text-align:center;
+  transition:all .18s;
+  user-select:none;
+}
+.user-btn:hover{background:var(--s3);border-color:var(--bd2);}
+.user-btn.active{
+  background:rgba(200,224,64,.07);
+  border-color:rgba(200,224,64,.3);
+}
+.user-btn-name{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:12px;margin-bottom:2px;
+}
+.user-btn.active .user-btn-name{color:var(--ac);}
+.user-btn-role{font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.1em}
+
+/* PIN display */
+.pin-row{
+  display:flex;gap:6px;justify-content:center;
+  margin-bottom:20px;
+}
+.pin-dot{
+  width:12px;height:12px;border-radius:50%;
+  border:1.5px solid var(--bd2);
+  background:transparent;
+  transition:all .15s;
+}
+.pin-dot.filled{background:var(--green);border-color:var(--green);transform:scale(1.1)}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .35s ease}
+.pin-dot.ok{background:var(--ac);border-color:var(--ac)}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  20%,60%{transform:translateX(-5px)}
+  40%,80%{transform:translateX(5px)}
+}
+
+/* Numpad */
+.numpad{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:6px;
+}
+.k{
+  background:var(--s2);
+  border:1px solid var(--bd);
+  border-radius:8px;
+  padding:14px 8px;
+  text-align:center;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:18px;
+  cursor:pointer;transition:all .15s;user-select:none;
+  color:var(--tx);
+}
+.k:hover{background:var(--s3);border-color:var(--bd2);transform:translateY(-1px)}
+.k:active{transform:scale(.94);background:var(--bd)}
+.k.del{
+  font-size:12px;color:var(--mu);
+  display:flex;align-items:center;justify-content:center;
+}
+.k.del svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.k.empty{background:transparent;border-color:transparent;cursor:default;pointer-events:none}
+
+/* Message */
+.msg{
+  text-align:center;font-size:11px;
+  margin-top:14px;height:16px;
+  transition:all .2s;color:transparent;
+}
+.msg.err{color:var(--red)}
+.msg.ok_{color:var(--green)}
+
+/* Loader */
+.loader{display:none;text-align:center;padding:16px 0}
+.loader-ring{
+  width:28px;height:28px;
+  border:2px solid var(--bd2);
+  border-top-color:var(--green);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+  margin:0 auto 10px;
+}
 @keyframes spin{to{transform:rotate(360deg)}}
+.loader-txt{font-size:11px;color:var(--green)}
+
+/* Footer */
+.footer{
+  text-align:center;margin-top:20px;
+  font-size:9px;color:var(--mu2);
+  letter-spacing:.1em;text-transform:uppercase;
+}
 </style>
 </head>
 <body>
-<div class="grid-bg"></div>
-<div class="glow"></div>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
 <div class="card">
   <div class="logo">
-    <div class="logo-t">BTP<b>Recruit</b></div>
-    <div class="logo-s">Cabinet de recrutement CDI · BTP</div>
+    <div class="logo-mark">Nova<span>lem</span></div>
+    <div class="logo-sub">Cabinet de recrutement · BTP</div>
   </div>
+
   <div class="box">
-    <div class="box-t">Accès sécurisé</div>
-    <div class="box-s">Entrez votre code PIN à 6 chiffres<br>pour accéder au CRM.</div>
-    <div class="pin-display" id="pin-display">
+    <!-- Sélecteur utilisateur -->
+    <div class="user-sel" id="user-sel">
+      <div class="user-btn active" id="btn-louis" onclick="selectUser('louis')">
+        <div class="user-btn-name">Louis</div>
+      </div>
+      <div class="user-btn" id="btn-corentin" onclick="selectUser('corentin')">
+        <div class="user-btn-name">Corentin</div>
+      </div>
+    </div>
+
+    <!-- Points PIN -->
+    <div class="pin-row" id="pin-display">
       <div class="pin-dot" id="d0"></div>
       <div class="pin-dot" id="d1"></div>
       <div class="pin-dot" id="d2"></div>
@@ -59,6 +204,8 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
       <div class="pin-dot" id="d4"></div>
       <div class="pin-dot" id="d5"></div>
     </div>
+
+    <!-- Numpad -->
     <div id="numpad-wrap">
       <div class="numpad" id="numpad">
         <div class="k" onclick="press('1')">1</div>
@@ -72,32 +219,70 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
         <div class="k" onclick="press('9')">9</div>
         <div class="k empty"></div>
         <div class="k" onclick="press('0')">0</div>
-        <div class="k del" onclick="del()">&#x232B;</div>
+        <div class="k del" onclick="del()">
+          <svg viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+        </div>
       </div>
       <div class="msg" id="msg"></div>
     </div>
+
     <div class="loader" id="loader">
       <div class="loader-ring"></div>
-      <div style="font-size:11px;color:var(--ac2);">Connexion en cours&hellip;</div>
+      <div class="loader-txt" id="loader-txt">Connexion en cours...</div>
     </div>
   </div>
-  <div class="footer">Novalem &copy; 2025 &middot; Accès privé</div>
-</div>
-<script>
-const CORRECT_PIN = '141290';
-const CRM_URL     = '/crm';
 
-let current = '';
+  <div class="footer">Novalem &copy; 2026 &middot; Acces prive</div>
+</div>
+
+<script>
+// ── Utilisateurs ─────────────────────────────────────
+const USERS = {
+  louis: {
+    pin: '141290',
+    name: 'Louis Renault',
+    role: 'admin',
+    initials: 'LR',
+    color: '#c8e040',
+  },
+  corentin: {
+    pin: '280604',
+    name: 'Corentin',
+    role: 'commercial',
+    initials: 'C',
+    color: '#2dd4a0',
+  }
+};
+
+const CRM_URL = '/crm';
 const MAX = 6;
 
+let current = '';
+let selectedUser = 'louis';
+
+// ── Sélection utilisateur ─────────────────────────────
+function selectUser(id) {
+  selectedUser = id;
+  current = '';
+  updateDots();
+  setMsg('', '');
+  document.getElementById('btn-louis').classList.toggle('active', id === 'louis');
+  document.getElementById('btn-corentin').classList.toggle('active', id === 'corentin');
+  document.getElementById('numpad-wrap').style.display = 'block';
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('numpad').style.opacity = '1';
+}
+
+// ── Numpad ───────────────────────────────────────────
 function press(d) {
   if (current.length >= MAX) return;
   current += d;
   updateDots();
-  if (current.length === MAX) setTimeout(verify, 120);
+  if (current.length === MAX) setTimeout(verify, 100);
 }
 
 function del() {
+  if (!current.length) return;
   current = current.slice(0, -1);
   updateDots();
   setMsg('', '');
@@ -110,21 +295,35 @@ function updateDots() {
   }
 }
 
+// ── Vérification ─────────────────────────────────────
 function verify() {
-  if (current === CORRECT_PIN) {
-    for (let i = 0; i < MAX; i++) document.getElementById('d' + i).className = 'pin-dot ok';
+  const user = USERS[selectedUser];
+  if (current === user.pin) {
+    // Succès
+    for (let i = 0; i < MAX; i++)
+      document.getElementById('d' + i).className = 'pin-dot ok';
     setMsg('Acces autorise', 'ok_');
     document.getElementById('numpad').style.opacity = '0';
     document.getElementById('loader').style.display = 'block';
+    document.getElementById('loader-txt').textContent =
+      'Bonjour ' + user.name.split(' ')[0] + '...';
     setTimeout(() => {
-      sessionStorage.setItem('btprecruit_auth', btoa(CORRECT_PIN + Date.now()));
+      // Stocker session
+      sessionStorage.setItem('novalem_user', JSON.stringify({
+        id: selectedUser,
+        name: user.name,
+        role: user.role,
+        initials: user.initials,
+        color: user.color,
+        ts: Date.now(),
+      }));
       window.location.href = CRM_URL;
     }, 900);
   } else {
-    for (let i = 0; i < MAX; i++) {
+    // Erreur
+    for (let i = 0; i < MAX; i++)
       document.getElementById('d' + i).className = 'pin-dot error';
-    }
-    setMsg('Code incorrect - reessayez', 'err');
+    setMsg('Code incorrect', 'err');
     setTimeout(() => {
       current = '';
       updateDots();
@@ -139,13 +338,31 @@ function setMsg(txt, cls) {
   el.className = 'msg ' + cls;
 }
 
+// ── Clavier physique ─────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key >= '0' && e.key <= '9') press(e.key);
   if (e.key === 'Backspace') del();
 });
 
+// ── Session existante → redirect direct ──────────────
+const existingSession = sessionStorage.getItem('novalem_user');
+if (existingSession) {
+  try {
+    const u = JSON.parse(existingSession);
+    // Session valide si < 8h
+    if (u && u.ts && (Date.now() - u.ts) < 8 * 3600000) {
+      window.location.href = CRM_URL;
+    } else {
+      sessionStorage.removeItem('novalem_user');
+    }
+  } catch(e) {
+    sessionStorage.removeItem('novalem_user');
+  }
+}
+
+// Compat ancienne session
 if (sessionStorage.getItem('btprecruit_auth')) {
-  window.location.href = CRM_URL;
+  sessionStorage.removeItem('btprecruit_auth');
 }
 </script>
 </body>
