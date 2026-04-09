@@ -766,7 +766,7 @@ function getSB(){
 
 // ── localStorage save (synchronous — always instant) ─────
 function saveLocal(){
- try{localStorage.setItem('btpcrm5',JSON.stringify(DB));}catch(e){}
+ try{localStorage.setItem('btpcrm5_'+(currentUserId()||'louis'),JSON.stringify(DB));}catch(e){}
 }
 
 // ── Supabase sync (async background — never blocks UI) ────
@@ -779,7 +779,8 @@ function syncToSupabase(){
  if(!sb)return;
  try{
  const payload=JSON.stringify(DB);
- const {error}=await sb.from('crm_data').upsert({id:1,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
+ const userId=currentUserId()||'louis';
+      const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
  if(error)throw error;
  // Update sync indicator
  const ind=document.getElementById('sync-ind');
@@ -802,7 +803,7 @@ function save(){
 async function load(){
  // 1. Toujours charger localStorage d'abord (instantané)
  try{
- const local=JSON.parse(localStorage.getItem('btpcrm5'));
+ const local=JSON.parse(localStorage.getItem('btpcrm5_'+(currentUserId()||'louis')));
  if(local&&local.candidates)DB=local;
  else seed();
  }catch(e){seed();}
@@ -812,7 +813,8 @@ async function load(){
  if(!sb)return; // Pas configuré — localStorage seul
 
  try{
- const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',1).maybeSingle();
+ const userId=currentUserId()||'louis';
+    const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',userId).maybeSingle();
  if(error)throw error;
  if(data?.data){
  let cloudDB;
@@ -827,7 +829,7 @@ async function load(){
  }
  } else {
  // Première connexion Supabase — uploader les données locales
- await sb.from('crm_data').upsert({id:1,data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
+ await sb.from('crm_data').upsert({id:currentUserId()||'louis',data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
  const ind=document.getElementById('sync-ind');
  if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données initiales envoyées vers le cloud';}
  }
