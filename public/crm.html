@@ -556,8 +556,9 @@ select option{background:var(--s2)}
 
 </style>
 </head>
-
-// ── Auth check ───────────────────────────────────────
+<body>
+<script>
+// Auth check
 (function(){
   const s=sessionStorage.getItem('novalem_user');
   if(!s){window.location.href='/';return;}
@@ -569,13 +570,11 @@ select option{background:var(--s2)}
     }
     window.CURRENT_USER=u;
   }catch(e){window.location.href='/';}
-  // Compat: support old btprecruit_auth
   if(sessionStorage.getItem('btprecruit_auth')&&!window.CURRENT_USER){
     window.CURRENT_USER={id:'louis',name:'Louis Renault',role:'admin',initials:'LR',color:'#c8e040'};
   }
 })();
-
-<body>
+</script>
 <nav id="sb">
  <div class="logo">
  <div class="logo-t">Nova<b>lem</b></div>
