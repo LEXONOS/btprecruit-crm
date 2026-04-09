@@ -744,13 +744,16 @@ let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'trier',agView:'week',a
 // ═══════════════════════════════════════════════════════
 
 // ── Config helpers ───────────────────────────────────────
-function getSupabaseUrl(){return localStorage.getItem('btp_sb_url')||'';}
-function getSupabaseKey(){return localStorage.getItem('btp_sb_key')||'';}
-function setSupabaseUrl(v){localStorage.setItem('btp_sb_url',v);}
-function setSupabaseKey(v){localStorage.setItem('btp_sb_key',v);}
+// Per-user settings key helper
+function uKey(k){return k+'_'+(currentUserId()||'louis');}
+function getSupabaseUrl(){return localStorage.getItem(uKey('btp_sb_url'))||localStorage.getItem('btp_sb_url')||'';}
+function getSupabaseKey(){return localStorage.getItem(uKey('btp_sb_key'))||localStorage.getItem('btp_sb_key')||'';}
+function setSupabaseUrl(v){localStorage.setItem(uKey('btp_sb_url'),v);}
+function setSupabaseKey(v){localStorage.setItem(uKey('btp_sb_key'),v);}
 
 // ── Supabase client (created lazily) ─────────────────────
 let _sbClient=null;
+let _sbClientUser=null;
 function getSB(){
  const url=getSupabaseUrl();
  const key=getSupabaseKey();
@@ -779,7 +782,7 @@ function syncToSupabase(){
  if(!sb)return;
  try{
  const payload=JSON.stringify(DB);
- const userId=currentUserId()||'louis';
+ const userId=(currentUserId()==='corentin'?2:1);
       const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
  if(error)throw error;
  // Update sync indicator
@@ -813,7 +816,7 @@ async function load(){
  if(!sb)return; // Pas configuré — localStorage seul
 
  try{
- const userId=currentUserId()||'louis';
+ const userId=(currentUserId()==='corentin'?2:1);
     const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',userId).maybeSingle();
  if(error)throw error;
  if(data?.data){
@@ -829,7 +832,7 @@ async function load(){
  }
  } else {
  // Première connexion Supabase — uploader les données locales
- await sb.from('crm_data').upsert({id:currentUserId()||'louis',data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
+ await sb.from('crm_data').upsert({id:(currentUserId()==='corentin'?2:1),data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
  const ind=document.getElementById('sync-ind');
  if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données initiales envoyées vers le cloud';}
  }
@@ -849,7 +852,7 @@ const ago=(n)=>new Date(Date.now()-n*86400000).toISOString();
 const inDays=(n)=>new Date(Date.now()+n*86400000).toISOString();
 const fD=(iso)=>{if(!iso)return'—';return new Date(iso).toLocaleDateString('fr-FR');};
 const fM=(n)=>{if(!n&&n!==0)return'—';return Number(n).toLocaleString('fr-FR')+'€';};
-const honor=(s)=>{const taux=Number(localStorage.getItem('btp_taux_hon')||18)/100;return s?fM(Math.round(Number(s)*taux)):'—';};
+const honor=(s)=>{const taux=Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18)/100;return s?fM(Math.round(Number(s)*taux)):'—';};
 const esc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 // Format phone: 0658212090 → 06 58 21 20 90
 const fPhone=(n)=>{if(!n)return'—';const d=String(n).replace(/\D/g,'');if(d.length===10)return d.match(/.{2}/g).join('\u202f');if(d.length===9)return d.match(/.{2}/g).join('\u202f');return String(n);};
@@ -1967,8 +1970,8 @@ function proceedToEmail(candId){
  c.visio_link=visioLink;c.int_date_planned=sel.dateStr;c.int_time=`${sel.h}:00`;c.updated=now_();save();
 
  // Récupérer signature + infos depuis paramètres
- const nom=localStorage.getItem('btp_user_name')||'[Votre nom]';
- const tel=localStorage.getItem('btp_user_tel')||'';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'[Votre nom]';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
  const firstN=c.name.split(' ')[0];
 
@@ -3841,7 +3844,7 @@ function setCS(id,st){
  </div>
  <div class="fg">
  <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
+ <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
  </div>
  <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
  <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
@@ -4253,8 +4256,8 @@ function seed(){
 // ═══════════════════════════════════════════════════════
 // SETTINGS & API CONFIG
 // ═══════════════════════════════════════════════════════
-function getApiKey(){return localStorage.getItem('btp_anthropic_key')||'';}
-function setApiKey(k){localStorage.setItem('btp_anthropic_key',k);}
+function getApiKey(){return localStorage.getItem(uKey('btp_anthropic_key'))||localStorage.getItem('btp_anthropic_key')||'';}
+function setApiKey(k){localStorage.setItem(uKey('btp_anthropic_key'),k);}
 
 function openSettings(){
  const apiKey=getApiKey();
@@ -4262,13 +4265,13 @@ function openSettings(){
  const sbKey=getSupabaseKey();
  const sbOk=!!(sbUrl&&sbKey);
  // Profil utilisateur
- const nom=localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem('btp_user_tel')||'';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const userEmail=localStorage.getItem('btp_user_email')||'';
  // Objectif CA
  const objCA=localStorage.getItem('btp_obj_ca')||'10000';
  // Taux honoraires
- const tauxHon=localStorage.getItem('btp_taux_hon')||'18';
+ const tauxHon=localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||'18';
  // Dossier URL
  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
 
@@ -4357,8 +4360,8 @@ function saveSettings(){
  const nom=(document.getElementById('set-nom')?.value||'').trim();
  const tel=(document.getElementById('set-tel')?.value||'').trim();
  const userEmail=(document.getElementById('set-email')?.value||'').trim();
- localStorage.setItem('btp_user_name', nom);
- localStorage.setItem('btp_user_tel', tel);
+ localStorage.setItem(uKey('btp_user_name'), nom);
+ localStorage.setItem(uKey('btp_user_tel'), tel);
  localStorage.setItem('btp_user_email', userEmail);
 
  // Business
@@ -4366,7 +4369,7 @@ function saveSettings(){
  const taux=(document.getElementById('set-taux')?.value||'18').trim();
  const dossierUrl=(document.getElementById('set-dossier')?.value||'').trim();
  localStorage.setItem('btp_obj_ca', objCA);
- localStorage.setItem('btp_taux_hon', taux);
+ localStorage.setItem(uKey('btp_taux_hon'), taux);
  localStorage.setItem('btp_dossier_url', dossierUrl);
 
  // API key
@@ -4967,8 +4970,8 @@ Novalem — Cabinet de recrutement`
 function rEmails(){
  const el=document.getElementById('view-emails');
  if(!el)return;
- const nom=localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem('btp_user_tel')||'';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const history=(DB.emails||[]).slice().reverse().slice(0,50); // Les plus récents d'abord
  const drafts=(DB.drafts||[]);
  const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
@@ -5035,8 +5038,8 @@ function emRenderView(view, cands, cos, history, drafts, nom, tel){
 function emShowView(view){
  EM_VIEW=view;
  closeAiPanel();
- const nom=localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem('btp_user_tel')||'';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const history=(DB.emails||[]).slice().reverse().slice(0,50);
  const drafts=(DB.drafts||[]);
  const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
@@ -5171,8 +5174,8 @@ function emApplyTpl(){
  const tpl=EMAIL_TPLS[key];if(!tpl)return;
  const candId=EM.candId;const coId=EM.coId;
  const c=candId?cById(candId):{};
- const nom=localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem('btp_user_tel')||'';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const dossier=localStorage.getItem('btp_dossier_url')||'';
  const custom=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
 
@@ -5349,8 +5352,8 @@ function openEmailWith({to='',subject='',body='',candId=null,coId=null,tplKey=nu
 
 function emailFromCand(candId,tplKey){
  const c=cById(candId);if(!c)return;
- const nom=localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem('btp_user_tel')||'';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const dossier=localStorage.getItem('btp_dossier_url')||'';
  const tpl=EMAIL_TPLS[tplKey||'blank'];
  openEmailWith({
@@ -6414,7 +6417,7 @@ function openInvoiceForm(candId){
  <select id="nif-cand" onchange="updateInvoicePreview()">${cands.length?`<option value="">— Choisir —</option>${candOpts}`:`<option value="">Aucun candidat placé</option>`}</select>
  </div>
  <div class="fgrp"><span class="lbl">Salaire brut annuel (€) *</span><input id="nif-sal" type="number" placeholder="45000" oninput="updateInvoicePreview()"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="nif-taux" type="number" value="${localStorage.getItem('btp_taux_hon')||18}" step="0.5" oninput="updateInvoicePreview()"></div>
+ <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="nif-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5" oninput="updateInvoicePreview()"></div>
  <div class="fgrp ff" id="nif-preview" style="background:rgba(207,224,70,.07);border:1px solid rgba(207,224,70,.2);border-radius:3px;padding:10px 12px;text-align:center;display:none">
  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</div>
  <div style="font-size:10px;color:var(--mu)">Montant honoraires HT</div>
