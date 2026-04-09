@@ -4825,77 +4825,77 @@ async function autoPostToBoard(postId,board){
 // ═══════════════════════════════════════════════════════
 
 // ── État global composeur ────────────────────────────
-let EM={to:'',cc:'',subject:'',body:'',candId:null,coId:null,tplKey:null,draft:false};
-let EM_VIEW='inbox'; // 'inbox' | 'compose' | 'sent' | 'drafts'
-let INBOX_CACHE=null; // {emails:[], fetchedAt:timestamp}
+
+// ═══════════════════════════════════════════════════════
+// EMAIL — Section complète
+// Inbox IMAP · Composition · Envoyés · Brouillons
+// Liens cliquables · Recherche · Actions rapides
+// ═══════════════════════════════════════════════════════
+
+let EM_VIEW='inbox';
+let INBOX_CACHE=null;
 let INBOX_LOADING=false;
 let INBOX_UNREAD=0;
+let _emRefreshTimer=null;
+let _inboxSearch='';
+let _inboxFilter='all'; // 'all'|'unread'|'starred'
 let AI_PANEL_OPEN=false;
 
-// ── Templates pré-rédigés ────────────────────────────
+// ── Templates ────────────────────────────────────────
 const EMAIL_TPLS={
- precal:{
- label:'Confirmation précal + dossier',
- to:(c)=>c.email||'',
- subject:(c)=>`Novalem — Suite à notre échange | ${c.role||'Poste BTP'}`,
- body:(c,nom,tel,dossier)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+  precal:{
+    label:'Confirmation précal + dossier',
+    to:(c)=>c.email||'',
+    subject:(c)=>`Novalem — Suite à notre échange | ${c.role||'Poste BTP'}`,
+    body:(c,nom,tel)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
 
 Suite à notre échange téléphonique, je vous confirme notre entretien visio :
 
- Date : ${c.int_date_planned?new Date(c.int_date_planned).toLocaleDateString('fr-FR'):'[DATE]'} à ${c.int_time||'[HEURE]'}
- Lien de connexion : ${c.visio_link||'[LIEN À INSÉRER]'}
+  Date : ${c.int_date_planned?new Date(c.int_date_planned).toLocaleDateString('fr-FR'):'[DATE]'} à ${c.int_time||'[HEURE]'}
+  Lien : ${c.visio_link||'[LIEN À INSÉRER]'}
 
-Merci de vous connecter 2 à 3 minutes avant l'heure prévue.${dossier?`
+Merci de vous connecter 2-3 minutes avant l'heure.
 
-──────────────────────────────
-DOSSIER DE CANDIDATURE
-──────────────────────────────
-Merci de compléter et signer le dossier de candidature :
- ${dossier}
-
-Et de me retourner les pièces suivantes à cette adresse :
-
- • CV à jour
- • Pièce d'identité (recto/verso)
- • Permis de conduire (si applicable)`:``}
+Documents à retourner :
+  - CV à jour
+  - Pièce d'identité (recto/verso)
+  - Permis de conduire (si applicable)
 
 En cas de question, n'hésitez pas à me contacter.
 
-Bonne journée,
+Bien cordialement,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
- },
- relance:{
- label:' Relance dossier manquant',
- to:(c)=>c.email||'',
- subject:(c)=>`[Relance] Dossier de candidature — ${(c.name||'').split(' ')[0]||''}`,
- body:(c,nom,tel)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+  },
+  relance:{
+    label:'Relance dossier',
+    to:(c)=>c.email||'',
+    subject:(c)=>`[Relance] Dossier de candidature — ${(c.name||'').split(' ')[0]||''}`,
+    body:(c,nom,tel)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
 
 Je me permets de vous relancer concernant votre dossier de candidature.
 
-Sans les documents complets, je ne pourrai malheureusement pas transmettre votre profil à nos clients.
+Sans les documents complets, je ne pourrai pas transmettre votre profil à nos clients.
 
 Pourriez-vous me faire parvenir les éléments manquants dans les meilleurs délais ?
 
 Merci pour votre réactivité,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
- },
- envoi_profil:{
- label:'Envoi profil au client',
- to:()=>'',
- subject:(c)=>`Novalem — Profil candidat | ${c.role||'Poste BTP'}`,
- body:(c,nom,tel)=>`Bonjour,
+  },
+  envoi_profil:{
+    label:'Envoi profil au client',
+    to:()=>'',
+    subject:(c)=>`Novalem — Profil candidat | ${c.role||'Poste BTP'}`,
+    body:(c,nom,tel)=>`Bonjour,
 
-Comme convenu, je vous fais parvenir le profil de ${c.name||'[CANDIDAT]'} pour le poste de ${c.role||'[POSTE]'}.
+Comme convenu, je vous transmets le profil de ${c.name||'[CANDIDAT]'} pour le poste de ${c.role||'[POSTE]'}.
 
-──────────────────────────────
-RÉSUMÉ DU PROFIL
-──────────────────────────────
-Poste ciblé : ${c.role||'—'}
-Disponibilité : ${c.avail||'—'}
-Mobilité : ${c.mobility||'—'}
-Prétentions : ${c.salary?c.salary+'K€ brut/an':'—'}
+Résumé du profil :
+  Poste ciblé : ${c.role||'—'}
+  Disponibilité : ${c.avail||'—'}
+  Mobilité : ${c.mobility||'—'}
+  Prétentions : ${c.salary?c.salary+'€ brut/an':'—'}
 ${c.notes_pre?'\nNotes : '+c.notes_pre:''}
 
 Le dossier complet est disponible sur simple demande.
@@ -4903,1116 +4903,745 @@ Le dossier complet est disponible sur simple demande.
 Je reste disponible pour tout échange,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
- },
- retour_client:{
- label:'Demande retour client',
- to:()=>'',
- subject:(c)=>`Novalem — Retour sur le profil ${c.name||'candidat'}`,
- body:(c,nom,tel)=>`Bonjour,
+  },
+  retour_client:{
+    label:'Demande retour client',
+    to:()=>'',
+    subject:(c)=>`Novalem — Retour sur le profil ${c.name||'candidat'}`,
+    body:(c,nom,tel)=>`Bonjour,
 
 Je me permets de vous recontacter concernant le profil de ${c.name||'[CANDIDAT]'} que je vous ai transmis récemment.
 
-Avez-vous eu l'occasion d'en prendre connaissance ? Seriez-vous disponible pour un échange téléphonique afin d'avoir votre retour ?
+Avez-vous eu l'occasion d'en prendre connaissance ? Seriez-vous disponible pour un échange ?
 
 Je reste à votre disposition,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
- },
- placement:{
- label:' Confirmation placement',
- to:()=>'',
- subject:(c)=>`Novalem — Confirmation de placement | ${c.name||''}`,
- body:(c,nom,tel)=>`Bonjour,
+  },
+  placement:{
+    label:'Confirmation placement',
+    to:()=>'',
+    subject:(c)=>`Novalem — Confirmation de placement | ${c.name||''}`,
+    body:(c,nom,tel)=>`Bonjour,
 
 J'ai le plaisir de vous confirmer le placement de ${c.name||'[CANDIDAT]'} sur le poste de ${c.role||'[POSTE]'}.
 
 Date de prise de poste : [DATE]
-Salaire convenu : ${c.salary?c.salary+'K€ brut/an':'[SALAIRE]'}
+Salaire convenu : ${c.salary?c.salary+'€ brut/an':'[SALAIRE]'}
 
-Conformément à nos accords, notre note d'honoraires vous parviendra prochainement.
+Notre note d'honoraires vous parviendra prochainement.
 
 Merci pour votre confiance,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
- },
- prise_ref:{
- label:' Contrôle de référence',
- to:()=>'',
- subject:(c)=>`Novalem — Contrôle de référence | ${c.name||'candidat'}`,
- body:(c,nom,tel)=>`Bonjour,
-
-Suite à un processus de recrutement en cours, je me permets de vous contacter afin de réaliser un contrôle de référence concernant ${c.name||'[CANDIDAT]'}, qui aurait travaillé avec vous en tant que ${c.role||'[POSTE]'}.
-
-Si vous pouvez me confirmer :
- • Que cette personne a bien travaillé avec vous
- • La période approximative de collaboration
- • Vos impressions générales (points forts, axes d'amélioration)
-
-Je vous remercie pour votre retour et vous souhaite une belle journée,
-${nom||'[Votre nom]'}${tel?'\n'+tel:''}
-Novalem — Cabinet de recrutement`
- },
- blank:{
- label:' Email vide',
- to:()=>'',
- subject:()=>'',
- body:(c,nom,tel)=>`Bonjour,
+  },
+  blank:{
+    label:'Email vide',
+    to:()=>'',
+    subject:()=>'',
+    body:(c,nom,tel)=>`Bonjour,
 
 
 
 Cordialement,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
- }
+  }
 };
 
-// ── Fonction principale ──────────────────────────────
-function rEmails(){
- const el=document.getElementById('view-emails');
- if(!el)return;
- const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
- const history=(DB.emails||[]).slice().reverse().slice(0,50); // Les plus récents d'abord
- const drafts=(DB.drafts||[]);
- const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
- const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+// ── State compose ─────────────────────────────────────
+let EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:null};
 
- const sigOk=!!nom;
-
- el.innerHTML=`
- <div style="display:grid;grid-template-columns:220px 1fr;gap:0;height:calc(100vh - 110px);background:var(--s1);border:1px solid var(--bd);border-radius:4px;overflow:hidden">
-
- <!-- SIDEBAR GAUCHE -->
- <div style="border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--s2)">
- <!-- Bouton composer -->
- <div style="padding:12px 10px;border-bottom:1px solid var(--bd)">
- <button class="btn bp btn-full" onclick="emShowView('compose')" style="font-size:12px"> Nouveau message</button>
- </div>
-
- <!-- Navigation -->
- <div style="padding:8px 6px;flex:1;overflow-y:auto">
- <div class="em-nav-item ${EM_VIEW==='inbox'?'em-nav-act':''}" onclick="emShowView('inbox')" id="em-nav-inbox">
- Réception
- <span class="nbadge nb-red" id="em-inbox-badge" style="margin-left:auto;display:${INBOX_UNREAD>0?'inline-flex':'none'}">${INBOX_UNREAD}</span>
- </div>
- <div class="em-nav-item ${EM_VIEW==='compose'?'em-nav-act':''}" onclick="emShowView('compose')">
- ✎️ Rédiger
- </div>
- <div class="em-nav-item ${EM_VIEW==='sent'?'em-nav-act':''}" onclick="emShowView('sent')">
- Envoyés <span class="nbadge nb-mu" style="margin-left:auto">${history.length}</span>
- </div>
- <div class="em-nav-item ${EM_VIEW==='drafts'?'em-nav-act':''}" onclick="emShowView('drafts')">
- Brouillons <span class="nbadge nb-mu" style="margin-left:auto">${drafts.length}</span>
- </div>
-
- <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);padding:12px 8px 5px">Templates</div>
- ${Object.entries(EMAIL_TPLS).map(([k,t])=>`
- <div class="em-nav-item" onclick="emQuickTpl('${k}')" style="font-size:10px;padding:5px 8px">${t.label}</div>
- `).join('')}
- </div>
-
- <!-- Signature -->
- <div style="padding:10px 12px;border-top:1px solid var(--bd);font-size:10px">
- ${sigOk
- ?`<div style="color:var(--mu2)">Signature</div><div style="color:var(--mu);margin-top:2px">${esc(nom)}${tel?'<br>'+esc(tel):''}</div>`
- :`<div style="color:var(--ac3)">! Signature non configurée</div>`}
- <button class="btn bg bxs" style="margin-top:6px;font-size:10px;width:100%;justify-content:center" onclick="openSettings()">·️ Paramètres</button>
- </div>
- </div>
-
- <!-- ZONE PRINCIPALE -->
- <div id="em-main" style="display:flex;flex-direction:column;overflow:hidden">
- ${emRenderView(EM_VIEW, cands, cos, history, drafts, nom, tel)}
- </div>
- </div>`;
+// ── Utilitaire: détecter et rendre les liens cliquables ─
+function renderBodyWithLinks(text){
+  if(!text)return'<span style="color:var(--mu2);font-style:italic">Corps vide</span>';
+  // Échapper HTML d'abord
+  const escaped=text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+  // Détecter URLs (http/https/www) et les rendre cliquables
+  const withLinks=escaped.replace(
+    /(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/gi,
+    (url)=>{
+      const href=url.startsWith('http')?url:'https://'+url;
+      return`<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">${url}</a>`;
+    }
+  );
+  // Détecter emails aussi
+  const withEmailLinks=withLinks.replace(
+    /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g,
+    '<a href="mailto:$1" style="color:var(--green);text-decoration:underline">$1</a>'
+  );
+  return withEmailLinks;
 }
 
-// ── Rendu selon la vue active ────────────────────────
-function emRenderView(view, cands, cos, history, drafts, nom, tel){
- if(view==='inbox') return emRenderInbox();
- if(view==='sent') return emRenderSent(history, cands);
- if(view==='drafts') return emRenderDrafts(drafts, cands);
- return emRenderCompose(cands, cos, nom, tel);
+// ── Main render ───────────────────────────────────────
+function rEmails(){
+  const el=document.getElementById('view-emails');if(!el)return;
+  const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+  const history=(DB.emails||[]).slice().reverse().slice(0,100);
+  const drafts=(DB.drafts||[]);
+  const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+  const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+
+  el.innerHTML=`
+  <div style="display:grid;grid-template-columns:200px 1fr;height:calc(100vh - 110px);background:var(--s1);border:1px solid var(--bd);border-radius:8px;overflow:hidden">
+
+    <!-- Sidebar -->
+    <div style="border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--s2)">
+      <div style="padding:12px 10px;border-bottom:1px solid var(--bd)">
+        <button class="btn bp btn-full" onclick="emShowView('compose')" style="font-size:11px;letter-spacing:.02em">Nouveau message</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:6px">
+        ${[
+          ['inbox','Boite de reception',INBOX_UNREAD],
+          ['compose','Rediger',0],
+          ['sent','Envoyes',history.length],
+          ['drafts','Brouillons',drafts.length],
+        ].map(([v,l,n])=>`
+          <div class="em-nav-item ${EM_VIEW===v?'em-nav-act':''}" onclick="emShowView('${v}')" id="${v==='inbox'?'em-nav-inbox':''}">
+            ${l}
+            ${n>0?`<span class="nbadge ${v==='inbox'?'nb-red':'nb-mu'}" style="margin-left:auto;${v==='inbox'&&INBOX_UNREAD===0?'display:none':''}">${n}</span>`:''}
+          </div>`).join('')}
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu2);padding:12px 8px 4px">Templates</div>
+        ${Object.entries(EMAIL_TPLS).map(([k,t])=>`
+          <div class="em-nav-item" onclick="emQuickTpl('${k}')" style="font-size:10px;padding:5px 9px;color:var(--mu2)">${t.label}</div>
+        `).join('')}
+      </div>
+      <!-- Signature info -->
+      <div style="padding:10px 12px;border-top:1px solid var(--bd);font-size:10px">
+        ${nom
+          ?`<div style="color:var(--mu2);font-size:9px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Signature</div>
+             <div style="color:var(--mu);line-height:1.5">${esc(nom)}${tel?'<br>'+esc(tel):''}</div>`
+          :`<div style="color:var(--orange);font-size:10px">Signature non configurée</div>`}
+        <button class="btn bg bxs" style="margin-top:6px;width:100%;justify-content:center;font-size:9px" onclick="openSettings()">Parametres</button>
+      </div>
+    </div>
+
+    <!-- Zone principale -->
+    <div id="em-main" style="display:flex;flex-direction:column;overflow:hidden;min-height:0">
+      ${emRenderView(EM_VIEW,cands,cos,history,drafts,nom,tel)}
+    </div>
+  </div>`;
+
+  // Auto-refresh inbox toutes les 3 min
+  clearInterval(_emRefreshTimer);
+  _emRefreshTimer=setInterval(()=>{
+    if(EM_VIEW==='inbox')emFetchInbox(false);
+  },3*60*1000);
+}
+
+function emRenderView(view,cands,cos,history,drafts,nom,tel){
+  if(view==='inbox') return emRenderInbox();
+  if(view==='sent')  return emRenderSent(history,cands);
+  if(view==='drafts')return emRenderDrafts(drafts,cands);
+  return emRenderCompose(cands,cos,nom,tel);
 }
 
 function emShowView(view){
- EM_VIEW=view;
- closeAiPanel();
- const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
- const history=(DB.emails||[]).slice().reverse().slice(0,50);
- const drafts=(DB.drafts||[]);
- const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
- const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
- const main=document.getElementById('em-main');
- if(main) main.innerHTML=emRenderView(view,cands,cos,history,drafts,nom,tel);
- // Update nav active state
- document.querySelectorAll('.em-nav-item').forEach(el=>{
- const t=el.textContent.trim();
- el.classList.toggle('em-nav-act',
- (view==='inbox' &&(t.startsWith('')||t.includes('Réception')))||
- (view==='compose'&&(t.startsWith('✎️')||t.startsWith('Réd')))||
- (view==='sent' &&t.startsWith(''))||
- (view==='drafts' &&t.startsWith(''))
-);
- });
- // Si inbox : déclencher le fetch
- if(view==='inbox') emFetchInbox();
+  EM_VIEW=view;
+  closeAiPanel();
+  const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+  const history=(DB.emails||[]).slice().reverse().slice(0,100);
+  const drafts=(DB.drafts||[]);
+  const cands=DB.candidates.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+  const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
+  const main=document.getElementById('em-main');
+  if(main)main.innerHTML=emRenderView(view,cands,cos,history,drafts,nom,tel);
+  // Update nav
+  document.querySelectorAll('.em-nav-item').forEach(el=>{
+    const id=el.id;
+    const text=el.textContent.trim().toLowerCase();
+    el.classList.toggle('em-nav-act',
+      (view==='inbox'&&(id==='em-nav-inbox'||text.includes('boite')))||
+      (view==='compose'&&text.includes('redig'))||
+      (view==='sent'&&text.includes('envoy'))||
+      (view==='drafts'&&text.includes('brouillon'))
+    );
+  });
+  if(view==='inbox')emFetchInbox(false);
 }
 
-// ── Composeur ────────────────────────────────────────
-function emRenderCompose(cands, cos, nom, tel){
- return`
- <!-- En-tête composeur -->
- <div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--s1)">
- <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Nouveau message</span>
- <div style="margin-left:auto;display:flex;gap:6px">
- <select id="em-tpl" onchange="emApplyTpl()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 7px;border-radius:2px">
- <option value="">— Template —</option>
- ${Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
- </select>
- <select id="em-cand" onchange="emPickContact()" style="font-size:11px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 7px;border-radius:2px;max-width:150px">
- <option value="">— Contact —</option>
- <optgroup label="Candidats">
- ${cands.map(c=>`<option value="cand:${c.id}">${esc(c.name)}</option>`).join('')}
- </optgroup>
- <optgroup label="Entreprises">
- ${cos.map(c=>`<option value="co:${c.id}">${esc(c.name)}</option>`).join('')}
- </optgroup>
- </select>
- </div>
- </div>
-
- <!-- Champs -->
- <div style="padding:0 14px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--s1)">
- <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)">
- <span style="font-size:10px;color:var(--mu);min-width:28px;text-align:right">À</span>
- <input id="em-to" value="${esc(EM.to)}" placeholder="destinataire@email.fr" style="flex:1;font-size:12px;background:transparent;border:none;color:var(--tx);outline:none" oninput="EM.to=this.value">
- </div>
- <div style="display:flex;align-items:center;gap:8px;padding:7px 0">
- <span style="font-size:10px;color:var(--mu);min-width:28px;text-align:right">Objet</span>
- <input id="em-sub" value="${esc(EM.subject)}" placeholder="Objet de l'email" style="flex:1;font-size:12px;background:transparent;border:none;color:var(--tx);outline:none;font-weight:600" oninput="EM.subject=this.value">
- </div>
- </div>
-
- <!-- Corps -->
- <textarea id="em-body" style="flex:1;background:var(--s1);border:none;padding:14px;font-size:12px;line-height:1.8;color:var(--tx);resize:none;outline:none;font-family:'DM Mono',monospace;min-height:0" placeholder="Rédigez votre email ici…" oninput="EM.body=this.value">${esc(EM.body)}</textarea>
-
- <!-- Barre d'actions -->
- <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--s2)">
- <button class="btn bp" onclick="emSend()" id="em-send-btn" style="min-width:100px">Envoyer</button>
- <button class="btn bg" onclick="emSaveDraft()" style="font-size:11px"> Brouillon</button>
- <button class="btn bg" onclick="emOpenMailClient()" style="font-size:11px" title="Ouvrir dans Gmail/Outlook"> Via messagerie</button>
- <button class="btn bg" onclick="emClear()" style="font-size:11px"> Effacer</button>
- <div id="em-status" style="margin-left:auto;font-size:11px;color:var(--mu2);display:flex;align-items:center;gap:6px"></div>
- </div>`;
-}
-
-// ── Vue Envoyés ──────────────────────────────────────
-function emRenderSent(history, cands){
- if(!history.length) return`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:12px">Aucun email envoyé</div>`;
- return`
- <div style="overflow-y:auto;flex:1">
- ${history.map((m,i)=>{
- const c=m.candId?cById(m.candId):null;
- const co=m.coId?coById(m.coId):null;
- const contact=c?c.name:co?co.name:'';
- return`<div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="emReopen(${i})">
- <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
- <span style="font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.subject||'—')}</span>
- <span style="font-size:10px;color:var(--mu);flex-shrink:0">${fD(m.date)}</span>
- </div>
- <div style="display:flex;align-items:center;gap:8px">
- <span style="font-size:10px;color:var(--ac2)">→ ${esc(m.to||'—')}</span>
- ${contact?`<span style="font-size:10px;color:var(--mu)">(${esc(contact)})</span>`:''}
- ${m.sent?`<span style="font-size:9px;background:rgba(61,224,154,.1);color:var(--ac2);padding:1px 5px;border-radius:8px;margin-left:auto">✓ Envoyé</span>`:`<span style="font-size:9px;background:rgba(224,74,74,.1);color:var(--ac3);padding:1px 5px;border-radius:8px;margin-left:auto">· Messagerie</span>`}
- </div>
- </div>`;
- }).join('')}
- </div>`;
-}
-
-// ── Vue Brouillons ───────────────────────────────────
-function emRenderDrafts(drafts, cands){
- if(!drafts.length) return`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:12px">Aucun brouillon</div>`;
- return`
- <div style="overflow-y:auto;flex:1">
- ${drafts.map((m,i)=>`
- <div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''">
- <div style="display:flex;align-items:center;gap:8px">
- <div style="flex:1" onclick="emLoadDraft(${i})">
- <div style="font-size:11px;font-weight:600;margin-bottom:2px">${esc(m.subject||'(sans objet)')}</div>
- <div style="font-size:10px;color:var(--mu)">→ ${esc(m.to||'(sans destinataire)')}</div>
- </div>
- <span style="font-size:10px;color:var(--mu2);flex-shrink:0">${fD(m.date)}</span>
- <button class="btn bd_ bxs" onclick="emDeleteDraft(${i})">×</button>
- </div>
- </div>`).join('')}
- </div>`;
-}
-
-// ── Actions ──────────────────────────────────────────
-function emPickContact(){
- const val=document.getElementById('em-cand')?.value||'';
- if(!val)return;
- const [type,id]=val.split(':');
- const contact=type==='cand'?cById(id):coById(id);
- if(!contact)return;
- EM.candId=type==='cand'?id:null;
- EM.coId=type==='co'?id:null;
- // Remplir le destinataire
- const toEl=document.getElementById('em-to');
- if(toEl&&contact.email){toEl.value=contact.email;EM.to=contact.email;}
- // Si un template est sélectionné, le ré-appliquer avec ce contact
- const tplKey=document.getElementById('em-tpl')?.value;
- if(tplKey)emApplyTpl();
-}
-
-function emApplyTpl(){
- const key=document.getElementById('em-tpl')?.value;
- if(!key)return;
- const tpl=EMAIL_TPLS[key];if(!tpl)return;
- const candId=EM.candId;const coId=EM.coId;
- const c=candId?cById(candId):{};
- const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
- const dossier=localStorage.getItem('btp_dossier_url')||'';
- const custom=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-
- let to=EM.to||tpl.to(c||{});
- let subject=custom[key]?.subject||tpl.subject(c||{});
- let body=custom[key]?.body||tpl.body(c||{},nom,tel,dossier);
-
- if(custom[key]?.body){
- body=body
- .replace(/\[NOM\]/g,(c||{}).name||'')
- .replace(/\[POSTE\]/g,(c||{}).role||'')
- .replace(/\[LIEN_VISIO\]/g,(c||{}).visio_link||'[LIEN]')
- .replace(/\[SIGNATURE\]/g,`${nom||''}${tel?'\n'+tel:''}\nNovalem — Cabinet de recrutement`);
- }
-
- EM.to=to;EM.subject=subject;EM.body=body;EM.tplKey=key;
-
- const toEl=document.getElementById('em-to');
- const subEl=document.getElementById('em-sub');
- const bodyEl=document.getElementById('em-body');
- if(toEl)toEl.value=to;
- if(subEl)subEl.value=subject;
- if(bodyEl)bodyEl.value=body;
-}
-
-function emQuickTpl(key){
- EM_VIEW='compose';
- emShowView('compose');
- setTimeout(()=>{
- const sel=document.getElementById('em-tpl');
- if(sel){sel.value=key;emApplyTpl();}
- },50);
-}
-
-async function emSend(){
- const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
- const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
- const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
-
- if(!to){toast('Ajoutez un destinataire','e');document.getElementById('em-to')?.focus();return;}
- if(!sub){toast('Ajoutez un objet','e');document.getElementById('em-sub')?.focus();return;}
-
- const stEl=document.getElementById('em-status');
- const btn=document.getElementById('em-send-btn');
-
- const setStatus=(html)=>{if(stEl)stEl.innerHTML=html;};
- if(btn){btn.disabled=true;btn.innerHTML='Envoi…';}
- setStatus('<span style="color:var(--ac4)">Envoi en cours…</span>');
-
- const apiBase=getApiBase();
-
- if(!apiBase){
- emOpenMailClient();
- if(btn){btn.disabled=false;btn.innerHTML='Envoyer';}
- setStatus('');
- return;
- }
-
- try{
- const resp=await fetch(`${apiBase}/api/send-email`,{
- method:'POST',
- headers:{'Content-Type':'application/json'},
- body:JSON.stringify({to,subject:sub,body})
- });
- const data=await resp.json();
-
- if(resp.ok&&(data.sent||data.id)){
- // Succès — feedback visuel clair
- setStatus('<span style="color:var(--ac2)">Envoyé !</span>');
- emLogEmail(to,sub,body,true);
- toast(`Email envoyé à ${to}`,'s');
-
- // Animation de succès sur le bouton
- if(btn){btn.innerHTML='Envoyé !';btn.style.background='var(--ac2)';btn.style.color='#0a0a08';}
-
- // Reset après 2s
- setTimeout(()=>{
- emClear();
- setStatus('');
- if(btn){btn.disabled=false;btn.innerHTML='Envoyer';btn.style.background='';btn.style.color='';}
- // Passer en vue "Envoyés" pour confirmation visuelle
- emShowView('sent');
- },2000);
-
- } else {
- setStatus(`<span style="color:var(--ac3)">× ${esc(data.error||'Erreur')}</span>`);
- if(btn){btn.disabled=false;btn.innerHTML='Envoyer';}
-
- if(resp.status===403||data.hint){
- openMo('! Domaine en attente de vérification',`
- <div style="font-size:12px;line-height:1.8;color:var(--tx)">
- Le domaine <strong>novalem-recrutement.fr</strong> n'est pas encore totalement vérifié sur Resend.<br><br>
- <strong>Solution rapide :</strong> clique sur <strong>" Via messagerie"</strong> pour envoyer quand même depuis Gmail/Outlook.
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Fermer</button>
- <button class="btn bp" onclick="closeMo();emOpenMailClient()"> Ouvrir dans ma messagerie</button>`
-);
- }
- }
- }catch(err){
- setStatus('<span style="color:var(--ac3)">× Erreur réseau</span>');
- if(btn){btn.disabled=false;btn.innerHTML='Envoyer';}
- toast('Erreur réseau — utilise "Via messagerie"','w');
- }
-}
-
-function emOpenMailClient(){
- const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
- const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
- const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
- if(!to){toast('Destinataire manquant','e');return;}
- window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
- setTimeout(()=>{emLogEmail(to,sub,body,false);toast('Email ouvert dans ta messagerie','i');},600);
-}
-
-function emLogEmail(to,subject,body,sent=true){
- DB.emails=DB.emails||[];
- DB.emails.push({
- id:uid(),date:now_(),
- to,subject,
- body:body.slice(0,400),
- candId:EM.candId||null,
- coId:EM.coId||null,
- sent
- });
- EM.candId=null;EM.coId=null;
- save();
-}
-
-function emSaveDraft(){
- const to=(document.getElementById('em-to')?.value||'').trim();
- const sub=(document.getElementById('em-sub')?.value||'').trim();
- const body=(document.getElementById('em-body')?.value||'').trim();
- if(!to&&!sub&&!body){toast('Brouillon vide','w');return;}
- DB.drafts=DB.drafts||[];
- DB.drafts.unshift({id:uid(),date:now_(),to,subject:sub,body,candId:EM.candId,coId:EM.coId});
- save();
- toast('Brouillon sauvegardé ✓','s');
-}
-
-function emLoadDraft(i){
- const d=(DB.drafts||[])[i];if(!d)return;
- EM={to:d.to||'',subject:d.subject||'',body:d.body||'',candId:d.candId||null,coId:d.coId||null,tplKey:null};
- emShowView('compose');
- // Supprimer le brouillon chargé
- DB.drafts.splice(i,1);save();
-}
-
-function emDeleteDraft(i){
- DB.drafts=(DB.drafts||[]);
- DB.drafts.splice(i,1);save();
- emShowView('drafts');
-}
-
-function emReopen(i){
- const m=(DB.emails||[]).slice().reverse()[i];if(!m)return;
- EM={to:m.to||'',subject:'Re: '+(m.subject||''),body:'\n\n──────────────────\n'+m.body||'',candId:m.candId||null,coId:m.coId||null,tplKey:null};
- emShowView('compose');
-}
-
-function emClear(){
- EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:null};
- ['em-to','em-sub','em-body'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
- const sel=document.getElementById('em-tpl');if(sel)sel.value='';
- const csel=document.getElementById('em-cand');if(csel)csel.value='';
-}
-
-// ── Ouvrir l'onglet email depuis ailleurs dans le CRM ─
-function openEmailWith({to='',subject='',body='',candId=null,coId=null,tplKey=null}={}){
- EM={to,subject,body,candId,coId,tplKey};
- EM_VIEW='compose';
- go('emails');
-}
-
-function emailFromCand(candId,tplKey){
- const c=cById(candId);if(!c)return;
- const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
- const dossier=localStorage.getItem('btp_dossier_url')||'';
- const tpl=EMAIL_TPLS[tplKey||'blank'];
- openEmailWith({
- to:tpl.to(c),
- subject:tpl.subject(c),
- body:tpl.body(c,nom,tel,dossier),
- candId,tplKey
- });
-}
-
-// ═══════════════════════════════════════════════════════
-// INBOX — Réception & IA
-// ═══════════════════════════════════════════════════════
-
-// ── Rendu inbox (squelette + lazy data) ─────────────
+// ── INBOX ─────────────────────────────────────────────
 function emRenderInbox(){
- const apiBase=getApiBase();
- if(!apiBase){
- return`<div class="inbox-empty">
- <div style="font-size:28px;margin-bottom:12px"></div>
- <div style="font-weight:600;margin-bottom:8px;color:var(--tx)">Non connecté — ouvert en local</div>
- <div style="margin-bottom:14px">La boîte de réception nécessite d'être sur <strong>Vercel</strong>.<br>En local, elle n'est pas disponible.</div>
- <div style="text-align:left;background:var(--s3);border:1px solid var(--bd2);border-radius:3px;padding:12px 14px;font-size:10px;line-height:1.9;color:var(--mu)">
- <strong style="color:var(--tx);display:block;margin-bottom:4px">Variables Vercel à configurer :</strong>
- <code style="color:var(--ac2)">IMAP_HOST</code> — ex: <code>ssl0.ovh.net</code><br>
- <code style="color:var(--ac2)">IMAP_USER</code> — ex: <code>contact@novalem-recrutement.fr</code><br>
- <code style="color:var(--ac2)">IMAP_PASS</code> — mot de passe OVH<br>
- <code style="color:var(--ac2)">IMAP_PORT</code> — <code>993</code> (SSL)
- </div>
- </div>`;
- }
- if(INBOX_LOADING && !INBOX_CACHE){
- return`<div class="inbox-loading">
- <span style="animation:spin 1s linear infinite;display:inline-block">⏳</span>
- Chargement de la boîte de réception…
- </div>`;
- }
- if(!INBOX_CACHE){
- // Auto-lancer le fetch si pas encore fait
- setTimeout(()=>emFetchInbox(),100);
- return`<div class="inbox-loading">
- <span style="animation:spin 1s linear infinite;display:inline-block">⏳</span>
- Connexion au serveur IMAP…
- </div>`;
- }
- if(!INBOX_CACHE.emails||INBOX_CACHE.emails.length===0){
- return`<div class="inbox-empty">
- <div style="font-size:28px;margin-bottom:12px"></div>
- <div style="font-weight:600;margin-bottom:6px;color:var(--tx)">Boîte vide</div>
- <div style="margin-bottom:14px;font-size:11px">Aucun email récupéré — vérifiez que <code style="background:var(--s3);padding:1px 5px;border-radius:2px">IMAP_HOST / IMAP_USER / IMAP_PASS</code><br>sont bien configurés dans les variables d'environnement Vercel.</div>
- <button class="btn bg bxs" onclick="emFetchInbox(true)">Réessayer</button>
- </div>`;
- }
+  const apiBase=getApiBase();
+  if(!apiBase){
+    return`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--mu2);text-align:center;padding:40px">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14v2.92z"/></svg>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--tx);margin-bottom:6px">Disponible sur Vercel uniquement</div>
+        <div style="font-size:11px;line-height:1.7">Configure les variables IMAP dans les Parametres Vercel :</div>
+        <div style="margin-top:10px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:10px 14px;font-size:10px;text-align:left;line-height:2;font-family:'DM Mono',monospace">
+          IMAP_HOST — ssl0.ovh.net<br>
+          IMAP_USER — contact@novalem-recrutement.fr<br>
+          IMAP_PASS — mot de passe OVH<br>
+          IMAP_PORT — 993
+        </div>
+      </div>
+    </div>`;
+  }
+  if(INBOX_LOADING&&!INBOX_CACHE){
+    return`<div style="display:flex;align-items:center;justify-content:center;gap:12px;height:100%;color:var(--mu)">
+      <div style="width:18px;height:18px;border:2px solid var(--bd2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite"></div>
+      Chargement...
+    </div>`;
+  }
+  if(!INBOX_CACHE){
+    setTimeout(()=>emFetchInbox(true),100);
+    return`<div style="display:flex;align-items:center;justify-content:center;gap:12px;height:100%;color:var(--mu)">
+      <div style="width:18px;height:18px;border:2px solid var(--bd2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite"></div>
+      Connexion IMAP...
+    </div>`;
+  }
+  if(!INBOX_CACHE.emails?.length){
+    return`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--mu2)">
+      <div style="font-size:13px;color:var(--tx)">Boite vide</div>
+      <div style="font-size:11px">Verifiez la config IMAP dans Parametres Vercel</div>
+      <button class="btn bg bsm" onclick="emFetchInbox(true)">Actualiser</button>
+    </div>`;
+  }
 
- const agoStr=(iso)=>{
- const diff=Date.now()-new Date(iso).getTime();
- const m=Math.floor(diff/60000);
- if(m<1)return'maintenant';
- if(m<60)return`${m}min`;
- const h=Math.floor(m/60);
- if(h<24)return`${h}h`;
- const d=Math.floor(h/24);
- if(d<7)return`${d}j`;
- return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
- };
+  // Filtres
+  let emails=INBOX_CACHE.emails;
+  if(_inboxFilter==='unread')emails=emails.filter(e=>!e.seen);
+  if(_inboxFilter==='starred')emails=emails.filter(e=>e._starred);
+  if(_inboxSearch){
+    const q=_inboxSearch.toLowerCase();
+    emails=emails.filter(e=>(e.subject||'').toLowerCase().includes(q)||(e.from||'').toLowerCase().includes(q)||(e.snippet||'').toLowerCase().includes(q));
+  }
 
- const rows=INBOX_CACHE.emails.map(email=>{
- // Chercher un match candidat/entreprise par email expéditeur
- const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
- const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
- const matchLabel=matchCand?`${matchCand.name}`:matchCo?`${matchCo.name}`:'';
- const hasAttach=email.attachments&&email.attachments.length>0;
- const safeJson=JSON.stringify(email).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const ago=(iso)=>{
+    const diff=Date.now()-new Date(iso).getTime();
+    const m=Math.floor(diff/60000);
+    if(m<1)return'maintenant';if(m<60)return m+'min';
+    const h=Math.floor(m/60);if(h<24)return h+'h';
+    const d=Math.floor(h/24);if(d<7)return d+'j';
+    return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  };
 
- return`<div class="inbox-item ${!email.seen?'unread':''}" onclick="emOpenEmail('${email.uid}')">
- <div style="display:flex;align-items:flex-start;gap:8px">
- ${!email.seen?'<div class="inbox-unread-dot"></div>':'<div style="width:6px;flex-shrink:0"></div>'}
- <div style="flex:1;min-width:0">
- <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
- <span class="inbox-from">${esc(email.from||email.fromEmail||'—')}</span>
- ${matchLabel?`<span class="inbox-cand-match">${matchLabel}</span>`:''}
- ${hasAttach?`<span class="inbox-attach"> ${email.attachments.length}</span>`:''}
- <span class="inbox-date">${agoStr(email.date)}</span>
- </div>
- <div class="inbox-subj">${esc(email.subject||'(sans objet)')}</div>
- <div class="inbox-snip">${esc(email.snippet||'')}</div>
- </div>
- </div>
- </div>`;
- }).join('');
+  const unread=INBOX_CACHE.emails.filter(e=>!e.seen).length;
+  const fetchedMin=INBOX_CACHE.fetchedAt?Math.floor((Date.now()-INBOX_CACHE.fetchedAt)/60000):0;
 
- const fetchedMin=INBOX_CACHE.fetchedAt?Math.floor((Date.now()-INBOX_CACHE.fetchedAt)/60000):0;
- const unread=INBOX_CACHE.emails.filter(e=>!e.seen).length;
-
- return`
- <div class="inbox-refresh-bar">
- <span style="font-size:10px;color:var(--mu)">
- ${unread>0?`<span style="color:var(--ac)">${unread} non lu${unread>1?'s':''}</span> — `:''}
- ${INBOX_CACHE.emails.length} email${INBOX_CACHE.emails.length>1?'s':''}
- ${fetchedMin>0?` · actualisé il y a ${fetchedMin}min`:''}
- </span>
- <button class="btn bg bxs" style="margin-left:auto;font-size:10px;padding:3px 9px" onclick="emFetchInbox(true)">
- ${INBOX_LOADING?'⏳':'↺'} Actualiser
- </button>
- </div>
- <div style="overflow-y:auto;flex:1">
- ${rows}
- </div>`;
+  return`
+    <!-- Barre de recherche + filtres -->
+    <div style="padding:10px 12px;border-bottom:1px solid var(--bd);background:var(--s2);flex-shrink:0;display:flex;align-items:center;gap:8px">
+      <div style="position:relative;flex:1">
+        <input id="inbox-search" value="${esc(_inboxSearch)}" placeholder="Rechercher..." 
+          oninput="_inboxSearch=this.value;const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderInbox()"
+          style="padding-left:28px;font-size:11px;background:var(--s3);border:1px solid var(--bd)">
+        <svg style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--mu2)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div style="display:flex;gap:3px">
+        ${['all','unread','starred'].map(f=>`<button onclick="_inboxFilter='${f}';const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderInbox()" style="padding:4px 9px;font-size:9px;border-radius:99px;border:1px solid var(--bd2);background:${_inboxFilter===f?'var(--ac)':'var(--s3)'};color:${_inboxFilter===f?'#0a0a08':'var(--mu)'};cursor:pointer;transition:.15s;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em">${{all:'Tous',unread:'Non lus',starred:'Importants'}[f]}</button>`).join('')}
+      </div>
+      <button class="btn bg bxs" onclick="emFetchInbox(true)" style="flex-shrink:0;font-size:10px" title="Actualiser">
+        ${INBOX_LOADING?'..':'↺'}
+      </button>
+    </div>
+    <!-- Infos barre -->
+    <div style="padding:5px 14px;border-bottom:1px solid var(--bd);background:var(--s2);font-size:10px;color:var(--mu2);display:flex;align-items:center;gap:8px;flex-shrink:0">
+      ${unread>0?`<span style="color:var(--green);font-weight:600">${unread} non lu${unread>1?'s':''}</span> ·`:''} 
+      ${emails.length} email${emails.length>1?'s':''}
+      ${fetchedMin>0?`· actualise il y a ${fetchedMin}min`:''}
+      ${_inboxSearch||_inboxFilter!=='all'?`<button onclick="_inboxSearch='';_inboxFilter='all';const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderInbox()" style="margin-left:auto;font-size:9px;color:var(--mu);background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace">Effacer filtres ×</button>`:''}
+    </div>
+    <!-- Liste emails -->
+    <div style="overflow-y:auto;flex:1">
+      ${emails.length?emails.map(email=>{
+        const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
+        const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
+        const match=matchCand||matchCo;
+        return`<div class="inbox-item ${!email.seen?'unread':''}" onclick="emOpenEmail('${email.uid}')">
+          <div style="display:flex;align-items:flex-start;gap:9px">
+            <div style="width:6px;flex-shrink:0;margin-top:6px">${!email.seen?`<div style="width:6px;height:6px;border-radius:50%;background:var(--ac)"></div>`:''}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                <span class="inbox-from" style="font-weight:${email.seen?'400':'600'}">${esc(email.from||email.fromEmail||'—')}</span>
+                ${match?`<span class="inbox-cand-match">${esc(match.name)}</span>`:''}
+                ${email.attachments?.length?`<span class="inbox-attach">${email.attachments.length} PJ</span>`:''}
+                <span style="cursor:pointer;opacity:.4;margin-left:2px;font-size:13px;line-height:1" onclick="event.stopPropagation();email._starred=!email._starred;const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderInbox()" title="Marquer comme important">${email._starred?'★':'☆'}</span>
+                <span class="inbox-date">${ago(email.date)}</span>
+              </div>
+              <div class="inbox-subj">${esc(email.subject||'(sans objet)')}</div>
+              <div class="inbox-snip">${esc(email.snippet||'')}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join(''):`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:11px">Aucun email${_inboxSearch?' pour "'+esc(_inboxSearch)+'"':''}</div>`}
+    </div>`;
 }
 
-// ── Fetch IMAP via API Vercel ────────────────────────
+// ── Fetch IMAP ────────────────────────────────────────
 async function emFetchInbox(forceRefresh=false){
- const apiBase=getApiBase();
- if(!apiBase)return;
- // Cache 3 minutes sauf si forceRefresh
- if(!forceRefresh&&INBOX_CACHE&&INBOX_CACHE.fetchedAt&&(Date.now()-INBOX_CACHE.fetchedAt)<3*60*1000){
- return; // Données fraîches
- }
- if(INBOX_LOADING)return;
- INBOX_LOADING=true;
- // Si on est dans la vue inbox, montrer l'état de chargement
- const main=document.getElementById('em-main');
- if(main&&EM_VIEW==='inbox') main.innerHTML=emRenderInbox();
- try{
- const resp=await fetch(`${apiBase}/api/imap`,{
- method:'GET',
- headers:{'Content-Type':'application/json'}
- });
- const data=await resp.json();
- if(!resp.ok) throw new Error(data.error||'Erreur serveur');
- INBOX_CACHE={emails:data.emails||[],fetchedAt:Date.now()};
- INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;
- applyEmailRules();
- // Mettre à jour le badge
- const badge=document.getElementById('em-inbox-badge');
- if(badge){
- badge.textContent=INBOX_UNREAD;
- badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';
- }
- }catch(err){
- console.error('Inbox fetch error:',err.message);
- if(main&&EM_VIEW==='inbox'){
- main.innerHTML=`<div class="inbox-empty">
- <div style="font-size:24px;margin-bottom:10px">!️</div>
- <div style="color:var(--ac3);font-weight:600;margin-bottom:6px">Connexion impossible</div>
- <div style="color:var(--mu);margin-bottom:14px;font-size:10px">${esc(err.message)}</div>
- <div style="font-size:10px;color:var(--mu2);line-height:1.7;margin-bottom:14px">
- Vérifiez que les variables d'environnement<br>
- <strong>IMAP_HOST / IMAP_USER / IMAP_PASS</strong><br>
- sont bien configurées sur Vercel.
- </div>
- <button class="btn bp" onclick="emFetchInbox(true)">Réessayer</button>
- </div>`;
- }
- INBOX_LOADING=false;
- return;
- }
- INBOX_LOADING=false;
- // Re-render si on est toujours dans la vue inbox
- if(main&&EM_VIEW==='inbox') main.innerHTML=emRenderInbox();
+  const apiBase=getApiBase();if(!apiBase)return;
+  if(!forceRefresh&&INBOX_CACHE?.fetchedAt&&(Date.now()-INBOX_CACHE.fetchedAt)<3*60*1000)return;
+  if(INBOX_LOADING)return;
+  INBOX_LOADING=true;
+  const main=document.getElementById('em-main');
+  if(main&&EM_VIEW==='inbox')main.innerHTML=emRenderInbox();
+  try{
+    const resp=await fetch(`${apiBase}/api/imap`,{method:'GET',headers:{'Content-Type':'application/json'}});
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(data.error||'Erreur serveur');
+    INBOX_CACHE={emails:data.emails||[],fetchedAt:Date.now()};
+    INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;
+    applyEmailRules();
+    const badge=document.getElementById('em-inbox-badge');
+    if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}
+  }catch(err){
+    console.warn('IMAP error:',err);
+    if(main&&EM_VIEW==='inbox')main.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--mu2)">
+      <div style="font-size:13px;color:var(--red)">Connexion impossible</div>
+      <div style="font-size:11px">${esc(err.message)}</div>
+      <button class="btn bg bsm" onclick="emFetchInbox(true)">Reessayer</button>
+    </div>`;
+    INBOX_LOADING=false;return;
+  }
+  INBOX_LOADING=false;
+  if(main&&EM_VIEW==='inbox')main.innerHTML=emRenderInbox();
 }
 
-// ── Ouvrir un email ──────────────────────────────────
+// ── Ouvrir un email ───────────────────────────────────
 async function emOpenEmail(uid){
- if(!INBOX_CACHE||!INBOX_CACHE.emails)return;
- const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
- if(!email)return;
- // Marquer comme lu localement
- email.seen=true;
- INBOX_UNREAD=Math.max(0,INBOX_UNREAD-1);
- const badge=document.getElementById('em-inbox-badge');
- if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}
- // Marquer comme lu sur le serveur (fire & forget)
- const apiBase=getApiBase();
- if(apiBase) fetch(`${apiBase}/api/imap`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mark-read',uid:email.uid})}).catch(()=>{});
+  if(!INBOX_CACHE?.emails)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  email.seen=true;
+  INBOX_UNREAD=Math.max(0,INBOX_UNREAD-1);
+  const badge=document.getElementById('em-inbox-badge');
+  if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}
+  const apiBase=getApiBase();
+  if(apiBase)fetch(`${apiBase}/api/imap`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mark-read',uid:email.uid})}).catch(()=>{});
 
- // Trouver match candidat/entreprise par email expéditeur
- const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
- const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
- const existingRule=getEmailRule(email.fromEmail);
+  const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
+  const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
+  const existingRule=getEmailRule(email.fromEmail);
+  if(existingRule?.autoLog&&existingRule.entityType==='co'){
+    const already=(coById(existingRule.entityId)?.timeline||[]).find(t=>t.extra===String(email.uid));
+    if(!already)addTimeline(existingRule.entityId,'email',`De : ${email.from||email.fromEmail}\nObjet : ${email.subject||'(sans objet)'}\n${(email.snippet||'').slice(0,150)}`,String(email.uid));
+  }
 
- // Auto-log si règle existante
- if(existingRule?.autoLog&&existingRule.entityType==='co'){
- const already=(coById(existingRule.entityId)?.timeline||[]).find(t=>t.extra===String(email.uid));
- if(!already){addTimeline(existingRule.entityId,'email',`De : ${email.from||email.fromEmail}\nObjet : ${email.subject||'(sans objet)'}\n${(email.snippet||'').slice(0,150)}`,String(email.uid));}
- }
+  const main=document.getElementById('em-main');if(!main)return;
 
- // Banner de liaison email → fiche
- const linkedEntity=existingRule?
- (existingRule.entityType==='co'?coById(existingRule.entityId):cById(existingRule.entityId)):null;
- const linkBanner=(()=>{
- if(linkedEntity&&existingRule?.autoLog){
- return`<div style="padding:8px 14px;background:rgba(61,224,154,.07);border-bottom:1px solid rgba(61,224,154,.2);font-size:11px;display:flex;align-items:center;gap:8px">
- <span style="color:var(--ac2)">Auto-lié à</span>
- <strong style="cursor:pointer;color:var(--ac2)" onclick="${existingRule.entityType==='co'?`openCoPanel('${existingRule.entityId}')`:""}">${esc(linkedEntity.name)}</strong>
- <button class="btn bg bxs" style="margin-left:auto;font-size:9px" onclick="DB.email_rules=(DB.email_rules||[]).filter(r=>r.id!=='${existingRule.id}');save();emOpenEmail('${uid}');toast('Règle supprimée','w')">Désactiver</button>
- </div>`;
- }
- if(matchCo||matchCand){
- const entity=matchCo||matchCand;
- const etype=matchCo?'co':'cand';
- const eid=entity.id;
- return`<div style="padding:10px 14px;background:rgba(74,130,224,.07);border-bottom:1px solid rgba(74,130,224,.2);font-size:11px">
- <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
- <span>${matchCo?'':''}</span>
- <strong>${esc(entity.name)}</strong>
- <span style="font-size:10px;color:var(--mu)">correspond à ${email.fromEmail}</span>
- </div>
- <div style="display:flex;gap:6px;flex-wrap:wrap">
- <button class="btn bp bxs" onclick="linkEmailToFiche('${uid}','${etype}','${eid}',false)">Ajouter à la fiche</button>
- <button class="btn bi bxs" onclick="linkEmailToFiche('${uid}','${etype}','${eid}',true)">Toujours lier cet expéditeur</button>
- <button class="btn bg bxs" onclick="${etype==='co'?`openCoPanel('${eid}')`:`openCandPanel('${eid}')`}">→ Voir la fiche</button>
- </div>
- </div>`;
- }
- return'';
- })();
+  // Banner liaison fiche
+  const linkedEntity=existingRule?(existingRule.entityType==='co'?coById(existingRule.entityId):cById(existingRule.entityId)):null;
+  let linkBanner='';
+  if(linkedEntity&&existingRule?.autoLog){
+    linkBanner=`<div style="padding:8px 14px;background:var(--green-dim);border-bottom:1px solid var(--green-border);font-size:11px;display:flex;align-items:center;gap:8px">
+      <span style="color:var(--green)">Auto-lie a</span>
+      <strong style="cursor:pointer;color:var(--green)" onclick="${existingRule.entityType==='co'?`openCoPanel('${existingRule.entityId}')`:''}">${esc(linkedEntity.name)}</strong>
+      <button class="btn bg bxs" style="margin-left:auto;font-size:9px" onclick="DB.email_rules=(DB.email_rules||[]).filter(r=>r.id!=='${existingRule.id}');save();emOpenEmail('${uid}');toast('Regle supprimee','w')">Desactiver</button>
+    </div>`;
+  } else if(matchCo||matchCand){
+    const entity=matchCo||matchCand;const etype=matchCo?'co':'cand';const eid=entity.id;
+    linkBanner=`<div style="padding:10px 14px;background:var(--blue-dim);border-bottom:1px solid var(--blue-border);font-size:11px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <strong>${esc(entity.name)}</strong>
+        <span style="font-size:10px;color:var(--mu)">correspond a ${esc(email.fromEmail||'')}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn bp bxs" onclick="linkEmailToFiche('${uid}','${etype}','${eid}',false)">Ajouter a la fiche</button>
+        <button class="btn bi bxs" onclick="linkEmailToFiche('${uid}','${etype}','${eid}',true)">Toujours lier</button>
+        <button class="btn bg bxs" onclick="${etype==='co'?`openCoPanel('${eid}')`:` openCandPanel('${eid}')`}">→ Voir la fiche</button>
+      </div>
+    </div>`;
+  }
 
- // Formatter les pièces jointes
- const attachHtml=(email.attachments||[]).map(a=>`
- <span class="attach-chip"> ${esc(a.filename||'Fichier')} <span style="opacity:.6;font-size:9px">${a.size?Math.round(a.size/1024)+'ko':''}</span></span>
- `).join('');
+  // Attachments
+  const attachHtml=(email.attachments||[]).map(a=>`
+    <a ${a.url?`href="${esc(a.url)}" target="_blank" rel="noopener"`:'href="#"'} 
+       class="attach-chip" style="text-decoration:none;cursor:pointer" 
+       title="${esc(a.filename||'Fichier')}">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+      ${esc(a.filename||'Fichier')} 
+      ${a.size?`<span style="opacity:.5">${Math.round(a.size/1024)}ko</span>`:''}
+    </a>`).join('');
 
- const main=document.getElementById('em-main');
- if(!main)return;
- main.innerHTML=`
- ${linkBanner}
- <div class="email-detail-header">
- <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
- <button class="btn bg bxs" style="font-size:11px;flex-shrink:0" onclick="emShowView('inbox')">← Retour</button>
- <div style="flex:1;min-width:0">
- <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px;color:var(--tx)">${esc(email.subject||'(sans objet)')}</div>
- <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
- <span style="font-size:11px;color:var(--ac5)">${esc(email.from||email.fromEmail||'—')}</span>
- ${matchCand?`<span class="inbox-cand-match" style="cursor:pointer" onclick="openCand('${matchCand.id}')">${esc(matchCand.name)} — voir profil</span>`:''}
- ${matchCo?`<span class="inbox-cand-match" style="cursor:pointer" onclick="openCoPanel('${matchCo.id}')">${esc(matchCo.name)}</span>`:''}
- <span style="font-size:10px;color:var(--mu2);margin-left:auto">${new Date(email.date).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
- </div>
- </div>
- </div>
- ${attachHtml?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">${attachHtml}</div>`:''}
- <div style="display:flex;gap:6px;margin-top:10px">
- <button class="btn bp bxs" style="font-size:10px" onclick="emReplyTo('${uid}')">Répondre</button>
- ${matchCand?`<button class="btn bg bxs" style="font-size:10px" onclick="openCand('${matchCand.id}')">Ouvrir le profil</button>`:''}
- <button class="ai-badge" style="cursor:pointer;font-size:10px;padding:4px 9px" onclick="emAnalyzeEmail('${uid}')"> Analyser avec l'IA</button>
- </div>
- </div>
- <div class="email-detail-body">${esc(email.text||'(Corps vide)')}</div>
- `;
+  const dateStr=email.date?new Date(email.date).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})+'  '+new Date(email.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'—';
 
- // Déclencher l'analyse IA automatiquement après 1.2s
- if(getApiKey()){
- setTimeout(()=>emAnalyzeEmail(uid),1200);
- }
+  main.innerHTML=`
+    ${linkBanner}
+    <!-- Header email -->
+    <div class="email-detail-header" style="flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <button class="btn bg bxs" onclick="emShowView('inbox')">← Retour</button>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--tx);margin-bottom:3px;line-height:1.3">${esc(email.subject||'(sans objet)')}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px">
+            <span style="color:var(--blue)">${esc(email.from||email.fromEmail||'—')}</span>
+            ${matchCand?`<span class="inbox-cand-match" style="cursor:pointer" onclick="openCandPanel('${matchCand.id}')">${esc(matchCand.name)}</span>`:''}
+            ${matchCo?`<span class="inbox-cand-match" style="cursor:pointer" onclick="openCoPanel('${matchCo.id}')">${esc(matchCo.name)}</span>`:''}
+            <span style="color:var(--mu2);font-size:10px;margin-left:auto">${dateStr}</span>
+          </div>
+        </div>
+        <button onclick="email._starred=!email._starred;emOpenEmail('${uid}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:${email._starred?'var(--orange)':'var(--mu2)'};padding:4px;transition:.15s" title="Marquer comme important">${email._starred?'★':'☆'}</button>
+      </div>
+      ${attachHtml?`<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${attachHtml}</div>`:''}
+      <!-- Actions -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn bp bxs" onclick="emReplyTo('${uid}')">Repondre</button>
+        <button class="btn bg bxs" onclick="emForwardEmail('${uid}')">Transmettre</button>
+        <button class="btn bg bxs" onclick="emMarkUnread('${uid}')">Marquer non lu</button>
+        ${matchCand?`<button class="btn bg bxs" onclick="openCandPanel('${matchCand.id}')">→ Profil ${esc(matchCand.name.split(' ')[0])}</button>`:''}
+        ${matchCo?`<button class="btn bg bxs" onclick="openCoPanel('${matchCo.id}')">→ ${esc(matchCo.name)}</button>`:''}
+        <button class="ai-badge" style="cursor:pointer;padding:4px 10px;font-size:10px;margin-left:auto" onclick="emAnalyzeEmail('${uid}')">Analyser IA</button>
+      </div>
+    </div>
+    <!-- Corps de l'email -->
+    <div class="email-detail-body" style="flex:1;overflow-y:auto;white-space:pre-wrap;word-break:break-word">
+      ${renderBodyWithLinks(email.text||email.html?.replace(/<[^>]*>/g,'\n').replace(/\n{3,}/g,'\n\n').trim()||'')}
+    </div>`;
+
+  if(getApiKey())setTimeout(()=>emAnalyzeEmail(uid),1200);
 }
 
-// ── Répondre à un email ──────────────────────────────
+function emMarkUnread(uid){
+  if(!INBOX_CACHE?.emails)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  email.seen=false;
+  INBOX_UNREAD++;
+  const badge=document.getElementById('em-inbox-badge');
+  if(badge){badge.textContent=INBOX_UNREAD;badge.style.display='inline-flex';}
+  emShowView('inbox');
+  toast('Marque comme non lu','s');
+}
+
+function emForwardEmail(uid){
+  if(!INBOX_CACHE?.emails)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  EM={
+    to:'',subject:`Fwd: ${email.subject||''}`,
+    body:`\n\n──────────────\nDe : ${email.from||email.fromEmail}\nDate : ${new Date(email.date).toLocaleDateString('fr-FR')}\nObjet : ${email.subject}\n\n${email.text||''}`.slice(0,2000),
+    candId:null,coId:null,tplKey:null
+  };
+  emShowView('compose');
+}
+
+// ── Répondre ──────────────────────────────────────────
 function emReplyTo(uid){
- if(!INBOX_CACHE)return;
- const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
- if(!email)return;
- const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
- const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail.toLowerCase());
- EM={
- to:email.fromEmail||'',
- subject:`Re: ${email.subject||''}`,
- body:`\n\n──────────────────\nDe : ${email.from||email.fromEmail}\nDate : ${new Date(email.date).toLocaleDateString('fr-FR')}\nObjet : ${email.subject}\n\n${email.text||''}`.slice(0,1200),
- candId:matchCand?matchCand.id:null,
- coId:matchCo?matchCo.id:null,
- tplKey:null
- };
- emShowView('compose');
+  if(!INBOX_CACHE)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
+  const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
+  EM={
+    to:email.fromEmail||'',
+    subject:`Re: ${email.subject||''}`,
+    body:`\n\n──────────────\nDe : ${email.from||email.fromEmail}\nDate : ${new Date(email.date).toLocaleDateString('fr-FR')}\nObjet : ${email.subject}\n\n${email.text||''}`.slice(0,2000),
+    candId:matchCand?matchCand.id:null,
+    coId:matchCo?matchCo.id:null,
+    tplKey:null
+  };
+  emShowView('compose');
 }
 
-// ── Analyse IA d'un email ────────────────────────────
+// ── Composeur ─────────────────────────────────────────
+function emRenderCompose(cands,cos,nom,tel){
+  const initTo=EM.to||'';
+  const initSub=EM.subject||'';
+  const initBody=EM.body||(EMAIL_TPLS.blank.body({},nom,tel));
+  const candOpts=cands.map(c=>`<option value="${c.email}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
+  const coOpts=cos.map(c=>`<option value="${c.email}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
+  const tplOpts=Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
+
+  return`
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--s1);flex-shrink:0;display:flex;align-items:center;gap:8px">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Nouveau message</span>
+      <select onchange="emApplyTpl()" id="em-tpl" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 8px;border-radius:4px;margin-left:auto">
+        <option value="">-- Template --</option>${tplOpts}
+      </select>
+    </div>
+    <!-- Champs -->
+    <div style="flex-shrink:0;border-bottom:1px solid var(--bd)">
+      ${[
+        {id:'em-to',label:'De',val:initTo,type:'text',placeholder:'destinataire@email.com'},
+        {id:'em-cc',label:'Cc',val:'',type:'text',placeholder:''},
+        {id:'em-sub',label:'Objet',val:initSub,type:'text',placeholder:''},
+      ].map(f=>`<div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
+          <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">${f.label}</span>
+          <input id="${f.id}" value="${esc(f.val)}" placeholder="${f.placeholder}" 
+            style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
+        </div>`).join('')}
+      <!-- Sélecteurs contact -->
+      <div style="display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap">
+        <select onchange="if(this.value){document.getElementById('em-to').value=this.value;this.value=''}" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
+          <option value="">Candidat...</option>${candOpts}
+        </select>
+        <select onchange="if(this.value){document.getElementById('em-to').value=this.value;this.value=''}" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
+          <option value="">Client/Prospect...</option>${coOpts}
+        </select>
+      </div>
+    </div>
+    <!-- Corps -->
+    <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0">${esc(initBody)}</textarea>
+    <!-- Footer -->
+    <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:center;flex-shrink:0;background:var(--s2)">
+      <button id="em-send-btn" class="btn bp bsm" onclick="emSend()">Envoyer</button>
+      <button class="btn bg bxs" onclick="emOpenMailClient()" title="Ouvrir dans Gmail/Outlook">Via messagerie</button>
+      <button class="btn bg bxs" onclick="emSaveDraft()">Brouillon</button>
+      <button class="btn bg bxs" onclick="emClear()">Effacer</button>
+      <div id="em-status" style="font-size:10px;margin-left:4px"></div>
+      ${nom?`<span style="font-size:9px;color:var(--mu2);margin-left:auto">${esc(nom)}</span>`:''}
+    </div>`;
+}
+
+// ── Envoi ─────────────────────────────────────────────
+async function emSend(){
+  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  const cc=(document.getElementById('em-cc')?.value||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
+  if(!to){toast('Destinataire manquant','e');document.getElementById('em-to')?.focus();return;}
+  if(!sub){toast('Objet manquant','e');document.getElementById('em-sub')?.focus();return;}
+  const stEl=document.getElementById('em-status');
+  const btn=document.getElementById('em-send-btn');
+  const setStatus=(html)=>{if(stEl)stEl.innerHTML=html;};
+  if(btn){btn.disabled=true;btn.textContent='Envoi...';}
+  setStatus('<span style="color:var(--orange)">Envoi...</span>');
+  const apiBase=getApiBase();
+  if(!apiBase){emOpenMailClient();if(btn){btn.disabled=false;btn.textContent='Envoyer';}setStatus('');return;}
+  try{
+    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,cc,subject:sub,body})});
+    const data=await resp.json();
+    if(resp.ok&&(data.sent||data.id)){
+      setStatus('<span style="color:var(--green)">Envoye !</span>');
+      emLogEmail(to,sub,body,true);
+      toast(`Email envoye a ${to}`,'s');
+      if(btn){btn.textContent='Envoye !';btn.style.background='var(--green)';btn.style.color='#0a0a08';}
+      setTimeout(()=>{emClear();setStatus('');if(btn){btn.disabled=false;btn.textContent='Envoyer';btn.style.background='';btn.style.color='';}emShowView('sent');},2000);
+    }else{
+      setStatus(`<span style="color:var(--red)">× ${esc(data.error||'Erreur')}</span>`);
+      if(btn){btn.disabled=false;btn.textContent='Envoyer';}
+      if(resp.status===403||data.hint){
+        openMo('Domaine en attente de verification',`<div style="font-size:12px;line-height:1.8">Le domaine novalem-recrutement.fr n'est pas encore verifie sur Resend.<br><br>Utilisez "Via messagerie" pour envoyer depuis Gmail ou Outlook.</div>`,
+          `<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="closeMo();emOpenMailClient()">Via messagerie →</button>`);
+      }
+    }
+  }catch(err){
+    setStatus('<span style="color:var(--red)">× Erreur reseau</span>');
+    if(btn){btn.disabled=false;btn.textContent='Envoyer';}
+    toast('Erreur — utilise "Via messagerie"','w');
+  }
+}
+
+// ── Messagerie native ─────────────────────────────────
+function emOpenMailClient(){
+  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
+  if(!to){toast('Destinataire manquant','e');return;}
+  window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
+  setTimeout(()=>{emLogEmail(to,sub,body,false);toast('Email ouvert dans ta messagerie','i');},600);
+}
+
+// ── Log + brouillons ──────────────────────────────────
+function emLogEmail(to,subject,body,sent=true){
+  DB.emails=DB.emails||[];
+  DB.emails.push({id:uid(),to,subject,body,sent,date:now_(),read:true});
+  if(DB.emails.length>200)DB.emails=DB.emails.slice(-200);
+  save();
+}
+function emSaveDraft(){
+  DB.drafts=DB.drafts||[];
+  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
+  if(!to&&!sub&&!body){toast('Brouillon vide','w');return;}
+  DB.drafts.push({id:uid(),to,subject:sub,body,date:now_()});
+  save();toast('Brouillon sauvegarde ✓','s');
+}
+function emLoadDraft(i){
+  const d=(DB.drafts||[])[i];if(!d)return;
+  EM={to:d.to||'',subject:d.subject||'',body:d.body||'',candId:null,coId:null,tplKey:null};
+  emShowView('compose');
+}
+function emDeleteDraft(i){
+  DB.drafts=(DB.drafts||[]);DB.drafts.splice(i,1);save();
+  const m=document.getElementById('em-main');
+  if(m){const nom=localStorage.getItem(uKey('btp_user_name'))||'';const tel=localStorage.getItem(uKey('btp_user_tel'))||'';m.innerHTML=emRenderDrafts(DB.drafts,DB.candidates.filter(c=>c.email));}
+  toast('Supprime','w');
+}
+function emClear(){
+  EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:null};
+  ['em-to','em-cc','em-sub','em-body'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+// ── Envoyés ───────────────────────────────────────────
+function emRenderSent(history,cands){
+  if(!history.length)return`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu2);font-size:12px">Aucun email envoye</div>`;
+  return`<div style="overflow-y:auto;flex:1">
+    ${history.map((e,i)=>`<div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.15s" onclick="emShowSentDetail(${i})" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+        <span style="font-size:11px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.subject||'(sans objet)')}</span>
+        <span style="font-size:10px;color:var(--mu2);flex-shrink:0">${fD(e.date)}</span>
+      </div>
+      <div style="font-size:10px;color:var(--mu)">→ ${esc(e.to)}</div>
+    </div>`).join('')}
+  </div>`;
+}
+function emShowSentDetail(i){
+  const history=(DB.emails||[]).slice().reverse();
+  const e=history[i];if(!e)return;
+  const main=document.getElementById('em-main');if(!main)return;
+  main.innerHTML=`
+    <div class="email-detail-header" style="flex-shrink:0">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <button class="btn bg bxs" onclick="emShowView('sent')">← Retour</button>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${esc(e.subject||'(sans objet)')}</div>
+      </div>
+      <div style="font-size:11px;color:var(--mu)">→ ${esc(e.to)} · ${fD(e.date)}</div>
+    </div>
+    <div class="email-detail-body" style="flex:1;overflow-y:auto;white-space:pre-wrap;word-break:break-word">
+      ${renderBodyWithLinks(e.body||'')}
+    </div>`;
+}
+
+// ── Brouillons ────────────────────────────────────────
+function emRenderDrafts(drafts,cands){
+  if(!drafts.length)return`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu2);font-size:12px">Aucun brouillon</div>`;
+  return`<div style="overflow-y:auto;flex:1">
+    ${drafts.map((d,i)=>`<div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px">
+      <div style="flex:1;cursor:pointer" onclick="emLoadDraft(${i})">
+        <div style="font-size:11px;font-weight:500;margin-bottom:2px">${esc(d.subject||'(sans objet)')}</div>
+        <div style="font-size:10px;color:var(--mu)">→ ${esc(d.to||'(aucun destinataire)')} · ${fD(d.date)}</div>
+      </div>
+      <button class="btn bg bxs" onclick="emLoadDraft(${i})">Modifier</button>
+      <button class="btn bd_ bxs" onclick="emDeleteDraft(${i})">×</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ── Template apply ────────────────────────────────────
+function emApplyTpl(){
+  const key=document.getElementById('em-tpl')?.value;if(!key)return;
+  const tpl=EMAIL_TPLS[key];if(!tpl)return;
+  const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+  // Try to find linked candidate
+  let c={};
+  if(EM.candId)c=cById(EM.candId)||{};
+  const body=tpl.body(c,nom,tel);
+  const to=tpl.to(c);const sub=tpl.subject(c);
+  const toEl=document.getElementById('em-to');const subEl=document.getElementById('em-sub');const bodyEl=document.getElementById('em-body');
+  if(toEl&&to)toEl.value=to;
+  if(subEl&&sub)subEl.value=sub;
+  if(bodyEl)bodyEl.value=body;
+  toast(`Template "${tpl.label}" applique`,'s');
+}
+function emQuickTpl(key){
+  EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:key};
+  EM_VIEW='compose';
+  emShowView('compose');
+  setTimeout(()=>{document.getElementById('em-tpl').value=key;emApplyTpl();},80);
+}
+
+// ── Ouvrir depuis ailleurs ────────────────────────────
+function openEmailWith({to='',subject='',body='',candId=null,coId=null,tplKey=null}={}){
+  EM={to,subject,body,candId,coId,tplKey};
+  go('emails');
+}
+function emailFromCand(candId,tplKey){
+  const c=cById(candId);if(!c)return;
+  EM={to:c.email||'',subject:'',body:'',candId,coId:null,tplKey};
+  go('emails');
+}
+
+// ── Analyse IA ────────────────────────────────────────
 async function emAnalyzeEmail(uid){
- const key=getApiKey();
- if(!key){toast('Clé IA non configurée — ouvrez · Paramètres','w');return;}
- if(!INBOX_CACHE)return;
- const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
- if(!email)return;
-
- if(AI_PANEL_OPEN) closeAiPanel();
-
- // Préparer le contexte candidats/entreprises pour Claude
- const candsList=DB.candidates.slice(0,40).map(c=>({id:c.id,nom:c.name,email:c.email||'',statut:c.status,poste:c.role||'',docs:(c.docs||[]).length+' doc(s) reçu(s)'}));
- const cosList=DB.companies.slice(0,20).map(c=>({id:c.id,nom:c.name,email:c.email||'',type:c.type,statut:c.status}));
-
- // Afficher le panel en mode "analyse en cours"
- showAiPanelLoading();
-
- const systemPrompt=`Tu es l'assistant IA intégré au CRM de recrutement NOVALEM (BTP, CDI uniquement, France).
-Tu analyses les emails reçus et tu identifies :
-1. Si l'expéditeur correspond à un candidat ou une entreprise du CRM
-2. L'intention de l'email (envoi de documents, confirmation, candidature, question, refus, relance, rdv...)
-3. Les prochaines actions concrètes à réaliser dans le CRM
-4. Le niveau d'urgence
-
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte avant ou après.
-
-Format de réponse :
-{
- "candidat_id": "id_du_candidat_ou_null",
- "entreprise_id": "id_entreprise_ou_null",
- "intention": "envoi_documents|confirmation_rdv|nouvelle_candidature|question|refus|relance|autre",
- "resume": "Résumé en 1 phrase de l'email et ce qu'il implique",
- "urgence": "haute|normale|basse",
- "actions": [
- {"ico":"","label":"Libellé de l'action","cmd":"openCand","arg":"id_candidat"},
- {"ico":"","label":"Libellé de l'action","cmd":"addDoc","arg":{"candId":"id","doc":"Nom du document"}},
- {"ico":"","label":"Libellé de l'action","cmd":"openAgenda","arg":null},
- {"ico":"↩","label":"Libellé de l'action","cmd":"replyEmail","arg":"uid_email"}
- ]
+  if(!getApiKey())return;
+  if(!INBOX_CACHE?.emails)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  showAiPanelLoading();
+  try{
+    const apiBase=window.location.hostname==='localhost'||window.location.hostname===''?null:window.location.origin;
+    if(!apiBase){closeAiPanel();return;}
+    const resp=await fetch(`${apiBase}/api/ai`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        messages:[{role:'user',content:`Analyse cet email recu dans un CRM de recrutement BTP. Extrait les informations cles et propose des actions concretes.\n\nDe: ${email.from||email.fromEmail}\nObjet: ${email.subject}\nDate: ${email.date}\n\nCorps:\n${(email.text||'').slice(0,2000)}`}],
+        system:'Tu es un assistant CRM de recrutement specialise BTP. Reponds en JSON: {summary:string,actions:[{label:string,type:string,urgence:"haute"|"normale"|"basse"}],entityType:"candidat"|"client"|"prospect"|null,entityName:string|null}',
+        max_tokens:600,
+      })
+    });
+    const data=await resp.json();
+    const txt=data.content?.find(b=>b.type==='text')?.text||data.content?.[0]?.text||'';
+    let parsed;
+    try{parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());}catch(e){parsed=null;}
+    if(parsed)showAiActionPanel(parsed,email,uid);
+    else closeAiPanel();
+  }catch(e){closeAiPanel();console.warn('AI email analysis error:',e);}
 }
 
-Commandes disponibles : openCand (ouvrir profil candidat), openCoPanel (ouvrir fiche entreprise), addDoc (ajouter doc au candidat), openAgenda (aller à l'agenda), replyEmail (préparer réponse), flagUrgent (marquer urgent), none (action manuelle sans commande CRM).
-
-Sois concis et pertinent. Max 4 actions.`;
-
- const userPrompt=`EMAIL REÇU :
-De : ${email.from||email.fromEmail}
-Objet : ${email.subject}
-Date : ${new Date(email.date).toLocaleString('fr-FR')}
-Pièces jointes : ${(email.attachments||[]).map(a=>a.filename).join(', ')||'Aucune'}
-
-Corps :
-${(email.text||'').slice(0,1500)}
-
----
-CANDIDATS DANS LE CRM :
-${JSON.stringify(candsList)}
-
-ENTREPRISES DANS LE CRM :
-${JSON.stringify(cosList)}`;
-
- try{
- const resp=await fetch('https://api.anthropic.com/v1/messages',{
- method:'POST',
- headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
- body:JSON.stringify({
- model:'claude-sonnet-4-20250514',
- max_tokens:800,
- system:systemPrompt,
- messages:[{role:'user',content:userPrompt}]
- })
- });
- const data=await resp.json();
- const raw=data?.content?.[0]?.text||'{}';
- let analysis;
- try{analysis=JSON.parse(raw);}
- catch{analysis=JSON.parse(raw.replace(/```json|```/g,'').trim());}
- analysis._emailUid=uid;
- showAiActionPanel(analysis,email);
- }catch(err){
- console.error('IA analyse error:',err);
- const panel=document.getElementById('ai-action-panel');
- if(panel) panel.innerHTML=`<div class="ai-panel-head">
- <span class="ai-panel-title"> Analyse IA</span>
- <span class="ai-panel-close" onclick="closeAiPanel()">×</span>
- </div>
- <div class="ai-panel-body" style="color:var(--ac3);font-size:11px;padding:14px">
- Analyse échouée — ${esc(err.message)}<br>
- <button class="btn bg bxs" style="margin-top:10px;font-size:10px" onclick="emAnalyzeEmail('${uid}')">Réessayer</button>
- </div>`;
- }
-}
-
-// ── Panel "analyse en cours" ─────────────────────────
 function showAiPanelLoading(){
- closeAiPanel();
- AI_PANEL_OPEN=true;
- const el=document.createElement('div');
- el.id='ai-action-panel';
- el.className='ai-panel';
- el.innerHTML=`
- <div class="ai-panel-head">
- <span style="font-size:13px"></span>
- <span class="ai-panel-title">Analyse IA en cours…</span>
- <span class="ai-panel-close" onclick="closeAiPanel()">×</span>
- </div>
- <div class="ai-panel-body" style="display:flex;align-items:center;gap:10px;padding:18px 14px;color:var(--mu);font-size:11px">
- <span style="animation:spin 1s linear infinite;display:inline-block;font-size:16px">⏳</span>
- Claude lit et analyse l'email…
- </div>`;
- document.body.appendChild(el);
+  document.getElementById('ai-action-panel')?.remove();
+  AI_PANEL_OPEN=true;
+  const el=document.createElement('div');el.id='ai-action-panel';el.className='ai-panel';
+  el.innerHTML=`
+    <div class="ai-panel-head">
+      <div class="ai-panel-title">Analyse IA</div>
+      <div class="ai-panel-close" onclick="closeAiPanel()">×</div>
+    </div>
+    <div class="ai-panel-body" style="display:flex;align-items:center;gap:10px;padding:20px;color:var(--mu)">
+      <div style="width:16px;height:16px;border:2px solid var(--bd2);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+      Analyse en cours...
+    </div>`;
+  document.body.appendChild(el);
 }
 
-// ── Afficher le panneau d'actions IA ────────────────
-function showAiActionPanel(analysis, email){
- const panel=document.getElementById('ai-action-panel');
- if(!panel)return;
- AI_PANEL_OPEN=true;
-
- const urgBadge=analysis.urgence==='haute'?'ai-urgence-haute':analysis.urgence==='basse'?'ai-urgence-basse':'ai-urgence-normale';
- const urgLabel=analysis.urgence==='haute'?'Urgent':analysis.urgence==='basse'?'Basse priorité':'Normale';
-
- const cand=analysis.candidat_id?DB.candidates.find(c=>c.id===analysis.candidat_id):null;
- const co=analysis.entreprise_id?DB.companies.find(c=>c.id===analysis.entreprise_id):null;
-
- const actionsHtml=(analysis.actions||[]).map((a,i)=>`
- <button class="ai-action-btn" onclick="executeAiAction(${i},'${esc(String(analysis._emailUid||''))}')">
- <span style="font-size:14px">${a.ico||'▶'}</span>
- <span style="flex:1">${esc(a.label)}</span>
- </button>`).join('');
-
- panel.innerHTML=`
- <div class="ai-panel-head">
- <span style="font-size:13px"></span>
- <span class="ai-panel-title">Actions suggérées</span>
- <span class="ai-urgence ${urgBadge}" style="margin-left:auto">${urgLabel}</span>
- <span class="ai-panel-close" onclick="closeAiPanel()" style="margin-left:8px">×</span>
- </div>
- <div class="ai-panel-body">
- ${analysis.resume?`<div class="ai-panel-resume">${esc(analysis.resume)}</div>`:''}
- ${cand?`<div class="ai-panel-cand"><strong>${esc(cand.name)}</strong><span style="color:var(--mu);margin-left:4px">— ${esc(cand.role||'Candidat')}</span><button class="btn bg bxs" style="margin-left:auto;font-size:10px;padding:2px 8px" onclick="openCand('${cand.id}')">Ouvrir →</button></div>`:''}
- ${co&&!cand?`<div class="ai-panel-cand"><strong>${esc(co.name)}</strong><button class="btn bg bxs" style="margin-left:auto;font-size:10px;padding:2px 8px" onclick="openCoPanel('${co.id}')">Ouvrir →</button></div>`:''}
- <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Actions recommandées</div>
- ${actionsHtml||'<div style="color:var(--mu);font-size:11px">Aucune action détectée</div>'}
- </div>`;
-
- // Stocker l'analyse pour executeAiAction
- window._lastAiAnalysis=analysis;
+function showAiActionPanel(analysis,email,uid){
+  document.getElementById('ai-action-panel')?.remove();
+  AI_PANEL_OPEN=true;
+  const el=document.createElement('div');el.id='ai-action-panel';el.className='ai-panel';
+  const urgColors={haute:'var(--red)',normale:'var(--ac)',basse:'var(--mu)'};
+  el.innerHTML=`
+    <div class="ai-panel-head">
+      <div class="ai-panel-title">Analyse IA</div>
+      <div class="ai-panel-close" onclick="closeAiPanel()">×</div>
+    </div>
+    <div class="ai-panel-body">
+      ${analysis.entityName?`<div class="ai-panel-cand">${esc(analysis.entityName)}</div>`:''}
+      ${analysis.summary?`<div class="ai-panel-resume">${esc(analysis.summary)}</div>`:''}
+      ${(analysis.actions||[]).map((a,i)=>`
+        <button class="ai-action-btn" onclick="executeAiAction(${i},'${uid}')">
+          <span style="flex:1">${esc(a.label)}</span>
+          <span class="ai-urgence" style="background:${a.urgence==='haute'?'var(--red-dim)':'var(--s3)'};color:${urgColors[a.urgence]||'var(--mu)'}">${a.urgence||'normale'}</span>
+        </button>`).join('')}
+    </div>`;
+  window._lastAiAnalysis=analysis;
+  document.body.appendChild(el);
 }
 
-// ── Exécuter une action IA ───────────────────────────
-function executeAiAction(actionIndex, emailUid){
- const analysis=window._lastAiAnalysis;
- if(!analysis||!analysis.actions)return;
- const action=analysis.actions[actionIndex];
- if(!action)return;
-
- const {cmd,arg}=action;
- switch(cmd){
- case 'openCand':
- if(arg){openCand(arg);closeAiPanel();}
- break;
- case 'openCoPanel':
- if(arg){openCoPanel(arg);closeAiPanel();}
- break;
- case 'addDoc':
- if(arg&&arg.candId&&arg.doc){
- const c=DB.candidates.find(x=>x.id===arg.candId);
- if(c){
- c.docs=c.docs||[];
- if(!c.docs.includes(arg.doc)){c.docs.push(arg.doc);}
- save();
- toast(`Document "${arg.doc}" ajouté au profil de ${c.name} ✓`,'s');
- // Ouvrir le profil ensuite
- setTimeout(()=>{openCand(arg.candId);},400);
- }
- }
- break;
- case 'openAgenda':
- go('agenda');
- closeAiPanel();
- break;
- case 'replyEmail':
- emReplyTo(emailUid);
- closeAiPanel();
- break;
- case 'flagUrgent':
- toast('Email marqué urgent ✓','w');
- break;
- case 'none':
- toast(esc(action.label),'i');
- break;
- default:
- toast(esc(action.label),'i');
- }
+function executeAiAction(actionIndex,emailUid){
+  const analysis=window._lastAiAnalysis;if(!analysis)return;
+  const action=(analysis.actions||[])[actionIndex];if(!action)return;
+  const email=INBOX_CACHE?.emails?.find(e=>String(e.uid)===String(emailUid));
+  const type=action.type||'note';
+  if(type==='reply'||type==='repondre'){emReplyTo(emailUid);closeAiPanel();return;}
+  if(type==='agenda'||type==='rdv'){go('agenda');closeAiPanel();return;}
+  if(type==='prospect'||type==='contact'){go('pros');closeAiPanel();return;}
+  if(type==='candidat'){go('cands');closeAiPanel();return;}
+  toast(`Action: ${action.label}`,'i');
+  closeAiPanel();
 }
 
-// ── Fermer le panneau IA ─────────────────────────────
 function closeAiPanel(){
- const el=document.getElementById('ai-action-panel');
- if(el) el.remove();
- AI_PANEL_OPEN=false;
- window._lastAiAnalysis=null;
+  document.getElementById('ai-action-panel')?.remove();
+  AI_PANEL_OPEN=false;
+  window._lastAiAnalysis=null;
 }
 
-// ═══════════════════════════════════════════════════════
-// Legacy aliases
-// ═══════════════════════════════════════════════════════
+// ── Legacy aliases ────────────────────────────────────
 function openInMailClient(){emOpenMailClient();}
 function logEmail(to,sub,body){emLogEmail(to,sub,body,true);}
 function resetEmailCompose(){emClear();}
 function quickLoadTpl(k){emQuickTpl(k);}
+function emPickContact(){}
 
-
-
-// ═══════════════════════════════════════════════════════
-// REPORTING
-// ═══════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════
-// LA BONNE BOITE — recherche de prospects FT
-// ═══════════════════════════════════════════════════════
-function openBonnesBoites(){
- const apiBase=getApiBase();
- const catOpts=BTP_CATS.map(c=>`<option value="${c.id}">${c.l}</option>`).join('');
- openMo(' Trouver des prospects BTP — La Bonne Boite',`
- <div class="info-box mb12">
- France Travail identifie les entreprises BTP avec un fort potentiel de recrutement sur votre zone.
- ${!apiBase?`<br><strong style="color:var(--ac4)">! Disponible uniquement sur novalem-crm.vercel.app</strong>`:''}
- </div>
- <div class="fg">
- <div class="fgrp"><span class="lbl">Secteur BTP</span>
- <select id="bb-cat">${catOpts}</select>
- </div>
- <div class="fgrp"><span class="lbl">Département (ex: 971, 75, 69)</span>
- <input id="bb-dept" placeholder="971" value="971">
- </div>
- <div class="fgrp"><span class="lbl">Rayon (km)</span>
- <input id="bb-dist" type="number" value="50" min="10" max="200">
- </div>
- </div>
- <div id="bb-results" style="margin-top:12px"></div>`,
- `<button class="btn bg" onclick="closeMo()">Fermer</button>
- <button class="btn bp" onclick="searchBonnesBoites()"> Rechercher</button>`
-);
-}
-
-async function searchBonnesBoites(){
- const apiBase=getApiBase();
- if(!apiBase){toast('Disponible uniquement sur Vercel','e');return;}
-
- const cat=document.getElementById('bb-cat')?.value||'go';
- const dept=document.getElementById('bb-dept')?.value||'971';
- const distance=Number(document.getElementById('bb-dist')?.value||50);
- const resEl=document.getElementById('bb-results');
- if(resEl)resEl.innerHTML=`<div class="mu_ fs11"> Recherche en cours…</div>`;
-
- try{
- const resp=await fetch(`${apiBase}/api/find-prospects`,{
- method:'POST',
- headers:{'Content-Type':'application/json'},
- body:JSON.stringify({cat,dept,distance})
- });
- if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
- const data=await resp.json();
- const companies=data.companies||[];
-
- if(!companies.length){
- if(resEl)resEl.innerHTML=`<div class="mu_ fs11">Aucune entreprise trouvée — essayez un autre département ou secteur.</div>`;
- return;
- }
-
- if(resEl)resEl.innerHTML=`
- <div class="lbl mb6">${companies.length} entreprise(s) trouvées — cliquez pour ajouter en prospect</div>
- <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
- ${companies.map((c,i)=>`
- <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:11px;cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--bd)'" onclick="addBonneBoiteProspect(${i})">
- <div style="flex:1">
- <div style="font-weight:600;font-family:'Syne',sans-serif">${esc(c.name||'—')}</div>
- <div class="mu_">${esc(c.address||'—')}${c.size?` · ${esc(c.size)}`:''}</div>
- </div>
- ${c.score?`<div style="font-size:10px;color:var(--ac2)">${typeof c.score==='number'?''.repeat(Math.min(Math.round(c.score),5)):'★'+c.score}</div>`:''}
- <button class="btn bp bxs">+ Ajouter</button>
- </div>`).join('')}
- </div>`;
-
- // Stocker temporairement pour l'import
- window._bbResults=companies;
-
- }catch(err){
- if(resEl)resEl.innerHTML=`<div style="color:var(--ac3);font-size:11px">Erreur: ${esc(err.message)}</div>`;
- }
-}
-
-function addBonneBoiteProspect(idx){
- const c=window._bbResults?.[idx];if(!c)return;
- // Vérifier si déjà existant
- const exists=DB.companies.find(co=>co.name===c.name||(c.siret&&co.siret===c.siret));
- if(exists){toast(`${c.name} déjà dans vos prospects`,'w');return;}
-
- const newCo={
- id:uid(),
- name:c.name||'Entreprise FT',
- contact:'',ctitle:'',
- phone:c.phone||'',
- email:c.email||'',
- city:c.address||'',
- size:'',
- cat:'go',
- type:'prospect',
- status:'tocall',
- source:'La Bonne Boite (FT)',
- siret:c.siret||'',
- marge:'',notes:'',
- created:now_(),updated:now_()
- };
- DB.companies.unshift(newCo);
- save();badges();
- toast(`${c.name} ajouté en prospect`,'s');
-
- // Griser la ligne dans le modal
- const rows=document.querySelectorAll('#bb-results [onclick]');
- if(rows[idx]){
- rows[idx].style.opacity='.4';
- rows[idx].style.pointerEvents='none';
- rows[idx].querySelector('button').textContent='✓ Ajouté';
- }
-}
-
-// Alias manquant — findBonnesBoites est dans api/, ici c'est juste le wrapper frontend
-function findBonnesBoites(params){ return searchBonnesBoites(); }
-
-// Upload intelligent avec classification IA
-async function handleSmartUpload(event, candId){
- const files=[...event.target.files];if(!files.length)return;
- const c=cById(candId);if(!c)return;
- c.docs=c.docs||[];
- let classified=0,unknown=0;
- toast(` Classification de ${files.length} fichier(s)…`,'i');
-
- const DOC_KEYWORDS={
- cv:['cv','curriculum','experience','formation','competences','profil','parcours'],
- id_card:['identite','cni','passeport','carte nationale','piece identite'],
- permis:['permis','driving','license'],
- carte_vit:['vitale','secu','securite sociale','ameli'],
- visite_med:['visite','aptitude','medecine','vip','sir'],
- rgpd:['rgpd','consentement','gdpr','protection'],
- auth_ref:['reference','autorisation','controle'],
- dossier:['dossier','candidature','novalem'],
- diplomes:['diplome','bac','bts','licence','master','cap','bep','certificat'],
- photo:['photo','portrait'],
- };
-
- for(const file of files){
- if(file.size>3*1024*1024){toast(`${file.name} trop lourd (max 3MB)`,'e');continue;}
- const nameLower=file.name.toLowerCase();
- let detected=null;
- for(const [docId,kws] of Object.entries(DOC_KEYWORDS)){
- if(kws.some(kw=>nameLower.includes(kw))){detected=docId;break;}
- }
-
- await new Promise(res=>{
- const reader=new FileReader();
- reader.onload=(e)=>{
- const data=e.target.result;
- if(detected){
- const idx=c.docs.findIndex(d=>d.id===detected);
- const docData={id:detected,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:data};
- if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
- classified++;
- toast(`"${file.name}" → ${DOCS_LIST.find(d=>d.id===detected)?.l||detected}`,'s');
- } else {
- unknown++;
- toast(`? "${file.name}" non reconnu — uploadez manuellement`,'w');
- }
- res();
- };
- reader.readAsDataURL(file);
- });
- }
- c.updated=now_();save();
- renderCandPanelTab(candId);
- toast(`${classified} classé(s)${unknown>0?`, ${unknown} à classer manuellement`:''}`,classified>0?'s':'w');
-}
-
-let repPeriod='month'; // 'week' | 'month' | 'quarter' | 'all'
 
 function rReporting(){
  const el=document.getElementById('view-reporting');
