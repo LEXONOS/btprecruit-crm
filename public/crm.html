@@ -4275,12 +4275,12 @@ function openSettings(){
  // Dossier URL
  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
 
- openMo('· Paramètres Novalem',`
+ openMo(`Parametres — ${currentUserName()}`,`
  <div style="max-height:72vh;overflow-y:auto;padding-right:4px">
 
  <!-- PROFIL -->
  <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
- <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac)">Votre profil</div>
+ <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac)">Profil — ${currentUserName()}</div>
  <div class="fg">
  <div class="fgrp"><span class="lbl">Votre nom complet</span>
  <input id="set-nom" value="${esc(nom)}" placeholder="ex: Louis Renault">
@@ -4317,7 +4317,8 @@ function openSettings(){
  <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
  <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac6)"> Intelligence Artificielle (Anthropic)</div>
  <div style="font-size:11px;color:var(--mu);margin-bottom:8px;line-height:1.6">
- Extraction de CV, génération d'annonces. <a href="https://console.anthropic.com" target="_blank" style="color:var(--ac5)">→ console.anthropic.com</a>
+ Extraction de CV, generation d'annonces, analyse emails. <a href="https://console.anthropic.com" target="_blank" style="color:var(--ac5)">→ console.anthropic.com</a><br>
+        <span style="font-size:10px;color:var(--mu2)">La cle saisie ici doit aussi etre configuree dans Vercel → Settings → Environment Variables → ANTHROPIC_API_KEY</span>
  </div>
  <div class="fgrp"><span class="lbl">Clé API Anthropic</span>
  <input id="set-apikey" type="password" value="${esc(apiKey)}" placeholder="sk-ant-api03-…" autocomplete="off">
@@ -4996,6 +4997,7 @@ function rEmails(){
       <div style="flex:1;overflow-y:auto;padding:6px">
         ${[
           ['inbox','Boite de reception',INBOX_UNREAD],
+          ['dossiers','Dossiers',0],
           ['compose','Rediger',0],
           ['sent','Envoyes',history.length],
           ['drafts','Brouillons',drafts.length],
@@ -5033,9 +5035,10 @@ function rEmails(){
 }
 
 function emRenderView(view,cands,cos,history,drafts,nom,tel){
-  if(view==='inbox') return emRenderInbox();
-  if(view==='sent')  return emRenderSent(history,cands);
-  if(view==='drafts')return emRenderDrafts(drafts,cands);
+  if(view==='inbox')   return emRenderInbox();
+  if(view==='sent')    return emRenderSent(history,cands);
+  if(view==='drafts')  return emRenderDrafts(drafts,cands);
+  if(view==='dossiers')return emRenderDossiers();
   return emRenderCompose(cands,cos,nom,tel);
 }
 
@@ -5153,20 +5156,29 @@ function emRenderInbox(){
         const matchCand=DB.candidates.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
         const matchCo=DB.companies.find(c=>c.email&&email.fromEmail&&c.email.toLowerCase()===email.fromEmail?.toLowerCase());
         const match=matchCand||matchCo;
-        return`<div class="inbox-item ${!email.seen?'unread':''}" onclick="emOpenEmail('${email.uid}')">
-          <div style="display:flex;align-items:flex-start;gap:9px">
-            <div style="width:6px;flex-shrink:0;margin-top:6px">${!email.seen?`<div style="width:6px;height:6px;border-radius:50%;background:var(--ac)"></div>`:''}</div>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-                <span class="inbox-from" style="font-weight:${email.seen?'400':'600'}">${esc(email.from||email.fromEmail||'—')}</span>
-                ${match?`<span class="inbox-cand-match">${esc(match.name)}</span>`:''}
-                ${email.attachments?.length?`<span class="inbox-attach">${email.attachments.length} PJ</span>`:''}
-                <span style="cursor:pointer;opacity:.4;margin-left:2px;font-size:13px;line-height:1" onclick="event.stopPropagation();email._starred=!email._starred;const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderInbox()" title="Marquer comme important">${email._starred?'★':'☆'}</span>
-                <span class="inbox-date">${ago(email.date)}</span>
-              </div>
-              <div class="inbox-subj">${esc(email.subject||'(sans objet)')}</div>
-              <div class="inbox-snip">${esc(email.snippet||'')}</div>
+        return`<div class="inbox-item ${!email.seen?'unread':''}" style="display:flex;align-items:stretch">
+          <div style="flex:1;cursor:pointer;padding:10px 14px 10px 8px" onclick="emOpenEmail('${email.uid}')">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+              <div style="width:6px;flex-shrink:0">${!email.seen?`<div style="width:6px;height:6px;border-radius:50%;background:var(--ac);margin-top:2px"></div>`:''}</div>
+              <span class="inbox-from" style="font-weight:${email.seen?'400':'600'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email.from||email.fromEmail||'—')}</span>
+              ${match?`<span class="inbox-cand-match" style="flex-shrink:0">${esc(match.name)}</span>`:''}
+              ${email.attachments?.length?`<span class="inbox-attach" style="flex-shrink:0">${email.attachments.length} PJ</span>`:''}
+              <span class="inbox-date" style="flex-shrink:0">${ago(email.date)}</span>
             </div>
+            <div class="inbox-subj" style="padding-left:12px">${esc(email.subject||'(sans objet)')}</div>
+            <div class="inbox-snip" style="padding-left:12px">${esc(email.snippet||'')}</div>
+          </div>
+          <!-- Actions rapides au survol -->
+          <div style="display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 8px;border-left:1px solid var(--bd);opacity:0;transition:.15s" 
+               class="inbox-actions"
+               onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+            <button onclick="event.stopPropagation();email._starred=!email._starred;const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderInbox()" 
+              style="background:none;border:none;cursor:pointer;font-size:13px;color:${email._starred?'var(--orange)':'var(--mu2)'};padding:2px;transition:.15s;line-height:1" title="Important">${email._starred?'★':'☆'}</button>
+            <button onclick="event.stopPropagation();emArchiveEmail('${email.uid}')" 
+              style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--mu2);padding:2px;transition:.15s;line-height:1;font-family:'DM Mono',monospace" title="Archiver">▼</button>
+            <button onclick="event.stopPropagation();emDeleteEmail('${email.uid}')" 
+              style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--mu2);padding:2px;transition:.15s;line-height:1" 
+              onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--mu2)'" title="Supprimer">×</button>
           </div>
         </div>`;
       }).join(''):`<div style="padding:40px;text-align:center;color:var(--mu2);font-size:11px">Aucun email${_inboxSearch?' pour "'+esc(_inboxSearch)+'"':''}</div>`}
@@ -5284,6 +5296,9 @@ async function emOpenEmail(uid){
         <button class="btn bp bxs" onclick="emReplyTo('${uid}')">Repondre</button>
         <button class="btn bg bxs" onclick="emForwardEmail('${uid}')">Transmettre</button>
         <button class="btn bg bxs" onclick="emMarkUnread('${uid}')">Marquer non lu</button>
+        <button class="btn bg bxs" onclick="emSaveToFolder('${uid}')">Dossiers →</button>
+        <button class="btn bg bxs" onclick="emArchiveEmail('${uid}')" title="Archiver cet email">Archiver</button>
+        <button class="btn bd_ bxs" onclick="emDeleteEmail('${uid}')" style="margin-left:auto" title="Supprimer definitivement">Supprimer</button>
         ${matchCand?`<button class="btn bg bxs" onclick="openCandPanel('${matchCand.id}')">→ Profil ${esc(matchCand.name.split(' ')[0])}</button>`:''}
         ${matchCo?`<button class="btn bg bxs" onclick="openCoPanel('${matchCo.id}')">→ ${esc(matchCo.name)}</button>`:''}
         <button class="ai-badge" style="cursor:pointer;padding:4px 10px;font-size:10px;margin-left:auto" onclick="emAnalyzeEmail('${uid}')">Analyser IA</button>
@@ -5628,6 +5643,244 @@ function executeAiAction(actionIndex,emailUid){
   toast(`Action: ${action.label}`,'i');
   closeAiPanel();
 }
+
+
+// ── Supprimer email de l'inbox ───────────────────────
+function emDeleteEmail(uid){
+  openMo('',`
+    <div class="confirm-dialog">
+      <div class="confirm-icon" style="background:var(--red-dim);border:2px solid var(--red-border)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      </div>
+      <div class="confirm-title">Supprimer cet email ?</div>
+      <div class="confirm-desc">Il sera retire de l'affichage. La suppression definitive se fait depuis votre boite mail OVH.</div>
+      <div class="confirm-actions">
+        <button class="btn-apple primary" onclick="(()=>{if(INBOX_CACHE?.emails){INBOX_CACHE.emails=INBOX_CACHE.emails.filter(e=>String(e.uid)!=='${uid}');INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;const badge=document.getElementById('em-inbox-badge');if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}}closeMo();emShowView('inbox');toast('Email supprime de la vue','w');})()">Supprimer</button>
+        <button class="btn-apple ghost" onclick="closeMo()">Annuler</button>
+      </div>
+    </div>`,``);
+}
+
+// ── Archiver email ────────────────────────────────────
+function emArchiveEmail(uid){
+  if(!INBOX_CACHE?.emails)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  // Save to archived emails in DB
+  DB.emails_archived=DB.emails_archived||[];
+  DB.emails_archived.push({...email,archived_at:now_()});
+  // Remove from inbox view
+  INBOX_CACHE.emails=INBOX_CACHE.emails.filter(e=>String(e.uid)!==String(uid));
+  save();
+  emShowView('inbox');
+  toast('Email archive','s');
+}
+
+// ── Dossiers email ────────────────────────────────────
+function emSaveToFolder(uid){
+  if(!INBOX_CACHE?.emails)return;
+  const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
+  if(!email)return;
+  const folders=(DB.email_folders||[]);
+  const folderOpts=folders.map((f,i)=>`
+    <div onclick="emAddToFolder(${i},'${uid}')" style="padding:9px 12px;cursor:pointer;border-radius:6px;transition:.12s;display:flex;align-items:center;gap:8px;font-size:12px" 
+         onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''">
+      <span style="font-size:14px">▷</span>
+      <span>${esc(f.name)}</span>
+      <span style="font-size:10px;color:var(--mu);margin-left:auto">${(f.emails||[]).length} email(s)</span>
+    </div>`).join('');
+  openMo('Enregistrer dans un dossier',`
+    <div>
+      ${folderOpts||'<div style="font-size:12px;color:var(--mu);padding:8px 0">Aucun dossier cree</div>'}
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)">
+        <div style="font-size:11px;color:var(--mu);margin-bottom:6px">Nouveau dossier</div>
+        <div style="display:flex;gap:6px">
+          <input id="new-folder-name" placeholder="Nom du dossier…" style="flex:1;font-size:12px">
+          <button class="btn bp bsm" onclick="emCreateFolder(document.getElementById('new-folder-name').value,'${uid}')">Creer</button>
+        </div>
+      </div>
+    </div>`,
+    `<button class="btn bg" onclick="closeMo()">Fermer</button>`
+  );
+}
+
+function emCreateFolder(name, uid){
+  if(!name?.trim()){toast('Nom requis','e');return;}
+  DB.email_folders=DB.email_folders||[];
+  const folder={id:uid_(),name:name.trim(),emails:[],created:now_()};
+  DB.email_folders.push(folder);
+  if(uid)emAddToFolder(DB.email_folders.length-1,uid);
+  else{save();closeMo();toast('Dossier cree ✓','s');}
+}
+function uid_(){return Math.random().toString(36).slice(2,9);}
+
+function emAddToFolder(folderIdx,emailUid){
+  DB.email_folders=DB.email_folders||[];
+  const folder=DB.email_folders[folderIdx];if(!folder)return;
+  const email=INBOX_CACHE?.emails?.find(e=>String(e.uid)===String(emailUid));
+  if(!email)return;
+  folder.emails=folder.emails||[];
+  if(!folder.emails.find(e=>String(e.uid)===String(emailUid))){
+    folder.emails.push({...email,saved_at:now_()});
+  }
+  save();closeMo();
+  toast(`Email enregistre dans "${folder.name}" ✓`,'s');
+}
+
+// ── Vue Dossiers ──────────────────────────────────────
+let _currentFolder=null;
+
+function emRenderDossiers(){
+  const folders=DB.email_folders||[];
+  const archived=DB.emails_archived||[];
+
+  if(_currentFolder!==null){
+    const folder=folders[_currentFolder];
+    if(!folder){_currentFolder=null;return emRenderDossiers();}
+    return emRenderFolderContent(folder,_currentFolder);
+  }
+
+  return`
+    <div style="padding:12px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--s2)">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Dossiers & Archives</span>
+      <button class="btn bp bxs" style="margin-left:auto" onclick="emPromptNewFolder()">+ Nouveau dossier</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:10px">
+      <!-- Archives -->
+      <div onclick="_currentFolder='archived';const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderDossiers()" 
+           style="padding:12px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;cursor:pointer;margin-bottom:8px;display:flex;align-items:center;gap:10px;transition:.15s"
+           onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">▦</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12px">Archives</div>
+          <div style="font-size:10px;color:var(--mu)">${archived.length} email(s) archive(s)</div>
+        </div>
+      </div>
+      <!-- Dossiers custom -->
+      ${folders.length?folders.map((f,i)=>`
+        <div style="padding:12px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;cursor:pointer;margin-bottom:8px;display:flex;align-items:center;gap:10px;transition:.15s"
+             onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+          <div onclick="_currentFolder=${i};const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderDossiers()" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+            <div style="width:36px;height:36px;border-radius:8px;background:var(--ac-dim);border:1px solid var(--ac-border);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;color:var(--ac)">▷</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:12px">${esc(f.name)}</div>
+              <div style="font-size:10px;color:var(--mu)">${(f.emails||[]).length} email(s) · Cree le ${fD(f.created)}</div>
+            </div>
+          </div>
+          <button onclick="event.stopPropagation();emDeleteFolder(${i})" 
+            style="background:none;border:none;cursor:pointer;color:var(--mu2);font-size:14px;padding:4px;transition:.15s;flex-shrink:0"
+            onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--mu2)'" title="Supprimer ce dossier">×</button>
+        </div>`).join(''):`<div style="font-size:11px;color:var(--mu2);text-align:center;padding:30px">Aucun dossier — cliquez sur "+ Nouveau dossier"</div>`}
+    </div>`;
+}
+
+function emRenderFolderContent(folder,idx){
+  const isArchived=idx==='archived';
+  const emails=isArchived?(DB.emails_archived||[]):(folder.emails||[]);
+  const title=isArchived?'Archives':folder.name;
+  return`
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--s2)">
+      <button class="btn bg bxs" onclick="_currentFolder=null;const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderDossiers()">← Dossiers</button>
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${esc(title)}</span>
+      <span style="font-size:10px;color:var(--mu)">${emails.length} email(s)</span>
+      ${!isArchived?`<button class="btn bg bxs" style="margin-left:auto" onclick="emExportFolder(${idx})">Exporter</button>`:''}
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      ${emails.length?emails.map((e,i)=>`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.15s;display:flex;gap:8px" 
+             onclick="emShowSavedEmail('${isArchived?'archived':idx}',${i})"
+             onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+              <span style="font-size:11px;color:var(--blue);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.from||e.fromEmail||'—')}</span>
+              <span style="font-size:10px;color:var(--mu2);flex-shrink:0">${fD(e.date||e.saved_at||e.archived_at)}</span>
+            </div>
+            <div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.subject||'(sans objet)')}</div>
+            <div style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${esc(e.snippet||'')}</div>
+          </div>
+          ${!isArchived?`<button onclick="event.stopPropagation();emRemoveFromFolder(${idx},${i})" 
+            style="background:none;border:none;cursor:pointer;color:var(--mu2);font-size:14px;padding:4px;flex-shrink:0;transition:.15s"
+            onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--mu2)'" title="Retirer du dossier">×</button>`:''}
+        </div>`).join(''):`<div style="font-size:11px;color:var(--mu2);text-align:center;padding:40px">Dossier vide</div>`}
+    </div>`;
+}
+
+function emShowSavedEmail(folderIdx,emailIdx){
+  let email;
+  if(folderIdx==='archived')email=(DB.emails_archived||[])[emailIdx];
+  else email=(DB.email_folders?.[folderIdx]?.emails||[])[emailIdx];
+  if(!email)return;
+  const main=document.getElementById('em-main');if(!main)return;
+  main.innerHTML=`
+    <div class="email-detail-header" style="flex-shrink:0">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <button class="btn bg bxs" onclick="_currentFolder=${folderIdx==='archived'?`'archived'`:folderIdx};const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderDossiers()">← Retour</button>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;flex:1">${esc(email.subject||'(sans objet)')}</div>
+      </div>
+      <div style="font-size:11px;color:var(--blue)">${esc(email.from||email.fromEmail||'—')} · ${fD(email.date)}</div>
+    </div>
+    <div class="email-detail-body" style="flex:1;overflow-y:auto;white-space:pre-wrap;word-break:break-word">
+      ${renderBodyWithLinks(email.text||'')}
+    </div>`;
+}
+
+function emRemoveFromFolder(folderIdx,emailIdx){
+  if(!DB.email_folders?.[folderIdx])return;
+  DB.email_folders[folderIdx].emails.splice(emailIdx,1);
+  save();
+  const m=document.getElementById('em-main');
+  if(m)m.innerHTML=emRenderFolderContent(DB.email_folders[folderIdx],folderIdx);
+  toast('Retire du dossier','w');
+}
+
+function emDeleteFolder(idx){
+  openMo('',`
+    <div class="confirm-dialog">
+      <div class="confirm-icon" style="background:var(--red-dim);border:2px solid var(--red-border)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      </div>
+      <div class="confirm-title">Supprimer ce dossier ?</div>
+      <div class="confirm-desc">Les emails sauvegardes dedans seront perdus.</div>
+      <div class="confirm-actions">
+        <button class="btn-apple danger" onclick="(()=>{DB.email_folders.splice(${idx},1);save();closeMo();const m=document.getElementById('em-main');if(m)m.innerHTML=emRenderDossiers();toast('Dossier supprime','w');})()">Supprimer</button>
+        <button class="btn-apple ghost" onclick="closeMo()">Annuler</button>
+      </div>
+    </div>`,``);
+}
+
+function emExportFolder(idx){
+  const folder=DB.email_folders?.[idx];if(!folder)return;
+  const sep='='.repeat(60);
+  const emails=(folder.emails||[]).map(e=>[
+    '=== '+(e.subject||'(sans objet)')+' ===',
+    'De : '+(e.from||e.fromEmail||'—'),
+    'Date : '+fD(e.date),
+    '---',
+    e.text||'(corps vide)',
+    sep
+  ].join('\n')).join('\n\n');
+  const blob=new Blob([emails],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='emails_'+folder.name.replace(/\s/g,'_')+'.txt';a.click();
+  URL.revokeObjectURL(url);
+  toast('Dossier exporte','s');
+}
+
+function emPromptNewFolder(){
+  openMo('Nouveau dossier',`
+    <div class="fgrp"><span class="lbl">Nom du dossier</span><input id="nf-name" placeholder="Clients PACA, Candidats GO, Relances…" autofocus></div>`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bp" onclick="emCreateFolder(document.getElementById('nf-name').value,null)">Creer</button>`
+  );
+}
+
+// ── CSS inline : inbox-actions visible au survol ──────
+(function(){
+  const s=document.createElement('style');
+  s.textContent='.inbox-item:hover .inbox-actions{opacity:1!important}';
+  document.head.appendChild(s);
+})();
+
 
 function closeAiPanel(){
   document.getElementById('ai-action-panel')?.remove();
