@@ -3369,15 +3369,159 @@ function saveAgForm(id){
 }
 
 
+// ── MODULE ANNONCES — sync Supabase ──────────────────────
+const CRM_API='https://novalem-crm.vercel.app';
+const CAT_LABELS_POSTS={go:'Gros Œuvre',so:'Second Œuvre',be:"Bureau d'Études",vrd:'VRD / TP',hse:'HSE / QSE',mgmt:'Management'};
+function getCRMSecret(){return localStorage.getItem('btp_crm_secret')||'';}
+
 function rPosts(){
- document.getElementById('view-posts').innerHTML=DB.posts.length?`<div class="g3">${DB.posts.map(p=>{
- const cat=getCat(p.cat);
- return `<div class="prcard" onclick="openPostPanel('${p.id}')">
- <div class="flex fjb fac mb4"><div class="prcard-n">${esc(p.title)}</div><span class="pill ${p.status==='active'?'pwin':'pnew'}">${p.status==='active'?'Active':'Brouillon'}</span></div>
- <div class="prcard-m"><span class="tag ${cat.cls}">${cat.l}</span><br>${esc(p.location||'—')} · ${esc(p.salary||'—')}</div>
- <div class="fs10 mu_ mt8">${(p.boards||[]).length} board(s) · Créée ${fD(p.created)}</div>
+ const v=document.getElementById('view-posts');
+ const jobs=DB.posts||[];
+ const published=jobs.filter(j=>j.published).length;
+ const drafts=jobs.filter(j=>!j.published).length;
+ const header=`
+ <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap">
+ <div>
+ <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--tx)">Annonces & Offres</div>
+ <div style="font-size:12px;color:var(--mu)">Les offres publiées apparaissent sur le site et sont indexées par Google</div>
+ </div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap">
+ <button class="btn bg bxs" onclick="syncJobsFromSupabase()" id="btn-sync-jobs">↻ Sync</button>
+ <a href="https://www.novalem-recrutement.fr/nos-besoins/" target="_blank" class="btn bg bxs">Voir le site →</a>
+ <button class="btn bp bxs" onclick="openPostForm(null)">+ Nouvelle offre</button>
+ </div>
  </div>`;
- }).join('')}</div>`:'<div class="empty">Aucune annonce — <button class="btn bp bxs" onclick="openPostForm()">+ Créer</button></div>';
+ if(!jobs.length){v.innerHTML=header+'<div class="empty">Aucune annonce — <button class="btn bp bxs" onclick="openPostForm(null)">+ Créer la première</button></div>';return;}
+ const statsBar=`
+ <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+ <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
+ <div style="font-size:22px;font-weight:700;color:var(--ac)">${published}</div>
+ <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Publiées</div>
+ </div>
+ <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
+ <div style="font-size:22px;font-weight:700;color:var(--tx)">${drafts}</div>
+ <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Brouillons</div>
+ </div>
+ <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
+ <div style="font-size:22px;font-weight:700;color:var(--ac2)">${jobs.reduce((a,j)=>a+(j.applications_count||0),0)}</div>
+ <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Candidatures</div>
+ </div>
+ </div>`;
+ const cards=jobs.map(p=>{
+ const cat=CAT_LABELS_POSTS[p.cat]||p.cat||'BTP';
+ const isPublished=p.published;
+ return `<div class="prcard" style="position:relative">
+ <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
+ <div>
+ <span class="pill ${isPublished?'pwin':'pnew'}" style="margin-right:6px">${isPublished?'● Publiée':'○ Brouillon'}</span>
+ <span style="font-size:10px;background:rgba(232,160,32,.1);color:var(--ac);padding:2px 8px;border-radius:3px;font-weight:600">${esc(cat)}</span>
+ </div>
+ <div style="display:flex;gap:6px;flex-shrink:0">
+ <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="togglePublishJob('${p.id}')">${isPublished?'Dépublier':'Publier ▲'}</button>
+ <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="openPostPanel('${p.id}')">Voir →</button>
+ </div>
+ </div>
+ <div class="prcard-n" style="cursor:pointer" onclick="openPostPanel('${p.id}')">${esc(p.title)}</div>
+ <div class="prcard-m" style="margin-top:6px">
+ <span>${esc(p.location||'—')}</span>
+ ${p.salary_display?`<span> · ${esc(p.salary_display)}</span>`:p.salary?`<span> · ${esc(p.salary)}</span>`:''}
+ ${p.contract_type?`<span> · ${esc(p.contract_type)}</span>`:''}
+ </div>
+ <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+ <div class="fs10 mu_">${p.reference?`Réf. ${esc(p.reference)} · `:''}Créée ${fD(p.created)}${p.supabase_id?' · <span style="color:var(--ac2)">✓ Cloud</span>':' · <span style="color:var(--mu)">Local</span>'}</div>
+ ${(p.applications_count||0)>0?`<span style="font-size:11px;color:var(--ac2);font-weight:600">${p.applications_count} candidature${p.applications_count>1?'s':''}</span>`:''}
+ </div>
+ </div>`;
+ }).join('');
+ v.innerHTML=header+statsBar+`<div class="g3">${cards}</div>`;
+}
+
+async function togglePublishJob(id){
+ const post=DB.posts.find(x=>x.id===id);if(!post)return;
+ post.published=!post.published;post.status=post.published?'active':'draft';post.updated=now_();save();
+ await syncPostToSupabase(id);rPosts();
+ toast(post.published?'Offre publiée sur le site ✓':'Offre dépubliée','s');
+}
+
+async function syncJobsFromSupabase(){
+ const btn=document.getElementById('btn-sync-jobs');
+ if(btn){btn.textContent='↻ Sync…';btn.disabled=true;}
+ const secret=getCRMSecret();
+ if(!secret){toast('CRM Secret non configuré dans Paramètres','w');if(btn){btn.textContent='↻ Sync';btn.disabled=false;}return;}
+ try{
+ const r=await fetch(`${CRM_API}/api/jobs`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Secret':secret},body:JSON.stringify({action:'list_all',job:{}})});
+ const {jobs:cloudJobs}=await r.json();
+ if(!cloudJobs?.length){toast('Aucune offre cloud trouvée','w');if(btn){btn.textContent='↻ Sync';btn.disabled=false;}return;}
+ let updated=0;
+ cloudJobs.forEach(cj=>{
+ const local=DB.posts.find(p=>p.supabase_id===cj.id||p.id===cj.crm_id);
+ if(local){local.supabase_id=cj.id;local.views_count=cj.views_count||0;local.applications_count=cj.applications_count||0;local.published=cj.published;local.status=cj.published?'active':'draft';updated++;}
+ });
+ save();rPosts();toast(`Sync OK — ${updated} offre(s) mise(s) à jour`,'s');
+ }catch(e){toast('Erreur sync: '+e.message,'e');}
+ finally{if(btn){btn.textContent='↻ Sync';btn.disabled=false;}}
+}
+
+async function syncPostToSupabase(localId){
+ const secret=getCRMSecret();if(!secret)return;
+ const post=DB.posts.find(x=>x.id===localId);if(!post)return;
+ try{
+ const action=post.supabase_id?'update':'create';
+ const jobPayload={id:post.supabase_id||undefined,title:post.title,cat:post.cat,description:post.description||post.body||'',location:post.location||'',contract_type:post.contract_type||'CDI',reference:post.reference||null,salary_display:post.salary_display||post.salary||null,salary_min:post.salary_min||null,salary_max:post.salary_max||null,experience:post.experience||null,skills:post.skills||[],featured:post.featured||false,published:post.published||false,crm_id:post.id};
+ const r=await fetch(`${CRM_API}/api/jobs`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Secret':secret},body:JSON.stringify({action,job:jobPayload})});
+ const data=await r.json();
+ if(data.job?.id){post.supabase_id=data.job.id;save();}
+ }catch(e){console.error('Sync Supabase erreur:',e);}
+}
+
+async function openCandidaturesPanel(jobId){
+ const secret=getCRMSecret();
+ if(!secret){toast('CRM_SECRET requis pour voir les candidatures','w');return;}
+ const post=DB.posts.find(p=>p.id===jobId);
+ if(!post?.supabase_id){toast("Offre non synchronisée — publiez-la d'abord",'w');return;}
+ setPanel('Candidatures',esc(post.title),'','<div style="text-align:center;padding:30px;color:var(--mu)">Chargement…</div>','');
+ try{
+ const r=await fetch(`${CRM_API}/api/jobs`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Secret':secret},body:JSON.stringify({action:'get_applications',job:{id:post.supabase_id}})});
+ const {applications:apps}=await r.json();
+ if(!apps?.length){document.getElementById('pb').innerHTML='<div style="text-align:center;padding:30px;color:var(--mu)">Aucune candidature pour le moment</div>';return;}
+ document.getElementById('pb').innerHTML=apps.map(a=>`
+ <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:14px;margin-bottom:10px">
+ <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+ <strong style="font-size:14px;color:var(--tx)">${esc(a.firstname)} ${esc(a.lastname)}</strong>
+ <span class="pill ${a.status==='nouveau'?'pnew':a.status==='qualifié'?'pwin':'ppre'}" style="font-size:10px;flex-shrink:0">${esc(a.status)}</span>
+ </div>
+ <div style="font-size:12px;color:var(--mu2);margin-bottom:4px">
+ <a href="mailto:${esc(a.email)}" style="color:var(--ac)">${esc(a.email)}</a>
+ ${a.phone?` · ${esc(a.phone)}`:''}
+ ${a.linkedin_url?` · <a href="${esc(a.linkedin_url)}" target="_blank" style="color:var(--mu2)">LinkedIn</a>`:''}
+ </div>
+ ${a.message?`<div style="font-size:12px;color:var(--mu);margin-top:8px;padding:8px;background:var(--s3);border-radius:4px;line-height:1.5">${esc(a.message)}</div>`:''}
+ <div style="font-size:10px;color:var(--mu);margin-top:8px">${fD(new Date(a.created_at).getTime())}</div>
+ <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+ <button class="btn bg bxs" onclick="window.location.href='mailto:${esc(a.email)}'">Répondre</button>
+ <button class="btn bg bxs" onclick="quickAddCandFromApp('${a.id}','${esc(a.firstname)}','${esc(a.lastname)}','${esc(a.email)}','${esc(a.phone||'')}')">+ Ajouter candidat</button>
+ </div>
+ </div>`).join('');
+ }catch(e){document.getElementById('pb').innerHTML=`<div style="color:var(--red);padding:16px;font-size:13px">Erreur: ${esc(e.message)}</div>`;}
+}
+
+function quickAddCandFromApp(appId,fn,ln,email,phone){
+ openMo('Créer le candidat',`
+ <div class="fgrp"><span class="lbl">Prénom</span><input class="inp" id="qc-fn" value="${esc(fn)}"></div>
+ <div class="fgrp"><span class="lbl">Nom</span><input class="inp" id="qc-ln" value="${esc(ln)}"></div>
+ <div class="fgrp"><span class="lbl">Email</span><input class="inp" id="qc-email" value="${esc(email)}"></div>
+ <div class="fgrp"><span class="lbl">Téléphone</span><input class="inp" id="qc-phone" value="${esc(phone)}"></div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="quickCreateCand()">Créer le candidat</button>`
+);}
+function quickCreateCand(){
+ const fn=document.getElementById('qc-fn')?.value?.trim();
+ const ln=document.getElementById('qc-ln')?.value?.trim();
+ const email=document.getElementById('qc-email')?.value?.trim();
+ const phone=document.getElementById('qc-phone')?.value?.trim();
+ if(!fn||!ln){toast('Prénom et nom requis','e');return;}
+ const c={id:uid(),created:now_(),updated:now_(),name:`${fn} ${ln}`,email,phone,source:'site_novalem',status:'entrant',cat:'go',docs:[],refs:[]};
+ DB.candidates.unshift(c);save();closeMo();rCands();badges();
+ toast(`Candidat ${fn} ${ln} ajouté ✓`,'s');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3580,7 +3724,9 @@ function openPostPanel(id){
 
  setPanel(p.title,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${p.status==='active'?'pwin':'pnew'}">${p.status==='active'?'Active':'Brouillon'}</span>`,null,`
  <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(p.location||'—')}</span></div>
- <div class="dr"><span class="drk">Salaire</span><span class="drv">${esc(p.salary||'—')}</span></div>
+ <div class="dr"><span class="drk">Salaire</span><span class="drv">${esc(p.salary_display||p.salary||'—')}</span></div>
+ <div class="dr"><span class="drk">Candidatures</span><span class="drv" style="color:var(--ac2);font-weight:600">${p.applications_count||0}</span></div>
+ <div class="dr"><span class="drk">Cloud ID</span><span class="drv fs10 mu_">${p.supabase_id?p.supabase_id.slice(0,8)+'…':'Non synchronisé'}</span></div>
  <div class="sl">Conformité légale ${jcmoStatus}</div>
  ${p.jcmo_issues?.length?`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px">${p.jcmo_issues.map(i=>`<div class="fs10" style="padding:4px 8px;background:var(--s3);border-radius:2px">${esc(i)}</div>`).join('')}</div>`:''}
  <div class="sl">Publication (${published.length}/${(p.boards||[]).length} boards)</div>
@@ -3589,7 +3735,8 @@ function openPostPanel(id){
  <div class="notebox" style="max-height:160px;overflow-y:auto">${esc(p.body||'—')}</div>`,
  `<button class="btn bp bsm" onclick="openPublishPanel('${id}')">Publier</button>
  <button class="btn bg bsm" onclick="verifyPostJCMO('${id}')"> Vérifier</button>
- <button class="btn ${p.status==='active'?'bg':'bg'} bsm" onclick="togPostSt('${id}')">${p.status==='active'?'⏸ Clôturer':'▶ Activer'}</button>
+ <button class="btn ${p.published?'bg':'bp'} bsm btn-full" onclick="togglePublishJob('${id}');closePanel()">${p.published?'Dépublier':'Publier sur le site'}</button>
+ <button class="btn bg bsm btn-full" onclick="openCandidaturesPanel('${id}')">Candidatures (${p.applications_count||0})</button>
  <button class="btn bg bsm" onclick="openPostForm('${id}')">✎ Modifier</button>
  <button class="btn bd_ bsm" onclick="delPost('${id}')"></button>`
 );
@@ -3789,37 +3936,68 @@ function saveNeedForm(id,dco){
 function openPostForm(id=null){
  const p=id?DB.posts.find(x=>x.id===id):{};if(!p)return;
  const catOpts=BTP_CATS.map(c=>`<option value="${c.id}" ${(p.cat||'go')===c.id?'selected':''}>${c.l}</option>`).join('');
- const brdOpts=BOARDS.map(b=>`<label style="display:flex;align-items:center;gap:5px;font-size:11px;text-transform:none;cursor:pointer"><input type="checkbox" value="${b}" ${(p.boards||[]).includes(b)?'checked':''} style="width:11px;accent-color:var(--ac)"> ${b}</label>`).join('');
+ const contractOptions=['CDI','CDD','Interim'].map(c=>`<option value="${c}" ${(p.contract_type||'CDI')===c?'selected':''}>${c}</option>`).join('');
+ const skillsVal=(p.skills||[]).join(', ');
  openMo(id?'Modifier annonce':'Nouvelle annonce',`
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Titre *</span><input id="pf-t" value="${esc(p.title||'')}" placeholder="Conducteur de travaux GO — Lyon (H/F)"></div>
- <div class="fgrp"><span class="lbl">Catégorie</span><select id="pf-cat">${catOpts}</select></div>
- <div class="fgrp"><span class="lbl">Localisation</span><input id="pf-loc" value="${esc(p.location||'')}"></div>
- <div class="fgrp ff"><span class="lbl">Salaire affiché</span><input id="pf-sal" value="${esc(p.salary||'')}" placeholder="38 000 – 45 000€ brut/an"></div>
- <div class="fgrp ff"><span class="lbl">Infos pour l'IA (contexte client, spécificités…)</span><input id="pf-brief" value="${esc(p.notes_brief||'')}" placeholder="Ex: client PME lyonnaise, chantiers logements, CDI, véhicule de fonction"></div>
- <div class="fgrp ff">
+ <div style="display:grid;gap:12px">
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+ <div class="fgrp"><span class="lbl">Catégorie BTP</span><select id="pf-cat">${catOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Contrat</span><select id="pf-contract">${contractOptions}</select></div>
+ </div>
+ <div class="fgrp"><span class="lbl">Titre du poste *</span><input id="pf-t" value="${esc(p.title||'')}" placeholder="Conducteur de Travaux GO H/F"></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+ <div class="fgrp"><span class="lbl">Localisation *</span><input id="pf-loc" value="${esc(p.location||'')}" placeholder="Nice (06)"></div>
+ <div class="fgrp"><span class="lbl">Référence</span><input id="pf-ref" value="${esc(p.reference||'')}" placeholder="NOV-2025-001"></div>
+ </div>
+ <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+ <div class="fgrp"><span class="lbl">Salaire affiché</span><input id="pf-sal" value="${esc(p.salary_display||p.salary||'')}" placeholder="45-55k brut/an"></div>
+ <div class="fgrp"><span class="lbl">Salaire min (€/an)</span><input id="pf-smin" type="number" value="${p.salary_min||''}" placeholder="45000"></div>
+ <div class="fgrp"><span class="lbl">Salaire max (€/an)</span><input id="pf-smax" type="number" value="${p.salary_max||''}" placeholder="55000"></div>
+ </div>
+ <div class="fgrp"><span class="lbl">Expérience requise</span><input id="pf-exp" value="${esc(p.experience||'')}" placeholder="5 ans minimum"></div>
+ <div class="fgrp"><span class="lbl">Compétences clés (séparées par virgule)</span><input id="pf-skills" value="${esc(skillsVal)}" placeholder="Gestion chantier, CCAP, AutoCAD"></div>
+ <div class="fgrp">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
- <span class="lbl" style="margin:0">Texte de l'annonce</span>
+ <span class="lbl" style="margin:0">Description du poste *</span>
  ${getApiKey()?`<button id="ai-post-btn" type="button" class="btn bxs" style="background:rgba(154,74,224,.15);color:var(--ac6);border:1px solid rgba(154,74,224,.3)" onclick="aiGeneratePost('${id||'__new__'}')"> Générer avec IA</button>`:`<span class="ai-badge" style="cursor:pointer" onclick="openSettings()"> Configurer IA →</span>`}
  </div>
- <textarea id="pf-body" style="min-height:120px">${esc(p.body||'')}</textarea>
+ <textarea id="pf-body" style="min-height:120px">${esc(p.description||p.body||'')}</textarea>
  </div>
- <div class="fgrp ff"><span class="lbl">Publier sur</span><div style="display:flex;flex-direction:column;gap:4px;margin-top:3px" id="brd">${brdOpts}</div></div>
+ <div style="display:flex;align-items:center;gap:16px">
+ <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px">
+ <input type="checkbox" id="pf-featured" ${p.featured?'checked':''}>
+ <span>Mettre en avant</span>
+ </label>
+ <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px">
+ <input type="checkbox" id="pf-publish" ${p.published?'checked':''}>
+ <span style="color:var(--ac)">Publier immédiatement</span>
+ </label>
+ </div>
  </div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="savePostForm('${id||''}')">Enregistrer</button>`
-);
-}
-function savePostForm(id){
- const t=document.getElementById('pf-t').value.trim();
- if(!t){toast('Titre requis','e');return;}
- const boards=Array.from(document.querySelectorAll('#brd input:checked')).map(i=>i.value);
+ `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="deletePost('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="savePostForm('${id||''}')">Enregistrer</button>`
+);}
+async function savePostForm(id){
+ const title=document.getElementById('pf-t')?.value?.trim();
+ const desc=document.getElementById('pf-body')?.value?.trim();
+ const loc=document.getElementById('pf-loc')?.value?.trim();
+ if(!title||!desc||!loc){toast('Titre, description et localisation requis','e');return;}
+ const published=document.getElementById('pf-publish')?.checked||false;
+ const skills=(document.getElementById('pf-skills')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
  const n=now_();
- const data={title:t,cat:document.getElementById('pf-cat').value,location:document.getElementById('pf-loc').value,salary:document.getElementById('pf-sal').value,body:document.getElementById('pf-body').value,notes_brief:document.getElementById('pf-brief')?.value||'',boards,status:'draft',updated:n};
+ const data={title,description:desc,body:desc,location:loc,cat:document.getElementById('pf-cat')?.value||'go',contract_type:document.getElementById('pf-contract')?.value||'CDI',reference:document.getElementById('pf-ref')?.value?.trim()||'',salary_display:document.getElementById('pf-sal')?.value?.trim()||'',salary:document.getElementById('pf-sal')?.value?.trim()||'',salary_min:parseInt(document.getElementById('pf-smin')?.value)||null,salary_max:parseInt(document.getElementById('pf-smax')?.value)||null,experience:document.getElementById('pf-exp')?.value?.trim()||'',skills,featured:document.getElementById('pf-featured')?.checked||false,published,status:published?'active':'draft',updated:n};
  if(id){const p=DB.posts.find(x=>x.id===id);Object.assign(p,data);}
- else{data.id=uid();data.created=n;DB.posts.unshift(data);}
- save();closeMo();rPosts();toast(id?'Mis à jour ✓':'Annonce créée ✓','s');
+ else{data.id=uid();data.created=n;data.views_count=0;data.applications_count=0;data.supabase_id=null;DB.posts.unshift(data);id=data.id;}
+ save();closeMo();
+ if(published){await syncPostToSupabase(id);}
+ rPosts();badges();
+ toast(published?'Offre créée et publiée sur le site ✓':'Offre sauvegardée (brouillon)','s');
 }
-
+function deletePost(id){
+ const post=DB.posts.find(x=>x.id===id);
+ if(!post||!confirm('Supprimer cette offre définitivement ?'))return;
+ if(post.supabase_id){const secret=getCRMSecret();if(secret)fetch(`${CRM_API}/api/jobs`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Secret':secret},body:JSON.stringify({action:'delete',job:{id:post.supabase_id}})}).catch(()=>{});}
+ DB.posts=DB.posts.filter(x=>x.id!==id);save();closeMo();closePanel();rPosts();badges();toast('Offre supprimée','s');
+}
 // ═══════════════════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════════════════
@@ -4197,7 +4375,7 @@ function delNeed(id){
  `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.needs=DB.needs.filter(x=>x.id!=='${id}');DB.candidates.forEach(c=>{if(c.linked_need==='${id}')c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Besoin supprimé','w');})()">Supprimer</button>`);
 }
 function delAg(id){DB.agenda=DB.agenda.filter(a=>a.id!==id);save();closePanel();rAgenda();badges();toast('Supprimé','w');}
-function delPost(id){DB.posts=DB.posts.filter(p=>p.id!==id);save();closePanel();rPosts();toast('Supprimé','w');}
+function delPost(id){deletePost(id);}
 
 // ═══════════════════════════════════════════════════════
 // CTX MENU
@@ -4326,6 +4504,18 @@ function openSettings(){
  ${apiKey?`<div style="font-size:10px;color:var(--ac2);margin-top:4px">IA active</div>`:`<div style="font-size:10px;color:var(--ac4);margin-top:4px">! IA désactivée</div>`}
  </div>
 
+ <!-- CRM SECRET ANNONCES -->
+ <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
+ <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac)">Annonces & Site web</div>
+ <div style="font-size:11px;color:var(--mu);margin-bottom:8px;line-height:1.6">
+  Permet la publication des offres sur le site novalem-recrutement.fr.<br>
+  <span style="font-size:10px;color:var(--mu2)">Doit correspondre à la variable CRM_SECRET dans Vercel.</span>
+ </div>
+ <div class="fgrp"><span class="lbl">CRM Secret (sync annonces)</span>
+  <input id="set-crm-secret" type="password" value="${esc(localStorage.getItem('btp_crm_secret')||'')}" placeholder="novalem-secret-2025" autocomplete="off">
+ </div>
+ </div>
+
  <!-- SUPABASE -->
  <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
  <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac2)">· Synchronisation Cloud (Supabase)</div>
@@ -4376,6 +4566,9 @@ function saveSettings(){
  // API key
  const k=document.getElementById('set-apikey')?.value.trim()||'';
  setApiKey(k);
+
+ // CRM Secret annonces
+ localStorage.setItem('btp_crm_secret',(document.getElementById('set-crm-secret')?.value||'').trim());
 
  // Supabase
  const sbUrl=(document.getElementById('set-sburl')?.value||'').trim().replace(/\/$/,'');
