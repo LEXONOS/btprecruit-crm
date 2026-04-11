@@ -3510,282 +3510,304 @@ function openCoPanel(id){
 }
 
 
-// ── CONTRAT CADRE ─────────────────────────────────────────
 
-async function lookupSiret(nom, ville){
-  try{
-    const q=encodeURIComponent((nom+' '+(ville||'')).trim());
-    const r=await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${q}&per_page=5`);
-    const d=await r.json();
-    return d.results||[];
-  }catch(e){return[];}
-}
+// ── CONTRAT CADRE NOVALEM ──────────────────────────────────
 
 function genContrat(id){
-  const c=coById(id);if(!c)return;
-  openMo('📄 Contrat cadre — Paramètres',`
-  <div class="fg">
-    <div class="fgrp ff"><span class="lbl">Raison sociale</span>
-      <input id="ct-nom" value="${esc(c.name||'')}" placeholder="Ex : SARL Martin BTP">
-    </div>
-    <div class="fgrp" style="display:flex;gap:8px;align-items:flex-end">
-      <div style="flex:1"><span class="lbl">SIRET</span>
-        <input id="ct-siret" value="${esc(c.siret||'')}" placeholder="14 chiffres">
-      </div>
-      <button class="btn bg bxs" onclick="autoFillSiret('${id}')" title="Recherche automatique via annuaire officiel">🔍 Auto</button>
-    </div>
-    <div id="ct-siret-res" style="font-size:10px;color:var(--mu);min-height:14px;margin-top:-4px;margin-bottom:6px"></div>
-
-    <div style="margin:10px 0 6px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Grille tarifaire</div>
-    <table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:12px">
-      <tr style="background:#1A1614;color:#fff">
-        <td style="padding:5px 8px"></td>
-        <td style="padding:5px 8px;text-align:center">&lt; 5 ans</td>
-        <td style="padding:5px 8px;text-align:center">5 – 15 ans</td>
-        <td style="padding:5px 8px;text-align:center">&gt; 15 ans</td>
-      </tr>
-      <tr style="background:#F8F5EF">
-        <td style="padding:5px 8px;font-weight:600">Non-cadre</td>
-        <td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">12 %</td>
-        <td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">13,5 %</td>
-        <td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15 %</td>
-      </tr>
-      <tr style="background:#fff">
-        <td style="padding:5px 8px;font-weight:600">Cadre</td>
-        <td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15 %</td>
-        <td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">17 %</td>
-        <td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">20 %</td>
-      </tr>
-    </table>
-
-    <div class="fgrp"><span class="lbl">Taux négocié spécifique (optionnel)</span>
-      <div style="display:flex;align-items:center;gap:6px">
-        <input id="ct-taux" type="number" placeholder="Laisser vide = grille ci-dessus" min="8" max="30" step="0.5" style="max-width:160px">
-        <span style="font-size:10px;color:var(--mu)">% du SBA</span>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px;background:var(--bg2,#F8F5EF);border-radius:4px">
-      <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Options du contrat</div>
-
-      <label style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px">
-        <input type="checkbox" id="ct-3070" style="width:15px;height:15px;accent-color:#C9891A">
-        <div>
-          <span style="font-weight:600">Option 30 / 70 %</span>
-          <span style="color:var(--mu)"> — 30 % à l'intégration, 70 % à l'issue de la période d'essai (3 mois)</span>
-        </div>
-      </label>
-
-      <label style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px">
-        <input type="checkbox" id="ct-garantie" style="width:15px;height:15px;accent-color:#C9891A">
-        <div>
-          <span style="font-weight:600">Garantie de remplacement 3 mois</span>
-          <span style="color:var(--mu)"> — relance gratuite si départ en période d'essai</span>
-        </div>
-      </label>
-    </div>
-  </div>`,
-  `<button class="btn bg" onclick="closeMo()">Annuler</button>
-   <button class="btn bp" style="background:#C9891A;border-color:#B07010" onclick="doGenContrat('${id}')">⬇ Générer le contrat</button>`);
-}
-
-async function autoFillSiret(coId){
-  const nom=document.getElementById('ct-nom').value.trim();
-  const c=coById(coId);
-  const ville=c?.city||'';
-  if(!nom){toast('Renseignez la raison sociale d\'abord','w');return;}
-  const el=document.getElementById('ct-siret-res');
-  el.textContent='Recherche en cours…';el.style.color='var(--mu)';
-  const results=await lookupSiret(nom,ville);
-  if(!results.length){el.textContent='Aucun résultat. Renseignez le SIRET manuellement.';return;}
-  const first=results[0];
-  const siret=first.siege?.siret||first.siren||'';
-  document.getElementById('ct-siret').value=siret;
-  if(c){c.siret=siret;c.updated=now_();save();}
-  el.style.color='green';
-  const addr=(first.siege?.adresse_ligne_1||'')+' '+(first.siege?.code_postal||'')+' '+(first.siege?.libelle_commune||'');
-  el.textContent=`✓ ${first.nom_complet||first.nom_raison_sociale||''} — ${addr.trim()}`;
+  var c=coById(id);if(!c)return;
+  openMo('Contrat cadre — Paramètres',
+    '<div class="fg">' +
+    '<div class="fgrp ff"><span class="lbl">Raison sociale</span>' +
+    '<input id="ct-nom" value="' + esc(c.name||'') + '" placeholder="Raison sociale exacte"></div>' +
+    '<div class="fgrp ff"><span class="lbl">SIRET (14 chiffres)</span>' +
+    '<input id="ct-siret" value="' + esc(c.siret||'') + '" placeholder="Ex : 12345678901234"></div>' +
+    '<div style="margin:12px 0 6px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Grille tarifaire applicable</div>' +
+    '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:12px">' +
+    '<tr style="background:#1A1614;color:#fff">' +
+    '<td style="padding:5px 8px"></td>' +
+    '<td style="padding:5px 8px;text-align:center">&lt; 5 ans</td>' +
+    '<td style="padding:5px 8px;text-align:center">5\u201315 ans</td>' +
+    '<td style="padding:5px 8px;text-align:center">&gt; 15 ans</td></tr>' +
+    '<tr style="background:#F8F5EF">' +
+    '<td style="padding:5px 8px;font-weight:600">Non-cadre</td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">12 %</td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">13,5 %</td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15 %</td></tr>' +
+    '<tr style="background:#fff">' +
+    '<td style="padding:5px 8px;font-weight:600">Cadre</td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15 %</td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">17 %</td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">20 %</td></tr>' +
+    '</table>' +
+    '<div class="fgrp"><span class="lbl">Geste commercial \u2014 taux sp\u00e9cifique pour le 1er recrutement uniquement (optionnel)</span>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    '<input id="ct-taux" type="number" placeholder="Laisser vide = grille standard" min="8" max="30" step="0.5" style="max-width:160px">' +
+    '<span style="font-size:10px;color:var(--mu)">% du SBA</span></div></div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px;background:var(--bg2,#F8F5EF);border-radius:4px">' +
+    '<div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Options</div>' +
+    '<label style="cursor:pointer;display:flex;align-items:flex-start;gap:8px;font-size:11px">' +
+    '<input type="checkbox" id="ct-3070" style="width:15px;height:15px;accent-color:#C9891A;margin-top:2px">' +
+    '<div><span style="font-weight:600">Option 30 / 70 %</span><br>' +
+    '<span style="color:var(--mu);font-size:10px">30 % \u00e0 l\'int\u00e9gration du candidat, 70 % \u00e0 l\'issue de la p\u00e9riode d\'essai (3 mois)</span></div></label>' +
+    '<label style="cursor:pointer;display:flex;align-items:flex-start;gap:8px;font-size:11px">' +
+    '<input type="checkbox" id="ct-garantie" style="width:15px;height:15px;accent-color:#C9891A;margin-top:2px">' +
+    '<div><span style="font-weight:600">Garantie de remplacement 3 mois</span><br>' +
+    '<span style="color:var(--mu);font-size:10px">Relance gratuite si d\u00e9part en p\u00e9riode d\'essai</span></div></label>' +
+    '</div></div>',
+    '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
+    '<button class="btn bp" style="background:#C9891A;border-color:#B07010" onclick="doGenContrat(\'' + id + '\')">\u2b07 G\u00e9n\u00e9rer le contrat</button>'
+  );
 }
 
 function doGenContrat(coId){
-  const nom=document.getElementById('ct-nom').value.trim()||'_______________';
-  const siret=document.getElementById('ct-siret').value.trim()||'_______________';
-  const taux=document.getElementById('ct-taux').value.trim();
-  const opt3070=document.getElementById('ct-3070').checked;
-  const garantie=document.getElementById('ct-garantie').checked;
-  const today=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
-  const c=coById(coId);
+  var nom=document.getElementById('ct-nom').value.trim()||'_______________';
+  var siret=document.getElementById('ct-siret').value.trim()||'_______________';
+  var taux=document.getElementById('ct-taux').value.trim();
+  var opt3070=document.getElementById('ct-3070').checked;
+  var garantie=document.getElementById('ct-garantie').checked;
+  var now=new Date();
+  var months=['janvier','f\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
+  var date=now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+  var c=coById(coId);
   if(c&&siret!=='_______________'){c.siret=siret;c.updated=now_();save();}
   closeMo();
-  _openContractWindow({nom,siret,taux,opt3070,garantie,date:today});
+  _showContract({nom:nom,siret:siret,taux:taux,opt3070:opt3070,garantie:garantie,date:date});
 }
 
-function _openContractWindow({nom,siret,taux,opt3070,garantie,date}){
+function _contractCSS(){
+  return [
+    "*{margin:0;padding:0;box-sizing:border-box}",
+    "body{font-family:Georgia,'Times New Roman',serif;font-size:10pt;color:#1A1614;background:#fff;line-height:1.6}",
+    "@page{size:A4;margin:20mm 18mm 22mm 18mm}",
+    "@media print{.no-print{display:none!important}body{font-size:9.5pt}}",
+    ".pg{max-width:174mm;margin:0 auto;padding:8mm 0}",
+    ".hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #C9891A;padding-bottom:8px;margin-bottom:16px}",
+    ".logo{font-family:Arial,sans-serif;font-size:20pt;font-weight:900;letter-spacing:-1px;color:#1A1614}",
+    ".logo-sub{color:#C9891A;font-size:8pt;font-weight:400;display:block;letter-spacing:2px;margin-top:1px}",
+    ".hdr-r{text-align:right;font-size:7.5pt;color:#888;line-height:1.5}",
+    ".doc-title{text-align:center;margin:14px 0 3px;font-family:Arial,sans-serif;font-size:14pt;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:1px}",
+    ".doc-sub{text-align:center;font-size:8pt;color:#888;margin-bottom:3px}",
+    ".gold-line{height:2pt;background:#C9891A;width:32mm;margin:10px auto 14px}",
+    ".parties{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}",
+    ".partie{border:0.5pt solid #EDE9E3;padding:8px 10px;background:#F8F5EF}",
+    ".partie-lbl{font-size:6.5pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}",
+    ".partie-val{font-size:8.5pt;line-height:1.6}",
+    ".section{margin:14px 0 5px;padding-bottom:2px;border-bottom:0.5pt solid #EDE9E3}",
+    ".section-title{font-family:Arial,sans-serif;font-size:8.5pt;color:#C9891A;text-transform:uppercase;letter-spacing:.8px;font-weight:700}",
+    ".art-num{font-family:Arial,sans-serif;font-size:7.5pt;color:#888;font-weight:400;margin-right:6px}",
+    "p{margin-bottom:6px;text-align:justify;font-size:9.5pt}",
+    "ul,ol{margin:3px 0 7px 18px;font-size:9.5pt}",
+    "li{margin-bottom:2px}",
+    "strong{font-weight:700}",
+    "em{font-style:italic}",
+    "table.tarif{width:100%;border-collapse:collapse;margin:7px 0 10px;font-size:9pt}",
+    "table.tarif thead td{background:#1A1614;color:#fff;padding:5px 9px;text-align:center;font-family:Arial,sans-serif;font-size:8pt;font-weight:700}",
+    "table.tarif thead td:first-child{text-align:left}",
+    "table.tarif tbody tr:nth-child(odd){background:#F8F5EF}",
+    "table.tarif tbody td{padding:5px 9px;border:0.3pt solid #EDE9E3;font-size:9.5pt}",
+    "table.tarif tbody td:first-child{font-weight:700}",
+    ".pct{color:#C9891A;font-weight:700;text-align:center}",
+    ".hbox{border-left:3pt solid #C9891A;background:#FFF3DC;padding:8px 11px;margin:8px 0;font-size:9.5pt;line-height:1.6}",
+    ".sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}",
+    ".sig{border:0.5pt solid #EDE9E3;padding:10px}",
+    ".sig-lbl{font-size:6.5pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;border-top:2pt solid #C9891A;padding-top:5px}",
+    ".sig-val{font-size:8.5pt;line-height:1.6}",
+    ".sig-zone{height:36px;border-bottom:0.5pt solid #CCC;margin:14px 0 3px}",
+    ".sig-hint{font-size:7pt;color:#AAA;font-style:italic}",
+    ".sig-date{margin-top:9px;font-size:8.5pt}",
+    ".ftr{margin-top:16px;padding-top:6px;border-top:0.5pt solid #EDE9E3;font-size:6.5pt;color:#AAA;text-align:center;line-height:1.6}",
+    ".pbar{position:fixed;bottom:16px;right:16px;display:flex;gap:10px;z-index:99}",
+    ".btn-p{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif;background:#C9891A;color:#fff}",
+    ".btn-c{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif;background:#EDE9E3;color:#333}"
+  ].join('\n');
+}
 
-  const tauxNote=taux
-    ?`<div class="hbox">Par dérogation convenue entre les parties, un taux spécifique de <strong>${taux}&nbsp;%</strong> du salaire brut annuel s'applique à l'ensemble des recrutements réalisés dans le cadre du présent contrat.</div>`
-    :'';
+function _showContract(p){
+  var nom=p.nom, siret=p.siret, taux=p.taux, opt3070=p.opt3070, garantie=p.garantie, date=p.date;
 
-  const reglementClause=opt3070
-    ?`<p>Le règlement des honoraires s'effectue en deux versements :</p>
-       <ul>
-         <li><strong>30 %</strong> des honoraires à la date d'intégration du candidat (premier jour de travail effectif) ;</li>
-         <li><strong>70 %</strong> des honoraires à l'issue de la période d'essai initiale du candidat, soit à l'expiration d'un délai de trois (3) mois à compter de la prise de poste.</li>
-       </ul>
-       <p>En cas de départ du candidat avant la fin de la période d'essai, le second versement est suspendu et les dispositions de garantie ci-après s'appliquent le cas échéant. En cas de retard de paiement, des pénalités sont exigibles de plein droit au taux légal majoré de 5 points, sans mise en demeure préalable, ainsi qu'une indemnité forfaitaire de recouvrement de 40 €.</p>`
-    :`<p>La facturation intervient à la date d'intégration du candidat (premier jour de travail effectif). Le règlement s'effectue par virement bancaire à réception de facture. En cas de retard de paiement, des pénalités sont exigibles de plein droit au taux légal majoré de 5 points, sans mise en demeure préalable, ainsi qu'une indemnité forfaitaire de recouvrement de 40 €.</p>`;
+  // ── Clause taux sp\u00e9cial 1er recrutement ──
+  var tauxClause='';
+  if(taux){
+    tauxClause='<div class="hbox">Par d\u00e9rogation convenue entre les parties, le taux applicable au <strong>premier recrutement effectu\u00e9 dans le cadre du pr\u00e9sent contrat</strong> est fix\u00e9 \u00e0 <strong>'+taux+'\u00a0%</strong> du salaire brut annuel, ind\u00e9pendamment de la cat\u00e9gorie et du niveau d\'exp\u00e9rience du profil recrut\u00e9. \u00c0 compter du second recrutement, la grille tarifaire standard d\u00e9finie ci-dessus reprend pleinement effet.</div>';
+  }
 
-  const garantieClause=garantie?`
-    <h2>Garantie de remplacement</h2>
-    <p>Si le candidat recruté met fin à sa période d'essai initiale, ou si le Client y met fin pour un motif professionnel, dans les trois (3) premiers mois suivant la prise de poste, NOVALEM s'engage à relancer la recherche sans honoraires supplémentaires, pour une durée maximale de six (6) mois à compter de la rupture. La garantie est limitée à un remplacement par mission. Elle ne s'applique pas en cas de faute du candidat, de modification du profil de poste, de force majeure ou de non-respect des obligations financières du Client.</p>`:'';
+  // ── Clause r\u00e8glement ──
+  var reglementBody='';
+  if(opt3070){
+    reglementBody='<p>Le r\u00e8glement des honoraires s\'effectue en deux versements distincts\u00a0:</p><ul><li><strong>30\u00a0%</strong> des honoraires sont exigibles \u00e0 la date d\'int\u00e9gration du candidat (premier jour de travail effectif), par virement bancaire \u00e0 r\u00e9ception de la premi\u00e8re facture\u00a0;</li><li><strong>70\u00a0%</strong> des honoraires sont exigibles \u00e0 l\'issue de la p\u00e9riode d\'essai initiale du candidat, soit au terme d\'un d\u00e9lai de trois (3) mois complets \u00e0 compter de la prise de poste effective, par virement bancaire \u00e0 r\u00e9ception de la seconde facture.</li></ul><p>En cas de d\u00e9part du candidat avant l\'\u00e9ch\u00e9ance du second versement, celui-ci est suspendu et les dispositions relatives \u00e0 la garantie s\'appliquent le cas \u00e9ch\u00e9ant. En cas de d\u00e9part li\u00e9 \u00e0 une faute du candidat ou d\'un commun accord avec le Client, les honoraires restants demeurent exigibles.</p>';
+  } else {
+    reglementBody='<p>La facturation intervient \u00e0 la date d\'int\u00e9gration effective du candidat (premier jour de travail). Le r\u00e8glement s\'effectue par virement bancaire \u00e0 r\u00e9ception de facture, sans escompte. Une facture est consid\u00e9r\u00e9e comme r\u00e9gl\u00e9e \u00e0 la date de cr\u00e9ditation effective du compte bancaire de NOVALEM.</p>';
+  }
+  reglementBody+='<p>En cas de retard de paiement, des p\u00e9nalit\u00e9s de retard sont exigibles de plein droit, sans mise en demeure pr\u00e9alable, au taux l\u00e9gal major\u00e9 de cinq (5) points, \u00e0 compter du lendemain de la date d\'\u00e9ch\u00e9ance. Une indemnit\u00e9 forfaitaire de recouvrement de quarante euros (40\u00a0\u20ac) est \u00e9galement applicable conform\u00e9ment \u00e0 l\'article L.\u00a0441-6 du Code de commerce. Tout retard de paiement sup\u00e9rieur \u00e0 trente (30) jours autorise NOVALEM \u00e0 suspendre imm\u00e9diatement l\'ex\u00e9cution de toute prestation en cours, sans que cette suspension puisse constituer une faute contractuelle ou ouvrir droit \u00e0 indemnisation au profit du Client.</p>';
 
-  const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<title>Contrat Cadre NOVALEM — ${nom}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Georgia,"Times New Roman",serif;font-size:10.5pt;color:#1A1614;background:#fff}
-@page{size:A4;margin:18mm 18mm 22mm 18mm}
-@media print{.no-print{display:none!important}}
-.pg{max-width:174mm;margin:0 auto;padding:10mm 0}
-.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #C9891A;padding-bottom:8px;margin-bottom:18px}
-.logo{font-family:Arial,sans-serif;font-size:21pt;font-weight:900;letter-spacing:-1px;color:#1A1614}
-.logo span{color:#C9891A;font-size:8.5pt;font-weight:400;display:block;letter-spacing:2px;margin-top:1px}
-.hdr-r{text-align:right;font-size:8pt;color:#888;line-height:1.5}
-.doc-title{text-align:center;margin:16px 0 4px;font-family:Arial,sans-serif;font-size:15pt;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:1px}
-.doc-sub{text-align:center;font-size:8.5pt;color:#888;margin-bottom:3px}
-.gold-line{height:2pt;background:#C9891A;width:34mm;margin:11px auto 16px}
-.parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
-.partie{border:0.5pt solid #EDE9E3;padding:9px 11px;background:#F8F5EF}
-.partie-lbl{font-size:7pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:5px}
-.partie-val{font-size:9pt;line-height:1.6}
-h2{font-family:Arial,sans-serif;font-size:9pt;color:#C9891A;margin:14px 0 5px;text-transform:uppercase;letter-spacing:.8px;padding-bottom:2px;border-bottom:0.5pt solid #EDE9E3}
-p{margin-bottom:7px;line-height:1.65;text-align:justify;font-size:9.5pt}
-ul{margin:4px 0 8px 18px;line-height:1.7;font-size:9.5pt}
-strong{font-weight:700}
-table{width:100%;border-collapse:collapse;margin:7px 0 10px;font-size:9pt}
-thead td{background:#1A1614;color:#fff;padding:5px 9px;text-align:center;font-family:Arial,sans-serif;font-size:8pt}
-thead td:first-child{text-align:left}
-tbody tr:nth-child(odd){background:#F8F5EF}
-tbody td{padding:5px 9px;border:0.3pt solid #EDE9E3;font-size:9.5pt}
-tbody td:first-child{font-weight:700}
-.pct{color:#C9891A;font-weight:700;text-align:center}
-.hbox{border-left:3pt solid #C9891A;background:#FFF3DC;padding:9px 11px;margin:10px 0;font-size:9.5pt;line-height:1.6}
-.sigs{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}
-.sig{border:0.5pt solid #EDE9E3;padding:11px}
-.sig-lbl{font-size:7pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;border-top:2pt solid #C9891A;padding-top:5px}
-.sig-val{font-size:9pt;line-height:1.6}
-.sig-zone{height:38px;border-bottom:0.5pt solid #CCC;margin:14px 0 3px}
-.sig-hint{font-size:7.5pt;color:#AAA;font-style:italic}
-.sig-date{margin-top:10px;font-size:9pt;color:#1A1614}
-.ftr{margin-top:18px;padding-top:7px;border-top:0.5pt solid #EDE9E3;font-size:7pt;color:#AAA;text-align:center;line-height:1.6}
-.pbar{position:fixed;bottom:16px;right:16px;display:flex;gap:10px;z-index:99}
-.pbar button{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif}
-.btn-p{background:#C9891A;color:#fff}
-.btn-c{background:#EDE9E3;color:#333}
-</style></head><body>
+  // ── Clause garantie ──
+  var garantieSection='';
+  if(garantie){
+    garantieSection='<div class="section"><span class="art-num">Art. 9</span><span class="section-title">Garantie de remplacement</span></div>'+
+    '<p>Si, dans un d\u00e9lai de trois (3) mois \u00e0 compter de la prise de poste effective du candidat recrut\u00e9, l\'une des situations suivantes survient\u00a0: (i) le candidat met fin \u00e0 sa p\u00e9riode d\'essai de sa propre initiative, ou (ii) le Client y met fin pour un motif professionnel objectif et d\u00fbment justifi\u00e9, NOVALEM s\'engage \u00e0 effectuer une nouvelle recherche, sans honoraires suppl\u00e9mentaires, dans un d\u00e9lai maximal de six (6) mois \u00e0 compter de la date de rupture.</p>'+
+    '<p>Cette garantie est strictement limit\u00e9e \u00e0 <strong>une (1) op\u00e9ration de recherche suppl\u00e9mentaire</strong> par mission. Elle ne s\'applique pas dans les cas suivants\u00a0:</p>'+
+    '<ul><li>D\u00e9part cons\u00e9cutif \u00e0 une faute du candidat (faute simple, s\u00e9rieuse ou lourde)\u00a0;</li>'+
+    '<li>Modification du profil de poste ou des conditions de travail par le Client apr\u00e8s int\u00e9gration\u00a0;</li>'+
+    '<li>\u00c9v\u00e9nement de force majeure\u00a0;</li>'+
+    '<li>Non-respect par le Client de l\'une quelconque de ses obligations contractuelles, notamment financi\u00e8res\u00a0;</li>'+
+    '<li>D\u00e9cision de suppression du poste par le Client.</li></ul>';
+  }
 
-<div class="pbar no-print">
-  <button class="btn-c" onclick="window.close()">✕ Fermer</button>
-  <button class="btn-p" onclick="window.print()">⬇ Sauvegarder en PDF</button>
-</div>
+  // ── HTML complet ──
+  var h=[];
+  h.push('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">');
+  h.push('<title>Contrat Cadre NOVALEM \u2014 '+nom+'<\/title>');
+  h.push('<style>'+_contractCSS()+'<\/style><\/head><body>');
+  h.push('<div class="pbar no-print">');
+  h.push('<button class="btn-c" onclick="window.close()">\u00d7 Fermer<\/button>');
+  h.push('<button class="btn-p" onclick="window.print()">\u2b07 Sauvegarder en PDF<\/button><\/div>');
+  h.push('<div class="pg">');
 
-<div class="pg">
-  <div class="hdr">
-    <div class="logo">NOVALEM<span>RECRUTEMENT BTP · CDI</span></div>
-    <div class="hdr-r">contact@novalem-recrutement.fr<br>06 58 21 20 96<br>novalem-recrutement.fr</div>
-  </div>
+  // En-t\u00eate
+  h.push('<div class="hdr"><div class="logo">NOVALEM<span class="logo-sub">RECRUTEMENT BTP \u00b7 CDI<\/span><\/div>');
+  h.push('<div class="hdr-r">contact@novalem-recrutement.fr<br>06 58 21 20 96<br>novalem-recrutement.fr<\/div><\/div>');
+  h.push('<div class="doc-title">Contrat Cadre de Recrutement<\/div>');
+  h.push('<div class="doc-sub">Prestation de recrutement CDI \u2014 B\u00e2timent &amp; Travaux Publics<\/div>');
+  h.push('<div class="gold-line"><\/div>');
 
-  <div class="doc-title">Contrat Cadre de Recrutement</div>
-  <div class="doc-sub">Prestation de recrutement CDI — Bâtiment &amp; Travaux Publics</div>
-  <div class="gold-line"></div>
+  // Parties
+  h.push('<div class="section"><span class="section-title">Parties<\/span><\/div>');
+  h.push('<div class="parties">');
+  h.push('<div class="partie"><div class="partie-lbl">Le Client<\/div><div class="partie-val"><strong>'+nom+'<\/strong><br>SIRET\u00a0: '+siret+'<\/div><\/div>');
+  h.push('<div class="partie"><div class="partie-lbl">Le Prestataire<\/div><div class="partie-val"><strong>NOVALEM<\/strong> \u2014 Louis RENAULT<br>Cabinet de recrutement BTP<br>APE 7810Z \u2014 contact@novalem-recrutement.fr<\/div><\/div>');
+  h.push('<\/div>');
 
-  <h2>Parties</h2>
-  <div class="parties">
-    <div class="partie">
-      <div class="partie-lbl">Le Client</div>
-      <div class="partie-val">
-        <strong>${nom}</strong><br>
-        SIRET : ${siret}
-      </div>
-    </div>
-    <div class="partie">
-      <div class="partie-lbl">Le Prestataire</div>
-      <div class="partie-val">
-        <strong>NOVALEM</strong> — Louis RENAULT<br>
-        Micro-entreprise · APE 7810Z<br>
-        contact@novalem-recrutement.fr
-      </div>
-    </div>
-  </div>
+  // Art. 1 Objet
+  h.push('<div class="section"><span class="art-num">Art. 1<\/span><span class="section-title">Objet<\/span><\/div>');
+  h.push('<p>Le pr\u00e9sent contrat cadre a pour objet de d\u00e9finir les conditions g\u00e9n\u00e9rales dans lesquelles NOVALEM accompagne le Client dans l\'ensemble de ses op\u00e9rations de recrutement en contrat \u00e0 dur\u00e9e ind\u00e9termin\u00e9e (CDI) relevant du secteur du B\u00e2timent et des Travaux Publics, sans limitation quant au nombre de postes \u00e0 pourvoir ni \u00e0 la nature des profils recherch\u00e9s, pour toute la dur\u00e9e du pr\u00e9sent accord.<\/p>');
+  h.push('<p>Il ne cr\u00e9e aucun lien de subordination ni de mandat exclusif, sauf stipulation contraire expresse. Le Client demeure libre de recourir simultan\u00e9ment \u00e0 d\'autres prestataires de recrutement.<\/p>');
 
-  <h2>Objet</h2>
-  <p>Le présent contrat cadre définit les conditions dans lesquelles NOVALEM accompagne le Client dans l'ensemble de ses recrutements en contrat à durée indéterminée (CDI) relevant du secteur du Bâtiment et des Travaux Publics, sans limitation du nombre de postes ni de durée, pour toute la durée du présent accord.</p>
+  // Art. 2 D\u00e9finitions
+  h.push('<div class="section"><span class="art-num">Art. 2<\/span><span class="section-title">D\u00e9finitions<\/span><\/div>');
+  h.push('<p>Au sens du pr\u00e9sent contrat, les termes suivants ont la signification ci-apr\u00e8s\u00a0:<\/p>');
+  h.push('<ul>');
+  h.push('<li><strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 directement\u00a0\u00bb<\/strong>\u00a0: tout candidat qualifi\u00e9 ayant fait l\'objet d\'un entretien de s\u00e9lection organis\u00e9 par NOVALEM avec le Client, qu\'il soit t\u00e9l\u00e9phonique, vid\u00e9o ou physique.<\/li>');
+  h.push('<li><strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 indirectement\u00a0\u00bb<\/strong>\u00a0: tout candidat qualifi\u00e9 dont le dossier de candidature a \u00e9t\u00e9 transmis au Client par NOVALEM, sans qu\'un entretien ait pu \u00eatre organis\u00e9.<\/li>');
+  h.push('<li><strong>\u00ab\u00a0Salaire Brut Annuel (SBA)\u00a0\u00bb<\/strong>\u00a0: r\u00e9mun\u00e9ration brute annuelle fix\u00e9e dans le contrat de travail du candidat recrut\u00e9, comprenant le salaire fixe et la part variable garantie contract\u00e9e, \u00e0 l\'exclusion de toute prime discr\u00e9tionnaire, bonus exceptionnels, int\u00e9ressement ou participation.<\/li>');
+  h.push('<li><strong>\u00ab\u00a0P\u00e9riode d\'essai\u00a0\u00bb<\/strong>\u00a0: p\u00e9riode d\'essai initiale telle que stipul\u00e9e dans le contrat de travail sign\u00e9 entre le Client et le candidat recrut\u00e9, conform\u00e9ment aux dispositions l\u00e9gales et conventionnelles applicables.<\/li>');
+  h.push('<li><strong>\u00ab\u00a0Prise de poste effective\u00a0\u00bb<\/strong>\u00a0: premier jour de travail r\u00e9el du candidat recrut\u00e9 dans l\'entreprise du Client, quelle qu\'en soit la date administrativ\u00e9 de d\u00e9but de contrat.<\/li>');
+  h.push('<\/ul>');
 
-  <h2>Honoraires</h2>
-  <p>Les honoraires sont calculés en pourcentage du <strong>salaire brut annuel (SBA)</strong> convenu lors de chaque embauche — rémunération fixe et variable garantie, hors primes exceptionnelles. La catégorie (Cadre / Non-cadre) et le niveau d'expérience sont déterminés au moment de chaque recrutement, selon la convention collective nationale du BTP.</p>
-  <table>
-    <thead><tr><td>Catégorie</td><td>&lt; 5 ans d'expérience</td><td>5 à 15 ans</td><td>&gt; 15 ans</td></tr></thead>
-    <tbody>
-      <tr><td>Non-cadre</td><td class="pct">12 %</td><td class="pct">13,5 %</td><td class="pct">15 %</td></tr>
-      <tr><td>Cadre</td><td class="pct">15 %</td><td class="pct">17 %</td><td class="pct">20 %</td></tr>
-    </tbody>
-  </table>
-  ${tauxNote}
-  <div class="hbox">Les honoraires sont exigibles <strong>exclusivement en cas d'intégration effective du candidat</strong>. Aucun frais n'est dû en l'absence d'embauche.</div>
+  // Art. 3 Engagements NOVALEM
+  h.push('<div class="section"><span class="art-num">Art. 3<\/span><span class="section-title">Engagements de NOVALEM<\/span><\/div>');
+  h.push('<p>NOVALEM est tenue d\'une <strong>obligation de moyens<\/strong> dans l\'ex\u00e9cution de ses missions de recrutement. \u00c0 ce titre, NOVALEM s\'engage \u00e0\u00a0:<\/p>');
+  h.push('<ul>');
+  h.push('<li>D\u00e9ployer les ressources humaines et techniques n\u00e9cessaires pour identifier et sourcer des candidats qualifi\u00e9s correspondant au profil de poste d\u00e9fini conjointement avec le Client\u00a0;<\/li>');
+  h.push('<li>Proc\u00e9der \u00e0 la pr\u00e9s\u00e9lection et \u00e0 la qualification approfondie de chaque candidat pr\u00e9sent\u00e9, incluant la v\u00e9rification des \u00e9l\u00e9ments d\u00e9claratifs du candidat (parcours, dipl\u00f4mes, exp\u00e9riences)\u00a0; la responsabilit\u00e9 de NOVALEM ne saurait \u00eatre engag\u00e9e en cas de fausse d\u00e9claration d\'un candidat\u00a0;<\/li>');
+  h.push('<li>Traiter avec confidentialit\u00e9 toutes les informations transmises par le Client dans le cadre des missions\u00a0;<\/li>');
+  h.push('<li>Ne pas approcher directement les salari\u00e9s en poste chez le Client aux fins de leur proposer une opportunit\u00e9 externe, pendant toute la dur\u00e9e du contrat et dans les douze (12) mois suivant son terme\u00a0;<\/li>');
+  h.push('<li>Ne pas exercer de clause d\'exclusivit\u00e9 restrictive\u00a0: le Client reste libre de confier simultan\u00e9ment ses recrutements \u00e0 d\'autres prestataires.<\/li>');
+  h.push('<\/ul>');
 
-  <h2>Modalités de règlement</h2>
-  ${reglementClause}
+  // Art. 4 Engagements du Client
+  h.push('<div class="section"><span class="art-num">Art. 4<\/span><span class="section-title">Engagements du Client<\/span><\/div>');
+  h.push('<p>Le Client s\'engage \u00e0\u00a0:<\/p>');
+  h.push('<ul>');
+  h.push('<li>D\u00e9signer un interlocuteur unique habilit\u00e9 pour le suivi de chaque mission de recrutement\u00a0;<\/li>');
+  h.push('<li>Communiquer \u00e0 NOVALEM, en temps utile, toutes les informations n\u00e9cessaires \u00e0 la d\u00e9finition du profil de poste\u00a0: intitul\u00e9 du poste, description des missions, conditions de r\u00e9mun\u00e9ration, environnement de travail, crit\u00e8res de s\u00e9lection\u00a0;<\/li>');
+  h.push('<li>Ne pas modifier substantiellement le profil de poste en cours de mission sans en informer pr\u00e9alablement NOVALEM par \u00e9crit\u00a0;<\/li>');
+  h.push('<li>Faire part de sa d\u00e9cision (int\u00e9r\u00eat ou refus motiv\u00e9) pour chaque candidature pr\u00e9sent\u00e9e, dans un d\u00e9lai de <strong>huit (8) jours calendaires<\/strong> \u00e0 compter de la r\u00e9ception du dossier\u00a0; tout refus doit \u00eatre formalis\u00e9 par \u00e9crit<\/li>');
+  h.push('<li>Recevoir les candidats s\u00e9lectionn\u00e9s en entretien dans un d\u00e9lai de <strong>quinze (15) jours calendaires<\/strong> suivant l\'expression de son int\u00e9r\u00eat\u00a0;<\/li>');
+  h.push('<li>Informer NOVALEM dans les meilleurs d\u00e9lais de tout recrutement d\'un candidat pr\u00e9sent\u00e9 directement ou indirectement, y compris dans le cadre d\'une mission diff\u00e9rente ou post\u00e9rieurement \u00e0 la fin du pr\u00e9sent contrat\u00a0;<\/li>');
+  h.push('<li>Ex\u00e9cuter le contrat de bonne foi et en toute loyaut\u00e9.<\/li>');
+  h.push('<\/ul>');
 
-  ${garantieClause}
+  // Art. 5 Proc\u00e9dure
+  h.push('<div class="section"><span class="art-num">Art. 5<\/span><span class="section-title">Proc\u00e9dure de pr\u00e9sentation des candidats<\/span><\/div>');
+  h.push('<p>Pour chaque mission confi\u00e9e, NOVALEM soumettra au Client un dossier de pr\u00e9sentation pour chaque candidat retenu, comprenant\u00a0: un curriculum vitae actualis\u00e9, une synth\u00e8se de l\'entretien de qualification, les pr\u00e9tentions salariales, la disponibilit\u00e9 et les \u00e9l\u00e9ments compl\u00e9mentaires pertinents.<\/p>');
+  h.push('<p>Par l\'acceptation en entretien d\'un candidat, le Client reconna\u00eet la conformit\u00e9 de la candidature au profil recherch\u00e9. Toute d\u00e9cision finale de recrutement reste de la seule responsabilit\u00e9 du Client.<\/p>');
+  h.push('<p>Les donn\u00e9es personnelles des candidats transmises dans le cadre des dossiers de pr\u00e9sentation sont confidentielles et ne peuvent \u00eatre utilis\u00e9es qu\'aux fins de l\'\u00e9valuation pour le poste concern\u00e9.<\/p>');
 
-  <h2>Droit de suite</h2>
-  <p>Pendant <strong>24 mois</strong> suivant la fin du contrat, tout recrutement par le Client d'un candidat présenté directement ou indirectement par NOVALEM ouvre droit au paiement des honoraires prévus à la grille ci-dessus.</p>
+  // Art. 6 Honoraires
+  h.push('<div class="section"><span class="art-num">Art. 6<\/span><span class="section-title">Honoraires<\/span><\/div>');
+  h.push('<p>Les honoraires de NOVALEM sont calcul\u00e9s en pourcentage du <strong>Salaire Brut Annuel (SBA)<\/strong> convenu lors de chaque embauche, selon la grille tarifaire ci-dessous. La cat\u00e9gorie (Cadre\u00a0/ Non-cadre) est d\u00e9termin\u00e9e conform\u00e9ment \u00e0 la convention collective nationale du B\u00e2timent applicable, et le niveau d\'exp\u00e9rience est appr\u00e9ci\u00e9 en ann\u00e9es d\'exp\u00e9rience professionnelle effective dans le m\u00e9tier concern\u00e9\u00a0:<\/p>');
+  h.push('<table class="tarif"><thead><tr><td>Cat\u00e9gorie<\/td><td>&lt; 5 ans d\'exp.<\/td><td>5 \u00e0 15 ans<\/td><td>&gt; 15 ans<\/td><\/tr><\/thead>');
+  h.push('<tbody><tr><td>Non-cadre<\/td><td class="pct">12\u00a0%<\/td><td class="pct">13,5\u00a0%<\/td><td class="pct">15\u00a0%<\/td><\/tr>');
+  h.push('<tr><td>Cadre<\/td><td class="pct">15\u00a0%<\/td><td class="pct">17\u00a0%<\/td><td class="pct">20\u00a0%<\/td><\/tr><\/tbody><\/table>');
+  h.push(tauxClause);
+  h.push('<div class="hbox">Les honoraires sont exigibles <strong>exclusivement en cas d\'int\u00e9gration effective du candidat<\/strong> (prise de poste r\u00e9elle). Aucun honoraire n\'est d\u00fb en l\'absence d\'embauche, quelle qu\'en soit la raison.<\/div>');
 
-  <h2>Engagements du Client</h2>
-  <p>Le Client s'engage à désigner un interlocuteur unique habilité ; à communiquer sa décision sur chaque candidature dans les 8 jours calendaires ; à rencontrer les candidats retenus dans les 15 jours suivant leur présentation ; et à informer NOVALEM de tout recrutement d'un candidat présenté, y compris hors du cadre de la mission en cours.</p>
+  // Art. 7 R\u00e8glement
+  h.push('<div class="section"><span class="art-num">Art. 7<\/span><span class="section-title">Modalit\u00e9s de r\u00e8glement<\/span><\/div>');
+  h.push(reglementBody);
 
-  <h2>Confidentialité</h2>
-  <p>Chaque partie traite confidentiellement les informations échangées. NOVALEM s'interdit d'approcher les salariés en poste chez le Client pendant toute la durée du contrat et les 12 mois suivant son terme.</p>
+  // Art. 8 Droit de suite
+  var artN=garantie?9:8;
+  if(garantie){ h.push(garantieSection); }
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Droit de suite<\/span><\/div>');
+  h.push('<p>La fin du pr\u00e9sent contrat, pour quelque cause que ce soit, donne imm\u00e9diatement naissance \u00e0 un <strong>droit de suite de vingt-quatre (24) mois<\/strong> au b\u00e9n\u00e9fice de NOVALEM. Durant cette p\u00e9riode, tout recrutement effectu\u00e9 par le Client \u2014 ou par une entreprise affili\u00e9e ou associ\u00e9e \u2014 d\'un candidat pr\u00e9sent\u00e9 directement ou indirectement par NOVALEM dans le cadre du pr\u00e9sent contrat, ouvre droit au paiement des honoraires d\u00e9finis \u00e0 la grille tarifaire de l\'article 6, exigibles dans les conditions de l\'article 7.<\/p>');
+  h.push('<p>Le Client s\'engage \u00e0 informer loyalement NOVALEM de tout recrutement de candidats pr\u00e9sent\u00e9s intervenu pendant la p\u00e9riode de droit de suite.<\/p>');
+  artN++;
 
-  <h2>Durée et résiliation</h2>
-  <p>Le présent contrat prend effet à la date de signature pour une durée de <strong>12 mois</strong>, renouvelable tacitement par périodes d'un mois. Chaque partie peut y mettre fin par lettre recommandée avec accusé de réception, sous préavis d'un mois, sans indemnité.</p>
+  // Non-d\u00e9bauchage
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Non-sollicitation et non-d\u00e9bauchage<\/span><\/div>');
+  h.push('<p>NOVALEM s\'interdit, pendant toute la dur\u00e9e du pr\u00e9sent contrat et durant les douze (12) mois suivant son terme, de solliciter ou d\'approcher directement les salari\u00e9s du Client \u00e0 des fins de recrutement pour le compte de tiers, sauf candidature spontan\u00e9e de ces salari\u00e9s ou publication d\'une offre d\'emploi publique.<\/p>');
+  h.push('<p>En contrepartie, le Client s\'engage \u00e0 ne pas, pendant la dur\u00e9e du contrat et les douze (12) mois suivants, solliciter ou embaucher directement les collaborateurs de NOVALEM sans accord pr\u00e9alable \u00e9crit de NOVALEM.<\/p>');
+  artN++;
 
-  <h2>Droit applicable</h2>
-  <p>Contrat soumis au droit français. En cas de litige non résolu amiablement sous 30 jours, compétence exclusive des Tribunaux du ressort de Nice (Alpes-Maritimes).</p>
+  // Confidentialit\u00e9
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Confidentialit\u00e9<\/span><\/div>');
+  h.push('<p>Chaque partie s\'engage \u00e0 traiter avec la plus stricte confidentialit\u00e9 l\'ensemble des informations de nature commerciale, financi\u00e8re, technique ou strat\u00e9gique \u00e9chang\u00e9es dans le cadre du pr\u00e9sent contrat, et ce pendant toute la dur\u00e9e du contrat et dans les cinq (5) ann\u00e9es suivant son terme.<\/p>');
+  h.push('<p>NOVALEM peut, sauf opposition \u00e9crite expr\u00e8s du Client not\u00e9e dans les trente (30) jours suivant la signature, faire \u00e9tat du nom et du secteur d\'activit\u00e9 du Client \u00e0 titre de r\u00e9f\u00e9rence commerciale dans ses supports de communication.<\/p>');
+  h.push('<p>Le Client s\'engage \u00e0 garder strictement confidentiels l\'ensemble des informations relatives aux candidats transmises dans le cadre de la mission.<\/p>');
+  artN++;
 
-  <div class="sigs">
-    <div class="sig">
-      <div class="sig-lbl">Pour le Client</div>
-      <div class="sig-val">
-        <strong>${nom}</strong><br>
-        SIRET : ${siret}
-      </div>
-      <div class="sig-zone"></div>
-      <div class="sig-hint">Signature &amp; cachet</div>
-      <div class="sig-date">Fait à _________________, le ${date}</div>
-    </div>
-    <div class="sig">
-      <div class="sig-lbl">Pour NOVALEM</div>
-      <div class="sig-val">
-        <strong>Louis RENAULT</strong><br>
-        Directeur — NOVALEM
-      </div>
-      <div class="sig-zone"></div>
-      <div class="sig-hint">Signature</div>
-      <div class="sig-date">Fait à Nice, le ${date}</div>
-    </div>
-  </div>
+  // RGPD
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Protection des donn\u00e9es personnelles (RGPD)<\/span><\/div>');
+  h.push('<p>NOVALEM agit en qualit\u00e9 de <strong>responsable de traitement<\/strong> au sens du R\u00e8glement (UE) 2016/679 (RGPD) pour les donn\u00e9es personnelles des candidats trait\u00e9es dans le cadre de ses activit\u00e9s de sourcing et de s\u00e9lection. Le Client agit en qualit\u00e9 de responsable de traitement pour les donn\u00e9es qu\'il traite dans le cadre du processus d\'entretien et de recrutement.<\/p>');
+  h.push('<p>Les donn\u00e9es personnelles transmises au Client dans les dossiers de candidature sont destin\u00e9es exclusivement \u00e0 l\'\u00e9valuation du candidat pour le poste concern\u00e9. Le Client s\'engage \u00e0\u00a0:<\/p>');
+  h.push('<ul><li>Ne pas conserver les donn\u00e9es des candidats non retenus au-del\u00e0 de <strong>deux (2) ans<\/strong> \u00e0 compter de leur r\u00e9ception\u00a0;<\/li>');
+  h.push('<li>Respecter les droits des personnes concern\u00e9es (droit d\'acc\u00e8s, de rectification, d\'effacement, de limitation) conform\u00e9ment au RGPD\u00a0;<\/li>');
+  h.push('<li>Ne pas transmettre ces donn\u00e9es \u00e0 des tiers sans accord pr\u00e9alable de NOVALEM et du candidat concern\u00e9.<\/li><\/ul>');
+  artN++;
 
-  <div class="ftr">
-    NOVALEM · Micro-entreprise · APE 7810Z · contact@novalem-recrutement.fr · 06 58 21 20 96 · novalem-recrutement.fr<br>
-    Document confidentiel — généré le ${date}
-  </div>
-</div>
-</body></html>`;
+  // Responsabilit\u00e9
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Responsabilit\u00e9<\/span><\/div>');
+  h.push('<p>La responsabilit\u00e9 de NOVALEM au titre du pr\u00e9sent contrat est limit\u00e9e au montant des honoraires effectivement per\u00e7us dans le cadre de la mission concem\u00e9e. NOVALEM ne saurait \u00eatre tenue responsable des dommages indirects, cons\u00e9cutifs, ou immat\u00e9riels subis par le Client, notamment toute perte d\'exploitation, manque \u00e0 gagner, pr\u00e9judice commercial ou perte de chance, r\u00e9sultant d\'un recrutement ou de son absence.<\/p>');
+  h.push('<p>NOVALEM n\'est pas responsable des d\u00e9cisions de recrutement prises souverainement par le Client, ni des cons\u00e9quences de ces d\u00e9cisions sur le fonctionnement de son entreprise.<\/p>');
+  artN++;
 
-  const w=window.open('','_blank','width=960,height=1100,scrollbars=yes');
-  w.document.write(html);
-  w.document.close();
+  // Force majeure
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Force majeure<\/span><\/div>');
+  h.push('<p>Aucune des parties ne pourra \u00eatre tenue responsable d\'un manquement \u00e0 ses obligations contractuelles r\u00e9sultant d\'un \u00e9v\u00e9nement de force majeure au sens de l\'article 1218 du Code civil. La partie empêch\u00e9e devra notifier l\'autre partie dans les meilleurs d\u00e9lais. Si l\'\u00e9v\u00e9nement de force majeure persiste au-del\u00e0 de trente (30) jours, chaque partie pourra r\u00e9silier le contrat par notification \u00e9crite, sans indemnit\u00e9.<\/p>');
+  artN++;
+
+  // Dur\u00e9e
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Dur\u00e9e et r\u00e9siliation<\/span><\/div>');
+  h.push('<p>Le pr\u00e9sent contrat prend effet \u00e0 la date de signature et est conclu pour une dur\u00e9e de <strong>douze (12) mois<\/strong>, renouvelable tacitement par p\u00e9riodes d\'un (1) mois, sauf d\u00e9nonciation par l\'une ou l\'autre des parties par lettre recommand\u00e9e avec accus\u00e9 de r\u00e9ception, sous pr\u00e9avis d\'un (1) mois, sans indemnit\u00e9.<\/p>');
+  h.push('<p>En cas de manquement grave et non rem\u00e9di\u00e9 de l\'une des parties \u00e0 ses obligations contractuelles, l\'autre partie pourra r\u00e9silier le contrat de plein droit, apr\u00e8s mise en demeure rest\u00e9e infructueuse pendant quinze (15) jours. La r\u00e9siliation ne fait pas obstacle \u00e0 l\'exigibilit\u00e9 des sommes dues.<\/p>');
+  h.push('<p>La clause relative au droit de suite (article '+(artN-6)+') demeure applicable apr\u00e8s toute cause d\'extinction du contrat.<\/p>');
+  artN++;
+
+  // Droit applicable
+  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Droit applicable et juridiction<\/span><\/div>');
+  h.push('<p>Le pr\u00e9sent contrat est soumis au droit fran\u00e7ais. En cas de diff\u00e9rend relatif \u00e0 sa formation, son ex\u00e9cution ou son interpr\u00e9tation, les parties s\'efforceront de trouver une solution amiable dans un d\u00e9lai de trente (30) jours \u00e0 compter de la notification \u00e9crite du diff\u00e9rend. \u00c0 d\u00e9faut de r\u00e8glement amiable, les parties conviennent de la <strong>comp\u00e9tence exclusive des Tribunaux du ressort de Nice (Alpes-Maritimes)<\/strong>, nonobstant pluralit\u00e9 de d\u00e9fendeurs ou appel en garantie.<\/p>');
+  h.push('<p>Les pr\u00e9sentes Conditions G\u00e9n\u00e9rales constituent l\'int\u00e9gralit\u00e9 de l\'accord entre les parties sur leur objet et remplacent tous \u00e9changes, n\u00e9gociations ou accords ant\u00e9rieurs portant sur le m\u00eame objet. Toute modification doit \u00eatre formalis\u00e9e par avenant \u00e9crit sign\u00e9 des deux parties.<\/p>');
+
+  // Signatures
+  h.push('<div class="sigs">');
+  h.push('<div class="sig"><div class="sig-lbl">Pour le Client<\/div>');
+  h.push('<div class="sig-val"><strong>'+nom+'<\/strong><br>SIRET\u00a0: '+siret+'<\/div>');
+  h.push('<div class="sig-zone"><\/div><div class="sig-hint">Signature &amp; cachet<\/div>');
+  h.push('<div class="sig-date">Fait \u00e0 _________________, le '+date+'<\/div><\/div>');
+  h.push('<div class="sig"><div class="sig-lbl">Pour NOVALEM<\/div>');
+  h.push('<div class="sig-val"><strong>Louis RENAULT<\/strong><br>Directeur \u2014 NOVALEM<\/div>');
+  h.push('<div class="sig-zone"><\/div><div class="sig-hint">Signature<\/div>');
+  h.push('<div class="sig-date">Fait \u00e0 Nice, le '+date+'<\/div><\/div><\/div>');
+  h.push('<div class="ftr">NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06 58 21 20 96<br>Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le '+date+'<\/div>');
+  h.push('<\/div><\/body><\/html>');
+
+  var html=h.join('');
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var w=window.open(url,'_blank','width=980,height=1050,scrollbars=yes');
+  if(!w){toast('Autorisez les popups pour g\u00e9n\u00e9rer le contrat','w');}
+  setTimeout(function(){URL.revokeObjectURL(url);},30000);
 }
 
 // ── NEED PANEL ─────────────────────────────────────────────
