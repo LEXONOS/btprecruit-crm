@@ -3952,6 +3952,7 @@ function _openContractPreview(coId, params){
       <div style="display:flex;gap:8px;align-items:center">
         <span style="font-size:10px;color:var(--gold);background:rgba(200,144,10,.15);padding:3px 10px;border-radius:100px;font-weight:600">\u23f3 Non sign\u00e9</span>
         <button onclick="_downloadContratPDF('${params.id}')" style="background:var(--gold);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;cursor:pointer">\u2b07 T\u00e9l\u00e9charger PDF</button>
+        <button onclick="_sendContratFromPreview('${coId}','${params.id}')" style="background:#3dce8a;border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;cursor:pointer">✉ Envoyer au client</button>
         <button onclick="document.getElementById('ct-preview-ov').remove();URL.revokeObjectURL(window._ctPreview?.blobUrl||'');setTimeout(()=>{UI.ptab=4;openCoPanel('${coId}');},80)" style="background:#2a2a2e;border:none;border-radius:6px;color:#aaa;font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer">Fermer</button>
       </div>
     </div>
@@ -3962,31 +3963,58 @@ function _openContractPreview(coId, params){
 }
 
 async function _downloadContratPDF(ctId){
-  const p = window._ctPreview?.params; if(!p) return;
+  // Chercher les params dans _ctPreview ou dans la fiche
+  let p = window._ctPreview?.params;
+  if(!p && ctId){
+    // Chercher dans toutes les fiches
+    for(const co of DB.companies){
+      const ct=(co.contracts||[]).find(x=>x.id===ctId);
+      if(ct){p=ct;break;}
+    }
+  }
+  if(!p){toast('Contrat introuvable','e');return;}
   toast('G\u00e9n\u00e9ration PDF\u2026','i');
+
+  // CSS dans le HEAD (obligatoire pour html2canvas)
+  const tmpSt = document.createElement('style');
+  tmpSt.id = 'ct-pdf-tmp';
+  tmpSt.textContent = '.ct-pdf-root{background:#fff!important;width:174mm!important;padding:14mm!important;font-family:Georgia,serif!important;font-size:10pt!important;color:#1A1614!important;line-height:1.65!important}' + _contractCSSInner();
+  document.head.appendChild(tmpSt);
+
+  // Element ancré à gauche hors viewport (rendu par le browser, capturé par html2canvas)
   const wrap = document.createElement('div');
-  wrap.style.cssText='position:fixed;top:-10000px;left:0;width:210mm;background:#fff;padding:18mm;font-family:Georgia,serif;font-size:10pt;color:#1A1614;line-height:1.65';
-  const st = document.createElement('style');
-  st.textContent = _contractCSSInner();
-  wrap.appendChild(st);
-  const body = document.createElement('div');
-  body.innerHTML = _buildContractBody(p);
-  wrap.appendChild(body);
+  wrap.className = 'ct-pdf-root';
+  wrap.style.cssText = 'position:fixed;top:0;left:-200vw;z-index:-9999;visibility:visible;overflow:visible;';
+  wrap.innerHTML = _buildContractBody(p);
   document.body.appendChild(wrap);
+
+  // Laisser le browser rendre avant de capturer
+  await new Promise(r=>setTimeout(r,300));
+
   try{
+    const nom = (p.nom||'Client').replace(/\s+/g,'_').slice(0,40);
     await html2pdf().set({
       margin:[15,15,18,15],
-      filename:`NOVALEM_Contrat_${p.nom.replace(/\s+/g,'_')}.pdf`,
-      image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,useCORS:true,letterRendering:true,logging:false},
+      filename:`NOVALEM_Contrat_${nom}.pdf`,
+      image:{type:'jpeg',quality:0.96},
+      html2canvas:{
+        scale:2,useCORS:true,letterRendering:true,logging:false,
+        allowTaint:true,backgroundColor:'#ffffff',
+        onclone:(doc)=>{
+          const el=doc.querySelector('.ct-pdf-root');
+          if(el){el.style.position='relative';el.style.left='0';el.style.top='0';}
+        }
+      },
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
     }).from(wrap).save();
     toast('PDF t\u00e9l\u00e9charg\u00e9 \u2713','s');
   }catch(err){
-    toast('Erreur PDF: '+err.message,'e');
     console.error('[pdf]',err);
+    toast('Erreur PDF — essayez Ctrl+P dans l\'aper\u00e7u','e');
   }finally{
     document.body.removeChild(wrap);
+    const s=document.getElementById('ct-pdf-tmp');
+    if(s)s.remove();
   }
 }
 
@@ -4113,6 +4141,71 @@ function previewSavedContrat(coId,ctId){const co=coById(coId);const ct=(co?.cont
 async function downloadSavedContrat(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct){toast('Contrat introuvable','e');return;}window._ctPreview={coId,params:ct};await _downloadContratPDF(ctId);}
 function toggleContratStatus(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;ct.status=ct.status==='sign\u00e9'?'non_sign\u00e9':'sign\u00e9';co.updated=now_();save();UI.ptab=4;openCoPanel(coId);toast(ct.status==='sign\u00e9'?'\u2713 Contrat sign\u00e9':'\u21a9 Non sign\u00e9','s');}
 function deleteContrat(coId,ctId){const co=coById(coId);if(!co)return;co.contracts=(co.contracts||[]).filter(x=>x.id!==ctId);co.updated=now_();save();UI.ptab=4;openCoPanel(coId);toast('Contrat supprim\u00e9','w');}
+function _sendContratFromPreview(coId, ctId){
+  // 1. Fermer l'overlay
+  const ov = document.getElementById('ct-preview-ov');
+  if(ov) ov.remove();
+  URL.revokeObjectURL(window._ctPreview?.blobUrl||'');
+
+  // 2. Récupérer le contrat et les infos client
+  const co = coById(coId);
+  const ct = (co?.contracts||[]).find(x=>x.id===ctId);
+  if(!ct){ toast('Contrat introuvable','e'); return; }
+
+  // 3. Construire le mail de présentation du contrat
+  const tNc = `${ct.tarifs?.nc1||12} % / ${ct.tarifs?.nc2||13.5} % / ${ct.tarifs?.nc3||15} %`;
+  const tC  = `${ct.tarifs?.c1||15} % / ${ct.tarifs?.c2||17} % / ${ct.tarifs?.c3||20} %`;
+  const opt30 = ct.opt3070  ? `
+- Modalité de règlement : 30 % à l'intégration, 70 % à l'issue de la période d'essai` : '';
+  const optGar= ct.garantie ? `
+- Garantie de remplacement : 3 mois offerts en cas de départ pendant la période d'essai` : '';
+  const tauxSpe = ct.taux   ? `
+- Geste commercial : ${ct.taux} % du SBA pour votre premier recrutement (au lieu de la grille standard)` : '';
+
+  const prenom = co.contact ? co.contact.split(' ')[0] : 'Madame, Monsieur';
+  const subject = `Contrat cadre de recrutement NOVALEM — ${ct.nom}`;
+  const body = `Bonjour ${prenom},
+
+Suite à notre échange, je vous transmets en pièce jointe le contrat cadre de recrutement NOVALEM.
+
+Voici un récapitulatif des conditions négociées :
+
+Grille tarifaire (% du salaire brut annuel) :
+- Profils non-cadres (<5 ans / 5–15 ans / >15 ans) : ${tNc}
+- Profils cadres (<5 ans / 5–15 ans / >15 ans) : ${tC}${tauxSpe}${opt30}${optGar}
+
+Nos honoraires sont dus exclusivement en cas d'intégration effective du candidat. Aucun frais en l'absence de recrutement.
+
+Afin de démarrer la mission, merci de bien vouloir :
+1. Signer et renvoyer le contrat cadre ci-joint (signature + cachet de votre société)
+2. Me confirmer le(s) profil(s) que vous recherchez actuellement
+
+Dès réception, je démarre immédiatement les recherches et vous présente des candidats qualifiés sous 10 jours ouvrés.
+
+Restant disponible pour tout échange,
+
+Cordialement,
+Louis RENAULT — NOVALEM
+contact@novalem-recrutement.fr
+06 58 21 20 96
+novalem-recrutement.fr`;
+
+  // 4. Marquer "en attente de signature" dans la timeline
+  if(co){
+    addTimeline(coId, 'contrat', `Contrat cadre envoyé — en attente de signature`);
+    save();
+  }
+
+  // 5. Ouvrir le module email pré-rempli + aller sur l'onglet Contrats
+  setTimeout(()=>{
+    UI.ptab = 4;
+    openCoPanel(coId);
+    setTimeout(()=>openEmailWith({to: co.email||'', subject, body, coId}), 200);
+  }, 80);
+
+  toast('Email pré-rempli — téléchargez le PDF et joignez-le','i');
+}
+
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
 
 function openPanel(){document.getElementById('panel').classList.add('open');}
