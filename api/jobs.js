@@ -1,11 +1,64 @@
-// api/jobs.js
-// ═══════════════════════════════════════════════════════
-// API Offres d'emploi Novalem
-// GET  /api/jobs           → liste publique (site web, Indeed, Google)
-// POST /api/jobs           → CRUD admin (CRM) — nécessite X-CRM-Secret
-// ═══════════════════════════════════════════════════════
-// ⚠️  REMPLACE api/post-job.js — supprimer l'ancien fichier
-// ═══════════════════════════════════════════════════════
+// api/jobs.js — NOVALEM
+// ─────────────────────────────────────────────────────────────────────
+// GET  /api/jobs                         → liste publique offres publiées (site web)
+// POST /api/jobs  (header X-CRM-Secret)  → actions CRM authentifiées
+//
+// Actions POST : publish | unpublish | list_all | get_applications |
+//                update_app_status | delete
+//
+// Env requis : SUPABASE_URL, SUPABASE_ANON_KEY, CRM_SECRET
+//
+// ─── SQL À EXÉCUTER DANS SUPABASE (SQL Editor) ───────────────────────
+//
+// create table if not exists public.jobs (
+//   id                  uuid default gen_random_uuid() primary key,
+//   crm_id              text unique,
+//   title               text not null,
+//   location            text default '',
+//   contract_type       text default 'CDI',
+//   category            text default '',
+//   salary_display      text default '',
+//   experience          text default '',
+//   reference           text default '',
+//   description         text default '',
+//   skills              text[] default '{}',
+//   published           boolean default false,
+//   views_count         integer default 0,
+//   applications_count  integer default 0,
+//   created_at          timestamptz default now(),
+//   updated_at          timestamptz default now()
+// );
+// alter table public.jobs enable row level security;
+// create policy "public_read"   on public.jobs for select using (published = true);
+// create policy "service_write" on public.jobs for all    using (true);
+//
+// create table if not exists public.job_applications (
+//   id            uuid default gen_random_uuid() primary key,
+//   job_id        uuid references public.jobs(id) on delete set null,
+//   job_title     text,
+//   job_reference text,
+//   firstname     text not null,
+//   lastname      text not null,
+//   email         text not null,
+//   phone         text,
+//   linkedin_url  text,
+//   message       text,
+//   source        text default 'site_novalem',
+//   status        text default 'new',
+//   created_at    timestamptz default now()
+// );
+// alter table public.job_applications enable row level security;
+// create policy "service_all" on public.job_applications for all using (true);
+//
+// create or replace function increment_job_applications(p_job_id uuid)
+// returns void language plpgsql as $$
+// begin
+//   update public.jobs
+//     set applications_count = applications_count + 1, updated_at = now()
+//   where id = p_job_id;
+// end;
+// $$;
+// ─────────────────────────────────────────────────────────────────────
 
 const { createClient } = require('@supabase/supabase-js');
 
@@ -16,171 +69,105 @@ function getSB() {
   return createClient(url, key);
 }
 
-function isAdmin(req) {
-  const secret = process.env.CRM_SECRET;
-  if (!secret) return false;
-  return req.headers['x-crm-secret'] === secret;
-}
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept, X-CRM-Secret',
+};
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,X-CRM-Secret');
+  Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // ── GET PUBLIC — aucune auth requise ──────────────────
+  // ══ GET — liste publique pour le site ═══════════════════════════
   if (req.method === 'GET') {
     try {
       const sb = getSB();
-      const { data, error } = await sb
-        .from('job_postings')
-        .select('id,reference,title,cat,description,location,department,contract_type,salary_display,salary_min,salary_max,experience,skills,remote_work,featured,created_at,expires_at')
+      const { data: jobs, error } = await sb
+        .from('jobs')
+        .select('id,title,location,contract_type,category,salary_display,experience,reference,description,skills,views_count,applications_count,created_at')
         .eq('published', true)
-        .order('featured', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return res.status(200).json({ jobs: data || [], count: (data || []).length });
+      return res.status(200).json({ jobs: jobs || [] });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      console.error('[api/jobs GET]', err.message);
+      return res.status(500).json({ jobs: [], error: err.message });
     }
   }
 
-  // ── POST ADMIN — auth CRM requise ─────────────────────
-  if (req.method === 'POST') {
-    if (!isAdmin(req)) {
-      return res.status(401).json({ error: 'Non autorisé — X-CRM-Secret invalide' });
-    }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'GET ou POST requis' });
 
-    const { action, job } = req.body || {};
-    if (!action) return res.status(400).json({ error: 'action requise' });
-
-    try {
-      const sb = getSB();
-
-      // ── CRÉER ────────────────────────────────────────
-      if (action === 'create') {
-        if (!job?.title || !job?.description || !job?.location) {
-          return res.status(400).json({ error: 'title, description et location requis' });
-        }
-        const { data, error } = await sb
-          .from('job_postings')
-          .insert({
-            reference:     job.reference    || null,
-            title:         job.title,
-            cat:           job.cat          || 'go',
-            description:   job.description,
-            location:      job.location,
-            department:    job.department   || null,
-            contract_type: job.contract_type|| 'CDI',
-            salary_display:job.salary_display|| null,
-            salary_min:    job.salary_min   || null,
-            salary_max:    job.salary_max   || null,
-            experience:    job.experience   || null,
-            skills:        job.skills       || [],
-            remote_work:   job.remote_work  || 'Non',
-            featured:      job.featured     || false,
-            published:     job.published    || false,
-            crm_id:        job.crm_id       || null,
-            expires_at:    job.expires_at   || null,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        return res.status(200).json({ success: true, job: data });
-      }
-
-      // ── METTRE À JOUR ────────────────────────────────
-      if (action === 'update') {
-        if (!job?.id) return res.status(400).json({ error: 'job.id requis' });
-        const { id, crm_id, created_at, views_count, applications_count, ...fields } = job;
-        const { data, error } = await sb
-          .from('job_postings')
-          .update({ ...fields, updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .select()
-          .single();
-        if (error) throw error;
-        return res.status(200).json({ success: true, job: data });
-      }
-
-      // ── TOGGLE PUBLISH ───────────────────────────────
-      if (action === 'toggle_publish') {
-        if (!job?.id) return res.status(400).json({ error: 'job.id requis' });
-        const { data: current, error: fetchErr } = await sb
-          .from('job_postings').select('published').eq('id', job.id).single();
-        if (fetchErr) throw fetchErr;
-        const newState = !current.published;
-        const { data, error } = await sb
-          .from('job_postings')
-          .update({ published: newState, updated_at: new Date().toISOString() })
-          .eq('id', job.id)
-          .select()
-          .single();
-        if (error) throw error;
-        return res.status(200).json({ success: true, job: data, published: newState });
-      }
-
-      // ── SUPPRIMER ────────────────────────────────────
-      if (action === 'delete') {
-        if (!job?.id) return res.status(400).json({ error: 'job.id requis' });
-        const { error } = await sb.from('job_postings').delete().eq('id', job.id);
-        if (error) throw error;
-        return res.status(200).json({ success: true });
-      }
-
-      // ── LISTE ADMIN (brouillons inclus) ──────────────
-      if (action === 'list_all') {
-        const { data, error } = await sb
-          .from('job_postings')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        return res.status(200).json({ jobs: data || [] });
-      }
-
-      // ── CANDIDATURES D'UNE OFFRE ─────────────────────
-      if (action === 'get_applications') {
-        if (!job?.id) return res.status(400).json({ error: 'job.id requis' });
-        const { data, error } = await sb
-          .from('job_applications')
-          .select('*')
-          .eq('job_posting_id', job.id)
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        return res.status(200).json({ applications: data || [] });
-      }
-
-      // ── TOUTES CANDIDATURES ───────────────────────────
-      if (action === 'get_all_applications') {
-        const { data, error } = await sb
-          .from('job_applications')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        return res.status(200).json({ applications: data || [] });
-      }
-
-      // ── UPDATE STATUT CANDIDATURE ─────────────────────
-      if (action === 'update_application_status') {
-        const { application_id, status } = job || {};
-        if (!application_id || !status) return res.status(400).json({ error: 'application_id et status requis' });
-        const { data, error } = await sb
-          .from('job_applications')
-          .update({ status })
-          .eq('id', application_id)
-          .select()
-          .single();
-        if (error) throw error;
-        return res.status(200).json({ success: true, application: data });
-      }
-
-      return res.status(400).json({ error: `Action "${action}" non reconnue` });
-
-    } catch (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  // ══ POST — CRM authentifié ═══════════════════════════════════════
+  const secret = req.headers['x-crm-secret'];
+  if (!secret || secret !== process.env.CRM_SECRET) {
+    return res.status(401).json({ error: 'Non autorisé — X-CRM-Secret invalide' });
   }
 
-  return res.status(405).json({ error: 'Méthode non autorisée' });
+  const { action, job } = req.body || {};
+  if (!action) return res.status(400).json({ error: 'action requis' });
+
+  let sb;
+  try { sb = getSB(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+  try {
+    if (action === 'publish') {
+      if (!job?.crm_id || !job?.title) return res.status(400).json({ error: 'crm_id et title requis' });
+      const row = {
+        crm_id: job.crm_id, title: job.title,
+        location: job.location || '', contract_type: job.contract_type || 'CDI',
+        category: job.cat || job.category || '', salary_display: job.salary_display || job.salary || '',
+        experience: job.experience || '', reference: job.reference || '',
+        description: job.description || job.body || '',
+        skills: Array.isArray(job.skills) ? job.skills : [],
+        published: true, updated_at: new Date().toISOString(),
+      };
+      const { data, error } = await sb.from('jobs').upsert(row, { onConflict: 'crm_id' }).select().single();
+      if (error) throw error;
+      return res.status(200).json({ success: true, job: data });
+    }
+
+    if (action === 'unpublish') {
+      if (!job?.id && !job?.crm_id) return res.status(400).json({ error: 'id ou crm_id requis' });
+      const filter = job.id ? { id: job.id } : { crm_id: job.crm_id };
+      const { error } = await sb.from('jobs').update({ published: false, updated_at: new Date().toISOString() }).match(filter);
+      if (error) throw error;
+      return res.status(200).json({ success: true });
+    }
+
+    if (action === 'list_all') {
+      const { data: jobs, error } = await sb.from('jobs').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return res.status(200).json({ success: true, jobs: jobs || [] });
+    }
+
+    if (action === 'get_applications') {
+      if (!job?.id) return res.status(400).json({ error: 'job.id requis' });
+      const { data: apps, error } = await sb.from('job_applications').select('*').eq('job_id', job.id).order('created_at', { ascending: false });
+      if (error) throw error;
+      return res.status(200).json({ success: true, applications: apps || [] });
+    }
+
+    if (action === 'update_app_status') {
+      if (!job?.app_id || !job?.status) return res.status(400).json({ error: 'app_id et status requis' });
+      const { error } = await sb.from('job_applications').update({ status: job.status }).eq('id', job.app_id);
+      if (error) throw error;
+      return res.status(200).json({ success: true });
+    }
+
+    if (action === 'delete') {
+      if (!job?.id && !job?.crm_id) return res.status(400).json({ error: 'id ou crm_id requis' });
+      const filter = job.id ? { id: job.id } : { crm_id: job.crm_id };
+      const { error } = await sb.from('jobs').delete().match(filter);
+      if (error) throw error;
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(400).json({ error: `Action inconnue : ${action}` });
+
+  } catch (err) {
+    console.error('[api/jobs POST]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
 };
