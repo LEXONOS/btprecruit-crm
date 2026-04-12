@@ -4162,7 +4162,7 @@ function _sendContratFromPreview(coId, ctId){
 - Geste commercial : ${ct.taux} % du SBA pour votre premier recrutement (au lieu de la grille standard)` : '';
 
   const prenom = co.contact ? co.contact.split(' ')[0] : 'Madame, Monsieur';
-  const subject = `Contrat cadre de recrutement NOVALEM — ${ct.nom}`;
+  const subject = `Proposition professionnelle NOVALEM — ${ct.nom}`;
   const body = `Bonjour ${prenom},
 
 Suite à notre échange, je vous transmets en pièce jointe le contrat cadre de recrutement NOVALEM.
@@ -4199,8 +4199,14 @@ novalem-recrutement.fr`;
   // Fermer le panel d'abord pour éviter la confusion visuelle
   closePanel();
   
-  // Charger EM immédiatement
+  // Charger EM + pré-initialiser EM_RECIPIENTS avec le client
   window.EM = {to: co.email||'', subject, body, candId:null, coId, tplKey:null};
+  window.EM_RECIPIENTS = co.email ? [{
+    email: co.email,
+    name:  co.name||co.email,
+    type:  'co',
+    entityId: co.id
+  }] : [];
   
   // Petit délai pour laisser le panel se fermer, puis ouvrir emails
   setTimeout(()=>{
@@ -5786,7 +5792,7 @@ Novalem — Cabinet de recrutement`
   contrat:{
     label:'Envoi contrat cadre',
     to:(co)=>co?.email||'',
-    subject:(co)=>`Contrat cadre de recrutement NOVALEM — ${co?.name||''}`,
+    subject:(co)=>`Proposition professionnelle NOVALEM — ${co?.name||''}`,
     body:(co,nom,tel)=>`Bonjour,\n\nSuite à notre échange, je vous transmets le contrat cadre de recrutement NOVALEM en pièce jointe.\n\nCe contrat définit les conditions de notre collaboration pour vos recrutements CDI dans le secteur du BTP. Nos honoraires sont calculés en pourcentage du salaire brut annuel convenu et ne sont dus qu'en cas d'intégration effective du candidat — aucun frais si le recrutement n'aboutit pas.\n\nPour démarrer, merci de bien vouloir :\n1. Signer le contrat et me le retourner (signature + cachet si disponible)\n2. Me préciser le(s) profil(s) que vous recherchez actuellement\n\nDès réception, je lance les recherches et vous présente des candidats qualifiés sous 10 jours ouvrés.\n\nJe reste disponible pour toute question.\n\nCordialement,\n${nom||'Louis RENAULT'}${tel?'\n'+tel:''}\nNOVALEM — Cabinet de recrutement BTP\ncontact@novalem-recrutement.fr\nnovalem-recrutement.fr`
   }
 };
@@ -5858,7 +5864,7 @@ function rEmails(){
           ?`<div style="color:var(--mu2);font-size:9px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Signature</div>
              <div style="color:var(--mu);line-height:1.5">${esc(nom)}${tel?'<br>'+esc(tel):''}</div>`
           :`<div style="color:var(--orange);font-size:10px">Signature non configurée</div>`}
-        <button class="btn bg bxs" style="margin-top:6px;width:100%;justify-content:center;font-size:9px" onclick="openSettings()">Parametres</button>
+        <button class="btn bg bxs" style="margin-top:6px;width:100%;justify-content:center;font-size:9px" onclick="openEmailSettings()">⚙ Paramètres mail</button>
       </div>
     </div>
 
@@ -5883,6 +5889,145 @@ function emRenderView(view,cands,cos,history,drafts,nom,tel){
   return emRenderCompose(cands,cos,nom,tel);
 }
 
+
+// ── Paramètres email — templates éditables ─────────────────────
+function openEmailSettings(){
+  // Charger les overrides de templates depuis localStorage
+  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+
+  // Construire les onglets de templates
+  const tplList = Object.entries(EMAIL_TPLS).map(([key,tpl])=>{
+    const override = overrides[key]||{};
+    const label  = override.label  || tpl.label  || key;
+    const subj   = override.subject|| '';
+    const body   = override.body   || '';
+    return {key, label, subj, body, original: tpl};
+  });
+
+  let activeKey = tplList[0]?.key||'';
+
+  function renderTplEditor(){
+    const t = tplList.find(x=>x.key===activeKey)||tplList[0];
+    if(!t) return '';
+    // Appliquer l'override au contenu courant
+    const ov = overrides[t.key]||{};
+    const bodyVal = ov.body !== undefined ? ov.body : '(par défaut — modifiez pour personnaliser)';
+    return `
+      <div style="display:grid;gap:10px">
+        <div class="fgrp">
+          <span class="lbl">Libellé affiché dans le sélecteur</span>
+          <input id="etpl-label" value="${esc(ov.label||t.original.label||t.key)}" placeholder="Nom du template">
+        </div>
+        <div class="fgrp">
+          <span class="lbl">Objet par défaut</span>
+          <input id="etpl-subj" value="${esc(ov.subject||'')}" placeholder="Laisser vide = objet dynamique par défaut">
+        </div>
+        <div class="fgrp">
+          <span class="lbl">Corps du message (laisser vide = template par défaut)</span>
+          <textarea id="etpl-body" style="min-height:180px;font-size:11px;font-family:'DM Mono',monospace;line-height:1.65">${esc(ov.body||'')}</textarea>
+          <span style="font-size:9px;color:var(--mu)">Variables : {nom} = votre nom, {tel} = votre téléphone, {prénom} = prénom candidat/client</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn bg bxs" onclick="resetEmailTpl('${t.key}')">Réinitialiser</button>
+          <button class="btn bp bsm" style="margin-left:auto" onclick="saveEmailTpl('${t.key}')">Enregistrer</button>
+        </div>
+      </div>`;
+  }
+
+  const tabs = tplList.map(t=>`
+    <div onclick="(()=>{document.querySelectorAll('.etpl-tab').forEach(x=>x.classList.remove('act'));this.classList.add('act');document.getElementById('etpl-editor').innerHTML=/* rebuild */'';})()" 
+      class="etpl-tab ${t.key===activeKey?'act':''}"
+      style="padding:6px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:${t.key===activeKey?'700':'400'};color:${t.key===activeKey?'var(--gold)':'var(--mu)'};background:${t.key===activeKey?'var(--s4)':'transparent'};white-space:nowrap"
+      onclick="emSelectTpl('${t.key}')">
+      ${esc(t.original.label||t.key)}${overrides[t.key]?'<span style="color:var(--gold);margin-left:3px">●</span>':''}
+    </div>`).join('');
+
+  window._emSettingsKey = activeKey;
+
+  openMo('⚙ Paramètres email', `
+    <div style="display:grid;gap:14px">
+      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
+        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Templates de messages</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--bd)">
+          ${tabs}
+        </div>
+        <div id="etpl-editor">${renderTplEditor()}</div>
+      </div>
+
+      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
+        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Signature</div>
+        <div class="fgrp">
+          <span class="lbl">Votre signature (ajoutée automatiquement)</span>
+          <textarea id="etpl-sig" style="min-height:80px;font-size:11px;font-family:'DM Mono',monospace">${esc(localStorage.getItem('btp_email_sig')||'')}</textarea>
+        </div>
+        <button class="btn bp bsm" style="margin-top:6px" onclick="(()=>{localStorage.setItem('btp_email_sig',document.getElementById('etpl-sig').value);toast('Signature enregistrée ✓','s')})()">Enregistrer la signature</button>
+      </div>
+    </div>
+  `, `<button class="btn bg" onclick="closeMo()">Fermer</button>`);
+}
+
+function emSelectTpl(key){
+  window._emSettingsKey = key;
+  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+  const ov = overrides[key]||{};
+  const tpl = EMAIL_TPLS[key];
+  const el = document.getElementById('etpl-editor');
+  if(!el) return;
+  el.innerHTML = `
+    <div style="display:grid;gap:10px">
+      <div class="fgrp">
+        <span class="lbl">Libellé affiché dans le sélecteur</span>
+        <input id="etpl-label" value="${esc(ov.label||tpl?.label||key)}" placeholder="Nom du template">
+      </div>
+      <div class="fgrp">
+        <span class="lbl">Objet par défaut (laisser vide = dynamique)</span>
+        <input id="etpl-subj" value="${esc(ov.subject||'')}" placeholder="">
+      </div>
+      <div class="fgrp">
+        <span class="lbl">Corps du message (laisser vide = défaut)</span>
+        <textarea id="etpl-body" style="min-height:180px;font-size:11px;font-family:'DM Mono',monospace;line-height:1.65">${esc(ov.body||'')}</textarea>
+        <span style="font-size:9px;color:var(--mu)">Variables disponibles dans les templates personnalisés</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bg bxs" onclick="resetEmailTpl('${key}')">Réinitialiser</button>
+        <button class="btn bp bsm" style="margin-left:auto" onclick="saveEmailTpl('${key}')">Enregistrer</button>
+      </div>
+    </div>`;
+}
+
+function saveEmailTpl(key){
+  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+  const label = document.getElementById('etpl-label')?.value?.trim();
+  const subj  = document.getElementById('etpl-subj')?.value?.trim();
+  const body  = document.getElementById('etpl-body')?.value;
+  overrides[key] = {label, subject:subj, body};
+  localStorage.setItem('btp_email_tpls', JSON.stringify(overrides));
+  // Mettre à jour le libellé dans EMAIL_TPLS (runtime)
+  if(label && EMAIL_TPLS[key]) EMAIL_TPLS[key].label = label;
+  toast('Template enregistré ✓','s');
+}
+
+function resetEmailTpl(key){
+  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+  delete overrides[key];
+  localStorage.setItem('btp_email_tpls', JSON.stringify(overrides));
+  emSelectTpl(key);
+  toast('Template réinitialisé','i');
+}
+
+// Appliquer les overrides au chargement
+function _applyEmailTplOverrides(){
+  try{
+    const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+    Object.entries(overrides).forEach(([key,ov])=>{
+      if(!EMAIL_TPLS[key]) return;
+      if(ov.label)   EMAIL_TPLS[key].label   = ov.label;
+      if(ov.body)    EMAIL_TPLS[key]._bodyOverride = ov.body;
+      if(ov.subject) EMAIL_TPLS[key]._subjOverride = ov.subject;
+    });
+  }catch(e){}
+}
+
 function emShowView(view){
   EM_VIEW=view;
   closeAiPanel();
@@ -5894,6 +6039,10 @@ function emShowView(view){
   const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
   const main=document.getElementById('em-main');
   if(main)main.innerHTML=emRenderView(view,cands,cos,history,drafts,nom,tel);
+  // Initialiser les chips de destinataires si vue compose
+  if(view==='compose'||!view){
+    setTimeout(()=>_emInitRecipients(), 30);
+  }
   // Update nav
   document.querySelectorAll('.em-nav-item').forEach(el=>{
     const id=el.id;
@@ -6199,47 +6348,71 @@ function emReplyTo(uid){
 
 // ── Composeur ─────────────────────────────────────────
 function emRenderCompose(cands,cos,nom,tel){
-  const initTo=EM.to||'';
-  const initSub=EM.subject||'';
-  const initBody=EM.body||(EMAIL_TPLS.blank.body({},nom,tel));
-  const candOpts=cands.map(c=>`<option value="${c.email}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
-  const coOpts=cos.map(c=>`<option value="${c.email}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
-  const tplOpts=Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
+  const initTo  = EM.to||'';
+  const initSub = EM.subject||'';
+  const initBody= EM.body||(EMAIL_TPLS.blank?.body({},'','')||'');
+
+  // Construire les options pour les selects
+  const candOpts = cands.map(cd=>`<option value="${esc(cd.email)}" data-id="${esc(cd.id)}" data-type="cand">${esc(cd.name)} — ${esc(cd.email)}</option>`).join('');
+  const coOpts   = cos.map(co=>`<option value="${esc(co.email)}" data-id="${esc(co.id)}" data-type="co">${esc(co.name)} — ${esc(co.email)}</option>`).join('');
+  const tplOpts  = Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
 
   return`
+    <!-- Header compose -->
     <div style="padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--s1);flex-shrink:0;display:flex;align-items:center;gap:8px">
       <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Nouveau message</span>
       <select onchange="emApplyTpl()" id="em-tpl" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 8px;border-radius:4px;margin-left:auto">
-        <option value="">-- Template --</option>${tplOpts}
+        <option value="">— Template —</option>${tplOpts}
       </select>
     </div>
-    <!-- Champs -->
+
+    <!-- Champs To / Cc / Objet -->
     <div style="flex-shrink:0;border-bottom:1px solid var(--bd)">
-      ${[
-        {id:'em-to',label:'De',val:initTo,type:'text',placeholder:'destinataire@email.com'},
-        {id:'em-cc',label:'Cc',val:'',type:'text',placeholder:''},
-        {id:'em-sub',label:'Objet',val:initSub,type:'text',placeholder:''},
-      ].map(f=>`<div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
-          <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">${f.label}</span>
-          <input id="${f.id}" value="${esc(f.val)}" placeholder="${f.placeholder}" 
-            style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
-        </div>`).join('')}
-      <!-- Sélecteurs contact -->
-      <div style="display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap">
-        <select onchange="if(this.value){document.getElementById('em-to').value=this.value;this.value=''}" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
-          <option value="">Candidat...</option>${candOpts}
+      <!-- To : chips multi-destinataires -->
+      <div id="em-to-wrap" style="display:flex;align-items:flex-start;padding:4px 14px;border-bottom:1px solid var(--bd);min-height:36px;flex-wrap:wrap;gap:4px;cursor:text" onclick="document.getElementById('em-to-input').focus()">
+        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;padding-top:6px;text-transform:uppercase;letter-spacing:.08em">À</span>
+        <div id="em-chips" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex:1"></div>
+        <input id="em-to-input" value="${esc(initTo)}"
+          placeholder="destinataire@email.com"
+          style="flex:1;min-width:150px;background:transparent;border:none;padding:5px 4px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none"
+          onkeydown="emToKeydown(event)"
+          oninput="emToInput(this.value)">
+      </div>
+      <!-- Cc / Cci -->
+      <div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
+        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">Cc</span>
+        <input id="em-cc" placeholder="En copie…"
+          style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
+        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em;margin-left:8px">Cci</span>
+        <input id="em-bcc" placeholder="Copie cachée…"
+          style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
+      </div>
+      <!-- Objet -->
+      <div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
+        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">Objet</span>
+        <input id="em-sub" value="${esc(initSub)}" placeholder="Objet du message"
+          style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
+      </div>
+
+      <!-- Sélecteurs contact rapide -->
+      <div style="display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap;align-items:center">
+        <span style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Ajouter&nbsp;:</span>
+        <select onchange="emAddContact(this)" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
+          <option value="">Candidat…</option>${candOpts}
         </select>
-        <select onchange="if(this.value){document.getElementById('em-to').value=this.value;this.value=''}" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
-          <option value="">Client/Prospect...</option>${coOpts}
+        <select onchange="emAddContact(this)" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
+          <option value="">Client / Prospect…</option>${coOpts}
         </select>
       </div>
     </div>
+
     <!-- Corps -->
     <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0">${esc(initBody)}</textarea>
+
     <!-- Footer -->
     <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:center;flex-shrink:0;background:var(--s2)">
       <button id="em-send-btn" class="btn bp bsm" onclick="emSend()">Envoyer</button>
-      <button class="btn bg bxs" onclick="emOpenMailClient()" title="Ouvrir dans Gmail/Outlook">Via messagerie</button>
+      <button class="btn bg bxs" onclick="emOpenMailClient()" title="Ouvrir dans votre messagerie">Via messagerie</button>
       <button class="btn bg bxs" onclick="emSaveDraft()">Brouillon</button>
       <button class="btn bg bxs" onclick="emClear()">Effacer</button>
       <div id="em-status" style="font-size:10px;margin-left:4px"></div>
@@ -6247,9 +6420,95 @@ function emRenderCompose(cands,cos,nom,tel){
     </div>`;
 }
 
+// ── Chips multi-destinataires ────────────────────────────────────
+let EM_RECIPIENTS = []; // [{email, name, type, entityId}]
+
+function _emInitRecipients(){
+  EM_RECIPIENTS = [];
+  const initTo = (EM.to||'').trim();
+  if(initTo){
+    // Chercher si c'est un client ou candidat connu
+    const co = DB.companies.find(x=>x.email===initTo);
+    const ca = DB.candidates.find(x=>x.email===initTo);
+    EM_RECIPIENTS = [{email:initTo, name:co?.name||ca?.name||initTo, type:co?'co':ca?'cand':'email', entityId:co?.id||ca?.id||null}];
+  }
+  _emRenderChips();
+  const inp = document.getElementById('em-to-input');
+  if(inp) inp.value = '';
+}
+
+function _emRenderChips(){
+  const wrap = document.getElementById('em-chips');
+  if(!wrap) return;
+  wrap.innerHTML = EM_RECIPIENTS.map((r,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:4px;background:var(--s4);border:1px solid var(--bd2);border-radius:100px;padding:2px 8px 2px 6px;font-size:10px;color:var(--tx);cursor:default;max-width:180px"
+      title="${esc(r.email)}">
+      ${r.type==='co'?'🏢':r.type==='cand'?'👤':'✉'}
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px"
+        ${r.entityId?`onclick="event.stopPropagation();emOpenEntityPanel('${r.type}','${r.entityId}')" style="cursor:pointer" title="Voir la fiche"`:''}>
+        ${esc(r.name||r.email)}
+      </span>
+      <span onclick="emRemoveRecipient(${i})" style="cursor:pointer;color:var(--mu);font-size:11px;line-height:1;padding-left:2px;flex-shrink:0">×</span>
+    </span>`).join('');
+}
+
+function emRemoveRecipient(i){
+  EM_RECIPIENTS.splice(i,1);
+  _emRenderChips();
+}
+
+function emAddContact(sel){
+  const email = sel.value;
+  const opt = sel.selectedOptions[0];
+  const type = opt?.dataset?.type||'email';
+  const entityId = opt?.dataset?.id||null;
+  const name = (opt?.text||email).split(' — ')[0];
+  if(!email){ sel.value=''; return; }
+  if(!EM_RECIPIENTS.find(r=>r.email===email)){
+    EM_RECIPIENTS.push({email, name, type, entityId});
+    _emRenderChips();
+    // Ouvrir le panel de la fiche en sidebar
+    if(entityId){
+      setTimeout(()=>emOpenEntityPanel(type, entityId), 50);
+    }
+  }
+  sel.value='';
+}
+
+function emOpenEntityPanel(type, id){
+  if(type==='co') openCoPanel(id);
+  else if(type==='cand') openCandPanel(id);
+}
+
+function emToKeydown(e){
+  if(e.key==='Enter'||e.key===','||e.key===';'){
+    e.preventDefault();
+    const v = e.target.value.trim().replace(/,|;$/,'');
+    if(v && v.includes('@') && !EM_RECIPIENTS.find(r=>r.email===v)){
+      EM_RECIPIENTS.push({email:v, name:v, type:'email', entityId:null});
+      _emRenderChips();
+      e.target.value='';
+    }
+  } else if(e.key==='Backspace' && !e.target.value && EM_RECIPIENTS.length){
+    EM_RECIPIENTS.pop();
+    _emRenderChips();
+  }
+}
+
+function emToInput(val){
+  // Autocomplétion simple : si @ trouvé, proposer des contacts
+}
+
+
 // ── Envoi ─────────────────────────────────────────────
 async function emSend(){
-  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  // Construire les destinataires depuis les chips + input libre
+  const inputVal = (document.getElementById('em-to-input')?.value||'').trim();
+  if(inputVal && inputVal.includes('@') && !(EM_RECIPIENTS||[]).find(r=>r.email===inputVal)){
+    (EM_RECIPIENTS = EM_RECIPIENTS||[]).push({email:inputVal,name:inputVal,type:'email',entityId:null});
+  }
+  const toList = (EM_RECIPIENTS||[]).map(r=>r.email).filter(Boolean);
+  const to = toList.join(',') || (document.getElementById('em-to-input')?.value||EM.to||'').trim();
   const cc=(document.getElementById('em-cc')?.value||'').trim();
   const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
   const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
@@ -6379,16 +6638,23 @@ function emApplyTpl(){
   const tpl=EMAIL_TPLS[key];if(!tpl)return;
   const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
   const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
-  // Try to find linked candidate
-  let c={};
-  if(EM.candId)c=cById(EM.candId)||{};
-  const body=tpl.body(c,nom,tel);
-  const to=tpl.to(c);const sub=tpl.subject(c);
-  const toEl=document.getElementById('em-to');const subEl=document.getElementById('em-sub');const bodyEl=document.getElementById('em-body');
-  if(toEl&&to)toEl.value=to;
+  const overrides=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
+  const ov=overrides[key]||{};
+  let ctx={};
+  if(EM.candId)ctx=cById(EM.candId)||{};
+  else if(EM.coId)ctx=coById(EM.coId)||{};
+  // Body : override custom ou défaut
+  const body = ov.body ? ov.body
+    .replace(/\{nom\}/g,nom).replace(/\{tel\}/g,tel)
+    .replace(/\{prénom\}/g,(ctx.name||'').split(' ')[0]||'')
+    : tpl.body(ctx,nom,tel);
+  // Subject : override ou défaut
+  const sub = ov.subject || (typeof tpl.subject==='function'?tpl.subject(ctx):'');
+  const subEl=document.getElementById('em-sub');
+  const bodyEl=document.getElementById('em-body');
   if(subEl&&sub)subEl.value=sub;
   if(bodyEl)bodyEl.value=body;
-  toast(`Template "${tpl.label}" applique`,'s');
+  toast(`Template "${ov.label||tpl.label}" appliqué`,'s');
 }
 function emQuickTpl(key){
   EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:key};
