@@ -3938,6 +3938,8 @@ function _showContract(p){
 }
 
 
+function openPanel(){document.getElementById('panel').classList.add('open');}
+function closePanel(){document.getElementById('panel').classList.remove('open');UI.ptype=null;UI.pid=null;}
 function setPanel(name,sub,tabs,body,actions){
  document.getElementById('ph-name').textContent=name;
  document.getElementById('ph-sub').innerHTML=sub||'';
