@@ -3743,41 +3743,6 @@ async function syncJobsFromSupabase(){
 }
 
 // ─── PANEL DÉTAIL OFFRE ───────────────────────────────────────────
-function openPostPanel(id){
-  const p = DB.posts.find(x=>x.id===id);
-  if(!p) return;
-  const cat = CAT_LABELS[p.cat] || p.cat || 'BTP';
-
-  setPanel(
-    p.title,
-    `<span class="pill ${p.published?'pwin':'pnew'}">${p.published?'Publiée':'Brouillon'}</span> ${esc(cat)} · ${esc(p.location||'—')}`,
-    `<div class="ptab act" onclick="">Détails</div>`,
-    `
-      <div class="dr"><span class="drk">Contrat</span><span class="drv">${esc(p.contract_type||'CDI')}</span></div>
-      <div class="dr"><span class="drk">Salaire</span><span class="drv">${esc(p.salary_display||p.salary||'—')}</span></div>
-      <div class="dr"><span class="drk">Expérience</span><span class="drv">${esc(p.experience||'—')}</span></div>
-      <div class="dr"><span class="drk">Référence</span><span class="drv">${esc(p.reference||'—')}</span></div>
-      <div class="dr"><span class="drk">Candidatures</span><span class="drv" style="color:var(--ac2);font-weight:600">${p.applications_count||0}</span></div>
-      <div class="dr"><span class="drk">Cloud ID</span><span class="drv fs10 mu_">${p.supabase_id?p.supabase_id.slice(0,8)+'…':'Non synchronisé'}</span></div>
-      <div class="sl mt12">Description</div>
-      <div style="font-size:13px;color:var(--mu2);line-height:1.65;white-space:pre-wrap">${esc(p.description||p.body||'—')}</div>
-      ${(p.skills||[]).length?`
-        <div class="sl mt12">Compétences</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${(p.skills||[]).map(s=>`<span class="tag" style="font-size:10px">${esc(s)}</span>`).join('')}</div>
-      `:''}
-      ${p.supabase_id?`
-        <div class="sl mt12">Lien site</div>
-        <a href="https://www.novalem-recrutement.fr/nos-besoins/" target="_blank" class="btn bi bxs" style="font-size:12px">Voir sur le site →</a>
-      `:''}
-    `,
-    `
-      <button class="btn bg bxs btn-full" onclick="openPostForm('${id}')">Modifier</button>
-      <button class="btn ${p.published?'bd_':'bp'} bxs btn-full mt6" onclick="togglePublishJob('${id}');closePanel()">${p.published?'Dépublier':'Publier sur le site'}</button>
-      <button class="btn bg bxs btn-full mt6" onclick="openCandidaturesPanel('${id}')">Voir candidatures (${p.applications_count||0})</button>
-    `
-  );
-}
-
 // ─── PANEL CANDIDATURES ───────────────────────────────────────────
 async function openCandidaturesPanel(jobId){
   const secret = getCRMSecret();
@@ -3973,6 +3938,79 @@ function _showContract(p){
 }
 
 
+function setPanel(name,sub,tabs,body,actions){
+ document.getElementById('ph-name').textContent=name;
+ document.getElementById('ph-sub').innerHTML=sub||'';
+ document.getElementById('ptabs').innerHTML=tabs||'';
+ document.getElementById('pb').innerHTML=body||'';
+ document.getElementById('pa').innerHTML=actions||'';
+ openPanel();
+}
+function setPTab(t){
+ UI.ptab=t;
+ if(UI.ptype==='cand'&&UI.pid) openCandPanel(UI.pid);
+ else if(UI.ptype==='co') openCoPanel(UI.pid);
+ else if(UI.ptype==='need') openNeedPanel(UI.pid);
+ // Rebind file inputs if Fichiers tab (index 1)
+ if(UI.ptype==='cand'&&t===1&&UI.pid) setTimeout(()=>bindFileInputs(UI.pid),50);
+}
+
+// ── CANDIDATE PANEL ──────────────────────────────────────
+function openCandPanel(id){
+ UI.ptype='cand';UI.pid=id;if(!UI.ptab)UI.ptab=0;
+ const c=cById(id);if(!c)return;
+ const cat=getCat(c.cat);const st=getCS(c.status);
+ const tabNames=['Profil','Fichiers','Entretien','Références'];
+ const tabs=tabNames.map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
+ const docs=c.docs||[];
+ const B=[
+ // 0 PROFIL
+ `${c.phone?`<div class="callbox"><div class="callbox-ph">${fPhone(c.phone)}</div><div class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">Copier</div></div>`:''}
+ <div class="dr"><span class="drk">Poste ciblé</span><span class="drv">${esc(c.role||'—')}</span></div>
+ <div class="dr"><span class="drk">Salaire brut/an</span><span class="drv">${fM(c.salary)} <span class="mu_ fs10">(hon. ${honor(c.salary)})</span></span></div>
+ <div class="dr"><span class="drk">Email</span><span class="drv">${esc(c.email||'—')}</span></div>
+ <div class="dr"><span class="drk">Disponibilité</span><span class="drv">${esc(c.avail||'—')}</span></div>
+ <div class="dr"><span class="drk">Mobilité</span><span class="drv">${esc(c.mobility||'—')}</span></div>
+ <div class="dr"><span class="drk">Source</span><span class="drv">${esc(c.source||'—')}</span></div>
+ <div class="dr"><span class="drk">Créé le</span><span class="drv">${fD(c.created)}</span></div>
+ <div class="sl">Notes précal</div>
+ ${c.notes_pre?`<div class="notebox">${esc(c.notes_pre)}</div>`:'<div class="mu_ fs11">Pas de notes de précal</div>'}
+ <div class="sl">Statut <span><button class="btn bg bxs" onclick="openStatusMo('cand','${id}')">Changer →</button></span></div>
+ <div class="st-sel">${CAND_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>
+ <div class="sl mt12">Matchage besoin</div>
+ <div class="flex fg5 fw">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn ${c.linked_need===n.id?'bp':'bg'} bxs" onclick="toggleLink('${id}','${n.id}')">${c.linked_need===n.id?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>`,
+ // 1 FICHIERS — rendered via renderCPFichiers
+ renderCPFichiers(c),
+ // 2 ENTRETIEN
+ `<div class="dr"><span class="drk">Entretien fait</span><span class="drv">${c.int_done?`${fD(c.int_date)}`:'Non'}</span></div>
+ <div class="dr"><span class="drk">Planifié le</span><span class="drv">${c.int_date_planned?`${fD(c.int_date_planned)} ${c.int_time||''}`:' —'}</span></div>
+ ${c.visio_link?`<div class="visio-box"> <strong>Lien visio :</strong><br><span class="visio-link">${esc(c.visio_link)}</span><br><a href="${esc(c.visio_link)}" target="_blank" class="btn bi bxs mt4">Rejoindre</a></div>`:''}
+ <div class="sl">Synthèse entretien <span><button class="btn bg bxs" onclick="markIntDone('${id}')">Marquer fait</button></span></div>
+ <textarea id="int-note-${id}" style="min-height:100px">${esc(c.notes_int||'')}</textarea>
+ <button class="btn bp bsm btn-full mt8" onclick="saveIntNote('${id}')">Sauvegarder synthèse</button>
+ <div class="sl mt12">Notes générales</div>
+ <textarea id="gen-note-${id}" style="min-height:60px">${esc(c.notes||'')}</textarea>
+ <button class="btn bg bsm mt6" onclick="saveGenNote('${id}')">Sauvegarder note</button>`,
+ // 3 RÉFÉRENCES
+ `<div class="dr"><span class="drk">Contrôle REF</span><span class="drv">${c.ref_done?'Fait':'À faire'}</span></div>
+ <div class="sl">Références <span><button class="btn bg bxs" onclick="addRef('${id}')">+ Ajouter</button></span></div>
+ ${(c.refs||[]).length?(c.refs||[]).map((r,i)=>`<div class="refcard">
+ <div class="flex fac fjb mb4"><strong class="fs11">${esc(r.company)}</strong><button class="btn bd_ bxs" onclick="rmRef('${id}',${i})">×</button></div>
+ <div class="mu_ fs10">${esc(r.contact||'—')}${r.phone?` · ${esc(r.phone)}`:''}</div>
+ ${r.done?`<div style="color:var(--ac2);font-size:10px;margin-top:4px">${esc(r.note||'Appelé')}</div>`:`<div style="color:var(--ac4);font-size:10px;margin-top:4px">À appeler</div>`}
+ <div class="flex fg5 mt8">
+ <button class="btn bg bxs" onclick="togRef('${id}',${i})">${r.done?'↺ À refaire':'Marqué fait'}</button>
+ <button class="btn bi bxs" onclick="prosFromRef('${id}',${i})">→ Prospecter</button>
+ </div>
+ </div>`).join(''):'<div class="mu_ fs11">Aucune référence ajoutée</div>'}
+ <div class="sl">Notes générales</div>
+ <textarea id="gnote-${id}" style="min-height:64px">${esc(c.notes||'')}</textarea>
+ <button class="btn bp bsm mt8" onclick="saveGNote('${id}')">Sauvegarder</button>`,
+ ];
+ const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="sendCV('${id}')">CV anonyme</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
+ setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
+}
+
 // ── COMPANY PANEL ─────────────────────────────────────────
 function openCoPanel(id){
  UI.ptype='co';UI.pid=id;
@@ -4019,10 +4057,396 @@ function openCoPanel(id){
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
  ];
- const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bg bsm" style="background:#C9891A;color:#fff;border:none" onclick="genContrat('${id}')">📄 Contrat</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
+ const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span> <span class="pill ${c.type==='client'?'pwin':'ptoc'}">${c.type==='client'?'Client':'Prospect'}</span>`,tabs,B[Math.min(UI.ptab,B.length-1)],acts);
 }
 
+// ── NEED PANEL ─────────────────────────────────────────────
+function openNeedPanel(id){
+ UI.ptype='need';UI.pid=id;
+ const n=nById(id);if(!n)return;
+ const co=coById(n.company_id);
+ const cat=getCat(n.cat);
+ const matched=DB.candidates.filter(c=>c.linked_need===id);
+ const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
+ const tabs=['Détail','Candidats'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
+ const B=[
+ // 0 DETAIL
+ `<div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
+ <div class="dr"><span class="drk">Catégorie</span><span class="drv"><span class="tag ${cat.cls}">${cat.l}</span></span></div>
+ <div class="dr"><span class="drk">Salaire</span><span class="drv">${n.smin&&n.smax?`${fM(n.smin)} – ${fM(n.smax)}`:n.smax?`≤ ${fM(n.smax)}`:n.smin?`≥ ${fM(n.smin)}`:'—'}</span></div>
+ <div class="dr"><span class="drk">Honoraires est.</span><span class="drv ac">${n.smax?honor(n.smax):'—'}</span></div>
+ <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(n.location||'France')}</span></div>
+ <div class="dr"><span class="drk">Démarrage</span><span class="drv">${n.start?fD(n.start):'ASAP'}</span></div>
+ <div class="dr"><span class="drk">Urgence</span><span class="drv">${{h:'Urgent',m:'○ Moyen',l:'Long terme'}[n.urgency]||'—'}</span></div>
+ ${n.notes?`<div class="sl">Critères / Notes</div><div class="notebox">${esc(n.notes)}</div>`:''}
+ <div class="sl">Statut</div>
+ <div class="st-sel">${NST.map(s=>`<div class="st-btn ${s.id===n.status?'cur':''}" onclick="setNS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>`,
+ // 1 CANDIDATS
+ `<div class="flex fjb fac mb8"><span class="fs11">${matched.length} candidat(s) matchés</span><button class="btn bp bxs" onclick="findForNeed('${id}')"> Trouver</button></div>
+ ${matched.map(c=>{const cs=getCS(c.status);return`<div class="aitem" onclick="openCandPanel('${c.id}')"><span class="pill ${cs.p}">${cs.l}</span><span style="flex:1">${esc(c.name)}</span><span class="mu_ fs10">${fM(c.salary)}</span><button class="btn bd_ bxs" onclick="event.stopPropagation();toggleLink('${c.id}','${id}')">×</button></div>`;}).join('')||'<div class="mu_ fs11">Aucun candidat lié</div>'}
+ <div class="sl mt12">Lier un candidat</div>
+ <select id="nc-sel" style="margin-bottom:7px"><option value="">Choisir…</option>${DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==id).map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.role||'')}</option>`).join('')}</select>
+ <button class="btn bp bsm" onclick="linkFromSel('${id}')">Lier</button>`,
+ ];
+ const acts=`<button class="btn bp bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delNeed('${id}')"></button>`;
+ setPanel(n.title,`${co?`<span>${esc(co.name)}</span> · `:''}<span class="tag ${cat.cls}">${cat.l}</span>`,tabs,B[UI.ptab],acts);
+}
+
+
+// ── AGENDA PANEL ────────────────────────────────────────────
+function openAgPanel(id){
+ const a=agById(id);if(!a)return;
+ const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];
+ const ca=a.cand_id?cById(a.cand_id):null;
+ const co=a.comp_id?coById(a.comp_id):null;
+ setPanel(a.title,`${t.ico} ${t.l} · ${fD(a.date)}${a.time?` · ${a.time}`:''}`,null,`
+ <div class="dr"><span class="drk">Type</span><span class="drv">${t.ico} ${t.l}</span></div>
+ <div class="dr"><span class="drk">Date</span><span class="drv">${fD(a.date)}</span></div>
+ <div class="dr"><span class="drk">Heure</span><span class="drv">${a.time||'—'}</span></div>
+ <div class="dr"><span class="drk">Candidat</span><span class="drv">${ca?`<span class="ac5" style="cursor:pointer" onclick="openCandPanel('${ca.id}')">${esc(ca.name)}</span>`:'—'}</span></div>
+ <div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
+ <div class="dr"><span class="drk">Statut</span><span class="drv">${a.done?'Terminé':'En attente'}</span></div>
+ ${a.notes?`<div class="sl">Notes</div><div class="notebox">${esc(a.notes)}</div>`:''}`,
+ `<button class="btn ${a.done?'bg':'bp'} bsm" onclick="togAgDone('${id}');openAgPanel('${id}')">${a.done?'↺ À faire':'Terminé'}</button><button class="btn bg bsm" onclick="openAgForm('${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delAg('${id}')"></button>`
+);
+}
+
+// ── POST PANEL ──────────────────────────────────────────────
+function openPostPanel(id){
+ const p=DB.posts.find(x=>x.id===id);if(!p)return;
+ const cat=getCat(p.cat);
+ const published=p.published_on||[];
+ const boardsHtml=(p.boards||[]).map(b=>{
+ const isPub=published.includes(b);
+ return`<div class="board-row">
+ <div class="board-name">${esc(b)}</div>
+ <span class="board-status ${isPub?'bst-live':'bst-todo'}">${isPub?'✓ Publié':'À publier'}</span>
+ </div>`;
+ }).join('')||'<div class="mu_ fs11">—</div>';
+
+ const jcmoStatus=p.jcmo_ok===true
+ ?`<span style="color:var(--ac2);font-size:10px">Vérifiée légalement</span>`
+ :p.jcmo_ok===false
+ ?`<span style="color:var(--ac3);font-size:10px">! ${p.jcmo_issues?.length||0} point(s) à corriger</span>`
+ :`<button class="btn bg bxs" onclick="verifyPostJCMO('${id}')"> Vérifier avant publication</button>`;
+
+ setPanel(p.title,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${p.status==='active'?'pwin':'pnew'}">${p.status==='active'?'Active':'Brouillon'}</span>`,null,`
+ <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(p.location||'—')}</span></div>
+ <div class="dr"><span class="drk">Salaire</span><span class="drv">${esc(p.salary||'—')}</span></div>
+ <div class="sl">Conformité légale ${jcmoStatus}</div>
+ ${p.jcmo_issues?.length?`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px">${p.jcmo_issues.map(i=>`<div class="fs10" style="padding:4px 8px;background:var(--s3);border-radius:2px">${esc(i)}</div>`).join('')}</div>`:''}
+ <div class="sl">Publication (${published.length}/${(p.boards||[]).length} boards)</div>
+ ${boardsHtml}
+ <div class="sl mt12">Texte de l'annonce</div>
+ <div class="notebox" style="max-height:160px;overflow-y:auto">${esc(p.body||'—')}</div>`,
+ `<button class="btn bp bsm" onclick="openPublishPanel('${id}')">Publier</button>
+ <button class="btn bg bsm" onclick="verifyPostJCMO('${id}')"> Vérifier</button>
+ <button class="btn ${p.status==='active'?'bg':'bg'} bsm" onclick="togPostSt('${id}')">${p.status==='active'?'⏸ Clôturer':'▶ Activer'}</button>
+ <button class="btn bg bsm" onclick="openPostForm('${id}')">✎ Modifier</button>
+ <button class="btn bd_ bsm" onclick="delPost('${id}')"></button>`
+);
+}
+
+// ── Vérification légale JCMO ──────────────────────────
+async function verifyPostJCMO(postId){
+ const p=DB.posts.find(x=>x.id===postId);if(!p)return;
+ const apiBase=getApiBase();
+ toast(' Vérification légale en cours…','i');
+
+ try{
+ let result;
+ if(apiBase){
+ // Appel API Vercel
+ const resp=await fetch(`${apiBase}/api/verify-offer`,{
+ method:'POST',
+ headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({title:p.title,body:p.body,location:p.location,salary:p.salary,cat:p.cat})
+ });
+ result=await resp.json();
+ } else {
+ // Vérification locale si pas sur Vercel
+ result=localLegalCheck(p);
+ }
+
+ p.jcmo_ok=result.ok;
+ p.jcmo_issues=result.issues||[];
+ p.updated=now_();
+ save();
+ openPostPanel(postId);
+
+ if(result.ok){
+ toast('Annonce conforme — prête à publier','s');
+ } else {
+ const warnings=result.issues.filter(i=>i.startsWith('!️')).length;
+ toast(`! ${warnings} point(s) à corriger dans l'annonce`,'w');
+ }
+ }catch(err){
+ toast('Vérification: '+err.message,'e');
+ }
+}
+
+// Vérification légale locale (fallback)
+function localLegalCheck(post){
+ const issues=[];
+ const body=(post.body||'').toLowerCase();
+ const title=(post.title||'').toLowerCase();
+ const forbidden=['jeune','dynamique','moins de','plus de','ans minimum','beau','belle','présentable','français natif'];
+ forbidden.forEach(w=>{if(body.includes(w)||title.includes(w))issues.push(`! Mention potentiellement discriminatoire : "${w}"`)});
+ if(!body.includes('cdi')&&!body.includes('cdd')&&!body.includes('contrat'))issues.push('! Type de contrat non précisé');
+ if(!post.location)issues.push('! Localisation manquante');
+ if(!post.salary)issues.push('ℹ️ Salaire non renseigné (recommandé)');
+ if((post.body||'').length<200)issues.push('ℹ️ Description courte — une annonce détaillée attire plus de candidats');
+ return{ok:issues.filter(i=>i.startsWith('!️')).length===0,issues,source:'local'};
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL SYSTEM
+// ═══════════════════════════════════════════════════════
+function openMo(t,b,f){const mh=document.getElementById('mhdr');if(mh)mh.style.display=t?'flex':'none';const mht=document.getElementById('mht');if(mht)mht.textContent=t;document.getElementById('mb').innerHTML=b;document.getElementById('mf').innerHTML=f||'';if(f===''||f===undefined){const mff=document.getElementById('mf');if(mff)mff.style.display='none';}else{const mff=document.getElementById('mf');if(mff)mff.style.display='';}document.getElementById('mo').classList.add('open');}
+function closeMo(){document.getElementById('mo').classList.remove('open');}
+function moOvClick(e){if(e.target===document.getElementById('mo'))closeMo();}
+
+// ── CAND FORM ────────────────────────────────────────────
+function openCandForm(id=null){
+ const c=id?cById(id):{};if(!c)return;
+ const catOpts=BTP_CATS.map(cat=>`<option value="${cat.id}" ${(c.cat||'go')===cat.id?'selected':''}>${cat.l}</option>`).join('');
+ const jobs=getCat(c.cat||'go').jobs;
+ const jobOpts=jobs.map(j=>`<option value="${esc(j)}" ${c.role===j?'selected':''}>${esc(j)}</option>`).join('');
+ const stOpts=CAND_ST.map(s=>`<option value="${s.id}" ${(c.status||'new')===s.id?'selected':''}>${s.l}</option>`).join('');
+ const srcOpts=SOURCES.map(s=>`<option ${c.source===s?'selected':''}>${s}</option>`).join('');
+ openMo(id?'Modifier candidat':'Nouveau candidat',`
+ <div class="fg">
+ <div class="fgrp ff"><span class="lbl">Nom complet *</span><input id="cf-n" value="${esc(c.name||'')}"></div>
+ <div class="fgrp"><span class="lbl">Catégorie BTP</span><select id="cf-cat" onchange="updJobOpts()">${catOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Poste exact</span><select id="cf-role">${jobOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Salaire brut/an (€)</span><input id="cf-sal" type="number" value="${c.salary||''}" placeholder="42000"></div>
+ <div class="fgrp"><span class="lbl">Téléphone</span><input id="cf-ph" value="${esc(c.phone||'')}"></div>
+ <div class="fgrp"><span class="lbl">Email</span><input id="cf-em" value="${esc(c.email||'')}"></div>
+ <div class="fgrp"><span class="lbl">Source</span><select id="cf-src">${srcOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Statut</span><select id="cf-st">${stOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Disponibilité</span><input id="cf-av" value="${esc(c.avail||'')}" placeholder="Immédiate / sous 1 mois"></div>
+ <div class="fgrp"><span class="lbl">Mobilité</span><input id="cf-mob" value="${esc(c.mobility||'')}" placeholder="Rhône-Alpes, National…"></div>
+ <div class="fgrp ff"><span class="lbl">Notes précal</span><textarea id="cf-npre">${esc(c.notes_pre||'')}</textarea></div>
+ <div class="fgrp ff"><span class="lbl">Notes générales</span><textarea id="cf-notes">${esc(c.notes||'')}</textarea></div>
+ <div class="fgrp ff" style="flex-direction:row;align-items:center;gap:7px"><input type="checkbox" id="cf-pep" ${c.pepite?'checked':''} style="width:12px;height:12px;accent-color:var(--ac4)"><span class="lbl" style="margin:0;text-transform:none;cursor:pointer" for="cf-pep">Marquer comme pépite</span></div>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delCand('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveCandForm('${id||''}')">Enregistrer</button>`
+);
+}
+function updJobOpts(){
+ const v=document.getElementById('cf-cat')?.value||'go';
+ const jobs=getCat(v).jobs;
+ const el=document.getElementById('cf-role');
+ if(el)el.innerHTML=jobs.map(j=>`<option>${esc(j)}</option>`).join('');
+}
+function saveCandForm(id){
+ const name=document.getElementById('cf-n').value.trim();
+ if(!name){toast('Nom requis','e');return;}
+ const n=now_();
+ const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
+ if(id){const c=cById(id);Object.assign(c,data);}
+ else{data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
+ save();closeMo();
+ if(id&&UI.pid===id)openCandPanel(id);
+ if(UI.view==='cands')rCands();else if(UI.view==='dash')rDash();
+ badges();toast(id?'Mis à jour ✓':'Candidat ajouté ✓ — précal planifiée','s');
+}
+function autoAg(c){
+ DB.agenda.push({id:uid(),type:'call',title:`Précal — ${c.name}`,date:now_(),time:'',cand_id:c.id,comp_id:null,notes:'Appel de qualification téléphonique',done:false,created:now_()});
+ save();
+}
+
+// ── COMPANY FORM ─────────────────────────────────────────
+function openCoForm(id=null,ft='prospect'){
+ const c=id?coById(id):{};if(!c)return;
+ const catOpts=BTP_CATS.map(cat=>`<option value="${cat.id}" ${(c.cat||'go')===cat.id?'selected':''}>${cat.l}</option>`).join('');
+ const stOpts=COMP_ST.map(s=>`<option value="${s.id}" ${(c.status||'tocall')===s.id?'selected':''}>${s.l}</option>`).join('');
+ openMo(id?'Modifier':ft==='client'?'Nouveau client':'Nouveau prospect',`
+ <div class="fg">
+ <div class="fgrp ff"><span class="lbl">Raison sociale *</span><input id="cof-n" value="${esc(c.name||'')}"></div>
+ <div class="fgrp"><span class="lbl">Nom contact</span><input id="cof-ct" value="${esc(c.contact||'')}"></div>
+ <div class="fgrp"><span class="lbl">Fonction</span><input id="cof-ctt" value="${esc(c.ctitle||'')}" placeholder="Gérant / DRH…"></div>
+ <div class="fgrp"><span class="lbl">Téléphone</span><input id="cof-ph" value="${esc(c.phone||'')}"></div>
+ <div class="fgrp"><span class="lbl">Email</span><input id="cof-em" value="${esc(c.email||'')}"></div>
+ <div class="fgrp"><span class="lbl">Ville / Région</span><input id="cof-city" value="${esc(c.city||'')}"></div>
+ <div class="fgrp"><span class="lbl">Taille</span><select id="cof-sz"><option value="">—</option><option ${c.size==='tpe'?'selected':''} value="tpe">TPE (&lt;10)</option><option ${c.size==='pme'?'selected':''} value="pme">PME (10–250)</option><option ${c.size==='eti'?'selected':''} value="eti">ETI (250+)</option></select></div>
+ <div class="fgrp"><span class="lbl">Secteur BTP</span><select id="cof-cat">${catOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Statut pipeline</span><select id="cof-st">${stOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Source</span><select id="cof-src"><option>Cold call</option><option>Job board</option><option>LinkedIn</option><option>Réseau</option><option>Contrôle REF</option><option>Recommandation</option></select></div>
+ <div class="fgrp"><span class="lbl">Marge estimée (€)</span><input id="cof-marge" type="number" placeholder="6300" value="${esc(c.marge||'')}"></div>
+ <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="cof-notes">${esc(c.notes||'')}</textarea></div>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delCo('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveCoForm('${id||''}','${ft}')">Enregistrer</button>`
+);
+}
+function saveCoForm(id,ft){
+ const name=document.getElementById('cof-n').value.trim();
+ if(!name){toast('Nom requis','e');return;}
+ const n=now_();
+ const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,updated:n};
+ if(id){const c=coById(id);Object.assign(c,data);}
+ else{data.id=uid();data.created=n;DB.companies.unshift(data);}
+ save();closeMo();
+ if(id&&UI.pid===id)openCoPanel(id);
+ if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();else if(UI.view==='dash')rDash();
+ badges();toast(id?'Mis à jour ✓':'Ajouté ✓','s');
+}
+function convertClient(id){
+ const c=coById(id);if(!c)return;
+ c.type='client';c.status='active';c.contract=true;c.contract_date=now_();c.updated=now_();
+ save();openCoPanel(id);badges();
+ toast(`${c.name} → Client ✓`,'s');
+}
+
+// ── NEED FORM ────────────────────────────────────────────
+function openNeedForm(coId=null,id=null){
+ const n=id?nById(id):{};if(!n)return;
+ const clients=DB.companies.filter(c=>c.type==='client');
+ const coOpts=clients.map(c=>`<option value="${c.id}" ${(n.company_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+ const catOpts=BTP_CATS.map(c=>`<option value="${c.id}" ${(n.cat||'go')===c.id?'selected':''}>${c.l}</option>`).join('');
+ const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
+ const stOpts=NST.map(s=>`<option value="${s.id}" ${(n.status||'open')===s.id?'selected':''}>${s.l}</option>`).join('');
+ const today=new Date().toISOString().split('T')[0];
+ openMo(id?'Modifier besoin':'Nouveau besoin',`
+ <div class="fg">
+ <div class="fgrp ff"><span class="lbl">Titre du poste *</span><input id="nf-t" value="${esc(n.title||'')}" placeholder="Conducteur de travaux GO"></div>
+ <div class="fgrp"><span class="lbl">Client</span><select id="nf-co"><option value="">— Choisir —</option>${coOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Catégorie</span><select id="nf-cat">${catOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Salaire min (€/an)</span><input id="nf-smin" type="number" value="${n.smin||''}" placeholder="38000"></div>
+ <div class="fgrp"><span class="lbl">Salaire max (€/an)</span><input id="nf-smax" type="number" value="${n.smax||''}" placeholder="48000"></div>
+ <div class="fgrp"><span class="lbl">Localisation</span><input id="nf-loc" value="${esc(n.location||'')}"></div>
+ <div class="fgrp"><span class="lbl">Démarrage</span><input id="nf-st" type="date" value="${n.start?new Date(n.start).toISOString().split('T')[0]:''}"></div>
+ <div class="fgrp"><span class="lbl">Urgence</span><select id="nf-urg"><option value="h" ${n.urgency==='h'?'selected':''}>Urgent</option><option value="m" ${(n.urgency||'m')==='m'?'selected':''}>○ Moyen</option><option value="l" ${n.urgency==='l'?'selected':''}>Long terme</option></select></div>
+ <div class="fgrp"><span class="lbl">Statut</span><select id="nf-s">${stOpts}</select></div>
+ <div class="fgrp ff"><span class="lbl">Notes / Critères</span><textarea id="nf-notes">${esc(n.notes||'')}</textarea></div>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delNeed('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveNeedForm('${id||''}','${coId||''}')">Enregistrer</button>`
+);
+}
+function saveNeedForm(id,dco){
+ const t=document.getElementById('nf-t').value.trim();
+ if(!t){toast('Titre requis','e');return;}
+ const n=now_();
+ const data={title:t,company_id:document.getElementById('nf-co').value||dco,cat:document.getElementById('nf-cat').value,smin:document.getElementById('nf-smin').value,smax:document.getElementById('nf-smax').value,location:document.getElementById('nf-loc').value,start:document.getElementById('nf-st').value||null,urgency:document.getElementById('nf-urg').value,status:document.getElementById('nf-s').value,notes:document.getElementById('nf-notes').value,updated:n};
+ if(id){const nd=nById(id);Object.assign(nd,data);}
+ else{data.id=uid();data.created=n;DB.needs.unshift(data);}
+ save();closeMo();
+ if(id&&UI.pid===id)openNeedPanel(id);
+ if(UI.view==='needs')rNeeds();else if(UI.view==='dash')rDash();
+ badges();toast(id?'Mis à jour ✓':'Besoin ajouté ✓','s');
+}
+
+// ── AGENDA FORM ──────────────────────────────────────────
+// ── POST FORM ────────────────────────────────────────────
+function openPostForm(id=null){
+ const p=id?DB.posts.find(x=>x.id===id):{};if(!p)return;
+ const catOpts=BTP_CATS.map(c=>`<option value="${c.id}" ${(p.cat||'go')===c.id?'selected':''}>${c.l}</option>`).join('');
+ const brdOpts=BOARDS.map(b=>`<label style="display:flex;align-items:center;gap:5px;font-size:11px;text-transform:none;cursor:pointer"><input type="checkbox" value="${b}" ${(p.boards||[]).includes(b)?'checked':''} style="width:11px;accent-color:var(--ac)"> ${b}</label>`).join('');
+ openMo(id?'Modifier annonce':'Nouvelle annonce',`
+ <div class="fg">
+ <div class="fgrp ff"><span class="lbl">Titre *</span><input id="pf-t" value="${esc(p.title||'')}" placeholder="Conducteur de travaux GO — Lyon (H/F)"></div>
+ <div class="fgrp"><span class="lbl">Catégorie</span><select id="pf-cat">${catOpts}</select></div>
+ <div class="fgrp"><span class="lbl">Localisation</span><input id="pf-loc" value="${esc(p.location||'')}"></div>
+ <div class="fgrp ff"><span class="lbl">Salaire affiché</span><input id="pf-sal" value="${esc(p.salary||'')}" placeholder="38 000 – 45 000€ brut/an"></div>
+ <div class="fgrp ff"><span class="lbl">Infos pour l'IA (contexte client, spécificités…)</span><input id="pf-brief" value="${esc(p.notes_brief||'')}" placeholder="Ex: client PME lyonnaise, chantiers logements, CDI, véhicule de fonction"></div>
+ <div class="fgrp ff">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+ <span class="lbl" style="margin:0">Texte de l'annonce</span>
+ ${getApiKey()?`<button id="ai-post-btn" type="button" class="btn bxs" style="background:rgba(154,74,224,.15);color:var(--ac6);border:1px solid rgba(154,74,224,.3)" onclick="aiGeneratePost('${id||'__new__'}')"> Générer avec IA</button>`:`<span class="ai-badge" style="cursor:pointer" onclick="openSettings()"> Configurer IA →</span>`}
+ </div>
+ <textarea id="pf-body" style="min-height:120px">${esc(p.body||'')}</textarea>
+ </div>
+ <div class="fgrp ff"><span class="lbl">Publier sur</span><div style="display:flex;flex-direction:column;gap:4px;margin-top:3px" id="brd">${brdOpts}</div></div>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="savePostForm('${id||''}')">Enregistrer</button>`
+);
+}
+function savePostForm(id){
+ const t=document.getElementById('pf-t').value.trim();
+ if(!t){toast('Titre requis','e');return;}
+ const boards=Array.from(document.querySelectorAll('#brd input:checked')).map(i=>i.value);
+ const n=now_();
+ const data={title:t,cat:document.getElementById('pf-cat').value,location:document.getElementById('pf-loc').value,salary:document.getElementById('pf-sal').value,body:document.getElementById('pf-body').value,notes_brief:document.getElementById('pf-brief')?.value||'',boards,status:'draft',updated:n};
+ if(id){const p=DB.posts.find(x=>x.id===id);Object.assign(p,data);}
+ else{data.id=uid();data.created=n;DB.posts.unshift(data);}
+ save();closeMo();rPosts();toast(id?'Mis à jour ✓':'Annonce créée ✓','s');
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════
+function setCS(id,st){
+ const c=cById(id);if(!c)return;
+ const prev=c.status;
+ c.status=st;c.updated=now_();save();
+ if(UI.pid===id)openCandPanel(id);
+ rCands();badges();
+ toast(`→ ${getCS(st).l}`,'s');
+ // Proposer création facture si → Placé
+ if(st==='placed'&&prev!=='placed'){
+ const existing=(DB.invoices||[]).find(inv=>inv.cand_id===id);
+ if(!existing){
+ setTimeout(()=>{
+ const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const co=need?coById(need.company_id):null;
+ toast(`Créer la facture pour ${c.name} ?`,'i');
+ openMo('Facturation — Placement confirmé',`
+ <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;padding:10px 12px;margin-bottom:14px;font-size:11px">
+ <strong>${esc(c.name)}</strong> vient d'être placé.${co?` Chez <strong>${esc(co.name)}</strong>.`:''} Créez la facture maintenant.
+ </div>
+ <div class="fg">
+ <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
+ <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
+ </div>
+ <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
+ <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
+ <span style="font-size:10px;color:var(--mu)">Montant honoraires</span>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Plus tard</button>
+ <button class="btn bp" onclick="createInvoiceFromModal('${id}')">Créer la facture</button>`
+);
+ // Live preview
+ ['inv-sal','inv-taux'].forEach(fid=>{
+ const el=document.getElementById(fid);
+ if(el)el.oninput=()=>{
+ const sal=Number(document.getElementById('inv-sal')?.value||0);
+ const taux=Number(document.getElementById('inv-taux')?.value||18);
+ const amt=Math.round(sal*taux/100);
+ const prev=document.getElementById('inv-preview');
+ if(prev)prev.innerHTML=`<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">${fM(amt)}</span><br><span style="font-size:10px;color:var(--mu)">= ${sal.toLocaleString('fr-FR')}€ × ${taux}%</span>`;
+ };
+ if(el)el.oninput();
+ });
+ },400);
+ }
+ }
+}
+function setCmpS(id,st){const c=coById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCoPanel(id);if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast(`→ ${getCmpS(st).l}`,'s');}
+function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_();save();if(UI.pid===id)openNeedPanel(id);rNeeds();badges();toast(`→ ${st}`,'s');}
+function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
+function linkFromSel(needId){const sel=document.getElementById('nc-sel');if(!sel||!sel.value)return;toggleLink(sel.value,needId);}
+function togDoc(id,doc,checked){const c=cById(id);if(!c)return;c.docs=c.docs||[];if(checked&&!c.docs.includes(doc))c.docs.push(doc);else if(!checked)c.docs=c.docs.filter(d=>d!==doc);c.updated=now_();save();rCands();}
+function saveIntNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('int-note-'+id);if(!el)return;c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();save();toast('Synthèse sauvegardée ✓','s');}
+function saveGenNote2(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note2-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
+function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_date=now_();c.updated=now_();save();if(UI.pid===id)renderCandPanelTab(id);toast('Entretien marqué fait ✓','s');}
+function openStatusTree(id){openStatusMo('cand',id);}
+function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(c.linked_need?'Besoin lié ✓':'Lien retiré','s');}
+function saveGNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
+// Alias — lit gen-note-{id} ou gnote-{id} selon le panel
+function saveGenNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note-'+id)||document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
+function saveCoNote(id){const c=coById(id);if(!c)return;const el=document.getElementById('conote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
+function addRef(id){openMo('Ajouter référence',`<div class="fg"><div class="fgrp ff"><span class="lbl">Entreprise</span><input id="rf-co" placeholder="Nom entreprise"></div><div class="fgrp"><span class="lbl">Contact</span><input id="rf-ct"></div><div class="fgrp"><span class="lbl">Téléphone</span><input id="rf-ph"></div></div>`,`<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="saveRef('${id}')">Ajouter</button>`);}
+function saveRef(id){const c=cById(id);if(!c)return;const co=document.getElementById('rf-co').value.trim();if(!co)return;c.refs=c.refs||[];c.refs.push({company:co,contact:document.getElementById('rf-ct').value,phone:document.getElementById('rf-ph').value,done:false,note:''});c.updated=now_();save();closeMo();openCandPanel(id);toast('Référence ajoutée ✓','s');}
+function rmRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs.splice(i,1);c.updated=now_();save();openCandPanel(id);}
+function togRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs[i].done=!c.refs[i].done;c.updated=now_();save();openCandPanel(id);toast(c.refs[i].done?'Contrôle fait ✓':'Remis en attente','s');}
+function prosFromRef(id,i){const c=cById(id);if(!c||!c.refs||!c.refs[i])return;const r=c.refs[i];closePanel();openCoForm();setTimeout(()=>{const n=document.getElementById('cof-n');if(n)n.value=r.company;const ph=document.getElementById('cof-ph');if(ph)ph.value=r.phone||'';const src=document.getElementById('cof-src');if(src)src.value='Contrôle REF';},80);}
+function cpPhone(ph){navigator.clipboard.writeText(ph).then(()=>toast(`${ph} copié`,'i')).catch(()=>toast(ph,'i'));}
+function sendCV(candId){const c=cById(candId);if(!c)return;openMo('CV anonyme à envoyer',`<div class="mu_ fs11 mb8">Envoyer ce profil anonymisé aux prospects avec besoin ouvert dans la même catégorie.</div>${DB.companies.filter(co=>co.type==='prospect'&&['need','cvsent'].includes(co.status)).map(co=>`<div class="aitem" onclick="markCVSent('${candId}','${co.id}')">${esc(co.name)} <span class="mu_ fs10 ml-auto">${esc(co.city||'')}</span></div>`).join('')||'<div class="mu_ fs11">Aucun prospect avec besoin confirmé</div>'}`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
+function markCVSent(candId,coId){const co=coById(coId);if(!co)return;co.status='cvsent';co.updated=now_();save();closeMo();toast(`CV envoyé à ${co.name} ✓`,'s');}
+function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo(' Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier</button>`);}
+function cpTpl(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Copié ✓','i'));}
+function genBoardTexts(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;const txt=`═ FRANCE TRAVAIL ═\nIntitulé: ${p.title}\nLocalisation: ${p.location||'—'}\nType: CDI\nSalaire: ${p.salary||'—'}\n\n${p.body||''}\n\n═ INDEED ═\n${p.title} | ${p.location||''}\n${p.salary||''}\n\n${(p.body||'').slice(0,280)}…\n\n═ LINKEDIN ═\nNous recrutons pour notre client : ${p.title}\n${p.location||'France'} | ${p.salary||'—'}\n\n${p.body||''}`;openMo('Textes adaptés',`<textarea style="min-height:220px;font-size:11px;line-height:1.6">${txt}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier tout</button>`);}
 
 function findForNeed(needId){const n=nById(needId);if(!n)return;const cands=DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==needId);openMo('Candidats disponibles — '+n.title,`<div>${cands.length?cands.map(c=>`<div class="aitem">${esc(c.name)} <span class="mu_ fs10 flex" style="flex:1;margin-left:8px">${esc(c.role||'')}</span><button class="btn bp bxs" onclick="toggleLink('${c.id}','${needId}');closeMo()">Lier</button></div>`).join(''):'<div class="mu_ fs11">Aucun disponible dans cette catégorie</div>'}</div>`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function openStatusMo(type,id){
