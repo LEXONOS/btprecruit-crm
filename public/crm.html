@@ -4146,76 +4146,111 @@ function _sendContratFromPreview(coId, ctId){
   if(ov) ov.remove();
   try{ URL.revokeObjectURL(window._ctPreview?.blobUrl||''); }catch(e){}
 
-  // 2. Récupérer le contrat et les infos client
+  // 2. Données
   const co = coById(coId);
   const ct = (co?.contracts||[]).find(x=>x.id===ctId);
-  if(!ct){ toast('Contrat introuvable — rechargez et réessayez','e'); return; }
+  if(!ct){ toast('Contrat introuvable','e'); return; }
 
-  // 3. Construire le mail de présentation du contrat
-  const tNc = `${ct.tarifs?.nc1||12} % / ${ct.tarifs?.nc2||13.5} % / ${ct.tarifs?.nc3||15} %`;
-  const tC  = `${ct.tarifs?.c1||15} % / ${ct.tarifs?.c2||17} % / ${ct.tarifs?.c3||20} %`;
-  const opt30 = ct.opt3070  ? `
-- Modalité de règlement : 30 % à l'intégration, 70 % à l'issue de la période d'essai` : '';
-  const optGar= ct.garantie ? `
-- Garantie de remplacement : 3 mois offerts en cas de départ pendant la période d'essai` : '';
-  const tauxSpe = ct.taux   ? `
-- Geste commercial : ${ct.taux} % du SBA pour votre premier recrutement (au lieu de la grille standard)` : '';
+  // 3. Corps de l'email — résumé des conditions négociées
+  const f = n => String(parseFloat(n||0)).replace('.',',')+'\u00a0%';
+  const lignesTarif = [
+    `\u25b8 Non-cadre\u00a0: ${f(ct.tarifs?.nc1||12)} / ${f(ct.tarifs?.nc2||13.5)} / ${f(ct.tarifs?.nc3||15)} du SBA (selon exp\u00e9rience)`,
+    `\u25b8 Cadre\u00a0: ${f(ct.tarifs?.c1||15)} / ${f(ct.tarifs?.c2||17)} / ${f(ct.tarifs?.c3||20)} du SBA (selon exp\u00e9rience)`,
+  ];
+  if(ct.taux) lignesTarif.push(`\u25b8 Geste commercial\u00a0: ${ct.taux}\u00a0% pour votre 1er recrutement`);
+  if(ct.opt3070) lignesTarif.push('\u25b8 R\u00e8glement 30\u00a0/\u00a070\u00a0%\u00a0: 30\u00a0% \u00e0 l\u2019int\u00e9gration, 70\u00a0% apr\u00e8s la p\u00e9riode d\u2019essai');
+  if(ct.garantie) lignesTarif.push('\u25b8 Garantie de remplacement\u00a0: 3\u00a0mois en cas de d\u00e9part pendant la p\u00e9riode d\u2019essai');
 
-  const prenom = co.contact ? co.contact.split(' ')[0] : 'Madame, Monsieur';
-  const subject = `Proposition professionnelle NOVALEM — ${ct.nom}`;
+  const prenom = (co.contact||'').split(' ')[0] || 'Madame, Monsieur';
+  const nom    = localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
+  const tel    = localStorage.getItem(uKey('btp_user_tel')) ||localStorage.getItem('btp_user_tel') ||'';
+
+  const subject = `Proposition professionnelle NOVALEM \u2014 ${ct.nom}`;
   const body = `Bonjour ${prenom},
 
-Suite à notre échange, je vous transmets en pièce jointe le contrat cadre de recrutement NOVALEM.
+Suite \u00e0 notre \u00e9change, je vous transmets en pi\u00e8ce jointe notre proposition professionnelle.
 
-Voici un récapitulatif des conditions négociées :
+Conditions convenues\u00a0:
+${lignesTarif.join('\n')}
 
-Grille tarifaire (% du salaire brut annuel) :
-- Profils non-cadres (<5 ans / 5–15 ans / >15 ans) : ${tNc}
-- Profils cadres (<5 ans / 5–15 ans / >15 ans) : ${tC}${tauxSpe}${opt30}${optGar}
+Nos honoraires sont d\u00fbs exclusivement en cas d\u2019int\u00e9gration effective du candidat. Aucun frais si le recrutement n\u2019aboutit pas.
 
-Nos honoraires sont dus exclusivement en cas d'intégration effective du candidat. Aucun frais en l'absence de recrutement.
+Pour d\u00e9marrer, merci de bien vouloir signer et me retourner le document ci-joint. D\u00e8s r\u00e9ception, je lance les recherches et vous pr\u00e9sente des profils qualifi\u00e9s sous 10\u00a0jours ouvrés.
 
-Afin de démarrer la mission, merci de bien vouloir :
-1. Signer et renvoyer le contrat cadre ci-joint (signature + cachet de votre société)
-2. Me confirmer le(s) profil(s) que vous recherchez actuellement
+Restant \u00e0 votre disposition,
 
-Dès réception, je démarre immédiatement les recherches et vous présente des candidats qualifiés sous 10 jours ouvrés.
-
-Restant disponible pour tout échange,
-
-Cordialement,
-Louis RENAULT — NOVALEM
+${nom}${tel?'\n'+tel:''}
+NOVALEM \u2014 Recrutement BTP
 contact@novalem-recrutement.fr
-06 58 21 20 96
 novalem-recrutement.fr`;
 
-  // 4. Timeline + save
-  if(co){
-    addTimeline(coId, 'contrat', 'Contrat cadre envoyé — en attente de signature');
-    save();
-  }
+  // 4. Timeline
+  if(co){ addTimeline(coId,'contrat','Proposition professionnelle envoy\u00e9e \u2014 en attente de signature'); save(); }
 
-  // 5. Naviguer vers emails avec EM pré-chargé
-  // Fermer le panel d'abord pour éviter la confusion visuelle
-  closePanel();
-  
-  // Charger EM + pré-initialiser EM_RECIPIENTS avec le client
-  window.EM = {to: co.email||'', subject, body, candId:null, coId, tplKey:null};
-  window.EM_RECIPIENTS = co.email ? [{
-    email: co.email,
-    name:  co.name||co.email,
-    type:  'co',
-    entityId: co.id
-  }] : [];
-  
-  // Petit délai pour laisser le panel se fermer, puis ouvrir emails
-  setTimeout(()=>{
-    go('emails');
-    // rEmails() va être appelé par go() et lira EM automatiquement
-  }, 120);
+  // 5. G\u00e9n\u00e9rer le PDF en base64 pour la pi\u00e8ce jointe
+  window._pendingAttachment = null;
+  toast('Pr\u00e9paration du PDF\u2026','i');
 
-  toast('Email de contrat préparé — joignez le PDF téléchargé', 'i');
+  _genContractBase64(ct).then(b64 => {
+    if(b64){
+      window._pendingAttachment = {
+        filename: `NOVALEM_Proposition_${ct.nom.replace(/\s+/g,'_').slice(0,40)}.pdf`,
+        content:  b64,
+        type:     'application/pdf'
+      };
+      toast('PDF pr\u00eat \u2014 ouverture du compose\u2026','s');
+    }else{
+      toast('PDF non disponible \u2014 joignez-le manuellement','w');
+    }
+
+    // 6. Charger EM + EM_RECIPIENTS + basculer sur compose
+    window.EM = { to: co.email||'', subject, body, candId:null, coId, tplKey:null };
+    window.EM_RECIPIENTS = co.email ? [{
+      email: co.email,
+      name:  co.name||co.email,
+      type:  'co',
+      entityId: co.id
+    }] : [];
+    window.EM_VIEW = 'compose';
+    closePanel();
+    setTimeout(()=>go('emails'), 120);
+  });
 }
+
+// G\u00e9n\u00e9rer le PDF du contrat en base64 (pour l\u2019attachment Resend)
+async function _genContractBase64(ct){
+  if(typeof html2pdf === 'undefined') return null;
+  try{
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;top:0;left:-200vw;width:210mm;background:#fff;padding:18mm;font-family:Georgia,serif;font-size:10pt;color:#1A1614;line-height:1.65;z-index:-1';
+    const st = document.createElement('style');
+    st.textContent = _contractCSSInner();
+    wrap.appendChild(st);
+    const body = document.createElement('div');
+    body.innerHTML = _buildContractBody(ct);
+    wrap.appendChild(body);
+    document.body.appendChild(wrap);
+    await new Promise(r=>setTimeout(r,250));
+    const pdfBlob = await html2pdf().set({
+      margin:[15,15,18,15],
+      image:{type:'jpeg',quality:0.95},
+      html2canvas:{scale:2,useCORS:true,letterRendering:true,logging:false,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+    }).from(wrap).outputPdf('blob');
+    document.body.removeChild(wrap);
+    // Convertir blob → base64
+    return new Promise((res,rej)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>res(reader.result.split(',')[1]);
+      reader.onerror = ()=>res(null);
+      reader.readAsDataURL(pdfBlob);
+    });
+  }catch(e){
+    console.error('[genBase64]',e);
+    return null;
+  }
+}
+
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
 
@@ -6041,7 +6076,17 @@ function emShowView(view){
   if(main)main.innerHTML=emRenderView(view,cands,cos,history,drafts,nom,tel);
   // Initialiser les chips de destinataires si vue compose
   if(view==='compose'||!view){
-    setTimeout(()=>_emInitRecipients(), 30);
+    setTimeout(()=>{
+      _emInitRecipients();
+      // Afficher la pièce jointe si présente
+      const pj = window._pendingAttachment;
+      const bar = document.getElementById('em-attachment-bar');
+      const nm  = document.getElementById('em-attachment-name');
+      if(pj && bar && nm){
+        nm.textContent = pj.filename;
+        bar.style.display = 'flex';
+      }
+    }, 50);
   }
   // Update nav
   document.querySelectorAll('.em-nav-item').forEach(el=>{
@@ -6409,6 +6454,12 @@ function emRenderCompose(cands,cos,nom,tel){
     <!-- Corps -->
     <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0">${esc(initBody)}</textarea>
 
+    <!-- Pièce jointe en attente -->
+    <div id="em-attachment-bar" style="display:none;padding:6px 14px;border-top:1px solid var(--bd);background:var(--s3);flex-shrink:0;align-items:center;gap:8px">
+      <span style="font-size:10px">📎</span>
+      <span id="em-attachment-name" style="font-size:11px;color:var(--tx)"></span>
+      <button onclick="window._pendingAttachment=null;document.getElementById('em-attachment-bar').style.display='none'" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;margin-left:auto">×</button>
+    </div>
     <!-- Footer -->
     <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:center;flex-shrink:0;background:var(--s2)">
       <button id="em-send-btn" class="btn bp bsm" onclick="emSend()">Envoyer</button>
@@ -6522,12 +6573,18 @@ async function emSend(){
   const apiBase=getApiBase();
   if(!apiBase){emOpenMailClient();if(btn){btn.disabled=false;btn.textContent='Envoyer';}setStatus('');return;}
   try{
-    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,cc,subject:sub,body})});
+    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          to, cc,
+          subject: sub,
+          body,
+          ...(window._pendingAttachment ? { attachments:[window._pendingAttachment] } : {})
+        })});
     const data=await resp.json();
     if(resp.ok&&(data.sent||data.id)){
       setStatus('<span style="color:var(--green)">Envoye !</span>');
+      window._pendingAttachment=null;
       emLogEmail(to,sub,body,true);
-      toast(`Email envoye a ${to}`,'s');
+      toast(`Email envoyé à ${to}`,'s');
       if(btn){btn.textContent='Envoye !';btn.style.background='var(--green)';btn.style.color='#0a0a08';}
       setTimeout(()=>{emClear();setStatus('');if(btn){btn.disabled=false;btn.textContent='Envoyer';btn.style.background='';btn.style.color='';}emShowView('sent');},2000);
     }else{
