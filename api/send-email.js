@@ -6,9 +6,12 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST uniquement' });
 
-  const { to, subject, body, from_name, attachments } = req.body || {};
+  const { to, cc, bcc, subject, body, from_name, attachments } = req.body || {};
 
   if (!to)      return res.status(400).json({ error: 'Destinataire (to) manquant' });
+  // Normaliser to en tableau (supporte virgule-séparé et tableau)
+  const toArr = Array.isArray(to) ? to : to.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!toArr.length) return res.status(400).json({ error: 'Aucun destinataire valide' });
   if (!subject) return res.status(400).json({ error: 'Objet (subject) manquant' });
 
   const key = process.env.RESEND_API_KEY;
@@ -48,7 +51,9 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         from:    `${senderName} <${senderEmail}>`,
-        to:      [to],
+        to:      toArr,
+        ...(cc  ? { cc:  cc.split(',').map(s=>s.trim()).filter(Boolean) }  : {}),
+        ...(bcc ? { bcc: bcc.split(',').map(s=>s.trim()).filter(Boolean) } : {}),
         subject,
         text:    body || '',
         html,
