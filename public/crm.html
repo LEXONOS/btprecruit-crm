@@ -4220,34 +4220,84 @@ contact@novalem-recrutement.fr`;
 
 // Générer le PDF du contrat en base64 pour la pièce jointe Resend
 async function _genContractBase64(ct){
-  if(typeof html2pdf === 'undefined') return null;
+  if(typeof html2pdf === 'undefined'){
+    console.warn('[genBase64] html2pdf non chargé');
+    return null;
+  }
+  // Créer un conteneur CSS injecté dans le HEAD (html2canvas le lit)
+  const tmpStyle = document.createElement('style');
+  tmpStyle.id = '_ct_gen_style';
+  tmpStyle.textContent = _contractCSSInner();
+  document.head.appendChild(tmpStyle);
+
+  // Conteneur visible dans le viewport (opacity quasi nulle)
+  // IMPORTANT : left:-250vw = le browser ne rend pas → page blanche
+  // Solution : top:0;left:0;opacity:0.001 = rendu mais invisible
+  const wrap = document.createElement('div');
+  wrap.id = '_ct_gen_wrap';
+  wrap.style.cssText = [
+    'position:fixed',
+    'top:0',
+    'left:0',
+    'width:210mm',
+    'min-height:297mm',
+    'background:#ffffff',
+    'padding:18mm',
+    'font-family:Georgia,serif',
+    'font-size:10pt',
+    'color:#1A1614',
+    'line-height:1.65',
+    'z-index:99999',
+    'opacity:0.0001',            // quasi invisible mais rendu par le browser
+    'pointer-events:none',       // ne bloque pas les clics
+    'overflow:visible',
+  ].join(';');
+
+  wrap.innerHTML = _buildContractBody(ct);
+  document.body.appendChild(wrap);
+
+  // Laisser le browser rendre (layout + polices)
+  await new Promise(r => setTimeout(r, 500));
+
   try{
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;top:0;left:-250vw;width:174mm;background:#fff;padding:14mm;font-family:Georgia,serif;font-size:10pt;color:#1A1614;line-height:1.65;z-index:-999';
-    const st = document.createElement('style');
-    st.textContent = _contractCSSInner();
-    wrap.appendChild(st);
-    const bd = document.createElement('div');
-    bd.innerHTML = _buildContractBody(ct);
-    wrap.appendChild(bd);
-    document.body.appendChild(wrap);
-    await new Promise(r=>setTimeout(r,300));
     const blob = await html2pdf().set({
-      margin:[15,15,18,15],
-      image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,useCORS:true,letterRendering:true,logging:false,backgroundColor:'#ffffff'},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      margin:      [15, 15, 18, 15],
+      image:       { type:'jpeg', quality:0.96 },
+      html2canvas: {
+        scale:           2,
+        useCORS:         true,
+        letterRendering: true,
+        logging:         false,
+        backgroundColor: '#ffffff',
+        // onclone corrige la position dans le clone capturé
+        onclone: (_doc, el) => {
+          el.style.opacity  = '1';
+          el.style.position = 'relative';
+          el.style.top      = '0';
+          el.style.left     = '0';
+          el.style.zIndex   = '0';
+        }
+      },
+      jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
     }).from(wrap).outputPdf('blob');
+
+    // Cleanup
     document.body.removeChild(wrap);
-    return new Promise((res)=>{
+    document.head.removeChild(tmpStyle);
+
+    // Blob → base64
+    return await new Promise((res) => {
       const reader = new FileReader();
-      reader.onload = ()=>res(reader.result.split(',')[1]);
-      reader.onerror = ()=>res(null);
+      reader.onload  = () => res(reader.result.split(',')[1]);
+      reader.onerror = () => res(null);
       reader.readAsDataURL(blob);
     });
+
   }catch(e){
-    console.error('[_genContractBase64] ERREUR:', e.message||e);
-    toast('PDF non généré (' + (e.message||'erreur') + ') — joignez-le manuellement','w');
+    // Cleanup même en cas d'erreur
+    try{ document.body.removeChild(wrap); }catch(_){}
+    try{ document.head.removeChild(tmpStyle); }catch(_){}
+    console.error('[_genContractBase64]', e);
     return null;
   }
 }
