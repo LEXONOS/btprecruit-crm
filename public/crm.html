@@ -3369,95 +3369,609 @@ function saveAgForm(id){
 }
 
 
+// ─── CONSTANTES ────────────────────────────────────────────────────
+const CRM_API = 'https://novalem-crm.vercel.app'; // ton URL Vercel
+// La clé CRM_SECRET est dans les settings du CRM (paramètres > API)
+// et dans les env vars Vercel comme CRM_SECRET
+function getCRMSecret(){
+  return (typeof SETTINGS !== 'undefined' && SETTINGS.crmSecret) || '';
+}
+
+// Catégories BTP (labels courts pour les badges)
+const CAT_LABELS = {
+  go:'Gros Œuvre', so:'Second Œuvre', be:"Bureau d'Études",
+  vrd:'VRD / TP', hse:'HSE / QSE', mgmt:'Management'
+};
+
+// ─── RENDER POSTS VIEW ────────────────────────────────────────────
 function rPosts(){
- document.getElementById('view-posts').innerHTML=DB.posts.length?`<div class="g3">${DB.posts.map(p=>{
- const cat=getCat(p.cat);
- return `<div class="prcard" onclick="openPostPanel('${p.id}')">
- <div class="flex fjb fac mb4"><div class="prcard-n">${esc(p.title)}</div><span class="pill ${p.status==='active'?'pwin':'pnew'}">${p.status==='active'?'Active':'Brouillon'}</span></div>
- <div class="prcard-m"><span class="tag ${cat.cls}">${cat.l}</span><br>${esc(p.location||'—')} · ${esc(p.salary||'—')}</div>
- <div class="fs10 mu_ mt8">${(p.boards||[]).length} board(s) · Créée ${fD(p.created)}</div>
- </div>`;
- }).join('')}</div>`:'<div class="empty">Aucune annonce — <button class="btn bp bxs" onclick="openPostForm()">+ Créer</button></div>';
+  const v = document.getElementById('view-posts');
+  const jobs = DB.posts || [];
+
+  // Header avec actions
+  const header = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-family:var(--ff,sans-serif);font-size:17px;font-weight:700;color:var(--tx)">Annonces & Offres</div>
+        <div style="font-size:12px;color:var(--mu)">Les offres publiées apparaissent sur le site et sont indexées par Google</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn bg bxs" onclick="syncJobsFromSupabase()" id="btn-sync-jobs" title="Synchroniser avec la base cloud">↻ Sync</button>
+        <a href="https://www.novalem-recrutement.fr/nos-besoins/" target="_blank" class="btn bg bxs">Voir le site →</a>
+        <button class="btn bp bxs" onclick="openPostForm(null)">+ Nouvelle offre</button>
+      </div>
+    </div>`;
+
+  if(!jobs.length){
+    v.innerHTML = header + `<div class="empty">Aucune annonce — <button class="btn bp bxs" onclick="openPostForm(null)">+ Créer la première</button></div>`;
+    return;
+  }
+
+  // Stats bar
+  const published = jobs.filter(j=>j.published).length;
+  const drafts    = jobs.filter(j=>!j.published).length;
+  const statsBar = `
+    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
+        <div style="font-size:22px;font-weight:700;color:var(--ac)">${published}</div>
+        <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Publiées</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
+        <div style="font-size:22px;font-weight:700;color:var(--tx)">${drafts}</div>
+        <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Brouillons</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
+        <div style="font-size:22px;font-weight:700;color:var(--ac2)">${jobs.reduce((a,j)=>a+(j.applications_count||0),0)}</div>
+        <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Candidatures</div>
+      </div>
+    </div>`;
+
+  const cards = jobs.map(p => {
+    const cat = CAT_LABELS[p.cat] || p.cat || 'BTP';
+    const isPublished = p.published;
+    return `
+    <div class="prcard" style="position:relative">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
+        <div>
+          <span class="pill ${isPublished?'pwin':'pnew'}" style="margin-right:6px">${isPublished?'● Publiée':'○ Brouillon'}</span>
+          <span style="font-size:10px;background:rgba(232,160,32,.1);color:var(--ac);padding:2px 8px;border-radius:3px;font-weight:600">${esc(cat)}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="togglePublishJob('${p.id}')" title="${isPublished?'Dépublier':'Publier sur le site'}">
+            ${isPublished?'Dépublier':'Publier ▲'}
+          </button>
+          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="openPostPanel('${p.id}')">Voir →</button>
+        </div>
+      </div>
+      <div class="prcard-n" style="cursor:pointer" onclick="openPostPanel('${p.id}')">${esc(p.title)}</div>
+      <div class="prcard-m" style="margin-top:6px">
+        <span>${esc(p.location||'—')}</span>
+        ${p.salary_display ? `<span> · ${esc(p.salary_display)}</span>` : (p.salary ? `<span> · ${esc(p.salary)}</span>` : '')}
+        ${p.contract_type ? `<span> · ${esc(p.contract_type)}</span>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+        <div class="fs10 mu_">
+          ${p.reference ? `Réf. ${esc(p.reference)} · ` : ''}
+          Créée ${fD(p.created)}
+          ${p.supabase_id ? ' · <span style="color:var(--ac2)">✓ Cloud</span>' : ' · <span style="color:var(--mu)">Local</span>'}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${(p.applications_count||0)>0 ? `<span style="font-size:11px;color:var(--ac2);font-weight:600">${p.applications_count} candidature${p.applications_count>1?'s':''}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  v.innerHTML = header + statsBar + `<div class="g3">${cards}</div>`;
 }
 
-// ═══════════════════════════════════════════════════════
-// PANEL SYSTEM
-// ═══════════════════════════════════════════════════════
-function openPanel(){document.getElementById('panel').classList.add('open');}
-function closePanel(){document.getElementById('panel').classList.remove('open');UI.ptype=null;UI.pid=null;}
+// ─── FORM CRÉATION / ÉDITION ──────────────────────────────────────
+function openPostForm(id){
+  const p = id ? DB.posts.find(x=>x.id===id) : null;
+  const title = id ? 'Modifier l\'offre' : 'Nouvelle offre';
 
-function setPanel(name,sub,tabs,body,actions){
- document.getElementById('ph-name').textContent=name;
- document.getElementById('ph-sub').innerHTML=sub||'';
- document.getElementById('ptabs').innerHTML=tabs||'';
- document.getElementById('pb').innerHTML=body||'';
- document.getElementById('pa').innerHTML=actions||'';
- openPanel();
-}
-function setPTab(t){
- UI.ptab=t;
- if(UI.ptype==='cand'&&UI.pid) openCandPanel(UI.pid);
- else if(UI.ptype==='co') openCoPanel(UI.pid);
- else if(UI.ptype==='need') openNeedPanel(UI.pid);
- // Rebind file inputs if Fichiers tab (index 1)
- if(UI.ptype==='cand'&&t===1&&UI.pid) setTimeout(()=>bindFileInputs(UI.pid),50);
+  const catOptions = Object.entries(CAT_LABELS)
+    .map(([k,v])=>`<option value="${k}" ${p?.cat===k?'selected':''}>${v}</option>`)
+    .join('');
+
+  const contractOptions = ['CDI','CDD','Interim']
+    .map(c=>`<option value="${c}" ${(p?.contract_type||'CDI')===c?'selected':''}>${c}</option>`)
+    .join('');
+
+  const skillsVal = (p?.skills||[]).join(', ');
+
+  openMo(title, `
+    <div style="display:grid;gap:16px">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg2">
+          <label class="lbl">Catégorie BTP</label>
+          <select id="pf-cat" class="inp">${catOptions}</select>
+        </div>
+        <div class="fg2">
+          <label class="lbl">Type de contrat</label>
+          <select id="pf-contract" class="inp">${contractOptions}</select>
+        </div>
+      </div>
+
+      <div class="fg2">
+        <label class="lbl">Titre du poste <span style="color:var(--ac)">*</span></label>
+        <input id="pf-title" class="inp" placeholder="ex: Conducteur de Travaux GO H/F" value="${esc(p?.title||'')}">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg2">
+          <label class="lbl">Localisation <span style="color:var(--ac)">*</span></label>
+          <input id="pf-location" class="inp" placeholder="Nice (06)" value="${esc(p?.location||'')}">
+        </div>
+        <div class="fg2">
+          <label class="lbl">Référence interne</label>
+          <input id="pf-ref" class="inp" placeholder="NOV-2025-001" value="${esc(p?.reference||'')}">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="fg2">
+          <label class="lbl">Salaire affiché</label>
+          <input id="pf-salary-display" class="inp" placeholder="45 - 55k € brut/an" value="${esc(p?.salary_display||p?.salary||'')}">
+        </div>
+        <div class="fg2">
+          <label class="lbl">Salaire min (€/an)</label>
+          <input id="pf-salary-min" class="inp" type="number" placeholder="45000" value="${p?.salary_min||''}">
+        </div>
+        <div class="fg2">
+          <label class="lbl">Salaire max (€/an)</label>
+          <input id="pf-salary-max" class="inp" type="number" placeholder="55000" value="${p?.salary_max||''}">
+        </div>
+      </div>
+
+      <div class="fg2">
+        <label class="lbl">Expérience requise</label>
+        <input id="pf-experience" class="inp" placeholder="5 ans minimum" value="${esc(p?.experience||'')}">
+      </div>
+
+      <div class="fg2">
+        <label class="lbl">Compétences clés <span style="font-size:10px;color:var(--mu)">(séparées par virgule)</span></label>
+        <input id="pf-skills" class="inp" placeholder="Gestion chantier, CCAP, AutoCAD" value="${esc(skillsVal)}">
+      </div>
+
+      <div class="fg2">
+        <label class="lbl">Description du poste <span style="color:var(--ac)">*</span></label>
+        <textarea id="pf-desc" class="inp" style="min-height:140px;resize:vertical" placeholder="Décrivez le poste, les missions, le profil recherché…">${esc(p?.description||p?.body||'')}</textarea>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="pf-featured" ${p?.featured?'checked':''}>
+          <span>Mettre en avant (badge "Prioritaire")</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:auto">
+          <input type="checkbox" id="pf-publish" ${p?.published?'checked':''}>
+          <span style="color:var(--ac)">Publier immédiatement</span>
+        </label>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
+        ${id ? `<button class="btn bd_ bxs" onclick="deletePost('${id}')">Supprimer</button>` : ''}
+        <button class="btn bg bxs" onclick="closeMo()">Annuler</button>
+        <button class="btn bp bsm" onclick="savePost(${id?`'${id}'`:null})">
+          ${id ? 'Enregistrer' : 'Créer l\'offre'}
+        </button>
+      </div>
+    </div>
+  `, null, null, '640px');
 }
 
-// ── CANDIDATE PANEL ──────────────────────────────────────
-function openCandPanel(id){
- UI.ptype='cand';UI.pid=id;if(!UI.ptab)UI.ptab=0;
- const c=cById(id);if(!c)return;
- const cat=getCat(c.cat);const st=getCS(c.status);
- const tabNames=['Profil','Fichiers','Entretien','Références'];
- const tabs=tabNames.map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
- const docs=c.docs||[];
- const B=[
- // 0 PROFIL
- `${c.phone?`<div class="callbox"><div class="callbox-ph">${fPhone(c.phone)}</div><div class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">Copier</div></div>`:''}
- <div class="dr"><span class="drk">Poste ciblé</span><span class="drv">${esc(c.role||'—')}</span></div>
- <div class="dr"><span class="drk">Salaire brut/an</span><span class="drv">${fM(c.salary)} <span class="mu_ fs10">(hon. ${honor(c.salary)})</span></span></div>
- <div class="dr"><span class="drk">Email</span><span class="drv">${esc(c.email||'—')}</span></div>
- <div class="dr"><span class="drk">Disponibilité</span><span class="drv">${esc(c.avail||'—')}</span></div>
- <div class="dr"><span class="drk">Mobilité</span><span class="drv">${esc(c.mobility||'—')}</span></div>
- <div class="dr"><span class="drk">Source</span><span class="drv">${esc(c.source||'—')}</span></div>
- <div class="dr"><span class="drk">Créé le</span><span class="drv">${fD(c.created)}</span></div>
- <div class="sl">Notes précal</div>
- ${c.notes_pre?`<div class="notebox">${esc(c.notes_pre)}</div>`:'<div class="mu_ fs11">Pas de notes de précal</div>'}
- <div class="sl">Statut <span><button class="btn bg bxs" onclick="openStatusMo('cand','${id}')">Changer →</button></span></div>
- <div class="st-sel">${CAND_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>
- <div class="sl mt12">Matchage besoin</div>
- <div class="flex fg5 fw">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn ${c.linked_need===n.id?'bp':'bg'} bxs" onclick="toggleLink('${id}','${n.id}')">${c.linked_need===n.id?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>`,
- // 1 FICHIERS — rendered via renderCPFichiers
- renderCPFichiers(c),
- // 2 ENTRETIEN
- `<div class="dr"><span class="drk">Entretien fait</span><span class="drv">${c.int_done?`${fD(c.int_date)}`:'Non'}</span></div>
- <div class="dr"><span class="drk">Planifié le</span><span class="drv">${c.int_date_planned?`${fD(c.int_date_planned)} ${c.int_time||''}`:' —'}</span></div>
- ${c.visio_link?`<div class="visio-box"> <strong>Lien visio :</strong><br><span class="visio-link">${esc(c.visio_link)}</span><br><a href="${esc(c.visio_link)}" target="_blank" class="btn bi bxs mt4">Rejoindre</a></div>`:''}
- <div class="sl">Synthèse entretien <span><button class="btn bg bxs" onclick="markIntDone('${id}')">Marquer fait</button></span></div>
- <textarea id="int-note-${id}" style="min-height:100px">${esc(c.notes_int||'')}</textarea>
- <button class="btn bp bsm btn-full mt8" onclick="saveIntNote('${id}')">Sauvegarder synthèse</button>
- <div class="sl mt12">Notes générales</div>
- <textarea id="gen-note-${id}" style="min-height:60px">${esc(c.notes||'')}</textarea>
- <button class="btn bg bsm mt6" onclick="saveGenNote('${id}')">Sauvegarder note</button>`,
- // 3 RÉFÉRENCES
- `<div class="dr"><span class="drk">Contrôle REF</span><span class="drv">${c.ref_done?'Fait':'À faire'}</span></div>
- <div class="sl">Références <span><button class="btn bg bxs" onclick="addRef('${id}')">+ Ajouter</button></span></div>
- ${(c.refs||[]).length?(c.refs||[]).map((r,i)=>`<div class="refcard">
- <div class="flex fac fjb mb4"><strong class="fs11">${esc(r.company)}</strong><button class="btn bd_ bxs" onclick="rmRef('${id}',${i})">×</button></div>
- <div class="mu_ fs10">${esc(r.contact||'—')}${r.phone?` · ${esc(r.phone)}`:''}</div>
- ${r.done?`<div style="color:var(--ac2);font-size:10px;margin-top:4px">${esc(r.note||'Appelé')}</div>`:`<div style="color:var(--ac4);font-size:10px;margin-top:4px">À appeler</div>`}
- <div class="flex fg5 mt8">
- <button class="btn bg bxs" onclick="togRef('${id}',${i})">${r.done?'↺ À refaire':'Marqué fait'}</button>
- <button class="btn bi bxs" onclick="prosFromRef('${id}',${i})">→ Prospecter</button>
- </div>
- </div>`).join(''):'<div class="mu_ fs11">Aucune référence ajoutée</div>'}
- <div class="sl">Notes générales</div>
- <textarea id="gnote-${id}" style="min-height:64px">${esc(c.notes||'')}</textarea>
- <button class="btn bp bsm mt8" onclick="saveGNote('${id}')">Sauvegarder</button>`,
- ];
- const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="sendCV('${id}')">CV anonyme</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
- setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
+// ─── SAUVEGARDER OFFRE (local + sync Supabase si publiée) ─────────
+async function savePost(id){
+  const title = document.getElementById('pf-title')?.value?.trim();
+  const desc  = document.getElementById('pf-desc')?.value?.trim();
+  const loc   = document.getElementById('pf-location')?.value?.trim();
+  if(!title || !desc || !loc){ toast('Titre, description et localisation requis','e'); return; }
+
+  const published = document.getElementById('pf-publish')?.checked || false;
+  const skills    = (document.getElementById('pf-skills')?.value||'')
+    .split(',').map(s=>s.trim()).filter(Boolean);
+
+  const data = {
+    title,
+    description: desc,
+    location:    loc,
+    cat:         document.getElementById('pf-cat')?.value        || 'go',
+    contract_type:document.getElementById('pf-contract')?.value  || 'CDI',
+    reference:   document.getElementById('pf-ref')?.value?.trim() || '',
+    salary_display:document.getElementById('pf-salary-display')?.value?.trim() || '',
+    salary:      document.getElementById('pf-salary-display')?.value?.trim() || '',
+    salary_min:  parseInt(document.getElementById('pf-salary-min')?.value)||null,
+    salary_max:  parseInt(document.getElementById('pf-salary-max')?.value)||null,
+    experience:  document.getElementById('pf-experience')?.value?.trim() || '',
+    skills,
+    featured:    document.getElementById('pf-featured')?.checked || false,
+    published,
+  };
+
+  // ── Local DB ──────────────────────────────────────
+  const now = Date.now();
+  if(id){
+    const idx = DB.posts.findIndex(x=>x.id===id);
+    if(idx>=0) Object.assign(DB.posts[idx], data, { updated:now });
+  } else {
+    const newPost = { ...data, id:uid(), created:now, updated:now,
+      status: published?'active':'draft',
+      boards:[], views_count:0, applications_count:0, supabase_id:null };
+    DB.posts.unshift(newPost);
+    id = newPost.id;
+  }
+  save(); closeMo();
+
+  // ── Sync Supabase si publiée ──────────────────────
+  if(published || data.supabase_id){
+    await syncPostToSupabase(id);
+  }
+
+  rPosts(); badges();
+  toast(published ? 'Offre créée et publiée sur le site ✓' : 'Offre sauvegardée (brouillon)', 's');
 }
+
+// ─── TOGGLE PUBLISH ───────────────────────────────────────────────
+async function togglePublishJob(id){
+  const post = DB.posts.find(x=>x.id===id);
+  if(!post) return;
+  post.published = !post.published;
+  post.status    = post.published ? 'active' : 'draft';
+  post.updated   = Date.now();
+  save();
+  await syncPostToSupabase(id);
+  rPosts();
+  toast(post.published ? 'Offre publiée sur le site ✓' : 'Offre dépubliée', 's');
+}
+
+// ─── SUPPRIMER OFFRE ──────────────────────────────────────────────
+async function deletePost(id){
+  const post = DB.posts.find(x=>x.id===id);
+  if(!post || !confirm('Supprimer cette offre définitivement ?')) return;
+
+  // Suppression Supabase
+  if(post.supabase_id){
+    const secret = getCRMSecret();
+    if(secret) {
+      await fetch(`${CRM_API}/api/jobs`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
+        body: JSON.stringify({ action:'delete', job:{ id:post.supabase_id } })
+      }).catch(()=>{});
+    }
+  }
+
+  DB.posts = DB.posts.filter(x=>x.id!==id);
+  save(); closeMo(); rPosts(); badges();
+  toast('Offre supprimée','s');
+}
+
+// ─── SYNC VERS SUPABASE ───────────────────────────────────────────
+async function syncPostToSupabase(localId){
+  const secret = getCRMSecret();
+  if(!secret){ toast('CRM_SECRET non configuré dans les paramètres','w'); return; }
+
+  const post = DB.posts.find(x=>x.id===localId);
+  if(!post) return;
+
+  try {
+    const action = post.supabase_id ? 'update' : 'create';
+    const jobPayload = {
+      id:            post.supabase_id || undefined,
+      title:         post.title,
+      cat:           post.cat,
+      description:   post.description || post.body || '',
+      location:      post.location || '',
+      contract_type: post.contract_type || 'CDI',
+      reference:     post.reference || null,
+      salary_display:post.salary_display || post.salary || null,
+      salary_min:    post.salary_min || null,
+      salary_max:    post.salary_max || null,
+      experience:    post.experience || null,
+      skills:        post.skills || [],
+      featured:      post.featured || false,
+      published:     post.published || false,
+      crm_id:        post.id,
+    };
+
+    const r = await fetch(`${CRM_API}/api/jobs`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
+      body: JSON.stringify({ action, job:jobPayload })
+    });
+    const data = await r.json();
+    if(data.job?.id){
+      post.supabase_id = data.job.id;
+      save();
+    }
+  } catch(e) {
+    console.error('Sync Supabase erreur:', e);
+    toast('Erreur sync cloud — vérifier CRM_SECRET','e');
+  }
+}
+
+// ─── SYNC DEPUIS SUPABASE (récupérer stats + candidatures) ────────
+async function syncJobsFromSupabase(){
+  const btn = document.getElementById('btn-sync-jobs');
+  if(btn){ btn.textContent = '↻ Sync…'; btn.disabled = true; }
+
+  const secret = getCRMSecret();
+  if(!secret){
+    toast('CRM_SECRET non configuré dans Paramètres > API', 'w');
+    if(btn){ btn.textContent = '↻ Sync'; btn.disabled = false; }
+    return;
+  }
+
+  try {
+    // Récupérer toutes les offres cloud
+    const r = await fetch(`${CRM_API}/api/jobs`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
+      body: JSON.stringify({ action:'list_all', job:{} })
+    });
+    const { jobs: cloudJobs } = await r.json();
+
+    if(!cloudJobs?.length){
+      toast('Aucune offre cloud trouvée','w');
+      if(btn){ btn.textContent = '↻ Sync'; btn.disabled = false; }
+      return;
+    }
+
+    // Mise à jour des stats locales
+    let updated = 0;
+    cloudJobs.forEach(cj => {
+      const local = DB.posts.find(p => p.supabase_id === cj.id || p.id === cj.crm_id);
+      if(local){
+        local.supabase_id       = cj.id;
+        local.views_count       = cj.views_count       || 0;
+        local.applications_count= cj.applications_count|| 0;
+        local.published         = cj.published;
+        local.status            = cj.published ? 'active' : 'draft';
+        updated++;
+      }
+    });
+
+    save(); rPosts();
+    toast(`Sync OK — ${updated} offre(s) mise(s) à jour`, 's');
+  } catch(e){
+    toast('Erreur sync: ' + e.message, 'e');
+  } finally {
+    if(btn){ btn.textContent = '↻ Sync'; btn.disabled = false; }
+  }
+}
+
+// ─── PANEL DÉTAIL OFFRE ───────────────────────────────────────────
+function openPostPanel(id){
+  const p = DB.posts.find(x=>x.id===id);
+  if(!p) return;
+  const cat = CAT_LABELS[p.cat] || p.cat || 'BTP';
+
+  setPanel(
+    p.title,
+    `<span class="pill ${p.published?'pwin':'pnew'}">${p.published?'Publiée':'Brouillon'}</span> ${esc(cat)} · ${esc(p.location||'—')}`,
+    `<div class="ptab act" onclick="">Détails</div>`,
+    `
+      <div class="dr"><span class="drk">Contrat</span><span class="drv">${esc(p.contract_type||'CDI')}</span></div>
+      <div class="dr"><span class="drk">Salaire</span><span class="drv">${esc(p.salary_display||p.salary||'—')}</span></div>
+      <div class="dr"><span class="drk">Expérience</span><span class="drv">${esc(p.experience||'—')}</span></div>
+      <div class="dr"><span class="drk">Référence</span><span class="drv">${esc(p.reference||'—')}</span></div>
+      <div class="dr"><span class="drk">Candidatures</span><span class="drv" style="color:var(--ac2);font-weight:600">${p.applications_count||0}</span></div>
+      <div class="dr"><span class="drk">Cloud ID</span><span class="drv fs10 mu_">${p.supabase_id?p.supabase_id.slice(0,8)+'…':'Non synchronisé'}</span></div>
+      <div class="sl mt12">Description</div>
+      <div style="font-size:13px;color:var(--mu2);line-height:1.65;white-space:pre-wrap">${esc(p.description||p.body||'—')}</div>
+      ${(p.skills||[]).length?`
+        <div class="sl mt12">Compétences</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${(p.skills||[]).map(s=>`<span class="tag" style="font-size:10px">${esc(s)}</span>`).join('')}</div>
+      `:''}
+      ${p.supabase_id?`
+        <div class="sl mt12">Lien site</div>
+        <a href="https://www.novalem-recrutement.fr/nos-besoins/" target="_blank" class="btn bi bxs" style="font-size:12px">Voir sur le site →</a>
+      `:''}
+    `,
+    `
+      <button class="btn bg bxs btn-full" onclick="openPostForm('${id}')">Modifier</button>
+      <button class="btn ${p.published?'bd_':'bp'} bxs btn-full mt6" onclick="togglePublishJob('${id}');closePanel()">${p.published?'Dépublier':'Publier sur le site'}</button>
+      <button class="btn bg bxs btn-full mt6" onclick="openCandidaturesPanel('${id}')">Voir candidatures (${p.applications_count||0})</button>
+    `
+  );
+}
+
+// ─── PANEL CANDIDATURES ───────────────────────────────────────────
+async function openCandidaturesPanel(jobId){
+  const secret = getCRMSecret();
+  if(!secret){ toast('CRM_SECRET requis pour voir les candidatures','w'); return; }
+
+  const post = DB.posts.find(p=>p.id===jobId);
+  if(!post?.supabase_id){ toast("Offre non synchronisée — publiez-la d'abord",'w'); return; }
+
+  // Loader
+  setPanel(
+    'Candidatures',
+    esc(post.title),
+    '',
+    '<div style="text-align:center;padding:30px;color:var(--mu)">Chargement…</div>',
+    ''
+  );
+
+  try {
+    const r = await fetch(`${CRM_API}/api/jobs`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
+      body: JSON.stringify({ action:'get_applications', job:{ id:post.supabase_id } })
+    });
+    const { applications: apps } = await r.json();
+
+    if(!apps?.length){
+      document.getElementById('pb').innerHTML = '<div style="text-align:center;padding:30px;color:var(--mu)">Aucune candidature pour le moment</div>';
+      return;
+    }
+
+    document.getElementById('pb').innerHTML = apps.map(a=>`
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <strong style="font-size:14px;color:var(--tx)">${esc(a.firstname)} ${esc(a.lastname)}</strong>
+          <span class="pill ${a.status==='nouveau'?'pnew':a.status==='qualifié'?'pwin':'pmov'}" style="font-size:10px;flex-shrink:0">${esc(a.status)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--mu2);margin-bottom:4px">
+          <a href="mailto:${esc(a.email)}" style="color:var(--ac)">${esc(a.email)}</a>
+          ${a.phone ? ` · ${esc(a.phone)}` : ''}
+          ${a.linkedin_url ? ` · <a href="${esc(a.linkedin_url)}" target="_blank" style="color:var(--mu2)">LinkedIn</a>` : ''}
+        </div>
+        ${a.message ? `<div style="font-size:12px;color:var(--mu);margin-top:8px;padding:8px;background:var(--s3);border-radius:4px;line-height:1.5">${esc(a.message)}</div>` : ''}
+        <div style="font-size:10px;color:var(--mu);margin-top:8px">${fD(new Date(a.created_at).getTime())}</div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="window.location.href='mailto:${esc(a.email)}'">Répondre</button>
+          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="quickAddCandFromApp('${a.id}','${esc(a.firstname)}','${esc(a.lastname)}','${esc(a.email)}','${esc(a.phone||'')}')">+ Ajouter candidat</button>
+        </div>
+      </div>
+    `).join('');
+
+  } catch(e) {
+    document.getElementById('pb').innerHTML = `<div style="color:var(--er);padding:16px;font-size:13px">Erreur: ${esc(e.message)}</div>`;
+  }
+}
+
+// ─── AJOUT RAPIDE CANDIDAT DEPUIS UNE CANDIDATURE ─────────────────
+function quickAddCandFromApp(appId, fn, ln, email, phone){
+  // Pré-rempli avec les infos de la candidature
+  openMo('Créer le candidat', `
+    <div class="fg2 mb8"><label class="lbl">Prénom</label><input class="inp" id="qc-fn" value="${esc(fn)}"></div>
+    <div class="fg2 mb8"><label class="lbl">Nom</label><input class="inp" id="qc-ln" value="${esc(ln)}"></div>
+    <div class="fg2 mb8"><label class="lbl">Email</label><input class="inp" id="qc-email" value="${esc(email)}"></div>
+    <div class="fg2 mb8"><label class="lbl">Téléphone</label><input class="inp" id="qc-phone" value="${esc(phone)}"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn bg bxs" onclick="closeMo()">Annuler</button>
+      <button class="btn bp bxs" onclick="quickCreateCand()">Créer le candidat</button>
+    </div>
+  `);
+}
+function quickCreateCand(){
+  const fn    = document.getElementById('qc-fn')?.value?.trim();
+  const ln    = document.getElementById('qc-ln')?.value?.trim();
+  const email = document.getElementById('qc-email')?.value?.trim();
+  const phone = document.getElementById('qc-phone')?.value?.trim();
+  if(!fn||!ln){toast('Prénom et nom requis','e');return;}
+  const c = {
+    id:uid(), created:Date.now(), updated:Date.now(),
+    name:`${fn} ${ln}`, email, phone,
+    source:'site_novalem', status:'new', cat:'go',
+    docs:[], refs:[]
+  };
+  DB.cands.unshift(c); save(); closeMo();
+  rCands(); badges();
+  toast(`Candidat ${fn} ${ln} ajouté ✓`,'s');
+}
+
+
+// ── CONTRAT CADRE NOVALEM ──────────────────────────────────
+
+function genContrat(id){
+  var c=coById(id);if(!c)return;
+  openMo('Contrat cadre \u2014 Param\u00e8tres',
+    '<div class="fg">' +
+    '<div class="fgrp ff"><span class="lbl">Raison sociale<\/span>' +
+    '<input id="ct-nom" value="' + esc(c.name||'') + '" placeholder="Raison sociale exacte"><\/div>' +
+    '<div class="fgrp ff"><span class="lbl">SIRET (14 chiffres)<\/span>' +
+    '<input id="ct-siret" value="' + esc(c.siret||'') + '" placeholder="Ex\u00a0: 12345678901234"><\/div>' +
+    '<div style="margin:12px 0 6px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Grille tarifaire applicable<\/div>' +
+    '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:12px">' +
+    '<tr style="background:#1A1614;color:#fff"><td style="padding:5px 8px"><\/td>' +
+    '<td style="padding:5px 8px;text-align:center">&lt;\u00a05\u00a0ans<\/td>' +
+    '<td style="padding:5px 8px;text-align:center">5\u201315\u00a0ans<\/td>' +
+    '<td style="padding:5px 8px;text-align:center">&gt;\u00a015\u00a0ans<\/td><\/tr>' +
+    '<tr style="background:#F8F5EF"><td style="padding:5px 8px;font-weight:600">Non-cadre<\/td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">12\u00a0%<\/td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">13,5\u00a0%<\/td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15\u00a0%<\/td><\/tr>' +
+    '<tr style="background:#fff"><td style="padding:5px 8px;font-weight:600">Cadre<\/td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15\u00a0%<\/td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">17\u00a0%<\/td>' +
+    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">20\u00a0%<\/td><\/tr><\/table>' +
+    '<div class="fgrp"><span class="lbl">Geste commercial \u2014 taux sp\u00e9cifique 1er recrutement (optionnel)<\/span>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    '<input id="ct-taux" type="number" placeholder="Laisser vide = grille standard" min="8" max="30" step="0.5" style="max-width:160px">' +
+    '<span style="font-size:10px;color:var(--mu)">% du SBA<\/span><\/div><\/div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px;background:var(--bg2,#F8F5EF);border-radius:4px">' +
+    '<div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Options<\/div>' +
+    '<label style="cursor:pointer;display:flex;align-items:flex-start;gap:8px;font-size:11px">' +
+    '<input type="checkbox" id="ct-3070" style="width:15px;height:15px;accent-color:#C9891A;margin-top:2px">' +
+    '<div><span style="font-weight:600">Option 30\u00a0\/\u00a070\u00a0%<\/span><br>' +
+    '<span style="color:var(--mu);font-size:10px">30\u00a0% \u00e0 l\'int\u00e9gration, 70\u00a0% \u00e0 l\'issue de la p\u00e9riode d\'essai (3\u00a0mois)<\/span><\/div><\/label>' +
+    '<label style="cursor:pointer;display:flex;align-items:flex-start;gap:8px;font-size:11px">' +
+    '<input type="checkbox" id="ct-garantie" style="width:15px;height:15px;accent-color:#C9891A;margin-top:2px">' +
+    '<div><span style="font-weight:600">Garantie de remplacement 3\u00a0mois<\/span><br>' +
+    '<span style="color:var(--mu);font-size:10px">Relance gratuite si d\u00e9part en p\u00e9riode d\'essai<\/span><\/div><\/label>' +
+    '<\/div><\/div>',
+    '<button class="btn bg" onclick="closeMo()">Annuler<\/button>' +
+    '<button class="btn bp" style="background:#C9891A;border-color:#B07010" onclick="doGenContrat(\'' + id + '\')">\u2b07 G\u00e9n\u00e9rer<\/button>'
+  );
+}
+
+function doGenContrat(coId){
+  var nom=document.getElementById('ct-nom').value.trim()||'_______________';
+  var siret=document.getElementById('ct-siret').value.trim()||'_______________';
+  var taux=document.getElementById('ct-taux').value.trim();
+  var opt3070=document.getElementById('ct-3070').checked;
+  var garantie=document.getElementById('ct-garantie').checked;
+  var now=new Date();
+  var mo=['janvier','f\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
+  var date=now.getDate()+'\u00a0'+mo[now.getMonth()]+'\u00a0'+now.getFullYear();
+  var c=coById(coId);
+  if(c&&siret!=='_______________'){c.siret=siret;c.updated=now_();save();}
+  closeMo();
+  _showContract({nom:nom,siret:siret,taux:taux,opt3070:opt3070,garantie:garantie,date:date});
+}
+
+function _contractCSS(){return "*{margin:0;padding:0;box-sizing:border-box}body{font-family:Georgia,'Times New Roman',serif;font-size:10pt;color:#1A1614;background:#fff;line-height:1.6}@page{size:A4;margin:20mm 18mm 22mm 18mm}@media print{.no-print{display:none!important}body{font-size:9.5pt}}.pg{max-width:174mm;margin:0 auto;padding:8mm 0}.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #C9891A;padding-bottom:8px;margin-bottom:16px}.logo{font-family:Arial,sans-serif;font-size:20pt;font-weight:900;letter-spacing:-1px;color:#1A1614}.logo-sub{color:#C9891A;font-size:8pt;font-weight:400;display:block;letter-spacing:2px;margin-top:1px}.hdr-r{text-align:right;font-size:7.5pt;color:#888;line-height:1.5}.doc-title{text-align:center;margin:14px 0 3px;font-family:Arial,sans-serif;font-size:14pt;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:1px}.doc-sub{text-align:center;font-size:8pt;color:#888;margin-bottom:3px}.gold-line{height:2pt;background:#C9891A;width:32mm;margin:10px auto 14px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.partie{border:0.5pt solid #EDE9E3;padding:8px 10px;background:#F8F5EF}.partie-lbl{font-size:6.5pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}.partie-val{font-size:8.5pt;line-height:1.6}.section{margin:14px 0 5px;padding-bottom:2px;border-bottom:0.5pt solid #EDE9E3}.section-title{font-family:Arial,sans-serif;font-size:8.5pt;color:#C9891A;text-transform:uppercase;letter-spacing:.8px;font-weight:700}.art-num{font-family:Arial,sans-serif;font-size:7.5pt;color:#888;font-weight:400;margin-right:6px}p{margin-bottom:6px;text-align:justify;font-size:9.5pt}ul,ol{margin:3px 0 7px 18px;font-size:9.5pt}li{margin-bottom:2px}strong{font-weight:700}table.tarif{width:100%;border-collapse:collapse;margin:7px 0 10px}table.tarif thead td{background:#1A1614;color:#fff;padding:5px 9px;text-align:center;font-family:Arial,sans-serif;font-size:8pt;font-weight:700}table.tarif thead td:first-child{text-align:left}table.tarif tbody tr:nth-child(odd){background:#F8F5EF}table.tarif tbody td{padding:5px 9px;border:0.3pt solid #EDE9E3;font-size:9.5pt}table.tarif tbody td:first-child{font-weight:700}.pct{color:#C9891A;font-weight:700;text-align:center}.hbox{border-left:3pt solid #C9891A;background:#FFF3DC;padding:8px 11px;margin:8px 0;font-size:9.5pt;line-height:1.6}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}.sig{border:0.5pt solid #EDE9E3;padding:10px}.sig-lbl{font-size:6.5pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;border-top:2pt solid #C9891A;padding-top:5px}.sig-val{font-size:8.5pt;line-height:1.6}.sig-zone{height:36px;border-bottom:0.5pt solid #CCC;margin:14px 0 3px}.sig-hint{font-size:7pt;color:#AAA;font-style:italic}.sig-date{margin-top:9px;font-size:8.5pt}.ftr{margin-top:16px;padding-top:6px;border-top:0.5pt solid #EDE9E3;font-size:6.5pt;color:#AAA;text-align:center;line-height:1.6}.pbar{position:fixed;bottom:16px;right:16px;display:flex;gap:10px;z-index:99}.btn-p{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif;background:#C9891A;color:#fff}.btn-c{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif;background:#EDE9E3;color:#333}";}
+
+function _showContract(p){
+  var nom=p.nom,siret=p.siret,taux=p.taux,opt3070=p.opt3070,garantie=p.garantie,date=p.date;
+  var tauxC=taux?'<div class="hbox">Par d\u00e9rogation, le taux applicable au <strong>premier recrutement<\/strong> dans le cadre du pr\u00e9sent contrat est fix\u00e9 \u00e0 <strong>'+taux+'\u00a0%<\/strong> du SBA. \u00c0 compter du second recrutement, la grille standard reprend effet.<\/div>':'';
+  var reg=opt3070
+    ?'<p>Le r\u00e8glement s\'effectue en deux versements\u00a0: <strong>30\u00a0%<\/strong> \u00e0 la date d\'int\u00e9gration du candidat\u00a0; <strong>70\u00a0%<\/strong> \u00e0 l\'issue de la p\u00e9riode d\'essai (3\u00a0mois complets).<\/p>'
+    :'<p>La facturation intervient \u00e0 la date d\'int\u00e9gration effective du candidat. R\u00e8glement par virement \u00e0 r\u00e9ception de facture, sans escompte.<\/p>';
+  reg+='<p>Retard de paiement\u00a0: p\u00e9nalit\u00e9s de plein droit au taux l\u00e9gal +5 points + indemnit\u00e9 forfaitaire 40\u00a0\u20ac (art.\u00a0L.\u00a0441-6 C.\u00a0com.), sans mise en demeure pr\u00e9alable.<\/p>';
+  var garC=garantie?'<div class="section"><span class="art-num">Art.\u00a09<\/span><span class="section-title">Garantie de remplacement<\/span><\/div><p>Si dans les 3\u00a0mois suivant la prise de poste le candidat quitte de sa propre initiative ou si le Client y met fin pour motif professionnel, NOVALEM relance la recherche sans honoraires suppl\u00e9mentaires pendant 6\u00a0mois. Limit\u00e9 \u00e0 un remplacement par mission. Ne s\'applique pas en cas de faute du candidat, modification du profil, force majeure ou d\u00e9faut de paiement.<\/p>':'';
+  var n=garantie?10:9;
+  var h=[
+    '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Contrat Cadre NOVALEM<\/title><style>'+_contractCSS()+'<\/style><\/head><body>',
+    '<div class="pbar no-print"><button class="btn-c" onclick="window.close()">\u00d7 Fermer<\/button><button class="btn-p" onclick="window.print()">\u2b07 Sauvegarder PDF<\/button><\/div>',
+    '<div class="pg">',
+    '<div class="hdr"><div class="logo">NOVALEM<span class="logo-sub">RECRUTEMENT BTP \u00b7 CDI<\/span><\/div><div class="hdr-r">contact@novalem-recrutement.fr<br>06\u00a058\u00a021\u00a020\u00a096<br>novalem-recrutement.fr<\/div><\/div>',
+    '<div class="doc-title">Contrat Cadre de Recrutement<\/div><div class="doc-sub">Prestation de recrutement CDI \u2014 B\u00e2timent &amp; Travaux Publics<\/div><div class="gold-line"><\/div>',
+    '<div class="section"><span class="section-title">Parties<\/span><\/div>',
+    '<div class="parties"><div class="partie"><div class="partie-lbl">Le Client<\/div><div class="partie-val"><strong>'+nom+'<\/strong><br>SIRET\u00a0: '+siret+'<\/div><\/div><div class="partie"><div class="partie-lbl">Le Prestataire<\/div><div class="partie-val"><strong>NOVALEM<\/strong> \u2014 Louis RENAULT<br>Cabinet de recrutement BTP<br>APE\u00a07810Z<\/div><\/div><\/div>',
+    '<div class="section"><span class="art-num">Art.\u00a01<\/span><span class="section-title">Objet<\/span><\/div><p>Le pr\u00e9sent contrat cadre d\u00e9finit les conditions dans lesquelles NOVALEM accompagne le Client dans l\'ensemble de ses recrutements CDI relevant du B\u00e2timent et des Travaux Publics, sans limitation du nombre de postes, pour toute la dur\u00e9e de l\'accord.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a02<\/span><span class="section-title">D\u00e9finitions<\/span><\/div><p><strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 directement\u00a0\u00bb<\/strong>\u00a0: tout candidat ayant fait l\'objet d\'un entretien organis\u00e9 via NOVALEM. <strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 indirectement\u00a0\u00bb<\/strong>\u00a0: candidat dont le dossier a \u00e9t\u00e9 transmis sans entretien. <strong>\u00ab\u00a0SBA\u00a0\u00bb<\/strong>\u00a0: salaire brut annuel fix\u00e9 au contrat de travail, hors primes discr\u00e9tionnaires.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a03<\/span><span class="section-title">Engagements de NOVALEM<\/span><\/div><p>NOVALEM est tenue d\'une obligation de moyens. Elle s\'engage \u00e0\u00a0: sourcer des candidats qualifi\u00e9s\u00a0; proc\u00e9der \u00e0 leur pr\u00e9s\u00e9lection\u00a0; respecter la confidentialit\u00e9 des informations du Client\u00a0; ne pas approcher les salari\u00e9s du Client pendant la dur\u00e9e du contrat et les 12\u00a0mois suivants\u00a0; ne pas imposer de clause d\'exclusivit\u00e9.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a04<\/span><span class="section-title">Engagements du Client<\/span><\/div><p>Le Client s\'engage \u00e0\u00a0: d\u00e9signer un interlocuteur unique\u00a0; communiquer sa d\u00e9cision sur chaque candidature dans les 8\u00a0jours calendaires\u00a0; recevoir les candidats retenus dans les 15\u00a0jours\u00a0; informer NOVALEM de tout recrutement d\'un candidat pr\u00e9sent\u00e9\u00a0; ex\u00e9cuter le contrat de bonne foi.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a05<\/span><span class="section-title">Proc\u00e9dure de pr\u00e9sentation<\/span><\/div><p>Pour chaque candidat retenu, NOVALEM soumet un dossier comprenant CV, synth\u00e8se d\'entretien, pr\u00e9tentions salariales et disponibilit\u00e9. Toute d\u00e9cision de recrutement reste de la seule responsabilit\u00e9 du Client.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a06<\/span><span class="section-title">Honoraires<\/span><\/div><p>Les honoraires sont calcul\u00e9s en pourcentage du <strong>SBA<\/strong> convenu lors de chaque embauche\u00a0:<\/p>',
+    '<table class="tarif"><thead><tr><td>Cat\u00e9gorie<\/td><td>&lt;\u00a05\u00a0ans d\'exp.<\/td><td>5\u00a0\u00e0\u00a015\u00a0ans<\/td><td>&gt;\u00a015\u00a0ans<\/td><\/tr><\/thead><tbody><tr><td>Non-cadre<\/td><td class="pct">12\u00a0%<\/td><td class="pct">13,5\u00a0%<\/td><td class="pct">15\u00a0%<\/td><\/tr><tr><td>Cadre<\/td><td class="pct">15\u00a0%<\/td><td class="pct">17\u00a0%<\/td><td class="pct">20\u00a0%<\/td><\/tr><\/tbody><\/table>',
+    tauxC,
+    '<div class="hbox">Les honoraires sont exigibles <strong>exclusivement en cas d\'int\u00e9gration effective du candidat<\/strong>. Aucun frais n\'est d\u00fb en l\'absence d\'embauche.<\/div>',
+    '<div class="section"><span class="art-num">Art.\u00a07<\/span><span class="section-title">Modalit\u00e9s de r\u00e8glement<\/span><\/div>',reg,
+    '<div class="section"><span class="art-num">Art.\u00a08<\/span><span class="section-title">Droit de suite<\/span><\/div><p>Pendant <strong>24\u00a0mois<\/strong> suivant la fin du contrat, tout recrutement d\'un candidat pr\u00e9sent\u00e9 directement ou indirectement ouvre droit aux honoraires de l\'art.\u00a06.<\/p>',
+    garC,
+    '<div class="section"><span class="art-num">Art.\u00a0'+n+'<\/span><span class="section-title">Non-sollicitation<\/span><\/div><p>NOVALEM s\'interdit d\'approcher les salari\u00e9s du Client pendant la dur\u00e9e du contrat et les 12\u00a0mois suivants. Le Client s\'engage r\u00e9ciproquement \u00e0 ne pas solliciter les collaborateurs de NOVALEM sans accord \u00e9crit pr\u00e9alable.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a0'+(n+1)+'<\/span><span class="section-title">Confidentialit\u00e9<\/span><\/div><p>Chaque partie traite avec confidentialit\u00e9 les informations \u00e9chang\u00e9es pendant la dur\u00e9e du contrat et les 5\u00a0ans suivants.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a0'+(n+2)+'<\/span><span class="section-title">RGPD<\/span><\/div><p>NOVALEM traite les donn\u00e9es des candidats en qualit\u00e9 de responsable de traitement (R\u00e8gt. UE 2016/679). Le Client s\'engage \u00e0 ne pas conserver les donn\u00e9es des candidats non retenus au-del\u00e0 de 2\u00a0ans et \u00e0 respecter leurs droits d\'acc\u00e8s, rectification et effacement.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a0'+(n+3)+'<\/span><span class="section-title">Responsabilit\u00e9<\/span><\/div><p>La responsabilit\u00e9 de NOVALEM est limit\u00e9e aux honoraires per\u00e7us pour la mission concern\u00e9e. NOVALEM n\'est pas responsable des dommages indirects, manque \u00e0 gagner ou pr\u00e9judices cons\u00e9cutifs \u00e0 un recrutement.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a0'+(n+4)+'<\/span><span class="section-title">Dur\u00e9e et r\u00e9siliation<\/span><\/div><p>Contrat de <strong>12\u00a0mois<\/strong>, renouvelable tacitement par mois. R\u00e9siliation par LRAR sous pr\u00e9avis d\'un mois, sans indemnit\u00e9. La clause de droit de suite demeure applicable apr\u00e8s toute extinction.<\/p>',
+    '<div class="section"><span class="art-num">Art.\u00a0'+(n+5)+'<\/span><span class="section-title">Droit applicable<\/span><\/div><p>Contrat soumis au droit fran\u00e7ais. Litige non r\u00e9solu amiablement sous 30\u00a0jours\u00a0: <strong>comp\u00e9tence exclusive des Tribunaux de Nice (Alpes-Maritimes)<\/strong>.<\/p>',
+    '<div class="sigs"><div class="sig"><div class="sig-lbl">Pour le Client<\/div><div class="sig-val"><strong>'+nom+'<\/strong><br>SIRET\u00a0: '+siret+'<\/div><div class="sig-zone"><\/div><div class="sig-hint">Signature &amp; cachet<\/div><div class="sig-date">Fait \u00e0 _________________, le '+date+'<\/div><\/div><div class="sig"><div class="sig-lbl">Pour NOVALEM<\/div><div class="sig-val"><strong>Louis RENAULT<\/strong><br>Directeur \u2014 NOVALEM<\/div><div class="sig-zone"><\/div><div class="sig-hint">Signature<\/div><div class="sig-date">Fait \u00e0 Nice, le '+date+'<\/div><\/div><\/div>',
+    '<div class="ftr">NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE\u00a07810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06\u00a058\u00a021\u00a020\u00a096<br>Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le '+date+'<\/div><\/div><\/body><\/html>'
+  ];
+  var html=h.join('');
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var w=window.open(url,'_blank','width=980,height=1050,scrollbars=yes');
+  if(!w){toast('Autorisez les popups pour g\u00e9n\u00e9rer le contrat','w');}
+  setTimeout(function(){URL.revokeObjectURL(url);},60000);
+}
+
 
 // ── COMPANY PANEL ─────────────────────────────────────────
 function openCoPanel(id){
@@ -3505,697 +4019,11 @@ function openCoPanel(id){
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
  ];
-  const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bg bsm" style="background:var(--gold,#C9891A);color:#fff;border:none" onclick="genContrat('${id}')">📄 Contrat</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
+ const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bg bsm" style="background:#C9891A;color:#fff;border:none" onclick="genContrat('${id}')">📄 Contrat</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span> <span class="pill ${c.type==='client'?'pwin':'ptoc'}">${c.type==='client'?'Client':'Prospect'}</span>`,tabs,B[Math.min(UI.ptab,B.length-1)],acts);
 }
 
 
-
-// ── CONTRAT CADRE NOVALEM ──────────────────────────────────
-
-function genContrat(id){
-  var c=coById(id);if(!c)return;
-  openMo('Contrat cadre — Paramètres',
-    '<div class="fg">' +
-    '<div class="fgrp ff"><span class="lbl">Raison sociale</span>' +
-    '<input id="ct-nom" value="' + esc(c.name||'') + '" placeholder="Raison sociale exacte"></div>' +
-    '<div class="fgrp ff"><span class="lbl">SIRET (14 chiffres)</span>' +
-    '<input id="ct-siret" value="' + esc(c.siret||'') + '" placeholder="Ex : 12345678901234"></div>' +
-    '<div style="margin:12px 0 6px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Grille tarifaire applicable</div>' +
-    '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:12px">' +
-    '<tr style="background:#1A1614;color:#fff">' +
-    '<td style="padding:5px 8px"></td>' +
-    '<td style="padding:5px 8px;text-align:center">&lt; 5 ans</td>' +
-    '<td style="padding:5px 8px;text-align:center">5\u201315 ans</td>' +
-    '<td style="padding:5px 8px;text-align:center">&gt; 15 ans</td></tr>' +
-    '<tr style="background:#F8F5EF">' +
-    '<td style="padding:5px 8px;font-weight:600">Non-cadre</td>' +
-    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">12 %</td>' +
-    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">13,5 %</td>' +
-    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15 %</td></tr>' +
-    '<tr style="background:#fff">' +
-    '<td style="padding:5px 8px;font-weight:600">Cadre</td>' +
-    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">15 %</td>' +
-    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">17 %</td>' +
-    '<td style="padding:5px 8px;text-align:center;color:#C9891A;font-weight:700">20 %</td></tr>' +
-    '</table>' +
-    '<div class="fgrp"><span class="lbl">Geste commercial \u2014 taux sp\u00e9cifique pour le 1er recrutement uniquement (optionnel)</span>' +
-    '<div style="display:flex;align-items:center;gap:8px">' +
-    '<input id="ct-taux" type="number" placeholder="Laisser vide = grille standard" min="8" max="30" step="0.5" style="max-width:160px">' +
-    '<span style="font-size:10px;color:var(--mu)">% du SBA</span></div></div>' +
-    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px;background:var(--bg2,#F8F5EF);border-radius:4px">' +
-    '<div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Options</div>' +
-    '<label style="cursor:pointer;display:flex;align-items:flex-start;gap:8px;font-size:11px">' +
-    '<input type="checkbox" id="ct-3070" style="width:15px;height:15px;accent-color:#C9891A;margin-top:2px">' +
-    '<div><span style="font-weight:600">Option 30 / 70 %</span><br>' +
-    '<span style="color:var(--mu);font-size:10px">30 % \u00e0 l\'int\u00e9gration du candidat, 70 % \u00e0 l\'issue de la p\u00e9riode d\'essai (3 mois)</span></div></label>' +
-    '<label style="cursor:pointer;display:flex;align-items:flex-start;gap:8px;font-size:11px">' +
-    '<input type="checkbox" id="ct-garantie" style="width:15px;height:15px;accent-color:#C9891A;margin-top:2px">' +
-    '<div><span style="font-weight:600">Garantie de remplacement 3 mois</span><br>' +
-    '<span style="color:var(--mu);font-size:10px">Relance gratuite si d\u00e9part en p\u00e9riode d\'essai</span></div></label>' +
-    '</div></div>',
-    '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
-    '<button class="btn bp" style="background:#C9891A;border-color:#B07010" onclick="doGenContrat(\'' + id + '\')">\u2b07 G\u00e9n\u00e9rer le contrat</button>'
-  );
-}
-
-function doGenContrat(coId){
-  var nom=document.getElementById('ct-nom').value.trim()||'_______________';
-  var siret=document.getElementById('ct-siret').value.trim()||'_______________';
-  var taux=document.getElementById('ct-taux').value.trim();
-  var opt3070=document.getElementById('ct-3070').checked;
-  var garantie=document.getElementById('ct-garantie').checked;
-  var now=new Date();
-  var months=['janvier','f\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
-  var date=now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
-  var c=coById(coId);
-  if(c&&siret!=='_______________'){c.siret=siret;c.updated=now_();save();}
-  closeMo();
-  _showContract({nom:nom,siret:siret,taux:taux,opt3070:opt3070,garantie:garantie,date:date});
-}
-
-function _contractCSS(){
-  return [
-    "*{margin:0;padding:0;box-sizing:border-box}",
-    "body{font-family:Georgia,'Times New Roman',serif;font-size:10pt;color:#1A1614;background:#fff;line-height:1.6}",
-    "@page{size:A4;margin:20mm 18mm 22mm 18mm}",
-    "@media print{.no-print{display:none!important}body{font-size:9.5pt}}",
-    ".pg{max-width:174mm;margin:0 auto;padding:8mm 0}",
-    ".hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #C9891A;padding-bottom:8px;margin-bottom:16px}",
-    ".logo{font-family:Arial,sans-serif;font-size:20pt;font-weight:900;letter-spacing:-1px;color:#1A1614}",
-    ".logo-sub{color:#C9891A;font-size:8pt;font-weight:400;display:block;letter-spacing:2px;margin-top:1px}",
-    ".hdr-r{text-align:right;font-size:7.5pt;color:#888;line-height:1.5}",
-    ".doc-title{text-align:center;margin:14px 0 3px;font-family:Arial,sans-serif;font-size:14pt;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:1px}",
-    ".doc-sub{text-align:center;font-size:8pt;color:#888;margin-bottom:3px}",
-    ".gold-line{height:2pt;background:#C9891A;width:32mm;margin:10px auto 14px}",
-    ".parties{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}",
-    ".partie{border:0.5pt solid #EDE9E3;padding:8px 10px;background:#F8F5EF}",
-    ".partie-lbl{font-size:6.5pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}",
-    ".partie-val{font-size:8.5pt;line-height:1.6}",
-    ".section{margin:14px 0 5px;padding-bottom:2px;border-bottom:0.5pt solid #EDE9E3}",
-    ".section-title{font-family:Arial,sans-serif;font-size:8.5pt;color:#C9891A;text-transform:uppercase;letter-spacing:.8px;font-weight:700}",
-    ".art-num{font-family:Arial,sans-serif;font-size:7.5pt;color:#888;font-weight:400;margin-right:6px}",
-    "p{margin-bottom:6px;text-align:justify;font-size:9.5pt}",
-    "ul,ol{margin:3px 0 7px 18px;font-size:9.5pt}",
-    "li{margin-bottom:2px}",
-    "strong{font-weight:700}",
-    "em{font-style:italic}",
-    "table.tarif{width:100%;border-collapse:collapse;margin:7px 0 10px;font-size:9pt}",
-    "table.tarif thead td{background:#1A1614;color:#fff;padding:5px 9px;text-align:center;font-family:Arial,sans-serif;font-size:8pt;font-weight:700}",
-    "table.tarif thead td:first-child{text-align:left}",
-    "table.tarif tbody tr:nth-child(odd){background:#F8F5EF}",
-    "table.tarif tbody td{padding:5px 9px;border:0.3pt solid #EDE9E3;font-size:9.5pt}",
-    "table.tarif tbody td:first-child{font-weight:700}",
-    ".pct{color:#C9891A;font-weight:700;text-align:center}",
-    ".hbox{border-left:3pt solid #C9891A;background:#FFF3DC;padding:8px 11px;margin:8px 0;font-size:9.5pt;line-height:1.6}",
-    ".sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}",
-    ".sig{border:0.5pt solid #EDE9E3;padding:10px}",
-    ".sig-lbl{font-size:6.5pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;border-top:2pt solid #C9891A;padding-top:5px}",
-    ".sig-val{font-size:8.5pt;line-height:1.6}",
-    ".sig-zone{height:36px;border-bottom:0.5pt solid #CCC;margin:14px 0 3px}",
-    ".sig-hint{font-size:7pt;color:#AAA;font-style:italic}",
-    ".sig-date{margin-top:9px;font-size:8.5pt}",
-    ".ftr{margin-top:16px;padding-top:6px;border-top:0.5pt solid #EDE9E3;font-size:6.5pt;color:#AAA;text-align:center;line-height:1.6}",
-    ".pbar{position:fixed;bottom:16px;right:16px;display:flex;gap:10px;z-index:99}",
-    ".btn-p{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif;background:#C9891A;color:#fff}",
-    ".btn-c{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;font-family:Arial,sans-serif;background:#EDE9E3;color:#333}"
-  ].join('\n');
-}
-
-function _showContract(p){
-  var nom=p.nom, siret=p.siret, taux=p.taux, opt3070=p.opt3070, garantie=p.garantie, date=p.date;
-
-  // ── Clause taux sp\u00e9cial 1er recrutement ──
-  var tauxClause='';
-  if(taux){
-    tauxClause='<div class="hbox">Par d\u00e9rogation convenue entre les parties, le taux applicable au <strong>premier recrutement effectu\u00e9 dans le cadre du pr\u00e9sent contrat</strong> est fix\u00e9 \u00e0 <strong>'+taux+'\u00a0%</strong> du salaire brut annuel, ind\u00e9pendamment de la cat\u00e9gorie et du niveau d\'exp\u00e9rience du profil recrut\u00e9. \u00c0 compter du second recrutement, la grille tarifaire standard d\u00e9finie ci-dessus reprend pleinement effet.</div>';
-  }
-
-  // ── Clause r\u00e8glement ──
-  var reglementBody='';
-  if(opt3070){
-    reglementBody='<p>Le r\u00e8glement des honoraires s\'effectue en deux versements distincts\u00a0:</p><ul><li><strong>30\u00a0%</strong> des honoraires sont exigibles \u00e0 la date d\'int\u00e9gration du candidat (premier jour de travail effectif), par virement bancaire \u00e0 r\u00e9ception de la premi\u00e8re facture\u00a0;</li><li><strong>70\u00a0%</strong> des honoraires sont exigibles \u00e0 l\'issue de la p\u00e9riode d\'essai initiale du candidat, soit au terme d\'un d\u00e9lai de trois (3) mois complets \u00e0 compter de la prise de poste effective, par virement bancaire \u00e0 r\u00e9ception de la seconde facture.</li></ul><p>En cas de d\u00e9part du candidat avant l\'\u00e9ch\u00e9ance du second versement, celui-ci est suspendu et les dispositions relatives \u00e0 la garantie s\'appliquent le cas \u00e9ch\u00e9ant. En cas de d\u00e9part li\u00e9 \u00e0 une faute du candidat ou d\'un commun accord avec le Client, les honoraires restants demeurent exigibles.</p>';
-  } else {
-    reglementBody='<p>La facturation intervient \u00e0 la date d\'int\u00e9gration effective du candidat (premier jour de travail). Le r\u00e8glement s\'effectue par virement bancaire \u00e0 r\u00e9ception de facture, sans escompte. Une facture est consid\u00e9r\u00e9e comme r\u00e9gl\u00e9e \u00e0 la date de cr\u00e9ditation effective du compte bancaire de NOVALEM.</p>';
-  }
-  reglementBody+='<p>En cas de retard de paiement, des p\u00e9nalit\u00e9s de retard sont exigibles de plein droit, sans mise en demeure pr\u00e9alable, au taux l\u00e9gal major\u00e9 de cinq (5) points, \u00e0 compter du lendemain de la date d\'\u00e9ch\u00e9ance. Une indemnit\u00e9 forfaitaire de recouvrement de quarante euros (40\u00a0\u20ac) est \u00e9galement applicable conform\u00e9ment \u00e0 l\'article L.\u00a0441-6 du Code de commerce. Tout retard de paiement sup\u00e9rieur \u00e0 trente (30) jours autorise NOVALEM \u00e0 suspendre imm\u00e9diatement l\'ex\u00e9cution de toute prestation en cours, sans que cette suspension puisse constituer une faute contractuelle ou ouvrir droit \u00e0 indemnisation au profit du Client.</p>';
-
-  // ── Clause garantie ──
-  var garantieSection='';
-  if(garantie){
-    garantieSection='<div class="section"><span class="art-num">Art. 9</span><span class="section-title">Garantie de remplacement</span></div>'+
-    '<p>Si, dans un d\u00e9lai de trois (3) mois \u00e0 compter de la prise de poste effective du candidat recrut\u00e9, l\'une des situations suivantes survient\u00a0: (i) le candidat met fin \u00e0 sa p\u00e9riode d\'essai de sa propre initiative, ou (ii) le Client y met fin pour un motif professionnel objectif et d\u00fbment justifi\u00e9, NOVALEM s\'engage \u00e0 effectuer une nouvelle recherche, sans honoraires suppl\u00e9mentaires, dans un d\u00e9lai maximal de six (6) mois \u00e0 compter de la date de rupture.</p>'+
-    '<p>Cette garantie est strictement limit\u00e9e \u00e0 <strong>une (1) op\u00e9ration de recherche suppl\u00e9mentaire</strong> par mission. Elle ne s\'applique pas dans les cas suivants\u00a0:</p>'+
-    '<ul><li>D\u00e9part cons\u00e9cutif \u00e0 une faute du candidat (faute simple, s\u00e9rieuse ou lourde)\u00a0;</li>'+
-    '<li>Modification du profil de poste ou des conditions de travail par le Client apr\u00e8s int\u00e9gration\u00a0;</li>'+
-    '<li>\u00c9v\u00e9nement de force majeure\u00a0;</li>'+
-    '<li>Non-respect par le Client de l\'une quelconque de ses obligations contractuelles, notamment financi\u00e8res\u00a0;</li>'+
-    '<li>D\u00e9cision de suppression du poste par le Client.</li></ul>';
-  }
-
-  // ── HTML complet ──
-  var h=[];
-  h.push('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">');
-  h.push('<title>Contrat Cadre NOVALEM \u2014 '+nom+'<\/title>');
-  h.push('<style>'+_contractCSS()+'<\/style><\/head><body>');
-  h.push('<div class="pbar no-print">');
-  h.push('<button class="btn-c" onclick="window.close()">\u00d7 Fermer<\/button>');
-  h.push('<button class="btn-p" onclick="window.print()">\u2b07 Sauvegarder en PDF<\/button><\/div>');
-  h.push('<div class="pg">');
-
-  // En-t\u00eate
-  h.push('<div class="hdr"><div class="logo">NOVALEM<span class="logo-sub">RECRUTEMENT BTP \u00b7 CDI<\/span><\/div>');
-  h.push('<div class="hdr-r">contact@novalem-recrutement.fr<br>06 58 21 20 96<br>novalem-recrutement.fr<\/div><\/div>');
-  h.push('<div class="doc-title">Contrat Cadre de Recrutement<\/div>');
-  h.push('<div class="doc-sub">Prestation de recrutement CDI \u2014 B\u00e2timent &amp; Travaux Publics<\/div>');
-  h.push('<div class="gold-line"><\/div>');
-
-  // Parties
-  h.push('<div class="section"><span class="section-title">Parties<\/span><\/div>');
-  h.push('<div class="parties">');
-  h.push('<div class="partie"><div class="partie-lbl">Le Client<\/div><div class="partie-val"><strong>'+nom+'<\/strong><br>SIRET\u00a0: '+siret+'<\/div><\/div>');
-  h.push('<div class="partie"><div class="partie-lbl">Le Prestataire<\/div><div class="partie-val"><strong>NOVALEM<\/strong> \u2014 Louis RENAULT<br>Cabinet de recrutement BTP<br>APE 7810Z \u2014 contact@novalem-recrutement.fr<\/div><\/div>');
-  h.push('<\/div>');
-
-  // Art. 1 Objet
-  h.push('<div class="section"><span class="art-num">Art. 1<\/span><span class="section-title">Objet<\/span><\/div>');
-  h.push('<p>Le pr\u00e9sent contrat cadre a pour objet de d\u00e9finir les conditions g\u00e9n\u00e9rales dans lesquelles NOVALEM accompagne le Client dans l\'ensemble de ses op\u00e9rations de recrutement en contrat \u00e0 dur\u00e9e ind\u00e9termin\u00e9e (CDI) relevant du secteur du B\u00e2timent et des Travaux Publics, sans limitation quant au nombre de postes \u00e0 pourvoir ni \u00e0 la nature des profils recherch\u00e9s, pour toute la dur\u00e9e du pr\u00e9sent accord.<\/p>');
-  h.push('<p>Il ne cr\u00e9e aucun lien de subordination ni de mandat exclusif, sauf stipulation contraire expresse. Le Client demeure libre de recourir simultan\u00e9ment \u00e0 d\'autres prestataires de recrutement.<\/p>');
-
-  // Art. 2 D\u00e9finitions
-  h.push('<div class="section"><span class="art-num">Art. 2<\/span><span class="section-title">D\u00e9finitions<\/span><\/div>');
-  h.push('<p>Au sens du pr\u00e9sent contrat, les termes suivants ont la signification ci-apr\u00e8s\u00a0:<\/p>');
-  h.push('<ul>');
-  h.push('<li><strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 directement\u00a0\u00bb<\/strong>\u00a0: tout candidat qualifi\u00e9 ayant fait l\'objet d\'un entretien de s\u00e9lection organis\u00e9 par NOVALEM avec le Client, qu\'il soit t\u00e9l\u00e9phonique, vid\u00e9o ou physique.<\/li>');
-  h.push('<li><strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 indirectement\u00a0\u00bb<\/strong>\u00a0: tout candidat qualifi\u00e9 dont le dossier de candidature a \u00e9t\u00e9 transmis au Client par NOVALEM, sans qu\'un entretien ait pu \u00eatre organis\u00e9.<\/li>');
-  h.push('<li><strong>\u00ab\u00a0Salaire Brut Annuel (SBA)\u00a0\u00bb<\/strong>\u00a0: r\u00e9mun\u00e9ration brute annuelle fix\u00e9e dans le contrat de travail du candidat recrut\u00e9, comprenant le salaire fixe et la part variable garantie contract\u00e9e, \u00e0 l\'exclusion de toute prime discr\u00e9tionnaire, bonus exceptionnels, int\u00e9ressement ou participation.<\/li>');
-  h.push('<li><strong>\u00ab\u00a0P\u00e9riode d\'essai\u00a0\u00bb<\/strong>\u00a0: p\u00e9riode d\'essai initiale telle que stipul\u00e9e dans le contrat de travail sign\u00e9 entre le Client et le candidat recrut\u00e9, conform\u00e9ment aux dispositions l\u00e9gales et conventionnelles applicables.<\/li>');
-  h.push('<li><strong>\u00ab\u00a0Prise de poste effective\u00a0\u00bb<\/strong>\u00a0: premier jour de travail r\u00e9el du candidat recrut\u00e9 dans l\'entreprise du Client, quelle qu\'en soit la date administrativ\u00e9 de d\u00e9but de contrat.<\/li>');
-  h.push('<\/ul>');
-
-  // Art. 3 Engagements NOVALEM
-  h.push('<div class="section"><span class="art-num">Art. 3<\/span><span class="section-title">Engagements de NOVALEM<\/span><\/div>');
-  h.push('<p>NOVALEM est tenue d\'une <strong>obligation de moyens<\/strong> dans l\'ex\u00e9cution de ses missions de recrutement. \u00c0 ce titre, NOVALEM s\'engage \u00e0\u00a0:<\/p>');
-  h.push('<ul>');
-  h.push('<li>D\u00e9ployer les ressources humaines et techniques n\u00e9cessaires pour identifier et sourcer des candidats qualifi\u00e9s correspondant au profil de poste d\u00e9fini conjointement avec le Client\u00a0;<\/li>');
-  h.push('<li>Proc\u00e9der \u00e0 la pr\u00e9s\u00e9lection et \u00e0 la qualification approfondie de chaque candidat pr\u00e9sent\u00e9, incluant la v\u00e9rification des \u00e9l\u00e9ments d\u00e9claratifs du candidat (parcours, dipl\u00f4mes, exp\u00e9riences)\u00a0; la responsabilit\u00e9 de NOVALEM ne saurait \u00eatre engag\u00e9e en cas de fausse d\u00e9claration d\'un candidat\u00a0;<\/li>');
-  h.push('<li>Traiter avec confidentialit\u00e9 toutes les informations transmises par le Client dans le cadre des missions\u00a0;<\/li>');
-  h.push('<li>Ne pas approcher directement les salari\u00e9s en poste chez le Client aux fins de leur proposer une opportunit\u00e9 externe, pendant toute la dur\u00e9e du contrat et dans les douze (12) mois suivant son terme\u00a0;<\/li>');
-  h.push('<li>Ne pas exercer de clause d\'exclusivit\u00e9 restrictive\u00a0: le Client reste libre de confier simultan\u00e9ment ses recrutements \u00e0 d\'autres prestataires.<\/li>');
-  h.push('<\/ul>');
-
-  // Art. 4 Engagements du Client
-  h.push('<div class="section"><span class="art-num">Art. 4<\/span><span class="section-title">Engagements du Client<\/span><\/div>');
-  h.push('<p>Le Client s\'engage \u00e0\u00a0:<\/p>');
-  h.push('<ul>');
-  h.push('<li>D\u00e9signer un interlocuteur unique habilit\u00e9 pour le suivi de chaque mission de recrutement\u00a0;<\/li>');
-  h.push('<li>Communiquer \u00e0 NOVALEM, en temps utile, toutes les informations n\u00e9cessaires \u00e0 la d\u00e9finition du profil de poste\u00a0: intitul\u00e9 du poste, description des missions, conditions de r\u00e9mun\u00e9ration, environnement de travail, crit\u00e8res de s\u00e9lection\u00a0;<\/li>');
-  h.push('<li>Ne pas modifier substantiellement le profil de poste en cours de mission sans en informer pr\u00e9alablement NOVALEM par \u00e9crit\u00a0;<\/li>');
-  h.push('<li>Faire part de sa d\u00e9cision (int\u00e9r\u00eat ou refus motiv\u00e9) pour chaque candidature pr\u00e9sent\u00e9e, dans un d\u00e9lai de <strong>huit (8) jours calendaires<\/strong> \u00e0 compter de la r\u00e9ception du dossier\u00a0; tout refus doit \u00eatre formalis\u00e9 par \u00e9crit<\/li>');
-  h.push('<li>Recevoir les candidats s\u00e9lectionn\u00e9s en entretien dans un d\u00e9lai de <strong>quinze (15) jours calendaires<\/strong> suivant l\'expression de son int\u00e9r\u00eat\u00a0;<\/li>');
-  h.push('<li>Informer NOVALEM dans les meilleurs d\u00e9lais de tout recrutement d\'un candidat pr\u00e9sent\u00e9 directement ou indirectement, y compris dans le cadre d\'une mission diff\u00e9rente ou post\u00e9rieurement \u00e0 la fin du pr\u00e9sent contrat\u00a0;<\/li>');
-  h.push('<li>Ex\u00e9cuter le contrat de bonne foi et en toute loyaut\u00e9.<\/li>');
-  h.push('<\/ul>');
-
-  // Art. 5 Proc\u00e9dure
-  h.push('<div class="section"><span class="art-num">Art. 5<\/span><span class="section-title">Proc\u00e9dure de pr\u00e9sentation des candidats<\/span><\/div>');
-  h.push('<p>Pour chaque mission confi\u00e9e, NOVALEM soumettra au Client un dossier de pr\u00e9sentation pour chaque candidat retenu, comprenant\u00a0: un curriculum vitae actualis\u00e9, une synth\u00e8se de l\'entretien de qualification, les pr\u00e9tentions salariales, la disponibilit\u00e9 et les \u00e9l\u00e9ments compl\u00e9mentaires pertinents.<\/p>');
-  h.push('<p>Par l\'acceptation en entretien d\'un candidat, le Client reconna\u00eet la conformit\u00e9 de la candidature au profil recherch\u00e9. Toute d\u00e9cision finale de recrutement reste de la seule responsabilit\u00e9 du Client.<\/p>');
-  h.push('<p>Les donn\u00e9es personnelles des candidats transmises dans le cadre des dossiers de pr\u00e9sentation sont confidentielles et ne peuvent \u00eatre utilis\u00e9es qu\'aux fins de l\'\u00e9valuation pour le poste concern\u00e9.<\/p>');
-
-  // Art. 6 Honoraires
-  h.push('<div class="section"><span class="art-num">Art. 6<\/span><span class="section-title">Honoraires<\/span><\/div>');
-  h.push('<p>Les honoraires de NOVALEM sont calcul\u00e9s en pourcentage du <strong>Salaire Brut Annuel (SBA)<\/strong> convenu lors de chaque embauche, selon la grille tarifaire ci-dessous. La cat\u00e9gorie (Cadre\u00a0/ Non-cadre) est d\u00e9termin\u00e9e conform\u00e9ment \u00e0 la convention collective nationale du B\u00e2timent applicable, et le niveau d\'exp\u00e9rience est appr\u00e9ci\u00e9 en ann\u00e9es d\'exp\u00e9rience professionnelle effective dans le m\u00e9tier concern\u00e9\u00a0:<\/p>');
-  h.push('<table class="tarif"><thead><tr><td>Cat\u00e9gorie<\/td><td>&lt; 5 ans d\'exp.<\/td><td>5 \u00e0 15 ans<\/td><td>&gt; 15 ans<\/td><\/tr><\/thead>');
-  h.push('<tbody><tr><td>Non-cadre<\/td><td class="pct">12\u00a0%<\/td><td class="pct">13,5\u00a0%<\/td><td class="pct">15\u00a0%<\/td><\/tr>');
-  h.push('<tr><td>Cadre<\/td><td class="pct">15\u00a0%<\/td><td class="pct">17\u00a0%<\/td><td class="pct">20\u00a0%<\/td><\/tr><\/tbody><\/table>');
-  h.push(tauxClause);
-  h.push('<div class="hbox">Les honoraires sont exigibles <strong>exclusivement en cas d\'int\u00e9gration effective du candidat<\/strong> (prise de poste r\u00e9elle). Aucun honoraire n\'est d\u00fb en l\'absence d\'embauche, quelle qu\'en soit la raison.<\/div>');
-
-  // Art. 7 R\u00e8glement
-  h.push('<div class="section"><span class="art-num">Art. 7<\/span><span class="section-title">Modalit\u00e9s de r\u00e8glement<\/span><\/div>');
-  h.push(reglementBody);
-
-  // Art. 8 Droit de suite
-  var artN=garantie?9:8;
-  if(garantie){ h.push(garantieSection); }
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Droit de suite<\/span><\/div>');
-  h.push('<p>La fin du pr\u00e9sent contrat, pour quelque cause que ce soit, donne imm\u00e9diatement naissance \u00e0 un <strong>droit de suite de vingt-quatre (24) mois<\/strong> au b\u00e9n\u00e9fice de NOVALEM. Durant cette p\u00e9riode, tout recrutement effectu\u00e9 par le Client \u2014 ou par une entreprise affili\u00e9e ou associ\u00e9e \u2014 d\'un candidat pr\u00e9sent\u00e9 directement ou indirectement par NOVALEM dans le cadre du pr\u00e9sent contrat, ouvre droit au paiement des honoraires d\u00e9finis \u00e0 la grille tarifaire de l\'article 6, exigibles dans les conditions de l\'article 7.<\/p>');
-  h.push('<p>Le Client s\'engage \u00e0 informer loyalement NOVALEM de tout recrutement de candidats pr\u00e9sent\u00e9s intervenu pendant la p\u00e9riode de droit de suite.<\/p>');
-  artN++;
-
-  // Non-d\u00e9bauchage
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Non-sollicitation et non-d\u00e9bauchage<\/span><\/div>');
-  h.push('<p>NOVALEM s\'interdit, pendant toute la dur\u00e9e du pr\u00e9sent contrat et durant les douze (12) mois suivant son terme, de solliciter ou d\'approcher directement les salari\u00e9s du Client \u00e0 des fins de recrutement pour le compte de tiers, sauf candidature spontan\u00e9e de ces salari\u00e9s ou publication d\'une offre d\'emploi publique.<\/p>');
-  h.push('<p>En contrepartie, le Client s\'engage \u00e0 ne pas, pendant la dur\u00e9e du contrat et les douze (12) mois suivants, solliciter ou embaucher directement les collaborateurs de NOVALEM sans accord pr\u00e9alable \u00e9crit de NOVALEM.<\/p>');
-  artN++;
-
-  // Confidentialit\u00e9
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Confidentialit\u00e9<\/span><\/div>');
-  h.push('<p>Chaque partie s\'engage \u00e0 traiter avec la plus stricte confidentialit\u00e9 l\'ensemble des informations de nature commerciale, financi\u00e8re, technique ou strat\u00e9gique \u00e9chang\u00e9es dans le cadre du pr\u00e9sent contrat, et ce pendant toute la dur\u00e9e du contrat et dans les cinq (5) ann\u00e9es suivant son terme.<\/p>');
-  h.push('<p>NOVALEM peut, sauf opposition \u00e9crite expr\u00e8s du Client not\u00e9e dans les trente (30) jours suivant la signature, faire \u00e9tat du nom et du secteur d\'activit\u00e9 du Client \u00e0 titre de r\u00e9f\u00e9rence commerciale dans ses supports de communication.<\/p>');
-  h.push('<p>Le Client s\'engage \u00e0 garder strictement confidentiels l\'ensemble des informations relatives aux candidats transmises dans le cadre de la mission.<\/p>');
-  artN++;
-
-  // RGPD
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Protection des donn\u00e9es personnelles (RGPD)<\/span><\/div>');
-  h.push('<p>NOVALEM agit en qualit\u00e9 de <strong>responsable de traitement<\/strong> au sens du R\u00e8glement (UE) 2016/679 (RGPD) pour les donn\u00e9es personnelles des candidats trait\u00e9es dans le cadre de ses activit\u00e9s de sourcing et de s\u00e9lection. Le Client agit en qualit\u00e9 de responsable de traitement pour les donn\u00e9es qu\'il traite dans le cadre du processus d\'entretien et de recrutement.<\/p>');
-  h.push('<p>Les donn\u00e9es personnelles transmises au Client dans les dossiers de candidature sont destin\u00e9es exclusivement \u00e0 l\'\u00e9valuation du candidat pour le poste concern\u00e9. Le Client s\'engage \u00e0\u00a0:<\/p>');
-  h.push('<ul><li>Ne pas conserver les donn\u00e9es des candidats non retenus au-del\u00e0 de <strong>deux (2) ans<\/strong> \u00e0 compter de leur r\u00e9ception\u00a0;<\/li>');
-  h.push('<li>Respecter les droits des personnes concern\u00e9es (droit d\'acc\u00e8s, de rectification, d\'effacement, de limitation) conform\u00e9ment au RGPD\u00a0;<\/li>');
-  h.push('<li>Ne pas transmettre ces donn\u00e9es \u00e0 des tiers sans accord pr\u00e9alable de NOVALEM et du candidat concern\u00e9.<\/li><\/ul>');
-  artN++;
-
-  // Responsabilit\u00e9
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Responsabilit\u00e9<\/span><\/div>');
-  h.push('<p>La responsabilit\u00e9 de NOVALEM au titre du pr\u00e9sent contrat est limit\u00e9e au montant des honoraires effectivement per\u00e7us dans le cadre de la mission concem\u00e9e. NOVALEM ne saurait \u00eatre tenue responsable des dommages indirects, cons\u00e9cutifs, ou immat\u00e9riels subis par le Client, notamment toute perte d\'exploitation, manque \u00e0 gagner, pr\u00e9judice commercial ou perte de chance, r\u00e9sultant d\'un recrutement ou de son absence.<\/p>');
-  h.push('<p>NOVALEM n\'est pas responsable des d\u00e9cisions de recrutement prises souverainement par le Client, ni des cons\u00e9quences de ces d\u00e9cisions sur le fonctionnement de son entreprise.<\/p>');
-  artN++;
-
-  // Force majeure
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Force majeure<\/span><\/div>');
-  h.push('<p>Aucune des parties ne pourra \u00eatre tenue responsable d\'un manquement \u00e0 ses obligations contractuelles r\u00e9sultant d\'un \u00e9v\u00e9nement de force majeure au sens de l\'article 1218 du Code civil. La partie empêch\u00e9e devra notifier l\'autre partie dans les meilleurs d\u00e9lais. Si l\'\u00e9v\u00e9nement de force majeure persiste au-del\u00e0 de trente (30) jours, chaque partie pourra r\u00e9silier le contrat par notification \u00e9crite, sans indemnit\u00e9.<\/p>');
-  artN++;
-
-  // Dur\u00e9e
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Dur\u00e9e et r\u00e9siliation<\/span><\/div>');
-  h.push('<p>Le pr\u00e9sent contrat prend effet \u00e0 la date de signature et est conclu pour une dur\u00e9e de <strong>douze (12) mois<\/strong>, renouvelable tacitement par p\u00e9riodes d\'un (1) mois, sauf d\u00e9nonciation par l\'une ou l\'autre des parties par lettre recommand\u00e9e avec accus\u00e9 de r\u00e9ception, sous pr\u00e9avis d\'un (1) mois, sans indemnit\u00e9.<\/p>');
-  h.push('<p>En cas de manquement grave et non rem\u00e9di\u00e9 de l\'une des parties \u00e0 ses obligations contractuelles, l\'autre partie pourra r\u00e9silier le contrat de plein droit, apr\u00e8s mise en demeure rest\u00e9e infructueuse pendant quinze (15) jours. La r\u00e9siliation ne fait pas obstacle \u00e0 l\'exigibilit\u00e9 des sommes dues.<\/p>');
-  h.push('<p>La clause relative au droit de suite (article '+(artN-6)+') demeure applicable apr\u00e8s toute cause d\'extinction du contrat.<\/p>');
-  artN++;
-
-  // Droit applicable
-  h.push('<div class="section"><span class="art-num">Art. '+artN+'<\/span><span class="section-title">Droit applicable et juridiction<\/span><\/div>');
-  h.push('<p>Le pr\u00e9sent contrat est soumis au droit fran\u00e7ais. En cas de diff\u00e9rend relatif \u00e0 sa formation, son ex\u00e9cution ou son interpr\u00e9tation, les parties s\'efforceront de trouver une solution amiable dans un d\u00e9lai de trente (30) jours \u00e0 compter de la notification \u00e9crite du diff\u00e9rend. \u00c0 d\u00e9faut de r\u00e8glement amiable, les parties conviennent de la <strong>comp\u00e9tence exclusive des Tribunaux du ressort de Nice (Alpes-Maritimes)<\/strong>, nonobstant pluralit\u00e9 de d\u00e9fendeurs ou appel en garantie.<\/p>');
-  h.push('<p>Les pr\u00e9sentes Conditions G\u00e9n\u00e9rales constituent l\'int\u00e9gralit\u00e9 de l\'accord entre les parties sur leur objet et remplacent tous \u00e9changes, n\u00e9gociations ou accords ant\u00e9rieurs portant sur le m\u00eame objet. Toute modification doit \u00eatre formalis\u00e9e par avenant \u00e9crit sign\u00e9 des deux parties.<\/p>');
-
-  // Signatures
-  h.push('<div class="sigs">');
-  h.push('<div class="sig"><div class="sig-lbl">Pour le Client<\/div>');
-  h.push('<div class="sig-val"><strong>'+nom+'<\/strong><br>SIRET\u00a0: '+siret+'<\/div>');
-  h.push('<div class="sig-zone"><\/div><div class="sig-hint">Signature &amp; cachet<\/div>');
-  h.push('<div class="sig-date">Fait \u00e0 _________________, le '+date+'<\/div><\/div>');
-  h.push('<div class="sig"><div class="sig-lbl">Pour NOVALEM<\/div>');
-  h.push('<div class="sig-val"><strong>Louis RENAULT<\/strong><br>Directeur \u2014 NOVALEM<\/div>');
-  h.push('<div class="sig-zone"><\/div><div class="sig-hint">Signature<\/div>');
-  h.push('<div class="sig-date">Fait \u00e0 Nice, le '+date+'<\/div><\/div><\/div>');
-  h.push('<div class="ftr">NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06 58 21 20 96<br>Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le '+date+'<\/div>');
-  h.push('<\/div><\/body><\/html>');
-
-  var html=h.join('');
-  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var w=window.open(url,'_blank','width=980,height=1050,scrollbars=yes');
-  if(!w){toast('Autorisez les popups pour g\u00e9n\u00e9rer le contrat','w');}
-  setTimeout(function(){URL.revokeObjectURL(url);},30000);
-}
-
-// ── NEED PANEL ─────────────────────────────────────────────
-function openNeedPanel(id){
- UI.ptype='need';UI.pid=id;
- const n=nById(id);if(!n)return;
- const co=coById(n.company_id);
- const cat=getCat(n.cat);
- const matched=DB.candidates.filter(c=>c.linked_need===id);
- const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
- const tabs=['Détail','Candidats'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
- const B=[
- // 0 DETAIL
- `<div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
- <div class="dr"><span class="drk">Catégorie</span><span class="drv"><span class="tag ${cat.cls}">${cat.l}</span></span></div>
- <div class="dr"><span class="drk">Salaire</span><span class="drv">${n.smin&&n.smax?`${fM(n.smin)} – ${fM(n.smax)}`:n.smax?`≤ ${fM(n.smax)}`:n.smin?`≥ ${fM(n.smin)}`:'—'}</span></div>
- <div class="dr"><span class="drk">Honoraires est.</span><span class="drv ac">${n.smax?honor(n.smax):'—'}</span></div>
- <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(n.location||'France')}</span></div>
- <div class="dr"><span class="drk">Démarrage</span><span class="drv">${n.start?fD(n.start):'ASAP'}</span></div>
- <div class="dr"><span class="drk">Urgence</span><span class="drv">${{h:'Urgent',m:'○ Moyen',l:'Long terme'}[n.urgency]||'—'}</span></div>
- ${n.notes?`<div class="sl">Critères / Notes</div><div class="notebox">${esc(n.notes)}</div>`:''}
- <div class="sl">Statut</div>
- <div class="st-sel">${NST.map(s=>`<div class="st-btn ${s.id===n.status?'cur':''}" onclick="setNS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>`,
- // 1 CANDIDATS
- `<div class="flex fjb fac mb8"><span class="fs11">${matched.length} candidat(s) matchés</span><button class="btn bp bxs" onclick="findForNeed('${id}')"> Trouver</button></div>
- ${matched.map(c=>{const cs=getCS(c.status);return`<div class="aitem" onclick="openCandPanel('${c.id}')"><span class="pill ${cs.p}">${cs.l}</span><span style="flex:1">${esc(c.name)}</span><span class="mu_ fs10">${fM(c.salary)}</span><button class="btn bd_ bxs" onclick="event.stopPropagation();toggleLink('${c.id}','${id}')">×</button></div>`;}).join('')||'<div class="mu_ fs11">Aucun candidat lié</div>'}
- <div class="sl mt12">Lier un candidat</div>
- <select id="nc-sel" style="margin-bottom:7px"><option value="">Choisir…</option>${DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==id).map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.role||'')}</option>`).join('')}</select>
- <button class="btn bp bsm" onclick="linkFromSel('${id}')">Lier</button>`,
- ];
- const acts=`<button class="btn bp bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delNeed('${id}')"></button>`;
- setPanel(n.title,`${co?`<span>${esc(co.name)}</span> · `:''}<span class="tag ${cat.cls}">${cat.l}</span>`,tabs,B[UI.ptab],acts);
-}
-
-// ── AGENDA PANEL ────────────────────────────────────────────
-function openAgPanel(id){
- const a=agById(id);if(!a)return;
- const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];
- const ca=a.cand_id?cById(a.cand_id):null;
- const co=a.comp_id?coById(a.comp_id):null;
- setPanel(a.title,`${t.ico} ${t.l} · ${fD(a.date)}${a.time?` · ${a.time}`:''}`,null,`
- <div class="dr"><span class="drk">Type</span><span class="drv">${t.ico} ${t.l}</span></div>
- <div class="dr"><span class="drk">Date</span><span class="drv">${fD(a.date)}</span></div>
- <div class="dr"><span class="drk">Heure</span><span class="drv">${a.time||'—'}</span></div>
- <div class="dr"><span class="drk">Candidat</span><span class="drv">${ca?`<span class="ac5" style="cursor:pointer" onclick="openCandPanel('${ca.id}')">${esc(ca.name)}</span>`:'—'}</span></div>
- <div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
- <div class="dr"><span class="drk">Statut</span><span class="drv">${a.done?'Terminé':'En attente'}</span></div>
- ${a.notes?`<div class="sl">Notes</div><div class="notebox">${esc(a.notes)}</div>`:''}`,
- `<button class="btn ${a.done?'bg':'bp'} bsm" onclick="togAgDone('${id}');openAgPanel('${id}')">${a.done?'↺ À faire':'Terminé'}</button><button class="btn bg bsm" onclick="openAgForm('${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delAg('${id}')"></button>`
-);
-}
-
-// ── POST PANEL ──────────────────────────────────────────────
-function openPostPanel(id){
- const p=DB.posts.find(x=>x.id===id);if(!p)return;
- const cat=getCat(p.cat);
- const published=p.published_on||[];
- const boardsHtml=(p.boards||[]).map(b=>{
- const isPub=published.includes(b);
- return`<div class="board-row">
- <div class="board-name">${esc(b)}</div>
- <span class="board-status ${isPub?'bst-live':'bst-todo'}">${isPub?'✓ Publié':'À publier'}</span>
- </div>`;
- }).join('')||'<div class="mu_ fs11">—</div>';
-
- const jcmoStatus=p.jcmo_ok===true
- ?`<span style="color:var(--ac2);font-size:10px">Vérifiée légalement</span>`
- :p.jcmo_ok===false
- ?`<span style="color:var(--ac3);font-size:10px">! ${p.jcmo_issues?.length||0} point(s) à corriger</span>`
- :`<button class="btn bg bxs" onclick="verifyPostJCMO('${id}')"> Vérifier avant publication</button>`;
-
- setPanel(p.title,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${p.status==='active'?'pwin':'pnew'}">${p.status==='active'?'Active':'Brouillon'}</span>`,null,`
- <div class="dr"><span class="drk">Localisation</span><span class="drv">${esc(p.location||'—')}</span></div>
- <div class="dr"><span class="drk">Salaire</span><span class="drv">${esc(p.salary||'—')}</span></div>
- <div class="sl">Conformité légale ${jcmoStatus}</div>
- ${p.jcmo_issues?.length?`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px">${p.jcmo_issues.map(i=>`<div class="fs10" style="padding:4px 8px;background:var(--s3);border-radius:2px">${esc(i)}</div>`).join('')}</div>`:''}
- <div class="sl">Publication (${published.length}/${(p.boards||[]).length} boards)</div>
- ${boardsHtml}
- <div class="sl mt12">Texte de l'annonce</div>
- <div class="notebox" style="max-height:160px;overflow-y:auto">${esc(p.body||'—')}</div>`,
- `<button class="btn bp bsm" onclick="openPublishPanel('${id}')">Publier</button>
- <button class="btn bg bsm" onclick="verifyPostJCMO('${id}')"> Vérifier</button>
- <button class="btn ${p.status==='active'?'bg':'bg'} bsm" onclick="togPostSt('${id}')">${p.status==='active'?'⏸ Clôturer':'▶ Activer'}</button>
- <button class="btn bg bsm" onclick="openPostForm('${id}')">✎ Modifier</button>
- <button class="btn bd_ bsm" onclick="delPost('${id}')"></button>`
-);
-}
-
-// ── Vérification légale JCMO ──────────────────────────
-async function verifyPostJCMO(postId){
- const p=DB.posts.find(x=>x.id===postId);if(!p)return;
- const apiBase=getApiBase();
- toast(' Vérification légale en cours…','i');
-
- try{
- let result;
- if(apiBase){
- // Appel API Vercel
- const resp=await fetch(`${apiBase}/api/verify-offer`,{
- method:'POST',
- headers:{'Content-Type':'application/json'},
- body:JSON.stringify({title:p.title,body:p.body,location:p.location,salary:p.salary,cat:p.cat})
- });
- result=await resp.json();
- } else {
- // Vérification locale si pas sur Vercel
- result=localLegalCheck(p);
- }
-
- p.jcmo_ok=result.ok;
- p.jcmo_issues=result.issues||[];
- p.updated=now_();
- save();
- openPostPanel(postId);
-
- if(result.ok){
- toast('Annonce conforme — prête à publier','s');
- } else {
- const warnings=result.issues.filter(i=>i.startsWith('!️')).length;
- toast(`! ${warnings} point(s) à corriger dans l'annonce`,'w');
- }
- }catch(err){
- toast('Vérification: '+err.message,'e');
- }
-}
-
-// Vérification légale locale (fallback)
-function localLegalCheck(post){
- const issues=[];
- const body=(post.body||'').toLowerCase();
- const title=(post.title||'').toLowerCase();
- const forbidden=['jeune','dynamique','moins de','plus de','ans minimum','beau','belle','présentable','français natif'];
- forbidden.forEach(w=>{if(body.includes(w)||title.includes(w))issues.push(`! Mention potentiellement discriminatoire : "${w}"`)});
- if(!body.includes('cdi')&&!body.includes('cdd')&&!body.includes('contrat'))issues.push('! Type de contrat non précisé');
- if(!post.location)issues.push('! Localisation manquante');
- if(!post.salary)issues.push('ℹ️ Salaire non renseigné (recommandé)');
- if((post.body||'').length<200)issues.push('ℹ️ Description courte — une annonce détaillée attire plus de candidats');
- return{ok:issues.filter(i=>i.startsWith('!️')).length===0,issues,source:'local'};
-}
-
-// ═══════════════════════════════════════════════════════
-// MODAL SYSTEM
-// ═══════════════════════════════════════════════════════
-function openMo(t,b,f){const mh=document.getElementById('mhdr');if(mh)mh.style.display=t?'flex':'none';const mht=document.getElementById('mht');if(mht)mht.textContent=t;document.getElementById('mb').innerHTML=b;document.getElementById('mf').innerHTML=f||'';if(f===''||f===undefined){const mff=document.getElementById('mf');if(mff)mff.style.display='none';}else{const mff=document.getElementById('mf');if(mff)mff.style.display='';}document.getElementById('mo').classList.add('open');}
-function closeMo(){document.getElementById('mo').classList.remove('open');}
-function moOvClick(e){if(e.target===document.getElementById('mo'))closeMo();}
-
-// ── CAND FORM ────────────────────────────────────────────
-function openCandForm(id=null){
- const c=id?cById(id):{};if(!c)return;
- const catOpts=BTP_CATS.map(cat=>`<option value="${cat.id}" ${(c.cat||'go')===cat.id?'selected':''}>${cat.l}</option>`).join('');
- const jobs=getCat(c.cat||'go').jobs;
- const jobOpts=jobs.map(j=>`<option value="${esc(j)}" ${c.role===j?'selected':''}>${esc(j)}</option>`).join('');
- const stOpts=CAND_ST.map(s=>`<option value="${s.id}" ${(c.status||'new')===s.id?'selected':''}>${s.l}</option>`).join('');
- const srcOpts=SOURCES.map(s=>`<option ${c.source===s?'selected':''}>${s}</option>`).join('');
- openMo(id?'Modifier candidat':'Nouveau candidat',`
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Nom complet *</span><input id="cf-n" value="${esc(c.name||'')}"></div>
- <div class="fgrp"><span class="lbl">Catégorie BTP</span><select id="cf-cat" onchange="updJobOpts()">${catOpts}</select></div>
- <div class="fgrp"><span class="lbl">Poste exact</span><select id="cf-role">${jobOpts}</select></div>
- <div class="fgrp"><span class="lbl">Salaire brut/an (€)</span><input id="cf-sal" type="number" value="${c.salary||''}" placeholder="42000"></div>
- <div class="fgrp"><span class="lbl">Téléphone</span><input id="cf-ph" value="${esc(c.phone||'')}"></div>
- <div class="fgrp"><span class="lbl">Email</span><input id="cf-em" value="${esc(c.email||'')}"></div>
- <div class="fgrp"><span class="lbl">Source</span><select id="cf-src">${srcOpts}</select></div>
- <div class="fgrp"><span class="lbl">Statut</span><select id="cf-st">${stOpts}</select></div>
- <div class="fgrp"><span class="lbl">Disponibilité</span><input id="cf-av" value="${esc(c.avail||'')}" placeholder="Immédiate / sous 1 mois"></div>
- <div class="fgrp"><span class="lbl">Mobilité</span><input id="cf-mob" value="${esc(c.mobility||'')}" placeholder="Rhône-Alpes, National…"></div>
- <div class="fgrp ff"><span class="lbl">Notes précal</span><textarea id="cf-npre">${esc(c.notes_pre||'')}</textarea></div>
- <div class="fgrp ff"><span class="lbl">Notes générales</span><textarea id="cf-notes">${esc(c.notes||'')}</textarea></div>
- <div class="fgrp ff" style="flex-direction:row;align-items:center;gap:7px"><input type="checkbox" id="cf-pep" ${c.pepite?'checked':''} style="width:12px;height:12px;accent-color:var(--ac4)"><span class="lbl" style="margin:0;text-transform:none;cursor:pointer" for="cf-pep">Marquer comme pépite</span></div>
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delCand('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveCandForm('${id||''}')">Enregistrer</button>`
-);
-}
-function updJobOpts(){
- const v=document.getElementById('cf-cat')?.value||'go';
- const jobs=getCat(v).jobs;
- const el=document.getElementById('cf-role');
- if(el)el.innerHTML=jobs.map(j=>`<option>${esc(j)}</option>`).join('');
-}
-function saveCandForm(id){
- const name=document.getElementById('cf-n').value.trim();
- if(!name){toast('Nom requis','e');return;}
- const n=now_();
- const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
- if(id){const c=cById(id);Object.assign(c,data);}
- else{data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
- save();closeMo();
- if(id&&UI.pid===id)openCandPanel(id);
- if(UI.view==='cands')rCands();else if(UI.view==='dash')rDash();
- badges();toast(id?'Mis à jour ✓':'Candidat ajouté ✓ — précal planifiée','s');
-}
-function autoAg(c){
- DB.agenda.push({id:uid(),type:'call',title:`Précal — ${c.name}`,date:now_(),time:'',cand_id:c.id,comp_id:null,notes:'Appel de qualification téléphonique',done:false,created:now_()});
- save();
-}
-
-// ── COMPANY FORM ─────────────────────────────────────────
-function openCoForm(id=null,ft='prospect'){
- const c=id?coById(id):{};if(!c)return;
- const catOpts=BTP_CATS.map(cat=>`<option value="${cat.id}" ${(c.cat||'go')===cat.id?'selected':''}>${cat.l}</option>`).join('');
- const stOpts=COMP_ST.map(s=>`<option value="${s.id}" ${(c.status||'tocall')===s.id?'selected':''}>${s.l}</option>`).join('');
- openMo(id?'Modifier':ft==='client'?'Nouveau client':'Nouveau prospect',`
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Raison sociale *</span><input id="cof-n" value="${esc(c.name||'')}"></div>
- <div class="fgrp"><span class="lbl">Nom contact</span><input id="cof-ct" value="${esc(c.contact||'')}"></div>
- <div class="fgrp"><span class="lbl">Fonction</span><input id="cof-ctt" value="${esc(c.ctitle||'')}" placeholder="Gérant / DRH…"></div>
- <div class="fgrp"><span class="lbl">Téléphone</span><input id="cof-ph" value="${esc(c.phone||'')}"></div>
- <div class="fgrp"><span class="lbl">Email</span><input id="cof-em" value="${esc(c.email||'')}"></div>
- <div class="fgrp"><span class="lbl">Ville / Région</span><input id="cof-city" value="${esc(c.city||'')}"></div>
- <div class="fgrp"><span class="lbl">Taille</span><select id="cof-sz"><option value="">—</option><option ${c.size==='tpe'?'selected':''} value="tpe">TPE (&lt;10)</option><option ${c.size==='pme'?'selected':''} value="pme">PME (10–250)</option><option ${c.size==='eti'?'selected':''} value="eti">ETI (250+)</option></select></div>
- <div class="fgrp"><span class="lbl">Secteur BTP</span><select id="cof-cat">${catOpts}</select></div>
- <div class="fgrp"><span class="lbl">Statut pipeline</span><select id="cof-st">${stOpts}</select></div>
- <div class="fgrp"><span class="lbl">Source</span><select id="cof-src"><option>Cold call</option><option>Job board</option><option>LinkedIn</option><option>Réseau</option><option>Contrôle REF</option><option>Recommandation</option></select></div>
- <div class="fgrp"><span class="lbl">Marge estimée (€)</span><input id="cof-marge" type="number" placeholder="6300" value="${esc(c.marge||'')}"></div>
- <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="cof-notes">${esc(c.notes||'')}</textarea></div>
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delCo('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveCoForm('${id||''}','${ft}')">Enregistrer</button>`
-);
-}
-function saveCoForm(id,ft){
- const name=document.getElementById('cof-n').value.trim();
- if(!name){toast('Nom requis','e');return;}
- const n=now_();
- const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,updated:n};
- if(id){const c=coById(id);Object.assign(c,data);}
- else{data.id=uid();data.created=n;DB.companies.unshift(data);}
- save();closeMo();
- if(id&&UI.pid===id)openCoPanel(id);
- if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();else if(UI.view==='dash')rDash();
- badges();toast(id?'Mis à jour ✓':'Ajouté ✓','s');
-}
-function convertClient(id){
- const c=coById(id);if(!c)return;
- c.type='client';c.status='active';c.contract=true;c.contract_date=now_();c.updated=now_();
- save();openCoPanel(id);badges();
- toast(`${c.name} → Client ✓`,'s');
-}
-
-// ── NEED FORM ────────────────────────────────────────────
-function openNeedForm(coId=null,id=null){
- const n=id?nById(id):{};if(!n)return;
- const clients=DB.companies.filter(c=>c.type==='client');
- const coOpts=clients.map(c=>`<option value="${c.id}" ${(n.company_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
- const catOpts=BTP_CATS.map(c=>`<option value="${c.id}" ${(n.cat||'go')===c.id?'selected':''}>${c.l}</option>`).join('');
- const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
- const stOpts=NST.map(s=>`<option value="${s.id}" ${(n.status||'open')===s.id?'selected':''}>${s.l}</option>`).join('');
- const today=new Date().toISOString().split('T')[0];
- openMo(id?'Modifier besoin':'Nouveau besoin',`
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Titre du poste *</span><input id="nf-t" value="${esc(n.title||'')}" placeholder="Conducteur de travaux GO"></div>
- <div class="fgrp"><span class="lbl">Client</span><select id="nf-co"><option value="">— Choisir —</option>${coOpts}</select></div>
- <div class="fgrp"><span class="lbl">Catégorie</span><select id="nf-cat">${catOpts}</select></div>
- <div class="fgrp"><span class="lbl">Salaire min (€/an)</span><input id="nf-smin" type="number" value="${n.smin||''}" placeholder="38000"></div>
- <div class="fgrp"><span class="lbl">Salaire max (€/an)</span><input id="nf-smax" type="number" value="${n.smax||''}" placeholder="48000"></div>
- <div class="fgrp"><span class="lbl">Localisation</span><input id="nf-loc" value="${esc(n.location||'')}"></div>
- <div class="fgrp"><span class="lbl">Démarrage</span><input id="nf-st" type="date" value="${n.start?new Date(n.start).toISOString().split('T')[0]:''}"></div>
- <div class="fgrp"><span class="lbl">Urgence</span><select id="nf-urg"><option value="h" ${n.urgency==='h'?'selected':''}>Urgent</option><option value="m" ${(n.urgency||'m')==='m'?'selected':''}>○ Moyen</option><option value="l" ${n.urgency==='l'?'selected':''}>Long terme</option></select></div>
- <div class="fgrp"><span class="lbl">Statut</span><select id="nf-s">${stOpts}</select></div>
- <div class="fgrp ff"><span class="lbl">Notes / Critères</span><textarea id="nf-notes">${esc(n.notes||'')}</textarea></div>
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delNeed('${id}')">Supprimer</button>`:''}<button class="btn bp" onclick="saveNeedForm('${id||''}','${coId||''}')">Enregistrer</button>`
-);
-}
-function saveNeedForm(id,dco){
- const t=document.getElementById('nf-t').value.trim();
- if(!t){toast('Titre requis','e');return;}
- const n=now_();
- const data={title:t,company_id:document.getElementById('nf-co').value||dco,cat:document.getElementById('nf-cat').value,smin:document.getElementById('nf-smin').value,smax:document.getElementById('nf-smax').value,location:document.getElementById('nf-loc').value,start:document.getElementById('nf-st').value||null,urgency:document.getElementById('nf-urg').value,status:document.getElementById('nf-s').value,notes:document.getElementById('nf-notes').value,updated:n};
- if(id){const nd=nById(id);Object.assign(nd,data);}
- else{data.id=uid();data.created=n;DB.needs.unshift(data);}
- save();closeMo();
- if(id&&UI.pid===id)openNeedPanel(id);
- if(UI.view==='needs')rNeeds();else if(UI.view==='dash')rDash();
- badges();toast(id?'Mis à jour ✓':'Besoin ajouté ✓','s');
-}
-
-// ── AGENDA FORM ──────────────────────────────────────────
-// ── POST FORM ────────────────────────────────────────────
-function openPostForm(id=null){
- const p=id?DB.posts.find(x=>x.id===id):{};if(!p)return;
- const catOpts=BTP_CATS.map(c=>`<option value="${c.id}" ${(p.cat||'go')===c.id?'selected':''}>${c.l}</option>`).join('');
- const brdOpts=BOARDS.map(b=>`<label style="display:flex;align-items:center;gap:5px;font-size:11px;text-transform:none;cursor:pointer"><input type="checkbox" value="${b}" ${(p.boards||[]).includes(b)?'checked':''} style="width:11px;accent-color:var(--ac)"> ${b}</label>`).join('');
- openMo(id?'Modifier annonce':'Nouvelle annonce',`
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Titre *</span><input id="pf-t" value="${esc(p.title||'')}" placeholder="Conducteur de travaux GO — Lyon (H/F)"></div>
- <div class="fgrp"><span class="lbl">Catégorie</span><select id="pf-cat">${catOpts}</select></div>
- <div class="fgrp"><span class="lbl">Localisation</span><input id="pf-loc" value="${esc(p.location||'')}"></div>
- <div class="fgrp ff"><span class="lbl">Salaire affiché</span><input id="pf-sal" value="${esc(p.salary||'')}" placeholder="38 000 – 45 000€ brut/an"></div>
- <div class="fgrp ff"><span class="lbl">Infos pour l'IA (contexte client, spécificités…)</span><input id="pf-brief" value="${esc(p.notes_brief||'')}" placeholder="Ex: client PME lyonnaise, chantiers logements, CDI, véhicule de fonction"></div>
- <div class="fgrp ff">
- <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
- <span class="lbl" style="margin:0">Texte de l'annonce</span>
- ${getApiKey()?`<button id="ai-post-btn" type="button" class="btn bxs" style="background:rgba(154,74,224,.15);color:var(--ac6);border:1px solid rgba(154,74,224,.3)" onclick="aiGeneratePost('${id||'__new__'}')"> Générer avec IA</button>`:`<span class="ai-badge" style="cursor:pointer" onclick="openSettings()"> Configurer IA →</span>`}
- </div>
- <textarea id="pf-body" style="min-height:120px">${esc(p.body||'')}</textarea>
- </div>
- <div class="fgrp ff"><span class="lbl">Publier sur</span><div style="display:flex;flex-direction:column;gap:4px;margin-top:3px" id="brd">${brdOpts}</div></div>
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="savePostForm('${id||''}')">Enregistrer</button>`
-);
-}
-function savePostForm(id){
- const t=document.getElementById('pf-t').value.trim();
- if(!t){toast('Titre requis','e');return;}
- const boards=Array.from(document.querySelectorAll('#brd input:checked')).map(i=>i.value);
- const n=now_();
- const data={title:t,cat:document.getElementById('pf-cat').value,location:document.getElementById('pf-loc').value,salary:document.getElementById('pf-sal').value,body:document.getElementById('pf-body').value,notes_brief:document.getElementById('pf-brief')?.value||'',boards,status:'draft',updated:n};
- if(id){const p=DB.posts.find(x=>x.id===id);Object.assign(p,data);}
- else{data.id=uid();data.created=n;DB.posts.unshift(data);}
- save();closeMo();rPosts();toast(id?'Mis à jour ✓':'Annonce créée ✓','s');
-}
-
-// ═══════════════════════════════════════════════════════
-// ACTIONS
-// ═══════════════════════════════════════════════════════
-function setCS(id,st){
- const c=cById(id);if(!c)return;
- const prev=c.status;
- c.status=st;c.updated=now_();save();
- if(UI.pid===id)openCandPanel(id);
- rCands();badges();
- toast(`→ ${getCS(st).l}`,'s');
- // Proposer création facture si → Placé
- if(st==='placed'&&prev!=='placed'){
- const existing=(DB.invoices||[]).find(inv=>inv.cand_id===id);
- if(!existing){
- setTimeout(()=>{
- const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
- const co=need?coById(need.company_id):null;
- toast(`Créer la facture pour ${c.name} ?`,'i');
- openMo('Facturation — Placement confirmé',`
- <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;padding:10px 12px;margin-bottom:14px;font-size:11px">
- <strong>${esc(c.name)}</strong> vient d'être placé.${co?` Chez <strong>${esc(co.name)}</strong>.`:''} Créez la facture maintenant.
- </div>
- <div class="fg">
- <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
- </div>
- <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
- <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
- <span style="font-size:10px;color:var(--mu)">Montant honoraires</span>
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Plus tard</button>
- <button class="btn bp" onclick="createInvoiceFromModal('${id}')">Créer la facture</button>`
-);
- // Live preview
- ['inv-sal','inv-taux'].forEach(fid=>{
- const el=document.getElementById(fid);
- if(el)el.oninput=()=>{
- const sal=Number(document.getElementById('inv-sal')?.value||0);
- const taux=Number(document.getElementById('inv-taux')?.value||18);
- const amt=Math.round(sal*taux/100);
- const prev=document.getElementById('inv-preview');
- if(prev)prev.innerHTML=`<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">${fM(amt)}</span><br><span style="font-size:10px;color:var(--mu)">= ${sal.toLocaleString('fr-FR')}€ × ${taux}%</span>`;
- };
- if(el)el.oninput();
- });
- },400);
- }
- }
-}
-function setCmpS(id,st){const c=coById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCoPanel(id);if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast(`→ ${getCmpS(st).l}`,'s');}
-function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_();save();if(UI.pid===id)openNeedPanel(id);rNeeds();badges();toast(`→ ${st}`,'s');}
-function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
-function linkFromSel(needId){const sel=document.getElementById('nc-sel');if(!sel||!sel.value)return;toggleLink(sel.value,needId);}
-function togDoc(id,doc,checked){const c=cById(id);if(!c)return;c.docs=c.docs||[];if(checked&&!c.docs.includes(doc))c.docs.push(doc);else if(!checked)c.docs=c.docs.filter(d=>d!==doc);c.updated=now_();save();rCands();}
-function saveIntNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('int-note-'+id);if(!el)return;c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();save();toast('Synthèse sauvegardée ✓','s');}
-function saveGenNote2(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note2-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
-function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_date=now_();c.updated=now_();save();if(UI.pid===id)renderCandPanelTab(id);toast('Entretien marqué fait ✓','s');}
-function openStatusTree(id){openStatusMo('cand',id);}
-function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(c.linked_need?'Besoin lié ✓':'Lien retiré','s');}
-function saveGNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
-// Alias — lit gen-note-{id} ou gnote-{id} selon le panel
-function saveGenNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note-'+id)||document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
-function saveCoNote(id){const c=coById(id);if(!c)return;const el=document.getElementById('conote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
-function addRef(id){openMo('Ajouter référence',`<div class="fg"><div class="fgrp ff"><span class="lbl">Entreprise</span><input id="rf-co" placeholder="Nom entreprise"></div><div class="fgrp"><span class="lbl">Contact</span><input id="rf-ct"></div><div class="fgrp"><span class="lbl">Téléphone</span><input id="rf-ph"></div></div>`,`<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="saveRef('${id}')">Ajouter</button>`);}
-function saveRef(id){const c=cById(id);if(!c)return;const co=document.getElementById('rf-co').value.trim();if(!co)return;c.refs=c.refs||[];c.refs.push({company:co,contact:document.getElementById('rf-ct').value,phone:document.getElementById('rf-ph').value,done:false,note:''});c.updated=now_();save();closeMo();openCandPanel(id);toast('Référence ajoutée ✓','s');}
-function rmRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs.splice(i,1);c.updated=now_();save();openCandPanel(id);}
-function togRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs[i].done=!c.refs[i].done;c.updated=now_();save();openCandPanel(id);toast(c.refs[i].done?'Contrôle fait ✓':'Remis en attente','s');}
-function prosFromRef(id,i){const c=cById(id);if(!c||!c.refs||!c.refs[i])return;const r=c.refs[i];closePanel();openCoForm();setTimeout(()=>{const n=document.getElementById('cof-n');if(n)n.value=r.company;const ph=document.getElementById('cof-ph');if(ph)ph.value=r.phone||'';const src=document.getElementById('cof-src');if(src)src.value='Contrôle REF';},80);}
-function cpPhone(ph){navigator.clipboard.writeText(ph).then(()=>toast(`${ph} copié`,'i')).catch(()=>toast(ph,'i'));}
-function sendCV(candId){const c=cById(candId);if(!c)return;openMo('CV anonyme à envoyer',`<div class="mu_ fs11 mb8">Envoyer ce profil anonymisé aux prospects avec besoin ouvert dans la même catégorie.</div>${DB.companies.filter(co=>co.type==='prospect'&&['need','cvsent'].includes(co.status)).map(co=>`<div class="aitem" onclick="markCVSent('${candId}','${co.id}')">${esc(co.name)} <span class="mu_ fs10 ml-auto">${esc(co.city||'')}</span></div>`).join('')||'<div class="mu_ fs11">Aucun prospect avec besoin confirmé</div>'}`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
-function markCVSent(candId,coId){const co=coById(coId);if(!co)return;co.status='cvsent';co.updated=now_();save();closeMo();toast(`CV envoyé à ${co.name} ✓`,'s');}
-function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo(' Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier</button>`);}
-function cpTpl(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Copié ✓','i'));}
-function genBoardTexts(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;const txt=`═ FRANCE TRAVAIL ═\nIntitulé: ${p.title}\nLocalisation: ${p.location||'—'}\nType: CDI\nSalaire: ${p.salary||'—'}\n\n${p.body||''}\n\n═ INDEED ═\n${p.title} | ${p.location||''}\n${p.salary||''}\n\n${(p.body||'').slice(0,280)}…\n\n═ LINKEDIN ═\nNous recrutons pour notre client : ${p.title}\n${p.location||'France'} | ${p.salary||'—'}\n\n${p.body||''}`;openMo('Textes adaptés',`<textarea style="min-height:220px;font-size:11px;line-height:1.6">${txt}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier tout</button>`);}
-function togPostSt(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;p.status=p.status==='active'?'closed':'active';p.updated=now_();save();openPostPanel(id);rPosts();toast(`Annonce ${p.status==='active'?'activée':'clôturée'}`,'s');}
 function findForNeed(needId){const n=nById(needId);if(!n)return;const cands=DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==needId);openMo('Candidats disponibles — '+n.title,`<div>${cands.length?cands.map(c=>`<div class="aitem">${esc(c.name)} <span class="mu_ fs10 flex" style="flex:1;margin-left:8px">${esc(c.role||'')}</span><button class="btn bp bxs" onclick="toggleLink('${c.id}','${needId}');closeMo()">Lier</button></div>`).join(''):'<div class="mu_ fs11">Aucun disponible dans cette catégorie</div>'}</div>`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function openStatusMo(type,id){
  if(type==='co'){
