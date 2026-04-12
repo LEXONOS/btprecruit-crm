@@ -3374,7 +3374,7 @@ const CRM_API = 'https://novalem-crm.vercel.app'; // ton URL Vercel
 // La clé CRM_SECRET est dans les settings du CRM (paramètres > API)
 // et dans les env vars Vercel comme CRM_SECRET
 function getCRMSecret(){
-  return (typeof SETTINGS !== 'undefined' && SETTINGS.crmSecret) || '';
+  return localStorage.getItem('btp_crm_secret') || '';
 }
 
 // Catégories BTP (labels courts pour les badges)
@@ -4057,7 +4057,7 @@ function openCoPanel(id){
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
  ];
- const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
+ const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bg bsm" style="background:#C9891A;color:#fff;border:none" onclick="genContrat('${id}')">📄 Contrat</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span> <span class="pill ${c.type==='client'?'pwin':'ptoc'}">${c.type==='client'?'Client':'Prospect'}</span>`,tabs,B[Math.min(UI.ptab,B.length-1)],acts);
 }
 
@@ -4917,6 +4917,9 @@ function saveSettings(){
  localStorage.setItem(uKey('btp_user_name'), nom);
  localStorage.setItem(uKey('btp_user_tel'), tel);
  localStorage.setItem('btp_user_email', userEmail);
+ // CRM Secret
+ const crmSecret=(document.getElementById('set-crmsecret')?.value||'').trim();
+ if(crmSecret) localStorage.setItem('btp_crm_secret', crmSecret);
 
  // Business
  const objCA=(document.getElementById('set-obj-ca')?.value||'10000').trim();
