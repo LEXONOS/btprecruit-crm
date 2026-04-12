@@ -3919,7 +3919,7 @@ function doGenContrat(coId){
     c3:  parseFloat(document.getElementById('ct-c3')?.value) ||20,
   };
   const now  = new Date();
-  const mo   = ['janvier','\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
+  const mo   = ['janvier','f\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
   const date = now.getDate()+'\u00a0'+mo[now.getMonth()]+'\u00a0'+now.getFullYear();
   const ctId = uid();
   const params = {id:ctId, nom, siret, tarifs, taux, opt3070, garantie, date, created:now_(), status:'non_sign\u00e9'};
@@ -3963,60 +3963,59 @@ function _openContractPreview(coId, params){
 }
 
 async function _downloadContratPDF(ctId){
-  // Chercher les params dans _ctPreview ou dans la fiche
+  // Chercher les params
   let p = window._ctPreview?.params;
   if(!p && ctId){
-    // Chercher dans toutes les fiches
     for(const co of DB.companies){
       const ct=(co.contracts||[]).find(x=>x.id===ctId);
       if(ct){p=ct;break;}
     }
   }
   if(!p){toast('Contrat introuvable','e');return;}
-  toast('G\u00e9n\u00e9ration PDF\u2026','i');
 
-  // CSS dans le HEAD (obligatoire pour html2canvas)
-  const tmpSt = document.createElement('style');
-  tmpSt.id = 'ct-pdf-tmp';
-  tmpSt.textContent = '.ct-pdf-root{background:#fff!important;width:174mm!important;padding:14mm!important;font-family:Georgia,serif!important;font-size:10pt!important;color:#1A1614!important;line-height:1.65!important}' + _contractCSSInner();
-  document.head.appendChild(tmpSt);
-
-  // Element ancré à gauche hors viewport (rendu par le browser, capturé par html2canvas)
-  const wrap = document.createElement('div');
-  wrap.className = 'ct-pdf-root';
-  wrap.style.cssText = 'position:fixed;top:0;left:-200vw;z-index:-9999;visibility:visible;overflow:visible;';
-  wrap.innerHTML = _buildContractBody(p);
-  document.body.appendChild(wrap);
-
-  // Laisser le browser rendre avant de capturer
-  await new Promise(r=>setTimeout(r,300));
-
-  try{
-    const nom = (p.nom||'Client').replace(/\s+/g,'_').slice(0,40);
-    await html2pdf().set({
-      margin:[15,15,18,15],
-      filename:`NOVALEM_Contrat_${nom}.pdf`,
-      image:{type:'jpeg',quality:0.96},
-      html2canvas:{
-        scale:2,useCORS:true,letterRendering:true,logging:false,
-        allowTaint:true,backgroundColor:'#ffffff',
-        onclone:(doc)=>{
-          const el=doc.querySelector('.ct-pdf-root');
-          if(el){el.style.position='relative';el.style.left='0';el.style.top='0';}
-        }
-      },
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-    }).from(wrap).save();
-    toast('PDF t\u00e9l\u00e9charg\u00e9 \u2713','s');
-  }catch(err){
-    console.error('[pdf]',err);
-    toast('Erreur PDF — essayez Ctrl+P dans l\'aper\u00e7u','e');
-  }finally{
-    document.body.removeChild(wrap);
-    const s=document.getElementById('ct-pdf-tmp');
-    if(s)s.remove();
+  // Approche fiable : ouvrir dans une nouvelle fenêtre et déclencher l'impression
+  // L'utilisateur fait Ctrl+P → "Enregistrer en PDF" → résultat parfait
+  const htmlStr = _buildContractHTMLForPrint(p);
+  const blob = new Blob([htmlStr],{type:'text/html;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const w    = window.open(url, '_blank', 'width=900,height=700');
+  if(!w){
+    toast("Autorisez les popups pour télécharger le PDF",'w');
+    URL.revokeObjectURL(url);
+    return;
   }
+  // Déclencher l'impression une fois la page chargée
+  w.addEventListener('load', ()=>{
+    setTimeout(()=>{ w.print(); URL.revokeObjectURL(url); }, 400);
+  });
+  toast('Dans la fenêtre : Ctrl+P → Enregistrer en PDF','i');
 }
+
+// Version avec bouton "Imprimer / Sauvegarder PDF" intégrée dans la page
+function _buildContractHTMLForPrint(p){
+  const body = _buildContractBody(p);
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Contrat NOVALEM — ${esc(p.nom||'')}</title>
+<style>
+@page{size:A4;margin:18mm 16mm 20mm 16mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,"Times New Roman",serif;font-size:10pt;color:#1A1614;background:#fff;line-height:1.65}
+.wrap{max-width:178mm;margin:0 auto;padding:10mm 0}
+.no-print{display:flex;gap:10px;justify-content:center;padding:14px;background:#f5f5f5;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:99}
+.no-print button{padding:9px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:sans-serif}
+.btn-save{background:#C9891A;color:#fff}
+.btn-close{background:#e5e5e5;color:#333}
+@media print{.no-print{display:none!important}.wrap{max-width:100%;padding:0}}
+${_contractCSSInner()}
+</style></head><body>
+<div class="no-print">
+  <button class="btn-save" onclick="window.print()">⬇ Enregistrer en PDF (Ctrl+P)</button>
+  <button class="btn-close" onclick="window.close()">× Fermer</button>
+</div>
+<div class="wrap">${body}</div>
+</body></html>`;
+}
+
 
 function _contractCSSInner(){
   return `*{box-sizing:border-box}
@@ -4145,12 +4144,12 @@ function _sendContratFromPreview(coId, ctId){
   // 1. Fermer l'overlay
   const ov = document.getElementById('ct-preview-ov');
   if(ov) ov.remove();
-  URL.revokeObjectURL(window._ctPreview?.blobUrl||'');
+  try{ URL.revokeObjectURL(window._ctPreview?.blobUrl||''); }catch(e){}
 
   // 2. Récupérer le contrat et les infos client
   const co = coById(coId);
   const ct = (co?.contracts||[]).find(x=>x.id===ctId);
-  if(!ct){ toast('Contrat introuvable','e'); return; }
+  if(!ct){ toast('Contrat introuvable — rechargez et réessayez','e'); return; }
 
   // 3. Construire le mail de présentation du contrat
   const tNc = `${ct.tarifs?.nc1||12} % / ${ct.tarifs?.nc2||13.5} % / ${ct.tarifs?.nc3||15} %`;
@@ -4190,20 +4189,26 @@ contact@novalem-recrutement.fr
 06 58 21 20 96
 novalem-recrutement.fr`;
 
-  // 4. Marquer "en attente de signature" dans la timeline
+  // 4. Timeline + save
   if(co){
-    addTimeline(coId, 'contrat', `Contrat cadre envoyé — en attente de signature`);
+    addTimeline(coId, 'contrat', 'Contrat cadre envoyé — en attente de signature');
     save();
   }
 
-  // 5. Ouvrir le module email pré-rempli + aller sur l'onglet Contrats
+  // 5. Naviguer vers emails avec EM pré-chargé
+  // Fermer le panel d'abord pour éviter la confusion visuelle
+  closePanel();
+  
+  // Charger EM immédiatement
+  window.EM = {to: co.email||'', subject, body, candId:null, coId, tplKey:null};
+  
+  // Petit délai pour laisser le panel se fermer, puis ouvrir emails
   setTimeout(()=>{
-    UI.ptab = 4;
-    openCoPanel(coId);
-    setTimeout(()=>openEmailWith({to: co.email||'', subject, body, coId}), 200);
-  }, 80);
+    go('emails');
+    // rEmails() va être appelé par go() et lira EM automatiquement
+  }, 120);
 
-  toast('Email pré-rempli — téléchargez le PDF et joignez-le','i');
+  toast('Email de contrat préparé — joignez le PDF téléchargé', 'i');
 }
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
@@ -4328,7 +4333,6 @@ function openCoPanel(id){
  <div>${renderTimeline(id)}</div>`,
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
- ,
     // 4 CONTRATS
     renderCoContrats(id),
     ];
@@ -5778,6 +5782,12 @@ Novalem — Cabinet de recrutement`
 Cordialement,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
+  },
+  contrat:{
+    label:'Envoi contrat cadre',
+    to:(co)=>co?.email||'',
+    subject:(co)=>`Contrat cadre de recrutement NOVALEM — ${co?.name||''}`,
+    body:(co,nom,tel)=>`Bonjour,\n\nSuite à notre échange, je vous transmets le contrat cadre de recrutement NOVALEM en pièce jointe.\n\nCe contrat définit les conditions de notre collaboration pour vos recrutements CDI dans le secteur du BTP. Nos honoraires sont calculés en pourcentage du salaire brut annuel convenu et ne sont dus qu'en cas d'intégration effective du candidat — aucun frais si le recrutement n'aboutit pas.\n\nPour démarrer, merci de bien vouloir :\n1. Signer le contrat et me le retourner (signature + cachet si disponible)\n2. Me préciser le(s) profil(s) que vous recherchez actuellement\n\nDès réception, je lance les recherches et vous présente des candidats qualifiés sous 10 jours ouvrés.\n\nJe reste disponible pour toute question.\n\nCordialement,\n${nom||'Louis RENAULT'}${tel?'\n'+tel:''}\nNOVALEM — Cabinet de recrutement BTP\ncontact@novalem-recrutement.fr\nnovalem-recrutement.fr`
   }
 };
 
