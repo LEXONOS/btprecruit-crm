@@ -4186,6 +4186,10 @@ contact@novalem-recrutement.fr`;
   if(co){ addTimeline(coId,'contrat','Proposition professionnelle envoy\u00e9e \u2014 en attente de signature'); save(); }
 
   // Assigner directement les variables let (PAS window.XXX)
+  // Avertir si l'email du client est absent dans la fiche
+  if(!co.email){
+    toast('⚠️ Email du client non renseigné dans la fiche — ajoutez-le avant d\'envoyer','w');
+  }
   EM = { to: co.email||'', subject, body, candId:null, coId, tplKey:'contrat' };
   EM_VIEW = 'compose';
   EM_RECIPIENTS = co.email ? [{
@@ -4242,7 +4246,8 @@ async function _genContractBase64(ct){
       reader.readAsDataURL(blob);
     });
   }catch(e){
-    console.error('[_genContractBase64]',e);
+    console.error('[_genContractBase64] ERREUR:', e.message||e);
+    toast('PDF non généré (' + (e.message||'erreur') + ') — joignez-le manuellement','w');
     return null;
   }
 }
@@ -6548,17 +6553,46 @@ function emToInput(val){
 
 // ── Envoi ─────────────────────────────────────────────
 async function emSend(){
-  // Construire les destinataires depuis les chips + input libre
-  const inputVal = (document.getElementById('em-to-input')?.value||'').trim();
-  if(inputVal && inputVal.includes('@') && !(EM_RECIPIENTS||[]).find(r=>r.email===inputVal)){
-    (EM_RECIPIENTS = EM_RECIPIENTS||[]).push({email:inputVal,name:inputVal,type:'email',entityId:null});
+  // ── Collecter les destinataires depuis toutes les sources ──────
+  // Source 1 : chips (EM_RECIPIENTS)
+  // Source 2 : input libre (em-to-input)
+  // Source 3 : EM.to (fallback)
+  const inputRaw  = (document.getElementById('em-to-input')?.value||'').trim();
+
+  // Ajouter l'input à EM_RECIPIENTS s'il contient un email valide non présent
+  if(inputRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputRaw)){
+    if(!(EM_RECIPIENTS||[]).find(r=>r.email===inputRaw)){
+      (EM_RECIPIENTS = EM_RECIPIENTS||[]).push({email:inputRaw, name:inputRaw, type:'email', entityId:null});
+      _emRenderChips();
+      document.getElementById('em-to-input').value='';
+    }
   }
-  const toList = (EM_RECIPIENTS||[]).map(r=>r.email).filter(Boolean);
-  const to = toList.join(',') || (document.getElementById('em-to-input')?.value||EM.to||'').trim();
-  const cc=(document.getElementById('em-cc')?.value||'').trim();
-  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
-  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
-  if(!to){toast('Destinataire manquant','e');document.getElementById('em-to')?.focus();return;}
+
+  // Construire la liste finale — valider chaque email
+  const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  let recipients = (EM_RECIPIENTS||[]).map(r=>r.email).filter(e=>e&&emailRx.test(e));
+
+  // Fallback si chips vides : tenter l'input ou EM.to
+  if(!recipients.length){
+    const fallback = inputRaw || EM.to || '';
+    if(fallback && emailRx.test(fallback)) recipients = [fallback];
+  }
+
+  if(!recipients.length){
+    toast('Destinataire manquant ou invalide — vérifiez l\'email du client','e');
+    document.getElementById('em-to-input')?.focus();
+    return;
+  }
+
+  // 'to' = premier destinataire (Resend), les autres en CC si multi
+  const to    = recipients[0];
+  const ccExtra = recipients.slice(1).join(',');
+  const ccRaw = (document.getElementById('em-cc')?.value||'').trim();
+  const cc    = [ccRaw, ccExtra].filter(Boolean).join(',');
+  const bcc   = (document.getElementById('em-bcc')?.value||'').trim();
+  const sub   = (document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body  = (document.getElementById('em-body')?.value||EM.body||'').trim();
+
   if(!sub){toast('Objet manquant','e');document.getElementById('em-sub')?.focus();return;}
   const stEl=document.getElementById('em-status');
   const btn=document.getElementById('em-send-btn');
@@ -6569,7 +6603,7 @@ async function emSend(){
   if(!apiBase){emOpenMailClient();if(btn){btn.disabled=false;btn.textContent='Envoyer';}setStatus('');return;}
   try{
     const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-          to, cc,
+          to, cc, bcc,
           subject: sub,
           body,
           ...(window._pendingAttachment ? { attachments:[window._pendingAttachment] } : {})
