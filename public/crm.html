@@ -37,6 +37,7 @@
  /* Legacy compat */
  --ac2:var(--green);--ac3:var(--red);--ac4:var(--orange);--ac5:var(--blue);--ac6:var(--purple);
  --ac2:var(--green);--green:var(--green);
+  --gold:#c8e040;--gold-bd:rgba(200,224,64,.3);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px;-webkit-font-smoothing:antialiased}
@@ -761,6 +762,25 @@ select option{background:var(--s2)}
  <span id="tz-diff" style="font-size:9px;color:var(--mu)"></span>
 </div>
 <div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">· Local</div>
+ <!-- User badge -->
+ <div id="user-badge" onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:7px;margin-left:10px;padding:4px 10px 4px 6px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;cursor:pointer;transition:all .15s;flex-shrink:0;user-select:none" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd2)'">
+  <div id="user-avatar" style="width:22px;height:22px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0a0a08;flex-shrink:0;font-family:'Syne',sans-serif">?</div>
+  <span id="user-badge-name" style="font-size:11px;color:var(--tx);font-weight:600">—</span>
+  <span style="font-size:9px;color:var(--mu)">▾</span>
+ </div>
+ <!-- User menu dropdown -->
+ <div id="user-menu" style="display:none;position:fixed;top:52px;right:16px;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r2);min-width:180px;box-shadow:var(--sh3);z-index:100;overflow:hidden">
+  <div style="padding:12px 14px;border-bottom:1px solid var(--bd)">
+   <div id="um-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:2px">—</div>
+   <div id="um-role" style="font-size:10px;color:var(--mu)"></div>
+  </div>
+  <div style="padding:6px">
+   <div onclick="closeUserMenu();go('reporting')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'"> Reporting</div>
+   <div onclick="closeUserMenu();openSettings()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'"> Paramètres</div>
+   <div style="height:1px;background:var(--bd);margin:4px 0"></div>
+   <div onclick="logout()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--red)" onmouseover="this.style.background='var(--red-dim)'" onmouseout="this.style.background=''"> Déconnexion</div>
+  </div>
+ </div>
  </div>
  <div id="content">
  <div class="view active" id="view-dash"></div>
@@ -932,7 +952,24 @@ let _syncTimer=null;
 function syncToSupabase(){
  // Debounce: wait 800ms of inactivity before syncing
  clearTimeout(_syncTimer);
- _syncTimer=setTimeout
+ _syncTimer=setTimeout(async()=>{
+  const sb=getSB();
+  if(!sb)return;
+  try{
+    const payload=JSON.stringify(DB);
+    const userId=(currentUserId()==='corentin'?2:1);
+    const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
+    if(error)throw error;
+    const ind=document.getElementById('sync-ind');
+    if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='· Cloud ✓';ind.style.color='var(--green)';}
+  }catch(e){
+    const ind=document.getElementById('sync-ind');
+    if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+e.message;}
+    console.warn('Supabase sync error:',e);
+  }
+ },800);
+}
+
 // ══════════════════════════════════════════════════════════════════
 // NOVALEM THEME ENGINE
 // ══════════════════════════════════════════════════════════════════
@@ -1255,26 +1292,9 @@ function openDocPreview(candId,docId){
   document.head.appendChild(st);
 })();
 
-(async()=>{
-  loadTheme();
-  setInterval(_tickClocks,1000);_tickClocks(); // Appliquer le thème avant tout rendu
- const sb=getSB();
- if(!sb)return;
- try{
- const payload=JSON.stringify(DB);
- const userId=(currentUserId()==='corentin'?2:1);
-      const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
- if(error)throw error;
- // Update sync indicator
- const ind=document.getElementById('sync-ind');
- if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='· Cloud ✓';ind.style.color='var(--green)';}
- }catch(e){
- const ind=document.getElementById('sync-ind');
- if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+e.message;}
- console.warn('Supabase sync error:',e);
- }
- },800);
-}
+// Theme + clocks init (runs immediately on script parse)
+loadTheme();
+setInterval(_tickClocks,1000);_tickClocks();
 
 // ── save() = localStorage immédiat + Supabase en arrière-plan
 function save(){
@@ -6660,6 +6680,7 @@ function renderRep(){
  await load(); // localStorage immédiat + Supabase en arrière-plan
  rDash();
  badges();
+ initUserBadge();
  // Show cloud status in indicator
  const sb=getSB();
  const ind=document.getElementById('sync-ind');
