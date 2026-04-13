@@ -164,7 +164,13 @@ const API = 'https://novalem-crm.vercel.app';
 const q = new URLSearchParams(location.search);
 const CO_ID = q.get('co'), CT_ID = q.get('ct'), TOKEN = q.get('t');
 const CO_NAME = decodeURIComponent(q.get('n')||'');
-let CT; try{CT=JSON.parse(atob(q.get('d')||''));}catch(_){CT=null;}
+let CT;
+try{
+  // URLSearchParams.get() décode déjà le %XX, on récupère la base64 pure
+  // decodeURIComponent(escape()) gère les chars non-ASCII (accents)
+  const _d = q.get('d')||'';
+  CT = _d ? JSON.parse(decodeURIComponent(escape(atob(_d)))) : null;
+}catch(_){ CT=null; }
 let ok=false;
 
 function show(id){['v-load','v-form','v-ok','v-already','v-err'].forEach(v=>{document.getElementById(v).style.display=v===id?'':'none';});}
