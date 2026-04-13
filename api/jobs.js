@@ -163,7 +163,10 @@ async function handleSignContract(req, res) {
 
   // Envoyer les emails de notification
   const RESEND_KEY   = process.env.RESEND_API_KEY;
-  const NOVALEM_EMAIL = process.env.CRM_USER_EMAIL || 'contact@novalem-recrutement.fr';
+  // Email de notification : toujours contact@novalem (pro), CRM_USER_EMAIL en copie si différent
+  const NOVALEM_EMAIL = 'contact@novalem-recrutement.fr';
+  const EXTRA_NOTIFY  = (process.env.CRM_USER_EMAIL && process.env.CRM_USER_EMAIL !== NOVALEM_EMAIL)
+                       ? process.env.CRM_USER_EMAIL : null;
   const SENDER_EMAIL  = process.env.SENDER_EMAIL   || 'contact@novalem-recrutement.fr';
 
   const dt = new Date(signed_at).toLocaleString('fr-FR', {
@@ -197,7 +200,7 @@ async function handleSignContract(req, res) {
       headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: `NOVALEM CRM <${SENDER_EMAIL}>`,
-        to: [NOVALEM_EMAIL],
+        to: EXTRA_NOTIFY ? [NOVALEM_EMAIL, EXTRA_NOTIFY] : [NOVALEM_EMAIL],
         subject: `✅ Contrat signé — ${co_name || 'Client'} (${ref})`,
         html: htmlNovalem,
       })
