@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 
 /* ═══════════════════════════════════════════════════════
@@ -75,7 +74,7 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);height
 
 /* ── MAIN ──────────────────────────────────────────── */
 #main{display:grid;grid-template-rows:48px 1fr;height:100vh;overflow:hidden;min-width:0}
-.topbar{border-bottom:1px solid var(--bd);padding:0 16px 0 22px;display:flex;align-items:center;gap:8px;background:var(--s1);flex-shrink:0;min-height:46px}
+.topbar{border-bottom:1px solid var(--bd);padding:0 22px;display:flex;align-items:center;gap:12px;background:var(--s1);flex-shrink:0}
 .tbt{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;flex:1;letter-spacing:-.2px}
 .tba{display:flex;gap:6px;align-items:center}
 #content{overflow:auto;padding:20px 22px;background:var(--bg)}
@@ -127,7 +126,7 @@ select option{background:var(--s2)}
 .ff{grid-column:1/-1}
 
 /* ── PANEL ─────────────────────────────────────────── */
-#panel{position:fixed;top:0;right:0;width:520px;height:100vh;background:var(--s1);border-left:1px solid var(--bd);transform:translateX(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:40;display:flex;flex-direction:column}
+#panel{position:fixed;top:0;right:0;width:440px;height:100vh;background:var(--s1);border-left:1px solid var(--bd);transform:translateX(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:40;display:flex;flex-direction:column}
 #panel.open{transform:translateX(0)}
 .ph{padding:14px 18px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;gap:10px;align-items:flex-start}
 .ph-l{flex:1;min-width:0}
@@ -556,6 +555,150 @@ select option{background:var(--s2)}
 .view.active{animation:fadeIn .18s ease}
 
 </style>
+
+<style id="novalem-themes">
+/* ═══════════════════════════════════════════════════════════════
+   NOVALEM THEME ENGINE — 3 thèmes + 5 options modulaires
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── THÈME : PRESTIGE — Brun chaud · Or · Wall Street ────── */
+[data-theme="prestige"]{
+  --bg:#0f0b08;--s1:#17120d;--s2:#1e1710;--s3:#261e14;--s4:#2f251a;
+  --bd:#3a2e22;--bd2:#4a3c2c;--bd3:#5e4e3a;
+  --tx:#f5ede0;--mu:#9a8a72;--mu2:#5a4c38;--mu3:#36281c;
+  --ac:#d4a842;--ac-dim:rgba(212,168,66,.1);--ac-border:rgba(212,168,66,.25);
+  --green:#5a9e6a;--green-dim:rgba(90,158,106,.1);--green-border:rgba(90,158,106,.25);
+  --red:#c05040;--red-dim:rgba(192,80,64,.1);--red-border:rgba(192,80,64,.25);
+  --orange:#d4a842;--orange-dim:rgba(212,168,66,.1);--orange-border:rgba(212,168,66,.25);
+  --blue:#4878b0;--blue-dim:rgba(72,120,176,.1);--blue-border:rgba(72,120,176,.25);
+  --purple:#8050a0;--purple-dim:rgba(128,80,160,.1);--purple-border:rgba(128,80,160,.25);
+  --gold:#d4a842;--gold-bd:rgba(212,168,66,.3);
+  --sh:0 1px 3px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3);
+  --sh2:0 4px 20px rgba(0,0,0,.6),0 1px 4px rgba(0,0,0,.4);
+  --sh3:0 8px 40px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.5);
+  --r:3px;--r2:4px;--r3:6px;--r4:10px;
+  --tr:.25s ease;
+  --ac2:var(--green);--ac3:var(--red);--ac4:var(--orange);--ac5:var(--blue);--ac6:var(--purple);
+}
+[data-theme="prestige"] .btn.bp{
+  background:linear-gradient(135deg,#c9891a,#d4a842);
+  border-color:#d4a842;box-shadow:0 2px 8px rgba(212,168,66,.3);
+}
+[data-theme="prestige"] .kpi{border-left:3px solid var(--ac);border-radius:var(--r);}
+[data-theme="prestige"] .mo-inner{border:1px solid var(--bd2);border-top:3px solid var(--ac);}
+[data-theme="prestige"] body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size:200px;opacity:.6;
+}
+
+/* ─── THÈME : MATRIX — Noir pur · Vert néon · Cyberpunk ────── */
+[data-theme="matrix"]{
+  --bg:#000000;--s1:#020a02;--s2:#040f04;--s3:#071407;--s4:#0a1a0a;
+  --bd:#0f2a0f;--bd2:#143a14;--bd3:#1a5020;
+  --tx:#a0ffb0;--mu:#4a8a54;--mu2:#1e4020;--mu3:#0f2010;
+  --ac:#00ff88;--ac-dim:rgba(0,255,136,.07);--ac-border:rgba(0,255,136,.2);
+  --green:#00ff88;--green-dim:rgba(0,255,136,.07);--green-border:rgba(0,255,136,.2);
+  --red:#ff3a3a;--red-dim:rgba(255,58,58,.08);--red-border:rgba(255,58,58,.2);
+  --orange:#ffaa00;--orange-dim:rgba(255,170,0,.08);--orange-border:rgba(255,170,0,.2);
+  --blue:#00ccff;--blue-dim:rgba(0,204,255,.07);--blue-border:rgba(0,204,255,.2);
+  --purple:#aa44ff;--purple-dim:rgba(170,68,255,.07);--purple-border:rgba(170,68,255,.2);
+  --gold:#00ff88;--gold-bd:rgba(0,255,136,.25);
+  --sh:0 0 0 1px rgba(0,255,136,.08),0 2px 8px rgba(0,0,0,.9);
+  --sh2:0 0 20px rgba(0,255,136,.1),0 4px 16px rgba(0,0,0,1);
+  --sh3:0 0 40px rgba(0,255,136,.15),0 8px 32px rgba(0,0,0,1);
+  --r:3px;--r2:4px;--r3:6px;--r4:10px;
+  --tr:.15s linear;
+  --ac2:var(--green);--ac3:var(--red);--ac4:var(--orange);--ac5:var(--blue);--ac6:var(--purple);
+}
+[data-theme="matrix"] .btn.bp{
+  background:transparent;color:var(--ac);
+  border:1px solid rgba(0,255,136,.5);
+  box-shadow:0 0 12px rgba(0,255,136,.2);
+  letter-spacing:.08em;
+}
+[data-theme="matrix"] .btn.bp:hover{box-shadow:0 0 24px rgba(0,255,136,.4);}
+[data-theme="matrix"] .kpi{border:1px solid var(--ac-border);box-shadow:var(--sh);}
+[data-theme="matrix"] .kpi-v{text-shadow:0 0 16px currentColor;}
+[data-theme="matrix"] .mo-inner{border:1px solid var(--ac-border);box-shadow:0 0 40px rgba(0,255,136,.15);}
+[data-theme="matrix"] .tbt{font-family:'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac);text-shadow:0 0 10px rgba(0,255,136,.4);}
+[data-theme="matrix"] body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,.012) 2px,rgba(0,255,136,.012) 4px);
+  animation:scanlines 8s linear infinite;
+}
+@keyframes scanlines{0%{background-position:0 0}100%{background-position:0 100px}}
+
+/* ─── THÈME : AURORA — Indigo · Violet · SaaS Premium ─────── */
+[data-theme="aurora"]{
+  --bg:#0a0814;--s1:#0f0c1e;--s2:#151128;--s3:#1c1535;--s4:#231b42;
+  --bd:#2d2458;--bd2:#3d3278;--bd3:#5040a0;
+  --tx:#ede8ff;--mu:#8878c8;--mu2:#3a3060;--mu3:#201a40;
+  --ac:#7c3aed;--ac-dim:rgba(124,58,237,.1);--ac-border:rgba(124,58,237,.3);
+  --green:#06d6a0;--green-dim:rgba(6,214,160,.08);--green-border:rgba(6,214,160,.25);
+  --red:#ff4d6d;--red-dim:rgba(255,77,109,.08);--red-border:rgba(255,77,109,.25);
+  --orange:#ff9f1c;--orange-dim:rgba(255,159,28,.08);--orange-border:rgba(255,159,28,.25);
+  --blue:#60a5fa;--blue-dim:rgba(96,165,250,.08);--blue-border:rgba(96,165,250,.25);
+  --purple:#a855f7;--purple-dim:rgba(168,85,247,.08);--purple-border:rgba(168,85,247,.25);
+  --gold:#a855f7;--gold-bd:rgba(168,85,247,.3);
+  --sh:0 2px 8px rgba(124,58,237,.15),0 1px 3px rgba(0,0,0,.5);
+  --sh2:0 4px 20px rgba(124,58,237,.2),0 2px 8px rgba(0,0,0,.6);
+  --sh3:0 8px 40px rgba(124,58,237,.3),0 4px 16px rgba(0,0,0,.7);
+  --r:8px;--r2:12px;--r3:16px;--r4:24px;
+  --tr:.2s cubic-bezier(.4,0,.2,1);
+  --ac2:var(--green);--ac3:var(--red);--ac4:var(--orange);--ac5:var(--blue);--ac6:var(--purple);
+}
+[data-theme="aurora"] .btn.bp{
+  background:linear-gradient(135deg,#7c3aed,#a855f7);border-color:#7c3aed;
+  box-shadow:0 4px 16px rgba(124,58,237,.4);
+}
+[data-theme="aurora"] .btn.bp:hover{box-shadow:0 6px 24px rgba(124,58,237,.6);transform:translateY(-1px);}
+[data-theme="aurora"] .kpi{border:1px solid rgba(124,58,237,.2);background:linear-gradient(135deg,var(--s2),rgba(124,58,237,.05));}
+[data-theme="aurora"] .kpi-v{background:linear-gradient(135deg,#7c3aed,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+[data-theme="aurora"] .mo-inner{border:1px solid rgba(124,58,237,.2);box-shadow:0 24px 64px rgba(0,0,0,.8),0 0 80px rgba(124,58,237,.1);}
+[data-theme="aurora"] body::before{
+  content:'';position:fixed;top:-20%;left:-10%;width:60%;height:50%;
+  background:radial-gradient(ellipse,rgba(124,58,237,.08) 0%,transparent 70%);
+  pointer-events:none;z-index:0;animation:auroraGlow 8s ease-in-out infinite alternate;
+}
+@keyframes auroraGlow{from{opacity:.6;transform:scale(1)}to{opacity:1;transform:scale(1.1)}}
+
+/* ─── OPTIONS MODULAIRES ─────────────────────────────────────── */
+[data-radius="pill"]{--r:100px;--r2:100px;--r3:100px;--r4:100px;}
+[data-radius="sharp"]{--r:2px;--r2:3px;--r3:4px;--r4:6px;}
+[data-radius="soft"]{--r:6px;--r2:10px;--r3:14px;--r4:22px;}
+[data-radius="pill"] .btn,[data-radius="pill"] .pill,[data-radius="pill"] .nbadge{border-radius:100px !important;}
+[data-radius="sharp"] .btn{border-radius:2px !important;}
+
+[data-anim="instant"] *{transition:none !important;animation-duration:0s !important;}
+[data-anim="slow"]{--tr:.5s cubic-bezier(.4,0,.2,1);}
+[data-anim="bouncy"]{--tr:.3s cubic-bezier(.34,1.56,.64,1);}
+[data-anim="bouncy"] .btn:hover{transform:translateY(-2px) scale(1.02);}
+[data-anim="bouncy"] .kpi:hover{transform:translateY(-3px) scale(1.01);}
+[data-anim="bouncy"] .mo-inner{animation:modalBounce .25s cubic-bezier(.34,1.56,.64,1);}
+@keyframes modalBounce{from{transform:scale(.88) translateY(16px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+
+[data-sidebar="compact"] #sb{width:52px;}
+[data-sidebar="compact"] .lo,[data-sidebar="compact"] .nav-sec,[data-sidebar="compact"] .nav-settings,[data-sidebar="compact"] .nf{display:none;}
+[data-sidebar="compact"] #main{margin-left:52px;}
+[data-sidebar="compact"] .ni{justify-content:center;padding:8px 4px;}
+[data-sidebar="compact"] .ni-ico{margin:0;font-size:16px;}
+[data-sidebar="compact"] .ni > span:last-child{display:none;}
+[data-sidebar="wide"] #sb{width:220px;}
+[data-sidebar="wide"] #main{margin-left:220px;}
+
+[data-density="compact"] .kpi{padding:10px 14px;}
+[data-density="compact"] .ni{padding:6px 14px;font-size:11px;}
+[data-density="comfortable"] .kpi{padding:22px 24px;}
+[data-density="comfortable"] .ni{padding:12px 18px;}
+
+[data-accent="gold"]{--ac:#C9891A;--ac-dim:rgba(201,137,26,.1);--ac-border:rgba(201,137,26,.25);--gold:#C9891A;--gold-bd:rgba(201,137,26,.3);}
+[data-accent="blue"]{--ac:#4a84e2;--ac-dim:rgba(74,132,226,.08);--ac-border:rgba(74,132,226,.2);--gold:#4a84e2;--gold-bd:rgba(74,132,226,.3);}
+[data-accent="green"]{--ac:#2dd4a0;--ac-dim:rgba(45,212,160,.08);--ac-border:rgba(45,212,160,.2);--gold:#2dd4a0;--gold-bd:rgba(45,212,160,.3);}
+[data-accent="red"]{--ac:#f04b4b;--ac-dim:rgba(240,75,75,.08);--ac-border:rgba(240,75,75,.2);--gold:#f04b4b;--gold-bd:rgba(240,75,75,.3);}
+[data-accent="purple"]{--ac:#9048e0;--ac-dim:rgba(144,72,224,.08);--ac-border:rgba(144,72,224,.2);--gold:#9048e0;--gold-bd:rgba(144,72,224,.3);}
+
+</style>
 </head>
 <body>
 <script>
@@ -606,19 +749,18 @@ select option{background:var(--s2)}
  <div class="topbar">
  <div class="tbt" id="tbt">Dashboard</div>
  <div class="tba" id="tba"></div>
- <!-- Horloges duales : France | Guadeloupe (Louis uniquement) -->
- <div id="dual-clocks" style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0">
-   <div style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:default" title="Heure en France métropolitaine">
-     <span style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">🇫🇷 France</span>
-     <span id="clock-fr" style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--tx)">--:--</span>
-   </div>
-   <div style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--gold-bd,rgba(200,144,10,.3));border-radius:6px;padding:4px 10px;cursor:default" title="Votre heure locale — Guadeloupe">
-     <span style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em">🌴 Gwada</span>
-     <span id="clock-gwada" style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--gold)">--:--</span>
-   </div>
-   <div style="font-size:9px;color:var(--mu);white-space:nowrap" id="tz-diff"></div>
+ <div id="dual-clocks" style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0">
+ <div style="display:flex;align-items:center;gap:5px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:3px 9px" title="Heure France">
+ <span style="font-size:9px;color:var(--mu)">🇫🇷</span>
+ <span id="clock-fr" style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--tx)">--:--</span>
  </div>
- <div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">· Local</div>
+ <div style="display:flex;align-items:center;gap:5px;background:var(--s3);border:1px solid rgba(200,144,10,.3);border-radius:6px;padding:3px 9px" title="Votre heure — Guadeloupe">
+ <span style="font-size:9px;color:var(--gold)">🌴</span>
+ <span id="clock-gwada" style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--gold)">--:--</span>
+ </div>
+ <span id="tz-diff" style="font-size:9px;color:var(--mu)"></span>
+</div>
+<div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">· Local</div>
  </div>
  <div id="content">
  <div class="view active" id="view-dash"></div>
@@ -790,7 +932,332 @@ let _syncTimer=null;
 function syncToSupabase(){
  // Debounce: wait 800ms of inactivity before syncing
  clearTimeout(_syncTimer);
- _syncTimer=setTimeout(async()=>{
+ _syncTimer=setTimeout
+// ══════════════════════════════════════════════════════════════════
+// NOVALEM THEME ENGINE
+// ══════════════════════════════════════════════════════════════════
+
+const NOVALEM_THEMES = {
+  orbital: {
+    id:'orbital', name:'Orbital', desc:"Sombre et précis. L'identité NOVALEM.",
+    preview:['#09090a','#c8e040','#f0f0ec'],
+  },
+  prestige: {
+    id:'prestige', name:'Prestige', desc:"Chaleur du bois, rigueur de l'or. Wall Street.",
+    preview:['#0f0b08','#d4a842','#f5ede0'],
+  },
+  matrix: {
+    id:'matrix', name:'Matrix', desc:'Néon vert sur noir absolu. Cyberpunk.',
+    preview:['#000000','#00ff88','#a0ffb0'],
+  },
+  aurora: {
+    id:'aurora', name:'Aurora', desc:'Indigo profond, violet glacé. SaaS premium.',
+    preview:['#0a0814','#7c3aed','#e0d7ff'],
+  },
+};
+
+const NOVALEM_OPTIONS = {
+  accent:{
+    label:'Couleur accent', icon:'🎨',
+    options:[
+      {val:'',label:'Défaut',color:'var(--ac)'},
+      {val:'gold',label:'Or',color:'#C9891A'},
+      {val:'blue',label:'Bleu',color:'#4a84e2'},
+      {val:'green',label:'Vert',color:'#2dd4a0'},
+      {val:'red',label:'Rouge',color:'#f04b4b'},
+      {val:'purple',label:'Violet',color:'#9048e0'},
+    ],
+  },
+  radius:{
+    label:'Bords', icon:'⬡',
+    options:[
+      {val:'',label:'Normal',preview:'8px'},
+      {val:'pill',label:'Arrondi',preview:'99px'},
+      {val:'sharp',label:'Carré',preview:'2px'},
+      {val:'soft',label:'Doux',preview:'14px'},
+    ],
+  },
+  anim:{
+    label:'Animations', icon:'⚡',
+    options:[
+      {val:'',label:'Fluides',desc:'Élégant'},
+      {val:'bouncy',label:'Rebonds',desc:'Vif'},
+      {val:'slow',label:'Lentes',desc:'Zen'},
+      {val:'instant',label:'Aucune',desc:'Instantané'},
+    ],
+  },
+  sidebar:{
+    label:'Sidebar', icon:'◧',
+    options:[
+      {val:'',label:'Normal',desc:'160px'},
+      {val:'compact',label:'Compacte',desc:'Icônes'},
+      {val:'wide',label:'Large',desc:'220px'},
+    ],
+  },
+  density:{
+    label:'Densité', icon:'⊞',
+    options:[
+      {val:'',label:'Normal',desc:'Équilibré'},
+      {val:'compact',label:'Dense',desc:'+infos'},
+      {val:'comfortable',label:'Aéré',desc:'Confort'},
+    ],
+  },
+};
+
+function getCurrentThemeId(){
+  return localStorage.getItem(uKey('novalem_theme'))||'';
+}
+function getCurrentOpts(){
+  try{return JSON.parse(localStorage.getItem(uKey('novalem_opts'))||'{}');}catch(_){return {};}
+}
+function _applyTheme(themeId,opts={},save=true){
+  const html=document.documentElement;
+  if(themeId)html.setAttribute('data-theme',themeId);
+  else html.removeAttribute('data-theme');
+  ['accent','radius','anim','sidebar','density'].forEach(k=>{
+    if(opts[k])html.setAttribute(`data-${k}`,opts[k]);
+    else html.removeAttribute(`data-${k}`);
+  });
+  if(save){
+    localStorage.setItem(uKey('novalem_theme'),themeId||'');
+    localStorage.setItem(uKey('novalem_opts'),JSON.stringify(opts));
+  }
+}
+function loadTheme(){
+  _applyTheme(getCurrentThemeId(),getCurrentOpts(),false);
+}
+function _previewTheme(id){
+  const opts=getCurrentOpts();
+  const themeId=id==='orbital'?'':id;
+  _applyTheme(themeId,opts,true);
+  Object.values(NOVALEM_THEMES).forEach(t=>{
+    const el=document.getElementById(`tp-${t.id}`);
+    const isActive=t.id===(id||'orbital');
+    if(el){
+      el.style.borderColor=isActive?'var(--ac)':'var(--bd)';
+      el.style.background=isActive?'var(--ac-dim)':'var(--s3)';
+    }
+  });
+}
+function _toggleOpt(key,val){
+  const opts=getCurrentOpts();
+  const themeId=getCurrentThemeId();
+  if(opts[key]===val)delete opts[key];
+  else opts[key]=val;
+  _applyTheme(themeId,opts,true);
+  const allBtns=document.querySelectorAll(`[id^="opt-${key}-"]`);
+  allBtns.forEach(btn=>{
+    const isActive=btn.id===`opt-${key}-${val||'default'}`&&(opts[key]===val||(val===''&&!opts[key]));
+    btn.style.borderColor=isActive?'var(--ac)':'var(--bd)';
+    btn.style.background=isActive?'var(--ac-dim)':'var(--s3)';
+    btn.style.color=isActive?'var(--ac)':'var(--mu)';
+    btn.style.fontWeight=isActive?'700':'400';
+  });
+}
+function _resetTheme(){
+  _applyTheme('',{},true);
+  closeMo();
+  toast('Style réinitialisé ✓','i');
+}
+
+function openStylePanel(){
+  const currentTheme=getCurrentThemeId();
+  const currentOpts=getCurrentOpts();
+  const themes=Object.values(NOVALEM_THEMES);
+
+  const miniSvg=(t)=>{
+    const [bg,ac,tx]=t.preview;
+    return `<svg width="100%" height="40" viewBox="0 0 110 40" xmlns="http://www.w3.org/2000/svg">
+      <rect width="110" height="40" fill="${bg}"/>
+      <rect x="0" y="0" width="24" height="40" fill="${bg}" opacity=".7"/>
+      <rect x="4" y="7" width="14" height="2.5" rx="1.2" fill="${ac}" opacity=".9"/>
+      <rect x="4" y="13" width="11" height="1.5" rx=".7" fill="${tx}" opacity=".3"/>
+      <rect x="4" y="17" width="13" height="1.5" rx=".7" fill="${tx}" opacity=".2"/>
+      <rect x="28" y="0" width="82" height="8" fill="${bg}" opacity=".5"/>
+      <rect x="32" y="11" width="22" height="12" rx="2" fill="${bg}" opacity=".5" stroke="${ac}" stroke-width=".4" stroke-opacity=".5"/>
+      <rect x="58" y="11" width="22" height="12" rx="2" fill="${bg}" opacity=".5" stroke="${ac}" stroke-width=".4" stroke-opacity=".35"/>
+      <rect x="84" y="11" width="22" height="12" rx="2" fill="${bg}" opacity=".5" stroke="${ac}" stroke-width=".4" stroke-opacity=".2"/>
+      <rect x="36" y="16" width="9" height="3" rx="1" fill="${ac}" opacity=".9"/>
+      <rect x="62" y="16" width="9" height="3" rx="1" fill="${ac}" opacity=".65"/>
+      <rect x="88" y="16" width="9" height="3" rx="1" fill="${ac}" opacity=".4"/>
+      <rect x="32" y="28" width="70" height="2" rx="1" fill="${tx}" opacity=".2"/>
+      <rect x="32" y="33" width="50" height="2" rx="1" fill="${tx}" opacity=".12"/>
+      <rect x="87" y="28" width="19" height="6" rx="3" fill="${ac}" opacity=".7"/>
+    </svg>`;
+  };
+
+  const themesGrid=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px">
+    ${themes.map(t=>{
+      const isActive=(currentTheme===t.id)||(t.id==='orbital'&&!currentTheme);
+      return `<div onclick="_previewTheme('${t.id}')" id="tp-${t.id}" style="
+        cursor:pointer;border-radius:var(--r3);overflow:hidden;
+        border:2px solid ${isActive?'var(--ac)':'var(--bd)'};
+        background:${isActive?'var(--ac-dim)':'var(--s3)'};
+        box-shadow:${isActive?'0 0 0 1px var(--ac-border),var(--sh)':'var(--sh)'};
+        transition:all .2s">
+        <div style="line-height:0;overflow:hidden">${miniSvg(t)}</div>
+        <div style="padding:7px 9px;border-top:1px solid var(--bd)">
+          <div style="font-size:11px;font-weight:800;color:${isActive?'var(--ac)':'var(--tx)'}">
+            ${t.name}${isActive?` <span style="font-size:9px;opacity:.6">✓</span>`:''}
+          </div>
+          <div style="font-size:9px;color:var(--mu);margin-top:2px;line-height:1.4">${t.desc}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  const optsHtml=Object.entries(NOVALEM_OPTIONS).map(([key,opt])=>{
+    const current=currentOpts[key]||'';
+    return `<div>
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);margin-bottom:7px">${opt.icon} ${opt.label}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${opt.options.map(o=>{
+          const active=current===o.val;
+          let pre='';
+          if(key==='accent'&&o.color)pre=`<span style="width:7px;height:7px;border-radius:50%;background:${o.color};display:inline-block;box-shadow:0 0 4px ${o.color}50"></span>`;
+          if(key==='radius'&&o.preview)pre=`<span style="width:12px;height:8px;border:1.5px solid currentColor;border-radius:${o.preview};display:inline-block"></span>`;
+          return `<button onclick="_toggleOpt('${key}','${o.val}')" id="opt-${key}-${o.val||'default'}" style="
+            display:inline-flex;align-items:center;gap:4px;
+            padding:4px 10px;font-size:11px;font-family:inherit;cursor:pointer;
+            border-radius:var(--r2);border:1.5px solid ${active?'var(--ac)':'var(--bd)'};
+            background:${active?'var(--ac-dim)':'var(--s3)'};
+            color:${active?'var(--ac)':'var(--mu)'};font-weight:${active?'700':'400'};
+            transition:all .15s">${pre}${o.label}${o.desc?`<span style="font-size:9px;opacity:.55">${o.desc}</span>`:''}</button>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('<div style="height:1px;background:var(--bd3);opacity:.4;margin:2px 0"></div>');
+
+  openMo('🎨 Apparence & Style',`
+  <div style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:13px;font-weight:800;color:var(--tx)">Personnalisation du CRM</div>
+        <div style="font-size:10px;color:var(--mu);margin-top:2px">Modifications appliquées en temps réel</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);padding:3px 9px;border-radius:100px">
+        <div style="width:5px;height:5px;border-radius:50%;background:var(--green)"></div>
+        Live
+      </div>
+    </div>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);margin-bottom:10px">🎭 Thème principal</div>
+    ${themesGrid}
+    <div style="height:1px;background:var(--bd);margin:16px 0"></div>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);margin-bottom:12px">⚙ Personnalisation</div>
+    <div style="display:flex;flex-direction:column;gap:12px">${optsHtml}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:1px solid var(--bd)">
+      <button onclick="_resetTheme()" style="font-size:11px;color:var(--mu);background:transparent;border:1px solid var(--bd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--mu)'">↺ Défaut</button>
+      <div style="font-size:9px;color:var(--mu2)">Sauvegarde automatique · local</div>
+    </div>
+  </div>`,
+  `<button class="btn bg" onclick="closeMo()">Fermer</button>`);
+}
+
+
+// ── Horloges duales France / Guadeloupe ────────────────────────
+function _getTimezoneOffsetFR(){
+  const now=new Date();
+  const frH=parseInt(new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',hour:'numeric',hour12:false}).formatToParts(now).find(p=>p.type==='hour')?.value||0);
+  const gwH=parseInt(new Intl.DateTimeFormat('fr-FR',{timeZone:'America/Guadeloupe',hour:'numeric',hour12:false}).formatToParts(now).find(p=>p.type==='hour')?.value||0);
+  let diff=frH-gwH; if(diff<0)diff+=24; return diff;
+}
+function frToGwada(h){let g=h-_getTimezoneOffsetFR();if(g<0)g+=24;return g;}
+function gwadaToFr(h){let f=h+_getTimezoneOffsetFR();if(f>=24)f-=24;return f;}
+function _formatTz(date,tz){return new Intl.DateTimeFormat('fr-FR',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date);}
+function _tickClocks(){
+  if(currentUserId()!=='louis')return;
+  const now=new Date();
+  const frEl=document.getElementById('clock-fr');
+  const gwEl=document.getElementById('clock-gwada');
+  const diffEl=document.getElementById('tz-diff');
+  if(frEl)frEl.textContent=_formatTz(now,'Europe/Paris');
+  if(gwEl)gwEl.textContent=_formatTz(now,'America/Guadeloupe');
+  if(diffEl){const d=_getTimezoneOffsetFR();diffEl.textContent=`+${d}h`;diffEl.title=`France = Gwada +${d}h`;}
+}
+function _updateAgTz(){
+  if(currentUserId()!=='louis')return;
+  const sel=document.getElementById('af-h');
+  const frEl=document.getElementById('ag-tz-fr');
+  const gwEl=document.getElementById('ag-tz-gw');
+  if(!sel||!frEl||!gwEl)return;
+  const val=sel.value;
+  if(!val){frEl.textContent='—';gwEl.textContent='—';return;}
+  const h=parseInt(val.split(':')[0]);
+  const mn=val.split(':')[1]||'00';
+  frEl.textContent=val+' 🇫🇷';
+  gwEl.textContent=String(frToGwada(h)).padStart(2,'0')+':'+mn+' 🌴';
+}
+
+// ── Proposer un rappel agenda (toast non-bloquant) ────────────
+function _proposeAgendaItem({type='task',title='',notes='',cand_id=null,co_id=null,delay=0,hour=9,question=''}){
+  const d=new Date();
+  d.setDate(d.getDate()+delay);
+  while(d.getDay()===0||d.getDay()===6){d.setDate(d.getDate()+1);}
+  const dateStr=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const timeStr=`${String(hour).padStart(2,'0')}:00`;
+  const existing=document.getElementById('_agenda-propose-mo');
+  if(existing)existing.remove();
+  const mo=document.createElement('div');
+  mo.id='_agenda-propose-mo';
+  mo.style.cssText='position:fixed;bottom:24px;right:24px;z-index:9998;background:var(--s3);border:1px solid var(--gold-bd,rgba(200,144,10,.3));border-radius:10px;padding:14px 16px;max-width:320px;box-shadow:var(--sh3);animation:slideInRight .3s ease';
+  const f=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d);
+  mo.innerHTML=`<div style="display:flex;gap:10px;align-items:flex-start">
+    <span style="font-size:18px;flex-shrink:0">📅</span>
+    <div style="flex:1">
+      <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">${esc(question||'Ajouter à l\'agenda ?')}</div>
+      <div style="font-size:10px;color:var(--mu);margin-bottom:10px">${f} à ${timeStr} — ${esc(title)}</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="_addProposedItem()" style="flex:1;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:6px;font-size:12px;font-weight:700;cursor:pointer">Oui</button>
+        <button onclick="document.getElementById('_agenda-propose-mo')?.remove()" style="background:var(--s4);color:var(--mu);border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">Non</button>
+      </div>
+    </div>
+  </div>`;
+  window._proposedItem={type,title,notes,cand_id,co_id,date:dateStr,time:timeStr};
+  document.body.appendChild(mo);
+  setTimeout(()=>mo.remove(),12000);
+}
+function _addProposedItem(){
+  const p=window._proposedItem;if(!p)return;
+  document.getElementById('_agenda-propose-mo')?.remove();
+  DB.agenda.push({id:uid(),type:p.type,title:p.title,date:new Date(p.date).toISOString(),time:p.time,cand_id:p.cand_id||null,comp_id:p.co_id||null,notes:p.notes||'',done:false,created:now_()});
+  save();badges();
+  toast(`📅 Agenda : ${p.title}`,'s');
+  window._proposedItem=null;
+}
+
+// ── Aperçu document candidat ─────────────────────────────────
+function openDocPreview(candId,docId){
+  const cand=cById(candId);if(!cand)return;
+  const doc=(cand.docs||[]).find(d=>d.id===docId);
+  if(!doc?.file){toast('Aucun fichier','w');return;}
+  const isPdf=doc.type==='application/pdf'||doc.file.startsWith('data:application/pdf');
+  const isImg=doc.type?.startsWith('image/')||/\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name||'');
+  const label=doc.name||docId;
+  document.getElementById('doc-preview-ov')?.remove();
+  const ov=document.createElement('div');
+  ov.id='doc-preview-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
+  let content='';
+  if(isPdf)content=`<iframe src="${doc.file}" style="width:min(880px,96vw);height:min(88vh,900px);border:none;border-radius:8px;background:#fff"></iframe>`;
+  else if(isImg)content=`<img src="${doc.file}" style="max-width:min(880px,96vw);max-height:min(88vh,900px);object-fit:contain;border-radius:8px">`;
+  else content=`<div style="background:var(--s2);border-radius:8px;padding:32px;text-align:center;color:var(--mu)"><div style="font-size:40px;margin-bottom:12px">📄</div><div>${esc(label)}</div></div>`;
+  ov.innerHTML=`<div style="max-width:min(900px,98vw)"><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#fff">${esc(label)}</div><div style="display:flex;gap:8px"><a href="${doc.file}" download="${esc(label)}" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none">⬇ Télécharger</a><button onclick="document.getElementById('doc-preview-ov').remove()" style="background:#2a2a2e;color:#aaa;border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer">× Fermer</button></div></div>${content}</div>`;
+  document.body.appendChild(ov);
+}
+
+// ── CSS animation toast agenda ────────────────────────────────
+(()=>{
+  if(document.getElementById('_agenda-css'))return;
+  const st=document.createElement('style');
+  st.id='_agenda-css';
+  st.textContent='@keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}';
+  document.head.appendChild(st);
+})();
+
+(async()=>{
+  loadTheme();
+  setInterval(_tickClocks,1000);_tickClocks(); // Appliquer le thème avant tout rendu
  const sb=getSB();
  if(!sb)return;
  try{
@@ -1037,47 +1504,8 @@ function rDash(){
  ${DB.needs.filter(n=>n.status==='open').slice(0,5).map(n=>{const co=coById(n.company_id);return`<div class="aitem" onclick="openNeedPanel('${n.id}')"><span style="flex:1">${esc(n.title)}</span><span class="fs10 mu_">${co?esc(co.name):''}</span><span class="fs9" style="color:${{h:'var(--ac3)',m:'var(--ac4)',l:'var(--mu2)'}[n.urgency]||'var(--mu2)'}">${{h:'●',m:'○',l:'·'}[n.urgency]||''}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun besoin ouvert</div>`}
  <div class="dsec mt14"> Entrants à trier</div>
  ${DB.candidates.filter(c=>c.status==='entrant').slice(0,4).map(c=>{const cat=getCat(c.cat);return`<div class="aitem" onclick="switchCandTab('trier');go('cands');setTimeout(()=>openEntrantSplit('${c.id}'),80)"><span class="pill pent">Entrant</span><span style="flex:1">${esc(c.name)}</span><span class="tag ${cat.cls} fs9">${cat.l}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun entrant en attente</div>`}
-  </div>
-  </div>
-
-  ${(()=>{
-    // ── Widget : Contrats signés — candidats à envoyer ──────────
-    const signed = [];
-    DB.companies.forEach(co=>{
-      (co.contracts||[]).forEach(ct=>{
-        if(ct.status==='signé' && !ct.candidates_sent){
-          signed.push({co, ct});
-        }
-      });
-    });
-    if(!signed.length) return '';
-    return `<div class="dash-section" style="margin-top:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#3dce8a">
-          ✅ Contrats signés — action requise
-        </div>
-        <span style="font-size:9px;background:rgba(61,206,138,.12);color:#3dce8a;padding:2px 8px;border-radius:100px;font-weight:700">${signed.length}</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${signed.map(({co,ct})=>`
-        <div style="background:var(--s3);border:1px solid rgba(61,206,138,.2);border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:#3dce8a;flex-shrink:0"></div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700;color:var(--tx)">${esc(co.name)}</div>
-            <div style="font-size:10px;color:var(--mu);margin-top:1px">
-              Signé par ${esc(ct.signer_name||'—')} · ${fD(ct.signed_at||ct.created)}
-            </div>
-          </div>
-          <button class="btn bp bxs" style="font-size:11px;background:#3dce8a;border-color:#3dce8a;color:#0a1a0f;white-space:nowrap"
-            onclick="openEmailWith({to:'${esc(co.email||'')}',subject:'Coordonn\u00e9es du candidat — suite \u00e0 votre signature',body:'Bonjour,\n\nSuite \u00e0 votre signature du contrat cadre, je vous transmets comme convenu les coordonn\u00e9es du candidat :\n\nNom : \nT\u00e9l\u00e9phone : \nEmail : \n\nIl est \u00e9galement pr\u00e9venu que vous allez le contacter pour convenir d\'un entretien.\n\nBien cordialement,',coId:'${co.id}'});markCandidatesSent('${co.id}','${ct.id}')">
-            → Envoyer les contacts
-          </button>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  })()}
-  </div>
-  </div>`;
+ </div>
+ </div>`;
 }
 
 function rCands(){
@@ -1841,15 +2269,11 @@ function candCard(c,st){
 // ═══════════════════════════════════════════════════════════
 function startPrecal(id){
  const c=cById(id);if(!c)return;
+ const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
+ const cvHtml=cvDoc?(cvDoc.type==='application/pdf'?`<iframe src="${cvDoc.file}" style="width:100%;height:300px;border:none;border-radius:6px;margin-bottom:12px"></iframe>`:`<img src="${cvDoc.file}" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:6px;margin-bottom:12px">`):`<div style="background:var(--s3);border:1px dashed var(--bd2);border-radius:6px;padding:14px;text-align:center;margin-bottom:12px;color:var(--mu);font-size:11px">Aucun CV — <label style="color:var(--gold);cursor:pointer">Uploader<input type="file" accept=".pdf,.jpg,.png" style="display:none" onchange="uploadCvFromSplit(event,'${id}')"></label></div>`;
  const openNeeds=DB.needs.filter(n=>n.status==='open');
  const cat=getCat(c.cat);
  const matchedNeeds=openNeeds.filter(n=>n.cat===c.cat);
- const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
- const cvHtml=cvDoc
-   ?(cvDoc.type==='application/pdf'
-     ?`<iframe src="${cvDoc.file}" style="width:100%;height:340px;border:none;border-radius:6px;margin-bottom:12px" title="CV"></iframe>`
-     :`<img src="${cvDoc.file}" style="max-width:100%;max-height:340px;object-fit:contain;border-radius:6px;margin-bottom:12px">`)
-   :`<div style="background:var(--s3);border:1px dashed var(--bd2);border-radius:6px;padding:16px;text-align:center;margin-bottom:12px;color:var(--mu);font-size:11px">Aucun CV — <label style="color:var(--gold);cursor:pointer">Uploader<input type="file" accept=".pdf,.jpg,.png" style="display:none" onchange="uploadCvFromSplit(event,'${id}')"></label></div>`;
  openMo(`Précal — ${c.name}`,`
  <div class="steps">
  <div class="step"><div class="step-dot cur">1</div><span class="step-l cur">Qualifier</span></div>
@@ -1963,13 +2387,12 @@ function renderCalMo(candId){
  });
  // Slots
  WEEK_HOURS.forEach(h=>{
- // Heure France en gras + heure Gwada en dessous (Louis seulement)
-const isLouis = currentUserId()==='louis';
-const gwH = isLouis ? frToGwada(h) : null;
-gridHtml+=`<div class="cal-time" style="flex-direction:column;gap:1px">
-  <span style="font-size:11px;font-weight:700">${h}h</span>
-  ${isLouis?`<span style="font-size:8px;color:var(--gold);opacity:.8">${gwH}h🌴</span>`:''}
-</div>`;
+ const isLouis=currentUserId()==='louis';
+    const gwH=isLouis?frToGwada(h):null;
+    gridHtml+=`<div class="cal-time" style="flex-direction:column;gap:1px;align-items:center">
+      <span style="font-size:11px;font-weight:700">${h}h</span>
+      ${isLouis?`<span style="font-size:8px;color:var(--gold);opacity:.8">${gwH}h🌴</span>`:''}
+    </div>`;
  days.forEach(d=>{
  const dateStr=d.toISOString().split('T')[0];
  const key=`${dateStr}_${h}`;
@@ -1987,13 +2410,7 @@ gridHtml+=`<div class="cal-time" style="flex-direction:column;gap:1px">
  const ev=DB.agenda.find(a=>{const dd=new Date(a.date);return dd.toISOString().split('T')[0]===dateStr&&parseInt((a.time||'').split(':')[0])===h;});
  inner=`<div class="cal-ev taken-ev">${ev?esc(ev.title.slice(0,18)):'Occupé'}</div>`;
  }
- if(isSel){
-  const isL = currentUserId()==='louis';
-  const gwH2 = isL ? frToGwada(h) : null;
-  inner=`<div class="cal-ev new-ev" style="font-size:9px;line-height:1.4">
-    ✓ ${h}h FR${isL?`<br><span style="color:var(--gold)">${gwH2}h 🌴</span>`:''}
-  </div>`;
-}
+ if(isSel){inner=`<div class="cal-ev new-ev">✓ Sélectionné</div>`;}
  const clickable=!isPast_&&!isTaken;
  gridHtml+=`<div class="${cls}" ${clickable?`onclick="selectSlot('${candId}','${dateStr}',${h})"`:''}>${inner}</div>`;
  });
@@ -2013,7 +2430,7 @@ gridHtml+=`<div class="cal-time" style="flex-direction:column;gap:1px">
  <button class="btn bg bsm" onclick="calNextWeek('${candId}')">Sem. suivante →</button>
  </div>
  <div class="cal-wrap"><div class="cal-grid" style="grid-template-rows:auto ${WEEK_HOURS.map(()=>'34px').join(' ')}">${gridHtml}</div></div>
- ${UI.calSelected?`<div style="margin-top:10px;padding:9px 11px;background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;font-size:11px">Créneau : <strong>${UI.calSelected.label}</strong>${currentUserId()==='louis'?`<span style="background:rgba(201,137,26,.12);color:var(--gold);font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;margin-left:6px">${frToGwada(UI.calSelected.h)}h🌴 votre heure</span>`:''}</div>`:''}`,
+ ${UI.calSelected?`<div style="margin-top:10px;padding:9px 11px;background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;font-size:11px">Créneau sélectionné : <strong>${UI.calSelected.label}</strong></div>`:''}`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button>
  <button class="btn bg" onclick="startPrecal('${candId}')">← Retour</button>
  <button class="btn bp" ${!UI.calSelected?'disabled style="opacity:.4;cursor:not-allowed"':''} onclick="proceedToEmail('${candId}')">Valider → Préparer email</button>`
@@ -2072,36 +2489,15 @@ ${nom}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`;
 
  closeMo();
-
- // ── 1. Ajouter l'entretien dans l'agenda (automatique, toujours) ──
- confirmEmailSent(candId, visioLink, sel.dateStr, sel.h);
-
- // ── 2. Email pré-rempli avec dossier en PJ ────────────────────
- EM = { to: c.email||'', subject: `Entretien visio NOVALEM — ${dateStr}`, body: emailBody, candId: candId, coId: null, tplKey: null };
- EM_VIEW = 'compose';
- EM_RECIPIENTS = c.email ? [{ email: c.email, name: c.name, type: 'cand', entityId: candId }] : [];
- window._pendingAttachment = null;
-
- toast('Entretien ajouté à l\'agenda ✓', 's');
-
- // ── 3. Générer le dossier PDF en arrière-plan ─────────────────
- setTimeout(async () => {
-   try {
-     const b64 = await _genDossierBase64(c);
-     if(b64){
-       window._pendingAttachment = {
-         filename: `NOVALEM_Dossier_${c.name.replace(/\s+/g,'_').slice(0,30)}.pdf`,
-         content: b64, type: 'application/pdf'
-       };
-       const bar = document.getElementById('em-attachment-bar');
-       const nm  = document.getElementById('em-attachment-name');
-       if(bar && nm){ nm.textContent = window._pendingAttachment.filename; bar.style.display='flex'; }
-       toast('Dossier joint ✓', 's');
-     }
-   } catch(e){ console.error('[dossier]', e); }
- }, 400);
-
+ // Ajouter l'entretien à l'agenda (automatique)
+ confirmEmailSent(candId,visioLink,sel.dateStr,sel.h);
+ // Ouvrir le compose email avec le bon destinataire
+ EM={to:c.email||'',subject:`Entretien visio NOVALEM — ${dateStr}`,body:emailBody,candId:candId,coId:null,tplKey:null};
+ EM_VIEW='compose';
+ EM_RECIPIENTS=c.email?[{email:c.email,name:c.name,type:'cand',entityId:candId}]:[];
+ window._pendingAttachment=null;
  go('emails');
+ setTimeout(()=>_emInitRecipients(),100);
 }
 function cpEmail(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Email copié ✓','i'));}
 function cpText(t){navigator.clipboard.writeText(t).then(()=>toast('Copié ✓','i'));}
@@ -2130,8 +2526,8 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
  save();closeMo();closePanel();
  badges();
  if(UI.view==='cands') rCands();
- const gwHour = frToGwada(h);
-toast(`${c.name} → Entretien ${h}h (France) = ${gwHour}h Gwada · Agenda mis à jour`,'s');
+ const gwHour=frToGwada(h);
+  toast(`${c.name} → Entretien ${h}h FR = ${gwHour}h Gwada · Agenda ✓`,'s');
  // Show in pipeline
  setTimeout(()=>{switchCandTab('pipeline');openCandPanel(candId);},300);
 }
@@ -2228,56 +2624,6 @@ function renderCPFichiers(c){
  </div>`:`
  <div style="margin-top:10px;font-size:10px;color:var(--mu2)"> Uploadez le CV pour activer l'extraction IA automatique.</div>`}`;
 }
-
-// ── Aperçu document candidat ──────────────────────────────────
-function openDocPreview(candId, docId){
-  const cand = cById(candId);
-  if(!cand) return;
-  const doc = (cand.docs||[]).find(d=>d.id===docId);
-  if(!doc?.file){ toast('Aucun fichier disponible','w'); return; }
-
-  const isPdf = doc.type==='application/pdf' || doc.file.startsWith('data:application/pdf');
-  const isImg = doc.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name||'');
-  const label = doc.name || docId;
-
-  // Créer l'overlay d'aperçu
-  const existing = document.getElementById('doc-preview-ov');
-  if(existing) existing.remove();
-
-  const ov = document.createElement('div');
-  ov.id = 'doc-preview-ov';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
-  ov.onclick = (e) => { if(e.target===ov) ov.remove(); };
-
-  let content = '';
-  if(isPdf){
-    content = `<iframe src="${doc.file}" style="width:min(880px,96vw);height:min(88vh,900px);border:none;border-radius:8px;background:#fff"></iframe>`;
-  } else if(isImg){
-    content = `<img src="${doc.file}" style="max-width:min(880px,96vw);max-height:min(88vh,900px);object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5)">`;
-  } else {
-    content = `<div style="background:var(--s2);border-radius:8px;padding:32px;text-align:center;color:var(--mu)">
-      <div style="font-size:40px;margin-bottom:12px">📄</div>
-      <div style="font-size:14px;color:var(--tx);margin-bottom:8px">${esc(label)}</div>
-      <div style="font-size:12px">Aperçu non disponible pour ce format</div>
-    </div>`;
-  }
-
-  ov.innerHTML = `
-    <div style="position:relative;max-width:min(900px,98vw)">
-      <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:700;color:#fff">${esc(label)}</div>
-        <div style="display:flex;gap:8px">
-          <a href="${doc.file}" download="${esc(label)}" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:5px">⬇ Télécharger</a>
-          <button onclick="document.getElementById('doc-preview-ov').remove()" style="background:#2a2a2e;color:#aaa;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer">× Fermer</button>
-        </div>
-      </div>
-      ${content}
-    </div>`;
-
-  document.body.appendChild(ov);
-}
-
 function bindFileInputs(candId){/* inputs already bound via onchange in HTML */}
 function handleFileUpload(event){
  const input=event.target;
@@ -3418,15 +3764,6 @@ function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
  const coOpts=`<option value="">— Aucun —</option>`+DB.companies.map(c=>`<option value="${c.id}" ${(a.comp_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
  const initTime=a.time||(preTime||'');
  const timeOpts=`<option value="">— Pas d'heure —</option>`+AG_HOURS_FULL.map(t=>`<option value="${t}" ${initTime===t?'selected':''}>${t}</option>`).join('');
-  // Indicateur dual timezone (Louis uniquement)
-  const tzIndicator = currentUserId()==='louis'
-    ? `<div id="ag-tz-indicator" style="margin-top:4px;font-size:10px;color:var(--gold);padding:4px 8px;background:rgba(201,137,26,.08);border-radius:4px;display:inline-flex;align-items:center;gap:5px">
-        <span>🇫🇷</span><span id="ag-tz-fr">—</span>
-        <span style="color:var(--mu)">→</span>
-        <span>🌴</span><span id="ag-tz-gw">—</span>
-        <span style="color:var(--mu);font-size:9px">votre heure locale</span>
-      </div>`
-    : '';
 
  openMo(id?'Modifier événement':'Nouvel événement',`
  <!-- Titre + type -->
@@ -3457,8 +3794,7 @@ function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
  <!-- Heure — select large et lisible -->
  <div style="margin-bottom:12px">
  <span class="lbl"> Heure</span>
- <select id="af-h" onchange="_updateAgTz()" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;padding:9px 12px;margin-top:4px;letter-spacing:.04em">${timeOpts}</select>
- ${tzIndicator}
+ <select id="af-h" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;padding:9px 12px;margin-top:4px;letter-spacing:.04em">${timeOpts}</select>
  </div>
 
  <!-- Liens -->
@@ -3467,8 +3803,7 @@ function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
  <div class="fgrp" style="margin:0"><span class="lbl">Entreprise liée</span><select id="af-co">${coOpts}</select></div>
  </div>
  <div class="fgrp"><span class="lbl">Notes</span><textarea id="af-notes" style="min-height:55px">${esc(a.notes||'')}</textarea></div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}');
- setTimeout(()=>_updateAgTz(),50);closeMo()"></button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer ✓</button>`
+ `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}');closeMo()"></button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer ✓</button>`
 );
 }
 
@@ -3517,1476 +3852,23 @@ function saveAgForm(id){
 }
 
 
-// ─── CONSTANTES ────────────────────────────────────────────────────
-const CRM_API = 'https://novalem-crm.vercel.app'; // ton URL Vercel
-// La clé CRM_SECRET est dans les settings du CRM (paramètres > API)
-// et dans les env vars Vercel comme CRM_SECRET
-function getCRMSecret(){
-  return localStorage.getItem('btp_crm_secret') || '';
-}
-
-// Catégories BTP (labels courts pour les badges)
-const CAT_LABELS = {
-  go:'Gros Œuvre', so:'Second Œuvre', be:"Bureau d'Études",
-  vrd:'VRD / TP', hse:'HSE / QSE', mgmt:'Management'
-};
-
-// ─── RENDER POSTS VIEW ────────────────────────────────────────────
 function rPosts(){
-  const v = document.getElementById('view-posts');
-  const jobs = DB.posts || [];
-
-  // Header avec actions
-  const header = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap">
-      <div>
-        <div style="font-family:var(--ff,sans-serif);font-size:17px;font-weight:700;color:var(--tx)">Annonces & Offres</div>
-        <div style="font-size:12px;color:var(--mu)">Les offres publiées apparaissent sur le site et sont indexées par Google</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn bg bxs" onclick="syncJobsFromSupabase()" id="btn-sync-jobs" title="Synchroniser avec la base cloud">↻ Sync</button>
-        <a href="https://www.novalem-recrutement.fr/nos-besoins/" target="_blank" class="btn bg bxs">Voir le site →</a>
-        <button class="btn bp bxs" onclick="openPostForm(null)">+ Nouvelle offre</button>
-      </div>
-    </div>`;
-
-  if(!jobs.length){
-    v.innerHTML = header + `<div class="empty">Aucune annonce — <button class="btn bp bxs" onclick="openPostForm(null)">+ Créer la première</button></div>`;
-    return;
-  }
-
-  // Stats bar
-  const published = jobs.filter(j=>j.published).length;
-  const drafts    = jobs.filter(j=>!j.published).length;
-  const statsBar = `
-    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
-      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
-        <div style="font-size:22px;font-weight:700;color:var(--ac)">${published}</div>
-        <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Publiées</div>
-      </div>
-      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
-        <div style="font-size:22px;font-weight:700;color:var(--tx)">${drafts}</div>
-        <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Brouillons</div>
-      </div>
-      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:12px 18px;min-width:100px">
-        <div style="font-size:22px;font-weight:700;color:var(--ac2)">${jobs.reduce((a,j)=>a+(j.applications_count||0),0)}</div>
-        <div style="font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">Candidatures</div>
-      </div>
-    </div>`;
-
-  const cards = jobs.map(p => {
-    const cat = CAT_LABELS[p.cat] || p.cat || 'BTP';
-    const isPublished = p.published;
-    return `
-    <div class="prcard" style="position:relative">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
-        <div>
-          <span class="pill ${isPublished?'pwin':'pnew'}" style="margin-right:6px">${isPublished?'● Publiée':'○ Brouillon'}</span>
-          <span style="font-size:10px;background:rgba(232,160,32,.1);color:var(--ac);padding:2px 8px;border-radius:3px;font-weight:600">${esc(cat)}</span>
-        </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="togglePublishJob('${p.id}')" title="${isPublished?'Dépublier':'Publier sur le site'}">
-            ${isPublished?'Dépublier':'Publier ▲'}
-          </button>
-          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="openPostPanel('${p.id}')">Voir →</button>
-        </div>
-      </div>
-      <div class="prcard-n" style="cursor:pointer" onclick="openPostPanel('${p.id}')">${esc(p.title)}</div>
-      <div class="prcard-m" style="margin-top:6px">
-        <span>${esc(p.location||'—')}</span>
-        ${p.salary_display ? `<span> · ${esc(p.salary_display)}</span>` : (p.salary ? `<span> · ${esc(p.salary)}</span>` : '')}
-        ${p.contract_type ? `<span> · ${esc(p.contract_type)}</span>` : ''}
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
-        <div class="fs10 mu_">
-          ${p.reference ? `Réf. ${esc(p.reference)} · ` : ''}
-          Créée ${fD(p.created)}
-          ${p.supabase_id ? ' · <span style="color:var(--ac2)">✓ Cloud</span>' : ' · <span style="color:var(--mu)">Local</span>'}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          ${(p.applications_count||0)>0 ? `<span style="font-size:11px;color:var(--ac2);font-weight:600">${p.applications_count} candidature${p.applications_count>1?'s':''}</span>` : ''}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  v.innerHTML = header + statsBar + `<div class="g3">${cards}</div>`;
+ document.getElementById('view-posts').innerHTML=DB.posts.length?`<div class="g3">${DB.posts.map(p=>{
+ const cat=getCat(p.cat);
+ return `<div class="prcard" onclick="openPostPanel('${p.id}')">
+ <div class="flex fjb fac mb4"><div class="prcard-n">${esc(p.title)}</div><span class="pill ${p.status==='active'?'pwin':'pnew'}">${p.status==='active'?'Active':'Brouillon'}</span></div>
+ <div class="prcard-m"><span class="tag ${cat.cls}">${cat.l}</span><br>${esc(p.location||'—')} · ${esc(p.salary||'—')}</div>
+ <div class="fs10 mu_ mt8">${(p.boards||[]).length} board(s) · Créée ${fD(p.created)}</div>
+ </div>`;
+ }).join('')}</div>`:'<div class="empty">Aucune annonce — <button class="btn bp bxs" onclick="openPostForm()">+ Créer</button></div>';
 }
 
-// ─── FORM CRÉATION / ÉDITION ──────────────────────────────────────
-function openPostForm(id){
-  const p = id ? DB.posts.find(x=>x.id===id) : null;
-  const title = id ? 'Modifier l\'offre' : 'Nouvelle offre';
-
-  const catOptions = Object.entries(CAT_LABELS)
-    .map(([k,v])=>`<option value="${k}" ${p?.cat===k?'selected':''}>${v}</option>`)
-    .join('');
-
-  const contractOptions = ['CDI','CDD','Interim']
-    .map(c=>`<option value="${c}" ${(p?.contract_type||'CDI')===c?'selected':''}>${c}</option>`)
-    .join('');
-
-  const skillsVal = (p?.skills||[]).join(', ');
-
-  openMo(title, `
-    <div style="display:grid;gap:16px">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="fg2">
-          <label class="lbl">Catégorie BTP</label>
-          <select id="pf-cat" class="inp">${catOptions}</select>
-        </div>
-        <div class="fg2">
-          <label class="lbl">Type de contrat</label>
-          <select id="pf-contract" class="inp">${contractOptions}</select>
-        </div>
-      </div>
-
-      <div class="fg2">
-        <label class="lbl">Titre du poste <span style="color:var(--ac)">*</span></label>
-        <input id="pf-title" class="inp" placeholder="ex: Conducteur de Travaux GO H/F" value="${esc(p?.title||'')}">
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="fg2">
-          <label class="lbl">Localisation <span style="color:var(--ac)">*</span></label>
-          <input id="pf-location" class="inp" placeholder="Nice (06)" value="${esc(p?.location||'')}">
-        </div>
-        <div class="fg2">
-          <label class="lbl">Référence interne</label>
-          <input id="pf-ref" class="inp" placeholder="NOV-2025-001" value="${esc(p?.reference||'')}">
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <div class="fg2">
-          <label class="lbl">Salaire affiché</label>
-          <input id="pf-salary-display" class="inp" placeholder="45 - 55k € brut/an" value="${esc(p?.salary_display||p?.salary||'')}">
-        </div>
-        <div class="fg2">
-          <label class="lbl">Salaire min (€/an)</label>
-          <input id="pf-salary-min" class="inp" type="number" placeholder="45000" value="${p?.salary_min||''}">
-        </div>
-        <div class="fg2">
-          <label class="lbl">Salaire max (€/an)</label>
-          <input id="pf-salary-max" class="inp" type="number" placeholder="55000" value="${p?.salary_max||''}">
-        </div>
-      </div>
-
-      <div class="fg2">
-        <label class="lbl">Expérience requise</label>
-        <input id="pf-experience" class="inp" placeholder="5 ans minimum" value="${esc(p?.experience||'')}">
-      </div>
-
-      <div class="fg2">
-        <label class="lbl">Compétences clés <span style="font-size:10px;color:var(--mu)">(séparées par virgule)</span></label>
-        <input id="pf-skills" class="inp" placeholder="Gestion chantier, CCAP, AutoCAD" value="${esc(skillsVal)}">
-      </div>
-
-      <div class="fg2">
-        <label class="lbl">Description du poste <span style="color:var(--ac)">*</span></label>
-        <textarea id="pf-desc" class="inp" style="min-height:140px;resize:vertical" placeholder="Décrivez le poste, les missions, le profil recherché…">${esc(p?.description||p?.body||'')}</textarea>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:12px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <input type="checkbox" id="pf-featured" ${p?.featured?'checked':''}>
-          <span>Mettre en avant (badge "Prioritaire")</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:auto">
-          <input type="checkbox" id="pf-publish" ${p?.published?'checked':''}>
-          <span style="color:var(--ac)">Publier immédiatement</span>
-        </label>
-      </div>
-
-      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
-        ${id ? `<button class="btn bd_ bxs" onclick="deletePost('${id}')">Supprimer</button>` : ''}
-        <button class="btn bg bxs" onclick="closeMo()">Annuler</button>
-        <button class="btn bp bsm" onclick="savePost(${id?`'${id}'`:null})">
-          ${id ? 'Enregistrer' : 'Créer l\'offre'}
-        </button>
-      </div>
-    </div>
-  `, null, null, '640px');
-}
-
-// ─── SAUVEGARDER OFFRE (local + sync Supabase si publiée) ─────────
-async function savePost(id){
-  const title = document.getElementById('pf-title')?.value?.trim();
-  const desc  = document.getElementById('pf-desc')?.value?.trim();
-  const loc   = document.getElementById('pf-location')?.value?.trim();
-  if(!title || !desc || !loc){ toast('Titre, description et localisation requis','e'); return; }
-
-  const published = document.getElementById('pf-publish')?.checked || false;
-  const skills    = (document.getElementById('pf-skills')?.value||'')
-    .split(',').map(s=>s.trim()).filter(Boolean);
-
-  const data = {
-    title,
-    description: desc,
-    location:    loc,
-    cat:         document.getElementById('pf-cat')?.value        || 'go',
-    contract_type:document.getElementById('pf-contract')?.value  || 'CDI',
-    reference:   document.getElementById('pf-ref')?.value?.trim() || '',
-    salary_display:document.getElementById('pf-salary-display')?.value?.trim() || '',
-    salary:      document.getElementById('pf-salary-display')?.value?.trim() || '',
-    salary_min:  parseInt(document.getElementById('pf-salary-min')?.value)||null,
-    salary_max:  parseInt(document.getElementById('pf-salary-max')?.value)||null,
-    experience:  document.getElementById('pf-experience')?.value?.trim() || '',
-    skills,
-    featured:    document.getElementById('pf-featured')?.checked || false,
-    published,
-  };
-
-  // ── Local DB ──────────────────────────────────────
-  const now = Date.now();
-  if(id){
-    const idx = DB.posts.findIndex(x=>x.id===id);
-    if(idx>=0) Object.assign(DB.posts[idx], data, { updated:now });
-  } else {
-    const newPost = { ...data, id:uid(), created:now, updated:now,
-      status: published?'active':'draft',
-      boards:[], views_count:0, applications_count:0, supabase_id:null };
-    DB.posts.unshift(newPost);
-    id = newPost.id;
-  }
-  save(); closeMo();
-
-  // ── Sync Supabase si publiée ──────────────────────
-  if(published || data.supabase_id){
-    await syncPostToSupabase(id);
-  }
-
-  rPosts(); badges();
-  toast(published ? 'Offre créée et publiée sur le site ✓' : 'Offre sauvegardée (brouillon)', 's');
-}
-
-// ─── TOGGLE PUBLISH ───────────────────────────────────────────────
-async function togglePublishJob(id){
-  const post = DB.posts.find(x=>x.id===id);
-  if(!post) return;
-  post.published = !post.published;
-  post.status    = post.published ? 'active' : 'draft';
-  post.updated   = Date.now();
-  save();
-  await syncPostToSupabase(id);
-  rPosts();
-  toast(post.published ? 'Offre publiée sur le site ✓' : 'Offre dépubliée', 's');
-}
-
-// ─── SUPPRIMER OFFRE ──────────────────────────────────────────────
-async function deletePost(id){
-  const post = DB.posts.find(x=>x.id===id);
-  if(!post || !confirm('Supprimer cette offre définitivement ?')) return;
-
-  // Suppression Supabase
-  if(post.supabase_id){
-    const secret = getCRMSecret();
-    if(secret) {
-      await fetch(`${CRM_API}/api/jobs`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
-        body: JSON.stringify({ action:'delete', job:{ id:post.supabase_id } })
-      }).catch(()=>{});
-    }
-  }
-
-  DB.posts = DB.posts.filter(x=>x.id!==id);
-  save(); closeMo(); rPosts(); badges();
-  toast('Offre supprimée','s');
-}
-
-// ─── SYNC VERS SUPABASE ───────────────────────────────────────────
-async function syncPostToSupabase(localId){
-  const secret = getCRMSecret();
-  if(!secret){ toast('CRM_SECRET non configuré dans les paramètres','w'); return; }
-
-  const post = DB.posts.find(x=>x.id===localId);
-  if(!post) return;
-
-  try {
-    const action = post.supabase_id ? 'update' : 'create';
-    const jobPayload = {
-      id:            post.supabase_id || undefined,
-      title:         post.title,
-      cat:           post.cat,
-      description:   post.description || post.body || '',
-      location:      post.location || '',
-      contract_type: post.contract_type || 'CDI',
-      reference:     post.reference || null,
-      salary_display:post.salary_display || post.salary || null,
-      salary_min:    post.salary_min || null,
-      salary_max:    post.salary_max || null,
-      experience:    post.experience || null,
-      skills:        post.skills || [],
-      featured:      post.featured || false,
-      published:     post.published || false,
-      crm_id:        post.id,
-    };
-
-    const r = await fetch(`${CRM_API}/api/jobs`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
-      body: JSON.stringify({ action, job:jobPayload })
-    });
-    const data = await r.json();
-    if(data.job?.id){
-      post.supabase_id = data.job.id;
-      save();
-    }
-  } catch(e) {
-    console.error('Sync Supabase erreur:', e);
-    toast('Erreur sync cloud — vérifier CRM_SECRET','e');
-  }
-}
-
-// ─── SYNC DEPUIS SUPABASE (récupérer stats + candidatures) ────────
-async function syncJobsFromSupabase(){
-  const btn = document.getElementById('btn-sync-jobs');
-  if(btn){ btn.textContent = '↻ Sync…'; btn.disabled = true; }
-
-  const secret = getCRMSecret();
-  if(!secret){
-    toast('CRM_SECRET non configuré dans Paramètres > API', 'w');
-    if(btn){ btn.textContent = '↻ Sync'; btn.disabled = false; }
-    return;
-  }
-
-  try {
-    // Récupérer toutes les offres cloud
-    const r = await fetch(`${CRM_API}/api/jobs`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
-      body: JSON.stringify({ action:'list_all', job:{} })
-    });
-    const { jobs: cloudJobs } = await r.json();
-
-    if(!cloudJobs?.length){
-      toast('Aucune offre cloud trouvée','w');
-      if(btn){ btn.textContent = '↻ Sync'; btn.disabled = false; }
-      return;
-    }
-
-    // Mise à jour des stats locales
-    let updated = 0;
-    cloudJobs.forEach(cj => {
-      const local = DB.posts.find(p => p.supabase_id === cj.id || p.id === cj.crm_id);
-      if(local){
-        local.supabase_id       = cj.id;
-        local.views_count       = cj.views_count       || 0;
-        local.applications_count= cj.applications_count|| 0;
-        local.published         = cj.published;
-        local.status            = cj.published ? 'active' : 'draft';
-        updated++;
-      }
-    });
-
-    save(); rPosts();
-    toast(`Sync OK — ${updated} offre(s) mise(s) à jour`, 's');
-  } catch(e){
-    toast('Erreur sync: ' + e.message, 'e');
-  } finally {
-    if(btn){ btn.textContent = '↻ Sync'; btn.disabled = false; }
-  }
-}
-
-// ─── PANEL DÉTAIL OFFRE ───────────────────────────────────────────
-// ─── PANEL CANDIDATURES ───────────────────────────────────────────
-async function openCandidaturesPanel(jobId){
-  const secret = getCRMSecret();
-  if(!secret){ toast('CRM_SECRET requis pour voir les candidatures','w'); return; }
-
-  const post = DB.posts.find(p=>p.id===jobId);
-  if(!post?.supabase_id){ toast("Offre non synchronisée — publiez-la d'abord",'w'); return; }
-
-  // Loader
-  setPanel(
-    'Candidatures',
-    esc(post.title),
-    '',
-    '<div style="text-align:center;padding:30px;color:var(--mu)">Chargement…</div>',
-    ''
-  );
-
-  try {
-    const r = await fetch(`${CRM_API}/api/jobs`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-CRM-Secret':secret},
-      body: JSON.stringify({ action:'get_applications', job:{ id:post.supabase_id } })
-    });
-    const { applications: apps } = await r.json();
-
-    if(!apps?.length){
-      document.getElementById('pb').innerHTML = '<div style="text-align:center;padding:30px;color:var(--mu)">Aucune candidature pour le moment</div>';
-      return;
-    }
-
-    document.getElementById('pb').innerHTML = apps.map(a=>`
-      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:14px;margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
-          <strong style="font-size:14px;color:var(--tx)">${esc(a.firstname)} ${esc(a.lastname)}</strong>
-          <span class="pill ${a.status==='nouveau'?'pnew':a.status==='qualifié'?'pwin':'pmov'}" style="font-size:10px;flex-shrink:0">${esc(a.status)}</span>
-        </div>
-        <div style="font-size:12px;color:var(--mu2);margin-bottom:4px">
-          <a href="mailto:${esc(a.email)}" style="color:var(--ac)">${esc(a.email)}</a>
-          ${a.phone ? ` · ${esc(a.phone)}` : ''}
-          ${a.linkedin_url ? ` · <a href="${esc(a.linkedin_url)}" target="_blank" style="color:var(--mu2)">LinkedIn</a>` : ''}
-        </div>
-        ${a.message ? `<div style="font-size:12px;color:var(--mu);margin-top:8px;padding:8px;background:var(--s3);border-radius:4px;line-height:1.5">${esc(a.message)}</div>` : ''}
-        <div style="font-size:10px;color:var(--mu);margin-top:8px">${fD(new Date(a.created_at).getTime())}</div>
-        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="window.location.href='mailto:${esc(a.email)}'">Répondre</button>
-          <button class="btn bg bxs" style="font-size:11px;padding:4px 9px" onclick="quickAddCandFromApp('${a.id}','${esc(a.firstname)}','${esc(a.lastname)}','${esc(a.email)}','${esc(a.phone||'')}')">+ Ajouter candidat</button>
-        </div>
-      </div>
-    `).join('');
-
-  } catch(e) {
-    document.getElementById('pb').innerHTML = `<div style="color:var(--er);padding:16px;font-size:13px">Erreur: ${esc(e.message)}</div>`;
-  }
-}
-
-// ─── AJOUT RAPIDE CANDIDAT DEPUIS UNE CANDIDATURE ─────────────────
-function quickAddCandFromApp(appId, fn, ln, email, phone){
-  // Pré-rempli avec les infos de la candidature
-  openMo('Créer le candidat', `
-    <div class="fg2 mb8"><label class="lbl">Prénom</label><input class="inp" id="qc-fn" value="${esc(fn)}"></div>
-    <div class="fg2 mb8"><label class="lbl">Nom</label><input class="inp" id="qc-ln" value="${esc(ln)}"></div>
-    <div class="fg2 mb8"><label class="lbl">Email</label><input class="inp" id="qc-email" value="${esc(email)}"></div>
-    <div class="fg2 mb8"><label class="lbl">Téléphone</label><input class="inp" id="qc-phone" value="${esc(phone)}"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-      <button class="btn bg bxs" onclick="closeMo()">Annuler</button>
-      <button class="btn bp bxs" onclick="quickCreateCand()">Créer le candidat</button>
-    </div>
-  `);
-}
-function quickCreateCand(){
-  const fn    = document.getElementById('qc-fn')?.value?.trim();
-  const ln    = document.getElementById('qc-ln')?.value?.trim();
-  const email = document.getElementById('qc-email')?.value?.trim();
-  const phone = document.getElementById('qc-phone')?.value?.trim();
-  if(!fn||!ln){toast('Prénom et nom requis','e');return;}
-  const c = {
-    id:uid(), created:Date.now(), updated:Date.now(),
-    name:`${fn} ${ln}`, email, phone,
-    source:'site_novalem', status:'new', cat:'go',
-    docs:[], refs:[]
-  };
-  DB.cands.unshift(c); save(); closeMo();
-  rCands(); badges();
-  toast(`Candidat ${fn} ${ln} ajouté ✓`,'s');
-}
-
-
-
-
-// ── CONTRAT CADRE NOVALEM v3 ────────────────────────────────────
-
-const TARIF_DEFAULT = { nc1:12, nc2:13.5, nc3:15, c1:15, c2:17, c3:20 };
-
-function genContrat(id){
-  const co = coById(id); if(!co) return;
-  openMo('Créer un contrat cadre', `
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Client</div>
-        <div class="fgrp"><span class="lbl">Raison sociale</span>
-          <input id="ct-nom" value="${esc(co.name||'')}" placeholder="Raison sociale exacte"></div>
-        <div class="fgrp" style="margin-top:8px"><span class="lbl">SIRET</span>
-          <input id="ct-siret" value="${esc(co.siret||'')}" placeholder="14 chiffres"></div>
-      </div>
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em">Grille tarifaire (% du SBA)</div>
-          <button onclick="(()=>{['nc1','nc2','nc3','c1','c2','c3'].forEach(k=>{const el=document.getElementById('ct-'+k);if(el)el.value=TARIF_DEFAULT[k];})})()" style="font-size:10px;color:var(--mu);background:none;border:none;cursor:pointer;text-decoration:underline">Réinitialiser</button>
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-size:11.5px">
-          <thead><tr style="background:var(--s4)">
-            <td style="padding:7px 10px;color:var(--mu)"></td>
-            <td style="padding:7px 8px;text-align:center;color:var(--mu)">&lt; 5 ans</td>
-            <td style="padding:7px 8px;text-align:center;color:var(--mu)">5 – 15 ans</td>
-            <td style="padding:7px 8px;text-align:center;color:var(--mu)">&gt; 15 ans</td>
-          </tr></thead>
-          <tbody>
-            <tr style="background:var(--s2)">
-              <td style="padding:7px 10px;font-weight:600;color:var(--tx)">Non-cadre</td>
-              <td style="padding:4px 5px"><input id="ct-nc1" type="number" value="12" min="0" max="50" step="0.5" style="width:100%;text-align:center;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--gold);font-weight:700;padding:5px 2px;font-size:12px"></td>
-              <td style="padding:4px 5px"><input id="ct-nc2" type="number" value="13.5" min="0" max="50" step="0.5" style="width:100%;text-align:center;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--gold);font-weight:700;padding:5px 2px;font-size:12px"></td>
-              <td style="padding:4px 5px"><input id="ct-nc3" type="number" value="15" min="0" max="50" step="0.5" style="width:100%;text-align:center;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--gold);font-weight:700;padding:5px 2px;font-size:12px"></td>
-            </tr>
-            <tr style="background:var(--s2)">
-              <td style="padding:7px 10px;font-weight:600;color:var(--tx)">Cadre</td>
-              <td style="padding:4px 5px"><input id="ct-c1" type="number" value="15" min="0" max="50" step="0.5" style="width:100%;text-align:center;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--gold);font-weight:700;padding:5px 2px;font-size:12px"></td>
-              <td style="padding:4px 5px"><input id="ct-c2" type="number" value="17" min="0" max="50" step="0.5" style="width:100%;text-align:center;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--gold);font-weight:700;padding:5px 2px;font-size:12px"></td>
-              <td style="padding:4px 5px"><input id="ct-c3" type="number" value="20" min="0" max="50" step="0.5" style="width:100%;text-align:center;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--gold);font-weight:700;padding:5px 2px;font-size:12px"></td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="font-size:9px;color:var(--mu);margin-top:6px">Chaque cellule est librement modifiable.</div>
-      </div>
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Geste commercial — 1er recrutement (optionnel)</div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <input id="ct-taux" type="number" placeholder="Vide = grille standard" min="5" max="30" step="0.5" style="max-width:180px">
-          <span style="font-size:11px;color:var(--mu)">% du SBA</span>
-        </div>
-      </div>
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Options</div>
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px">
-          <input type="checkbox" id="ct-3070" style="width:16px;height:16px;accent-color:var(--gold);margin-top:2px;flex-shrink:0">
-          <div><div style="font-size:12px;font-weight:600;color:var(--tx)">Option 30 / 70 %</div>
-          <div style="font-size:10px;color:var(--mu);margin-top:1px">30 % à l'intégration · 70 % à l'issue de la période d'essai (3 mois)</div></div>
-        </label>
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-          <input type="checkbox" id="ct-garantie" style="width:16px;height:16px;accent-color:var(--gold);margin-top:2px;flex-shrink:0">
-          <div><div style="font-size:12px;font-weight:600;color:var(--tx)">Garantie de remplacement 3 mois</div>
-          <div style="font-size:10px;color:var(--mu);margin-top:1px">Relance gratuite si départ en période d'essai</div></div>
-        </label>
-      </div>
-    </div>`,
-    `<button class="btn bg" onclick="closeMo()">Annuler</button>
-     <button class="btn bp" style="background:var(--gold);border-color:#B07010;color:#fff" onclick="doGenContrat('${id}')">Aperçu &amp; générer →</button>`
-  );
-}
-
-function doGenContrat(coId){
-  const nom   = (document.getElementById('ct-nom')?.value||'').trim()   || '_______________';
-  const siret = (document.getElementById('ct-siret')?.value||'').trim() || '_______________';
-  const taux  = (document.getElementById('ct-taux')?.value||'').trim();
-  const opt3070  = document.getElementById('ct-3070')?.checked   || false;
-  const garantie = document.getElementById('ct-garantie')?.checked || false;
-  const tarifs = {
-    nc1: parseFloat(document.getElementById('ct-nc1')?.value)||12,
-    nc2: parseFloat(document.getElementById('ct-nc2')?.value)||13.5,
-    nc3: parseFloat(document.getElementById('ct-nc3')?.value)||15,
-    c1:  parseFloat(document.getElementById('ct-c1')?.value) ||15,
-    c2:  parseFloat(document.getElementById('ct-c2')?.value) ||17,
-    c3:  parseFloat(document.getElementById('ct-c3')?.value) ||20,
-  };
-  const now  = new Date();
-  const mo   = ['janvier','f\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
-  const date = now.getDate()+'\u00a0'+mo[now.getMonth()]+'\u00a0'+now.getFullYear();
-  const ctId = uid();
-  const params = {id:ctId, nom, siret, tarifs, taux, opt3070, garantie, date, created:now_(), status:'non_sign\u00e9'};
-  const co = coById(coId);
-  if(co){
-    if(siret!=='_______________') co.siret=siret;
-    co.contracts=co.contracts||[];
-    co.contracts.unshift({...params});
-    co.updated=now_();
-    save();
-  }
-  closeMo();
-  _openContractPreview(coId, params);
-}
-
-function _openContractPreview(coId, params){
-  const htmlStr = _buildContractHTML(params);
-  const blob    = new Blob([htmlStr],{type:'text/html;charset=utf-8'});
-  const blobUrl = URL.createObjectURL(blob);
-  window._ctPreview = {coId, params, blobUrl};
-  const ov = document.createElement('div');
-  ov.id = 'ct-preview-ov';
-  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
-  ov.innerHTML=`<div style="width:min(900px,98vw);height:min(90vh,900px);background:#111112;border-radius:12px;border:1px solid #333;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.6)">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #2a2a2e;background:#0d0d0f">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#fff">Aperçu du contrat</div>
-        <div style="font-size:11px;color:#888;margin-top:2px">${esc(params.nom)} \u00b7 ${fD(params.created)}</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span style="font-size:10px;color:var(--gold);background:rgba(200,144,10,.15);padding:3px 10px;border-radius:100px;font-weight:600">\u23f3 Non sign\u00e9</span>
-        <button onclick="_downloadContratPDF('${params.id}')" style="background:var(--gold);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;cursor:pointer">\u2b07 T\u00e9l\u00e9charger PDF</button>
-        <button onclick="_sendContratFromPreview('${coId}','${params.id}')" style="background:#3dce8a;border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;cursor:pointer">✉ Envoyer au client</button>
-        <button onclick="document.getElementById('ct-preview-ov').remove();URL.revokeObjectURL(window._ctPreview?.blobUrl||'');setTimeout(()=>{UI.ptab=4;openCoPanel('${coId}');},80)" style="background:#2a2a2e;border:none;border-radius:6px;color:#aaa;font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer">Fermer</button>
-      </div>
-    </div>
-    <iframe src="${blobUrl}" style="flex:1;border:none;background:#fff;width:100%" sandbox="allow-same-origin allow-scripts"></iframe>
-  </div>`;
-  document.body.appendChild(ov);
-  setTimeout(()=>URL.revokeObjectURL(blobUrl),120000);
-}
-
-async function _downloadContratPDF(ctId){
-  // Chercher les params
-  let p = window._ctPreview?.params;
-  if(!p && ctId){
-    for(const co of DB.companies){
-      const ct=(co.contracts||[]).find(x=>x.id===ctId);
-      if(ct){p=ct;break;}
-    }
-  }
-  if(!p){toast('Contrat introuvable','e');return;}
-
-  // Approche fiable : ouvrir dans une nouvelle fenêtre et déclencher l'impression
-  // L'utilisateur fait Ctrl+P → "Enregistrer en PDF" → résultat parfait
-  const htmlStr = _buildContractHTMLForPrint(p);
-  const blob = new Blob([htmlStr],{type:'text/html;charset=utf-8'});
-  const url  = URL.createObjectURL(blob);
-  const w    = window.open(url, '_blank', 'width=900,height=700');
-  if(!w){
-    toast("Autorisez les popups pour télécharger le PDF",'w');
-    URL.revokeObjectURL(url);
-    return;
-  }
-  // Déclencher l'impression une fois la page chargée
-  w.addEventListener('load', ()=>{
-    setTimeout(()=>{ w.print(); URL.revokeObjectURL(url); }, 400);
-  });
-  toast('Dans la fenêtre : Ctrl+P → Enregistrer en PDF','i');
-}
-
-// Version avec bouton "Imprimer / Sauvegarder PDF" intégrée dans la page
-function _buildContractHTMLForPrint(p){
-  const body = _buildContractBody(p);
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<title>Contrat NOVALEM — ${esc(p.nom||'')}</title>
-<style>
-@page{size:A4;margin:18mm 16mm 20mm 16mm}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Georgia,"Times New Roman",serif;font-size:10pt;color:#1A1614;background:#fff;line-height:1.65}
-.wrap{max-width:178mm;margin:0 auto;padding:10mm 0}
-.no-print{display:flex;gap:10px;justify-content:center;padding:14px;background:#f5f5f5;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:99}
-.no-print button{padding:9px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:sans-serif}
-.btn-save{background:#C9891A;color:#fff}
-.btn-close{background:#e5e5e5;color:#333}
-@media print{.no-print{display:none!important}.wrap{max-width:100%;padding:0}}
-${_contractCSSInner()}
-</style></head><body>
-<div class="no-print">
-  <button class="btn-save" onclick="window.print()">⬇ Enregistrer en PDF (Ctrl+P)</button>
-  <button class="btn-close" onclick="window.close()">× Fermer</button>
-</div>
-<div class="wrap">${body}</div>
-</body></html>`;
-}
-
-
-function _contractCSSInner(){
-  return `*{box-sizing:border-box}
-.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #C9891A;padding-bottom:10px;margin-bottom:18px}
-.logo{font-family:Arial,sans-serif;font-size:20pt;font-weight:900;letter-spacing:-1px;color:#1A1614;line-height:1}
-.logo-sub{color:#C9891A;font-size:8pt;font-weight:400;display:block;letter-spacing:2px;margin-top:3px;text-transform:uppercase}
-.hdr-r{text-align:right;font-size:7.5pt;color:#888;line-height:1.6}
-.doc-title{text-align:center;margin:18px 0 4px;font-family:Arial,sans-serif;font-size:15pt;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:1px}
-.doc-sub{text-align:center;font-size:8.5pt;color:#888;margin-bottom:4px}
-.gold-line{height:2pt;background:#C9891A;width:36mm;margin:12px auto 18px}
-.parties{display:flex;gap:12px;margin-bottom:16px}
-.partie{flex:1;border:0.5pt solid #EDE9E3;padding:10px 12px;background:#F8F5EF}
-.partie-lbl{font-size:7pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:5px}
-.partie-val{font-size:9pt;line-height:1.65}
-.section{margin:16px 0 5px;padding-bottom:3px;border-bottom:0.5pt solid #EDE9E3;display:flex;align-items:baseline;gap:6px}
-.section-title{font-family:Arial,sans-serif;font-size:9pt;color:#C9891A;text-transform:uppercase;letter-spacing:.8px;font-weight:700}
-.art-num{font-family:Arial,sans-serif;font-size:7.5pt;color:#AAA;font-weight:400}
-p{margin-bottom:7px;text-align:justify;font-size:9.5pt;line-height:1.7}
-ul{margin:4px 0 8px 18px;font-size:9.5pt;line-height:1.7}li{margin-bottom:3px}strong{font-weight:700}
-.tarif-table{width:100%;border-collapse:collapse;margin:8px 0 12px}
-.tarif-table thead td{background:#1A1614;color:#fff;padding:6px 10px;text-align:center;font-family:Arial,sans-serif;font-size:8pt;font-weight:700}
-.tarif-table thead td:first-child{text-align:left}
-.tarif-table tbody tr:nth-child(odd){background:#F8F5EF}
-.tarif-table tbody td{padding:6px 10px;border:0.3pt solid #EDE9E3;font-size:9.5pt}
-.tarif-table tbody td:first-child{font-weight:700}.pct{color:#C9891A;font-weight:700;text-align:center}
-.hbox{border-left:3pt solid #C9891A;background:#FFF8EC;padding:10px 12px;margin:10px 0;font-size:9.5pt;line-height:1.65}
-.sigs{display:flex;gap:20px;margin-top:28px}
-.sig{flex:1;border:0.5pt solid #EDE9E3;padding:12px}
-.sig-lbl{font-size:7pt;font-weight:700;color:#C9891A;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;border-top:2pt solid #C9891A;padding-top:6px}
-.sig-val{font-size:9pt;line-height:1.65;margin-bottom:4px}
-.sig-zone{height:40px;border-bottom:0.5pt solid #CCC;margin:16px 0 4px}
-.sig-hint{font-size:7.5pt;color:#AAA;font-style:italic}
-.sig-date{margin-top:10px;font-size:9pt;color:#1A1614}
-.ftr{margin-top:18px;padding-top:8px;border-top:0.5pt solid #EDE9E3;font-size:6.5pt;color:#AAA;text-align:center;line-height:1.65}`;
-}
-
-function _buildContractHTML(p){
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<title>Contrat NOVALEM \u2014 ${esc(p.nom)}</title>
-<style>body{margin:0;padding:0;background:#f0f0f0;font-family:Georgia,serif}
-.pg-wrap{max-width:210mm;margin:20px auto;background:#fff;padding:18mm;box-shadow:0 2px 20px rgba(0,0,0,.08);min-height:297mm}
-${_contractCSSInner()}</style></head><body>
-<div class="pg-wrap">${_buildContractBody(p)}</div></body></html>`;
-}
-
-function _buildContractBody(p){
-  const{nom,siret,tarifs,taux,opt3070,garantie,date}=p;
-  const f=n=>String(parseFloat(n)).replace('.',',')+'%';
-  const tauxC=taux?`<div class="hbox">Par d\u00e9rogation, le taux applicable au <strong>premier recrutement</strong> dans le cadre du pr\u00e9sent contrat est fix\u00e9 \u00e0 <strong>${taux}\u00a0%</strong> du SBA. \u00c0 compter du second recrutement, la grille standard reprend effet.</div>`:'';
-  const reg=opt3070
-    ?`<p>Le r\u00e8glement s'effectue en deux versements\u00a0: <strong>30\u00a0%</strong> \u00e0 la date d'int\u00e9gration du candidat\u00a0; <strong>70\u00a0%</strong> \u00e0 l'issue de la p\u00e9riode d'essai (3\u00a0mois complets).</p>`
-    :`<p>La facturation intervient \u00e0 la date d'int\u00e9gration effective du candidat. R\u00e8glement par virement bancaire \u00e0 r\u00e9ception de facture, sans escompte.</p>`;
-  const rs=`<p>En cas de retard de paiement, p\u00e9nalit\u00e9s de plein droit au taux l\u00e9gal major\u00e9 de 5 points, sans mise en demeure pr\u00e9alable, ainsi qu'une indemnit\u00e9 forfaitaire de 40\u00a0\u20ac (art.\u00a0L.\u00a0441-6 C.\u00a0com.).</p>`;
-  const garC=garantie?`<div class="section"><span class="art-num">Art.\u00a09</span><span class="section-title">Garantie de remplacement</span></div><p>Si le candidat recrut\u00e9 quitte le poste de sa propre initiative, ou si le Client y met fin pour motif professionnel, dans les 3\u00a0mois suivant la prise de poste, NOVALEM relance la recherche sans honoraires suppl\u00e9mentaires pendant 6\u00a0mois. Limit\u00e9 \u00e0 un remplacement par mission.</p>`:'';
-  const n=garantie?10:9;
-  return `<div class="hdr"><div class="logo">NOVALEM<span class="logo-sub">Recrutement BTP \u00b7 CDI</span></div><div class="hdr-r">contact@novalem-recrutement.fr<br>06\u00a058\u00a021\u00a020\u00a096<br>novalem-recrutement.fr</div></div>
-<div class="doc-title">Contrat Cadre de Recrutement</div>
-<div class="doc-sub">Prestation de recrutement CDI \u2014 B\u00e2timent &amp; Travaux Publics</div>
-<div class="gold-line"></div>
-<div class="section"><span class="section-title">Parties</span></div>
-<div class="parties">
-  <div class="partie"><div class="partie-lbl">Le Client</div><div class="partie-val"><strong>${esc(nom)}</strong><br>SIRET\u00a0: ${esc(siret)}</div></div>
-  <div class="partie"><div class="partie-lbl">Le Prestataire</div><div class="partie-val"><strong>NOVALEM</strong> \u2014 Louis RENAULT<br>Cabinet de recrutement BTP<br>APE\u00a07810Z</div></div>
-</div>
-<div class="section"><span class="art-num">Art.\u00a01</span><span class="section-title">Objet</span></div>
-<p>Le pr\u00e9sent contrat cadre d\u00e9finit les conditions dans lesquelles NOVALEM accompagne le Client dans l'ensemble de ses recrutements CDI relevant du B\u00e2timent et des Travaux Publics, sans limitation du nombre de postes, pour toute la dur\u00e9e de l'accord.</p>
-<div class="section"><span class="art-num">Art.\u00a02</span><span class="section-title">D\u00e9finitions</span></div>
-<p><strong>\u00ab\u00a0Candidat pr\u00e9sent\u00e9 directement\u00a0\u00bb</strong>\u00a0: tout candidat ayant fait l'objet d'un entretien organis\u00e9 via NOVALEM. <strong>\u00ab\u00a0SBA\u00a0\u00bb</strong>\u00a0: salaire brut annuel stipul\u00e9 au contrat de travail, hors primes discr\u00e9tionnaires.</p>
-<div class="section"><span class="art-num">Art.\u00a03</span><span class="section-title">Engagements de NOVALEM</span></div>
-<p>NOVALEM est tenue d'une obligation de moyens. Elle s'engage \u00e0\u00a0: sourcer des candidats qualifi\u00e9s\u00a0; respecter la confidentialit\u00e9 des informations du Client\u00a0; ne pas approcher les salari\u00e9s du Client pendant la dur\u00e9e du contrat et les 12\u00a0mois suivants.</p>
-<div class="section"><span class="art-num">Art.\u00a04</span><span class="section-title">Engagements du Client</span></div>
-<p>Le Client s'engage \u00e0\u00a0: d\u00e9signer un interlocuteur unique\u00a0; communiquer sa d\u00e9cision sur chaque candidature dans les 8\u00a0jours calendaires\u00a0; recevoir les candidats retenus dans les 15\u00a0jours\u00a0; informer NOVALEM de tout recrutement d'un candidat pr\u00e9sent\u00e9.</p>
-<div class="section"><span class="art-num">Art.\u00a05</span><span class="section-title">Honoraires</span></div>
-<p>Les honoraires sont calcul\u00e9s en pourcentage du <strong>SBA</strong> convenu lors de chaque embauche\u00a0:</p>
-<table class="tarif-table"><thead><tr><td>Cat\u00e9gorie</td><td>&lt;\u00a05\u00a0ans</td><td>5\u00a0\u00e0\u00a015\u00a0ans</td><td>&gt;\u00a015\u00a0ans</td></tr></thead>
-<tbody><tr><td>Non-cadre</td><td class="pct">${f(tarifs.nc1)}</td><td class="pct">${f(tarifs.nc2)}</td><td class="pct">${f(tarifs.nc3)}</td></tr>
-<tr><td>Cadre</td><td class="pct">${f(tarifs.c1)}</td><td class="pct">${f(tarifs.c2)}</td><td class="pct">${f(tarifs.c3)}</td></tr></tbody></table>
-${tauxC}
-<div class="hbox">Les honoraires sont exigibles <strong>exclusivement en cas d'int\u00e9gration effective du candidat</strong>. Aucun frais n'est d\u00fb en l'absence d'embauche.</div>
-<div class="section"><span class="art-num">Art.\u00a06</span><span class="section-title">Modalit\u00e9s de r\u00e8glement</span></div>
-${reg}${rs}
-<div class="section"><span class="art-num">Art.\u00a07</span><span class="section-title">Droit de suite</span></div>
-<p>Pendant <strong>24\u00a0mois</strong> suivant la fin du contrat, tout recrutement d'un candidat pr\u00e9sent\u00e9 directement ou indirectement ouvre droit aux honoraires de l'article\u00a05.</p>
-${garC}
-<div class="section"><span class="art-num">Art.\u00a0${n}</span><span class="section-title">Confidentialit\u00e9</span></div>
-<p>Chaque partie traite avec confidentialit\u00e9 les informations \u00e9chang\u00e9es pendant la dur\u00e9e du contrat et les 5\u00a0ans suivants.</p>
-<div class="section"><span class="art-num">Art.\u00a0${n+1}</span><span class="section-title">Dur\u00e9e et r\u00e9siliation</span></div>
-<p>Contrat de <strong>12\u00a0mois</strong>, renouvelable tacitement par mois. R\u00e9siliation par LRAR sous pr\u00e9avis d'un mois. La clause de droit de suite demeure applicable apr\u00e8s toute extinction.</p>
-<div class="section"><span class="art-num">Art.\u00a0${n+2}</span><span class="section-title">Droit applicable</span></div>
-<p>Contrat soumis au droit fran\u00e7ais. Litige non r\u00e9solu amiablement sous 30\u00a0jours\u00a0: <strong>comp\u00e9tence exclusive des Tribunaux de Nice (Alpes-Maritimes)</strong>.</p>
-<div class="sigs">
-  <div class="sig"><div class="sig-lbl">Pour le Client</div><div class="sig-val"><strong>${esc(nom)}</strong><br>SIRET\u00a0: ${esc(siret)}</div><div class="sig-zone"></div><div class="sig-hint">Signature &amp; cachet</div><div class="sig-date">Fait \u00e0 _________________, le ${date}</div></div>
-  <div class="sig"><div class="sig-lbl">Pour NOVALEM</div><div class="sig-val"><strong>Louis RENAULT</strong><br>Directeur \u2014 NOVALEM</div><div class="sig-zone"></div><div class="sig-hint">Signature</div><div class="sig-date">Fait \u00e0 Nice, le ${date}</div></div>
-</div>
-<div class="ftr">NOVALEM \u00b7 APE\u00a07810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06\u00a058\u00a021\u00a020\u00a096 \u00b7 Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le ${date}</div>`;
-}
-
-function renderCoContrats(coId){
-  const co=coById(coId); if(!co) return '';
-  const contracts=co.contracts||[];
-  if(!contracts.length) return `<div style="text-align:center;padding:32px 16px;color:var(--mu)">
-    <div style="font-size:32px;margin-bottom:8px;opacity:.4">📄</div>
-    <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px">Aucun contrat généré</div>
-    <div style="font-size:11px">Utilisez le bouton <strong>📄 Contrat</strong> dans la barre d'actions</div>
-  </div>`;
-
-  return contracts.map(ct=>{
-    const sg = ct.status === 'signé';
-    const badge = sg
-      ? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;color:#3dce8a;background:rgba(61,206,138,.12);border:1px solid rgba(61,206,138,.25)">✓ Signé</span>`
-      : `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;color:var(--gold);background:rgba(200,144,10,.12);border:1px solid rgba(200,144,10,.25)">⏳ Non signé</span>`;
-
-    const signerInfo = sg && ct.signer_name
-      ? `<div style="font-size:10px;color:#3dce8a;margin-top:3px">Signé par ${esc(ct.signer_name)}${ct.signed_at?' le '+fD(ct.signed_at):''}</div>`
-      : '';
-
-    return `<div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:8px">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-    <div>
-      <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ct.nom||'—')}</div>
-      <div style="font-size:10px;color:var(--mu);margin-top:2px">${fD(ct.created)} · SIRET ${esc(ct.siret||'—')}</div>
-      ${signerInfo}
-    </div>
-    ${badge}
-  </div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    <button class="btn bg bxs" onclick="previewSavedContrat('${coId}','${ct.id}')" style="font-size:11px">Aperçu</button>
-    <button class="btn bg bxs" onclick="downloadSavedContrat('${coId}','${ct.id}')" style="font-size:11px">⬇ PDF</button>
-    <button class="btn bg bxs" onclick="checkContratSignature('${coId}','${ct.id}')" style="font-size:11px;color:var(--ac5)">🔄 Vérifier</button>
-    <button class="btn bg bxs" onclick="cpSignLink('${coId}','${ct.id}')" style="font-size:11px">🔗 Lien</button>
-    <button class="btn bg bxs" onclick="toggleContratStatus('${coId}','${ct.id}')" style="font-size:11px">${sg?'↩ Non signé':'✓ Signé manuel'}</button>
-    <button class="btn bd_ bxs" onclick="deleteContrat('${coId}','${ct.id}')" style="font-size:11px;margin-left:auto">×</button>
-  </div>
-</div>`;
-  }).join('');
-}
-
-function previewSavedContrat(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct){toast('Contrat introuvable','e');return;}window._ctPreview={coId,params:ct};_openContractPreview(coId,ct);}
-async function downloadSavedContrat(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct){toast('Contrat introuvable','e');return;}window._ctPreview={coId,params:ct};await _downloadContratPDF(ctId);}
-function toggleContratStatus(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;ct.status=ct.status==='sign\u00e9'?'non_sign\u00e9':'sign\u00e9';co.updated=now_();save();UI.ptab=4;openCoPanel(coId);toast(ct.status==='sign\u00e9'?'\u2713 Contrat sign\u00e9':'\u21a9 Non sign\u00e9','s');}
-function deleteContrat(coId,ctId){const co=coById(coId);if(!co)return;co.contracts=(co.contracts||[]).filter(x=>x.id!==ctId);co.updated=now_();save();UI.ptab=4;openCoPanel(coId);toast('Contrat supprim\u00e9','w');}
-function _sendContratFromPreview(coId, ctId){
-  // Fermer l'overlay
-  const ov = document.getElementById('ct-preview-ov');
-  if(ov) ov.remove();
-  try{ URL.revokeObjectURL(window._ctPreview?.blobUrl||''); }catch(e){}
-
-  // Récupérer le contrat et les infos client
-  const co = coById(coId);
-  const ct = (co?.contracts||[]).find(x=>x.id===ctId);
-  if(!ct){ toast('Contrat introuvable','e'); return; }
-
-  // Construire le corps de l'email
-  const f = n => String(parseFloat(n||0)).replace('.',',')+'\u00a0%';
-  const lignes = [
-    `\u25b8 Non-cadre : ${f(ct.tarifs?.nc1||12)} / ${f(ct.tarifs?.nc2||13.5)} / ${f(ct.tarifs?.nc3||15)} du SBA (selon exp\u00e9rience)`,
-    `\u25b8 Cadre : ${f(ct.tarifs?.c1||15)} / ${f(ct.tarifs?.c2||17)} / ${f(ct.tarifs?.c3||20)} du SBA (selon exp\u00e9rience)`,
-  ];
-  if(ct.taux)     lignes.push(`\u25b8 Geste commercial : ${ct.taux}\u00a0% pour votre 1er recrutement`);
-  if(ct.opt3070)  lignes.push('\u25b8 R\u00e8glement 30/70\u00a0% : 30\u00a0% \u00e0 l\u2019int\u00e9gration, 70\u00a0% apr\u00e8s la p\u00e9riode d\u2019essai');
-  if(ct.garantie) lignes.push('\u25b8 Garantie de remplacement 3\u00a0mois en cas de d\u00e9part en p\u00e9riode d\u2019essai');
-
-  // Formule d'appel professionnelle B2B — jamais le prénom seul
-  const contactName = (co.contact||'').trim();
-  const appellatif = contactName
-    ? `M. ${contactName.split(' ').pop()}` // Prendre le nom de famille (dernier mot)
-    : 'Madame, Monsieur';
-  const nom = localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
-  const tel = localStorage.getItem(uKey('btp_user_tel')) ||localStorage.getItem('btp_user_tel') ||'';
-
-  // Générer un token de signature unique et le stocker dans le contrat
-  const signingToken = uid() + uid(); // token aléatoire
-  ct.signing_token = signingToken;
-  co.updated = now_();
-  save();
-
-  // Construire l'URL de signature (données embarquées en base64 pour fallback offline)
-  // Encodage pipe-séparé — zéro base64, zéro problème de charset
-  // Format: nom|siret|nc1|nc2|nc3|c1|c2|c3|taux|opt3070|garantie|date
-  const _t = ct.tarifs||{};
-  const ctDataB64 = encodeURIComponent([
-    ct.nom||'', ct.siret||'',
-    _t.nc1||12, _t.nc2||13.5, _t.nc3||15,
-    _t.c1||15,  _t.c2||17,   _t.c3||20,
-    ct.taux||'', ct.opt3070?1:0, ct.garantie?1:0,
-    ct.date||''
-  ].join('|'));
-  const API_BASE = typeof getApiBase === 'function' ? (getApiBase()||'https://novalem-crm.vercel.app') : 'https://novalem-crm.vercel.app';
-  const signUrl = `${API_BASE.replace('/crm','').replace('novalem-crm.vercel.app','novalem-crm.vercel.app')}/sign?co=${coId}&ct=${ct.id}&t=${signingToken}&n=${encodeURIComponent(co.name||'')}&d=${ctDataB64}`;
-
-  const subject = `Proposition professionnelle NOVALEM \u2014 ${ct.nom}`;
-  const body = `Bonjour ${appellatif},
-
-Suite \u00e0 notre \u00e9change, je vous transmets notre proposition professionnelle de recrutement.
-
-Conditions convenues :
-${lignes.join('\n')}
-
-Nos honoraires sont dus exclusivement en cas d'int\u00e9gration effective du candidat. Aucun frais si le recrutement n'aboutit pas.
-
----
-
-Pour signer le contrat, il vous suffit de cliquer sur le bouton ci-dessous. La signature prend moins de 30 secondes, sans impression ni scan.
-
-[Signer le contrat NOVALEM ->(${signUrl})
-
-D\u00e8s r\u00e9ception de votre signature, je vous transmets imm\u00e9diatement les coordonn\u00e9es du candidat afin que vous puissiez organiser l'entretien.
-
-Bien cordialement,
-${nom}${tel?'\n'+tel:''}
-NOVALEM \u2014 Recrutement BTP
-contact@novalem-recrutement.fr`;
-
-  // Timeline
-  if(co){ addTimeline(coId,'contrat','Proposition professionnelle envoy\u00e9e \u2014 en attente de signature'); save(); }
-
-  // Rappel relance signature J+1
-  setTimeout(()=>{
-    _proposeAgendaItem({
-      type:    'relance',
-      title:   `Relance signature \u2014 ${co.name}`,
-      notes:   `Appeler ${co.contact||co.name} pour relancer sur la signature du contrat.`,
-      co_id:   coId,
-      delay:   1,
-      hour:    10,
-      question: `Ajouter un rappel demain \u00e0 10h pour relancer la signature de ${co.name} ?`
-    });
-  }, 1500);
-
-  // Assigner directement les variables let (PAS window.XXX)
-  // Avertir si l'email du client est absent dans la fiche
-  if(!co.email){
-    toast('⚠️ Email du client non renseigné dans la fiche — ajoutez-le avant d\'envoyer','w');
-  }
-  EM = { to: co.email||'', subject, body, candId:null, coId, tplKey:'contrat' };
-  EM_VIEW = 'compose';
-  EM_RECIPIENTS = co.email ? [{
-    email: co.email,
-    name:  co.name||co.email,
-    type:  'co',
-    entityId: co.id
-  }] : [];
-
-  // Fermer le panel + naviguer vers compose IMMÉDIATEMENT
-  closePanel();
-  window._pendingAttachment = null;
-  go('emails');
-
-  // Init chips APRÈS que rEmails() ait rendu le compose
-  setTimeout(() => {
-    _emInitRecipients();
-    // Mettre à jour barre PJ si PDF déjà prêt (cas peu probable mais prévu)
-    if(window._pendingAttachment){
-      const bar = document.getElementById('em-attachment-bar');
-      const nm  = document.getElementById('em-attachment-name');
-      if(bar && nm){ nm.textContent=window._pendingAttachment.filename; bar.style.display='flex'; }
-    }
-  }, 80);
-
-  // Générer le PDF en arrière-plan
-  toast('Mail prêt — génération du PDF…', 'i');
-  setTimeout(async () => {
-    try {
-      const b64 = await _genContractBase64(ct);
-      if(b64){
-        window._pendingAttachment = {
-          filename: `NOVALEM_Proposition_${(ct.nom||'Client').replace(/[^a-zA-Z0-9\-_]/g,'_').slice(0,40)}.pdf`,
-          content:  b64,
-          type:     'application/pdf'
-        };
-        const bar = document.getElementById('em-attachment-bar');
-        const nm  = document.getElementById('em-attachment-name');
-        if(bar && nm){
-          nm.textContent = window._pendingAttachment.filename;
-          bar.style.display = 'flex';
-        }
-        toast('PDF joint au mail ✓', 's');
-      } else {
-        toast('PDF non généré — joignez-le manuellement', 'w');
-      }
-    } catch(e){
-      console.error('[attachment]', e);
-    }
-  }, 300);
-}
-
-
-// Générer le PDF du contrat en base64 pour la pièce jointe Resend
-
-// ── Génération PDF via jsPDF TEXT (pas de html2canvas, pas de freeze) ──
-// jsPDF est exposé par html2pdf.bundle.min.js via window.jspdf.jsPDF
-async function _genContractBase64(ct){
-  // Accéder à jsPDF depuis le CDN UMD (jspdf.umd.min.js)
-  // Expose window.jspdf.jsPDF
-  const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
-  if(!jsPDFCtor){
-    console.error('[genBase64] jsPDF introuvable -- vérifiez le CDN');
-    return null;
-  }
-
-  const {nom='', siret='', tarifs={}, taux='', opt3070=false, garantie=false, date=''} = ct||{};
-  const f = n => String(parseFloat(n||0)).replace('.',',') + '\u00a0%';
-
-  const doc = new jsPDFCtor('p','mm','a4');
-  const W=210, ML=18, MR=18, TW=W-ML-MR;
-  let y=20;
-
-  // Couleurs
-  const GOLD  = [201,137,26];
-  const DARK  = [26,22,20];
-  const GREY  = [100,100,100];
-  const LGREY = [240,238,233];
-
-  // Helpers
-  const setFont = (sz, bold=false, color=DARK) => {
-    doc.setFontSize(sz);
-    doc.setFont('helvetica', bold?'bold':'normal');
-    doc.setTextColor(color[0],color[1],color[2]);
-  };
-  const goldLine = (w=0.6) => {
-    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
-    doc.setLineWidth(w);
-    doc.line(ML, y, W-MR, y);
-    y += 4;
-  };
-  const greyLine = () => {
-    doc.setDrawColor(220,218,210);
-    doc.setLineWidth(0.2);
-    doc.line(ML, y, W-MR, y);
-    y += 3;
-  };
-  const txt = (s, x, opts={}) => {
-    if(y > 270){ doc.addPage(); y=20; }
-    doc.text(String(s||''), x, y, opts);
-  };
-  const block = (lines, x=ML, sz=9, color=DARK, bold=false) => {
-    setFont(sz, bold, color);
-    const wrapped = [];
-    lines.forEach(l => {
-      const ws = doc.splitTextToSize(String(l||''), TW-(x-ML));
-      ws.forEach(w => wrapped.push({t:w, x}));
-    });
-    wrapped.forEach(({t,x:xi}) => { txt(t, xi); y += sz*0.42; });
-  };
-  const sectionTitle = (artNum, title) => {
-    y += 3;
-    greyLine();
-    setFont(7.5, false, GREY); txt(artNum, ML);
-    setFont(8.5, true, GOLD);  txt(title, ML+12);
-    y += 4;
-  };
-
-  // ── EN-TÊTE ────────────────────────────────────────────────────
-  // NOVALEM (grande) — y fixe pour le titre
-  const yHeader = y;
-  setFont(22, true, DARK);
-  doc.text('NOVALEM', ML, yHeader);
-  setFont(7.5, false, GOLD);
-  doc.text('RECRUTEMENT BTP - CDI', ML, yHeader + 6);
-  // Infos de contact alignées à droite, même zone
-  setFont(7.5, false, GREY);
-  doc.text('contact@novalem-recrutement.fr', W-MR, yHeader + 2, {align:'right'});
-  doc.text('06 58 21 20 96 - novalem-recrutement.fr', W-MR, yHeader + 7, {align:'right'});
-  y = yHeader + 13;
-  goldLine(0.8);
-
-  // ── TITRE DOCUMENT ─────────────────────────────────────────────
-  setFont(14, true, DARK);
-  doc.text('CONTRAT CADRE DE RECRUTEMENT', W/2, y, {align:'center'});
-  y += 5;
-  setFont(8.5, false, GREY);
-  doc.text('Prestation de recrutement CDI -- B\u00e2timent & Travaux Publics', W/2, y, {align:'center'});
-  y += 3;
-  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
-  doc.rect(W/2-16, y, 32, 0.8, 'F');
-  y += 8;
-
-  // ── PARTIES ───────────────────────────────────────────────────
-  setFont(9, true, DARK); txt('Parties', ML); y += 4;
-  // Box client
-  doc.setFillColor(LGREY[0],LGREY[1],LGREY[2]);
-  doc.rect(ML, y, TW/2-3, 18, 'F');
-  doc.setFillColor(248,245,239);
-  doc.rect(ML+TW/2+3, y, TW/2-3, 18, 'F');
-  const bx1=ML+3, bx2=ML+TW/2+6, by=y;
-  y = by+4;
-  setFont(6.5, true, GOLD); txt('LE CLIENT', bx1); y+=3;
-  setFont(8.5, true, DARK); txt(nom||'_______________', bx1); y+=3.5;
-  setFont(7.5, false, GREY); txt('SIRET\u00a0: '+(siret||'_______________'), bx1);
-  y = by+4;
-  setFont(6.5, true, GOLD); txt('LE PRESTATAIRE', bx2); y+=3;
-  setFont(8.5, true, DARK); txt('NOVALEM -- Louis RENAULT', bx2); y+=3.5;
-  setFont(7.5, false, GREY); txt('Cabinet de recrutement BTP -- APE 7810Z', bx2);
-  y = by+22;
-
-  // ── ARTICLES ─────────────────────────────────────────────────
-  sectionTitle('Art. 1', 'OBJET');
-  block(["Le pr\u00e9sent contrat cadre d\u00e9finit les conditions dans lesquelles NOVALEM accompagne le Client dans l'ensemble de ses recrutements CDI relevant du B\u00e2timent et des Travaux Publics, sans limitation du nombre de postes, pour toute la dur\u00e9e de l'accord."]);
-
-  sectionTitle('Art. 2', 'ENGAGEMENTS DE NOVALEM');
-  block(["NOVALEM s'engage \u00e0\u00a0: sourcer des candidats qualifi\u00e9s\u00a0; proc\u00e9der \u00e0 leur pr\u00e9s\u00e9lection\u00a0; respecter la confidentialit\u00e9 des informations du Client\u00a0; ne pas approcher les salari\u00e9s du Client pendant la dur\u00e9e du contrat et les 12\u00a0mois suivants\u00a0; ne pas imposer de clause d'exclusivit\u00e9."]);
-
-  sectionTitle('Art. 3', 'ENGAGEMENTS DU CLIENT');
-  block(["Le Client s'engage \u00e0\u00a0: d\u00e9signer un interlocuteur unique\u00a0; communiquer sa d\u00e9cision sur chaque candidature dans les 8\u00a0jours calendaires\u00a0; recevoir les candidats retenus dans les 15\u00a0jours\u00a0; informer NOVALEM de tout recrutement d'un candidat pr\u00e9sent\u00e9\u00a0; ex\u00e9cuter le contrat de bonne foi."]);
-
-  sectionTitle('Art. 4', 'HONORAIRES');
-  block(["Les honoraires sont calcul\u00e9s en pourcentage du salaire brut annuel (SBA) convenu lors de chaque embauche\u00a0:"]);
-  y += 2;
-
-  // Tableau tarifaire
-  const colW = [50, 38, 38, 38];
-  const tHeaders = ['Cat\u00e9gorie', '< 5\u00a0ans', '5\u00a0\u00e0\u00a015\u00a0ans', '> 15\u00a0ans'];
-  const tRows = [
-    ['Non-cadre', f(tarifs.nc1||12), f(tarifs.nc2||13.5), f(tarifs.nc3||15)],
-    ['Cadre',     f(tarifs.c1||15),  f(tarifs.c2||17),    f(tarifs.c3||20)],
-  ];
-  // Header
-  doc.setFillColor(26,22,20);
-  doc.rect(ML, y, TW, 8, 'F');
-  setFont(8, true, [255,255,255]);
-  let cx=ML;
-  tHeaders.forEach((h,i)=>{ doc.text(h,cx+2,y+5); cx+=colW[i]; });
-  y+=8;
-  // Rows
-  tRows.forEach((row, ri)=>{
-    doc.setFillColor(ri%2===0?248:255, ri%2===0?245:255, ri%2===0?239:255);
-    doc.rect(ML, y, TW, 7, 'F');
-    cx=ML;
-    row.forEach((cell,i)=>{
-      if(i===0){ setFont(8.5, true, DARK); }
-      else { setFont(8.5, true, GOLD); }
-      doc.text(cell, i===0?cx+2:cx+colW[i]/2, y+5, {align:i===0?'left':'center'});
-      cx+=colW[i];
-    });
-    y+=7;
-  });
-  y+=4;
-
-  if(taux){
-    doc.setFillColor(255,248,236);
-    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
-    doc.setLineWidth(0.3);
-    const gText = doc.splitTextToSize(`Par d\u00e9rogation\u00a0: taux sp\u00e9cifique de ${taux}\u00a0% du SBA pour votre 1er recrutement. La grille standard reprend effet \u00e0 compter du 2\u00e8me recrutement.`, TW-6);
-    doc.rect(ML, y, TW, gText.length*4+6, 'FD');
-    doc.setDrawColor(ML,y,3);
-    doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
-    doc.rect(ML, y, 2.5, gText.length*4+6, 'F');
-    setFont(8.5, false, DARK);
-    doc.text(gText, ML+5, y+4.5);
-    y += gText.length*4+10;
-  }
-
-  block(["> Les honoraires sont exigibles exclusivement en cas d'int\u00e9gration effective du candidat. Aucun frais en l'absence d'embauche."]);
-
-  sectionTitle('Art. 5', 'MODALIT\u00c9S DE R\u00c8GLEMENT');
-  if(opt3070){
-    block(["R\u00e8glement en deux versements\u00a0: 30\u00a0% \u00e0 la date d'int\u00e9gration du candidat\u00a0; 70\u00a0% \u00e0 l'issue de la p\u00e9riode d'essai (3\u00a0mois complets)."]);
-  } else {
-    block(["Facturation \u00e0 la date d'int\u00e9gration effective. R\u00e8glement par virement bancaire \u00e0 r\u00e9ception de facture, sans escompte."]);
-  }
-  block(["Retards de paiement\u00a0: p\u00e9nalit\u00e9s de plein droit au taux l\u00e9gal + 5 points + indemnit\u00e9 forfaitaire 40\u20ac (art. L. 441-6 C. com.)."]);
-
-  sectionTitle('Art. 6', 'DROIT DE SUITE');
-  block(["Pendant 24\u00a0mois suivant la fin du contrat, tout recrutement d'un candidat pr\u00e9sent\u00e9 directement ou indirectement ouvre droit aux honoraires de l'article\u00a04."]);
-
-  if(garantie){
-    sectionTitle('Art. 7', 'GARANTIE DE REMPLACEMENT');
-    block(["Si le candidat recrut\u00e9 quitte le poste ou si le Client y met fin pour motif professionnel dans les 3\u00a0mois suivant la prise de poste, NOVALEM relance la recherche sans honoraires suppl\u00e9mentaires pendant 6\u00a0mois (limit\u00e9 \u00e0 un remplacement par mission)."]);
-  }
-
-  const n = garantie ? 8 : 7;
-  sectionTitle(`Art. ${n}`, 'CONFIDENTIALIT\u00c9 & RGPD');
-  block(["Chaque partie traite avec confidentialit\u00e9 les informations \u00e9chang\u00e9es pendant la dur\u00e9e du contrat et les 5\u00a0ans suivants. NOVALEM traite les donn\u00e9es des candidats en qualit\u00e9 de responsable de traitement (R\u00e8gl. UE 2016/679)."]);
-
-  sectionTitle(`Art. ${n+1}`, 'DUR\u00c9E ET R\u00c9SILIATION');
-  block(["Contrat de 12\u00a0mois, renouvelable tacitement par mois. R\u00e9siliation par LRAR sous pr\u00e9avis d'un mois. La clause de droit de suite demeure applicable apr\u00e8s toute extinction."]);
-
-  sectionTitle(`Art. ${n+2}`, 'DROIT APPLICABLE');
-  block(["Contrat soumis au droit fran\u00e7ais. Tout litige non r\u00e9solu amiablement sous 30\u00a0jours\u00a0: comp\u00e9tence exclusive des Tribunaux de Nice (Alpes-Maritimes)."]);
-
-  // ── SIGNATURES ────────────────────────────────────────────────
-  y += 6;
-  if(y > 220){ doc.addPage(); y=20; }
-  greyLine();
-  y += 3;
-
-  const sw = TW/2-5;
-
-  // ── Box client : SIGNATURE ELECTRONIQUE ────────────────────
-  doc.setFillColor(248,248,255);  // bleu très clair
-  doc.setDrawColor(180,190,220);
-  doc.setLineWidth(0.3);
-  doc.rect(ML, y, sw, 40, 'FD');
-  // Barre dorée
-  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
-  doc.rect(ML, y, sw, 2, 'F');
-  const cy = y;
-  setFont(6.5, true, GOLD); doc.text('POUR LE CLIENT', ML+3, cy+6);
-  setFont(8.5, true, DARK); doc.text(nom||'_______________', ML+3, cy+12);
-  setFont(7.5, false, GREY); doc.text('SIRET : '+(siret||'_______________'), ML+3, cy+17);
-  // Zone signature electronique
-  doc.setFillColor(240,245,255);
-  doc.rect(ML+3, cy+20, sw-6, 14, 'F');
-  setFont(7, true, [60,100,180]); doc.text('SIGNATURE ELECTRONIQUE', ML+sw/2, cy+27, {align:'center'});
-  setFont(6.5, false, [100,120,160]); doc.text('Un lien de signature vous est envoye par email', ML+sw/2, cy+31, {align:'center'});
-  doc.text('Ref. : '+(ct.id||'—').slice(0,12).toUpperCase(), ML+sw/2, cy+35, {align:'center'});
-
-  // ── Box NOVALEM : pre-signe ─────────────────────────────────
-  doc.setFillColor(LGREY[0],LGREY[1],LGREY[2]);
-  doc.rect(ML+sw+10, y, sw, 40, 'F');
-  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
-  doc.rect(ML+sw+10, y, sw, 2, 'F');
-  const nx = ML+sw+13;
-  setFont(6.5, true, GOLD); doc.text('POUR NOVALEM', nx, cy+6);
-  setFont(8.5, true, DARK); doc.text('Louis RENAULT', nx, cy+12);
-  setFont(7.5, false, GREY); doc.text('Directeur -- NOVALEM', nx, cy+17);
-  // Signature pre-imprimee (stylisee en texte)
-  doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
-  doc.line(nx, cy+30, nx+sw-6, cy+30);
-  setFont(10, true, [40,40,40]);
-  doc.setFont('courier','bolditalic');
-  doc.text('L. Renault', nx+4, cy+28);
-  setFont(7, false, GREY); doc.text('Signature', nx, cy+34);
-  setFont(7.5, false, DARK); doc.text('Fait a Nice, le '+date, nx, cy+39);
-
-  y = cy+46;
-
-  // ── FOOTER ───────────────────────────────────────────────────
-  const pageCount = doc.getNumberOfPages();
-  for(let p=1; p<=pageCount; p++){
-    doc.setPage(p);
-    doc.setFontSize(6.5);
-    doc.setTextColor(180,180,180);
-    doc.text('NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06 58 21 20 96 \u00b7 Document confidentiel -- g\u00e9n\u00e9r\u00e9 le '+date, W/2, 290, {align:'center'});
-    doc.text(`${p} / ${pageCount}`, W-MR, 290, {align:'right'});
-  }
-
-  // Retourner base64
-  const dataUri = doc.output('datauristring');
-  return dataUri.split(',')[1];
-}
-
-
-function cpSignLink(coId, ctId){
-  const co = coById(coId);
-  const ct = (co?.contracts||[]).find(x=>x.id===ctId);
-  if(!ct?.signing_token){ toast('Pas de lien de signature pour ce contrat — envoyez-le d\'abord au client','w'); return; }
-  const ctDataB64 = btoa(JSON.stringify({nom:ct.nom,siret:ct.siret,tarifs:ct.tarifs,taux:ct.taux,opt3070:ct.opt3070,garantie:ct.garantie,date:ct.date}));
-  const url = `https://novalem-crm.vercel.app/sign?co=${coId}&ct=${ct.id}&t=${ct.signing_token}&n=${encodeURIComponent(co.name||'')}&d=${ctDataB64}`;
-  navigator.clipboard.writeText(url).then(()=>toast('Lien de signature copié ✓','s')).catch(()=>toast(url,'i'));
-}
-
-// Vérifier la signature depuis Supabase
-async function checkContratSignature(coId, ctId){
-  const co = coById(coId);
-  const ct = (co?.contracts||[]).find(x=>x.id===ctId);
-  if(!ct){ toast('Contrat introuvable','e'); return; }
-  const sb = getSB();
-  if(!sb){ toast('Supabase non configuré','w'); return; }
-  toast('Vérification…','i');
-  try{
-    const {data,error} = await sb
-      .from('novalem_signatures')
-      .select('signer_name,signer_email,signed_at')
-      .eq('ct_id',ctId)
-      .maybeSingle();
-    if(error) throw error;
-    if(!data){ toast('Pas encore signé','w'); return; }
-    ct.status='signé'; ct.signed_at=data.signed_at; ct.signer_name=data.signer_name;
-    co.updated=now_();
-    addTimeline(coId,'sign','Contrat signé par '+data.signer_name);
-    save();
-    UI.ptab=4; openCoPanel(coId);
-    toast('✓ Signé par '+data.signer_name+' le '+fD(data.signed_at),'s');
-  }catch(e){ toast('Erreur: '+e.message,'e'); }
-}
-
-// Marquer les contacts candidat comme envoyés sur un contrat
-function markCandidatesSent(coId, ctId){
-  const co=coById(coId); if(!co) return;
-  const ct=(co.contracts||[]).find(x=>x.id===ctId); if(!ct) return;
-  ct.candidates_sent=true; ct.candidates_sent_at=now_();
-  co.updated=now_();
-  addTimeline(coId,'candidat',"Coordonnées du candidat envoyées au client");
-  save(); rDash(); badges();
-  toast('Contacts envoyés ✓ — fiche mise à jour','s');
-  // Rappel suivi placement J+3
-  _proposeAgendaItem({
-    type:    'call',
-    title:   `Suivi placement — ${co?.name||coId}`,
-    notes:   'Vérifier que le client a bien contacté le candidat et que l\'entretien est planifié.',
-    co_id:   coId,
-    delay:   3,
-    hour:    11,
-    question: `Rappel dans 3 jours pour vérifier le suivi de la mise en relation ?`
-  });
-}
-
-
-// ── Génération PDF Dossier de Candidature via jsPDF ─────────────
-async function _genDossierBase64(cand){
-  const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
-  if(!jsPDFCtor) return null;
-
-  const c = cand||{};
-  const doc = new jsPDFCtor('p','mm','a4');
-  const W=210, ML=16, MR=16, TW=W-ML-MR;
-  const GOLD=[201,137,26], DARK=[26,22,20], GREY=[120,120,120], LGREY=[240,238,233];
-  let y=18;
-
-  const setF=(sz,bold=false,color=DARK)=>{doc.setFontSize(sz);doc.setFont('helvetica',bold?'bold':'normal');doc.setTextColor(color[0],color[1],color[2]);};
-  const txt=(s,x,opts={})=>{if(y>270){doc.addPage();y=18;}doc.text(String(s||''),x,y,opts);};
-  const gLine=()=>{doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.7);doc.line(ML,y,W-MR,y);y+=5;};
-  const sLine=()=>{doc.setDrawColor(220,218,210);doc.setLineWidth(0.2);doc.line(ML,y,W-MR,y);y+=3;};
-  const section=(num,title)=>{y+=4;sLine();setF(8.5,true,GOLD);txt(`${num} - ${title}`,ML);y+=5;};
-  const field=(label,val='',w=TW)=>{
-    setF(7.5,false,GREY);txt(label,ML);
-    doc.setDrawColor(180,180,180);doc.setLineWidth(0.2);
-    doc.line(ML+32,y,ML+32+Math.min(w-32,120),y);
-    if(val){setF(8.5,false,DARK);doc.text(String(val),ML+34,y-0.5);}
-    y+=6;
-  };
-  const field2=(l1,v1,l2,v2)=>{
-    setF(7.5,false,GREY);doc.text(l1,ML,y);
-    doc.setDrawColor(180,180,180);doc.setLineWidth(0.2);
-    const w2=TW/2-4;
-    doc.line(ML+24,y,ML+24+w2-24,y);
-    if(v1){setF(8.5,false,DARK);doc.text(String(v1),ML+26,y-0.5);}
-    const x2=ML+TW/2+4;
-    setF(7.5,false,GREY);doc.text(l2,x2,y);
-    doc.line(x2+24,y,x2+24+w2-24,y);
-    if(v2){setF(8.5,false,DARK);doc.text(String(v2),x2+26,y-0.5);}
-    y+=6;
-  };
-  const box=(label,checked)=>{
-    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
-    doc.setLineWidth(0.3);
-    doc.rect(ML,y-3,4,4);
-    if(checked){setF(8,true,GOLD);doc.text('x',ML+0.8,y);}
-    setF(8,false,DARK);doc.text(label,ML+6,y);
-    return ML+6+doc.getTextWidth(label)+8;
-  };
-
-  // ── EN-TÊTE ──────────────────────────────────────────────────
-  const yH=y;
-  setF(20,true,DARK);doc.text('NOVALEM',ML,yH);
-  setF(7,false,GOLD);doc.text('RECRUTEMENT BTP',ML,yH+6);
-  setF(8,false,GREY);
-  doc.text('contact@novalem-recrutement.fr',W-MR,yH+2,{align:'right'});
-  doc.text('novalem-recrutement.fr',W-MR,yH+7,{align:'right'});
-  y=yH+12; gLine();
-
-  setF(16,true,DARK);doc.text('DOSSIER DE CANDIDATURE',W/2,y,{align:'center'});y+=5;
-  setF(8,false,GREY);doc.text('Document confidentiel - Usage exclusif NOVALEM',W/2,y,{align:'center'});y+=3;
-  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);doc.rect(W/2-20,y,40,0.8,'F');y+=8;
-
-  // Pre-remplissage depuis la fiche candidat
-  const name = c.name||'';
-  const parts = name.trim().split(' ');
-  const prenom = parts[0]||'';
-  const nom = parts.slice(1).join(' ')||'';
-
-  // ── 01 IDENTITE ──────────────────────────────────────────────
-  section('01','IDENTITE ET COORDONNEES');
-  field2('Nom',nom,'Prenom',prenom);
-  field('Adresse','');
-  field2('Code postal','','Ville','');
-  field2('Telephone portable',c.phone||'','Email',c.email||'');
-
-  // ── 02 ETAT CIVIL ─────────────────────────────────────────────
-  section('02','ETAT CIVIL');
-  field2('Date de naissance','','Lieu de naissance','');
-  field2('Nationalite','','N° Securite Sociale','');
-  field2('Type de piece d\'identite','','N° piece','');
-
-  // ── 03 POSTE SOUHAITE ─────────────────────────────────────────
-  section('03','POSTE SOUHAITE');
-  field('Intitule du poste',c.role||'');
-  field2('Experience sur ce poste','','Salaire souhaite (K€ brut/an)',c.salary?String(Math.round(c.salary/1000)):'');
-  // Cases contrat
-  y+=1;
-  let bx=ML;
-  setF(7.5,false,GREY);doc.text('Type de contrat :',bx,y);bx+=28;
-  setF(8,false,DARK);
-  ['CDI','CDD','CDI de Chantier'].forEach(t=>{
-    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx,y-3,3.5,3.5);
-    setF(8,false,DARK);doc.text(t,bx+5,y);bx+=5+doc.getTextWidth(t)+8;
-  });
-  y+=7;
-
-  // ── 04 DISPONIBILITES ─────────────────────────────────────────
-  section('04','DISPONIBILITES ET MOBILITE');
-  field2('Disponible a partir du',c.avail||'','Duree du preavis','');
-  y+=1;
-  let bx2=ML;
-  setF(7.5,false,GREY);doc.text('Mobilite :',bx2,y);bx2+=20;
-  ['Locale','Regionale','Nationale','Internationale'].forEach(m=>{
-    const isChecked = c.mobility&&c.mobility.toLowerCase().includes(m.toLowerCase().slice(0,4));
-    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx2,y-3,3.5,3.5);
-    if(isChecked){setF(8,true,GOLD);doc.text('x',bx2+0.6,y);}
-    setF(8,false,DARK);doc.text(m,bx2+5,y);bx2+=5+doc.getTextWidth(m)+8;
-  });
-  y+=7;
-  field('Zones/regions acceptees',c.mobility||'');
-
-  // ── 05 PERMIS ─────────────────────────────────────────────────
-  section('05','PERMIS ET TRANSPORTS');
-  y+=1;
-  let bx3=ML;
-  setF(7.5,false,GREY);doc.text('Permis B :',bx3,y);bx3+=18;
-  ['Oui','Non'].forEach(v=>{doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx3,y-3,3.5,3.5);setF(8,false,DARK);doc.text(v,bx3+5,y);bx3+=5+doc.getTextWidth(v)+10;});
-  bx3+=10;
-  setF(7.5,false,GREY);doc.text('Permis A :',bx3,y);bx3+=18;
-  ['Oui','Non'].forEach(v=>{doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx3,y-3,3.5,3.5);setF(8,false,DARK);doc.text(v,bx3+5,y);bx3+=5+doc.getTextWidth(v)+10;});
-  y+=7;
-  field('CACES / Habilitations','');
-
-  // ── 07 DOCUMENTS REQUIS ───────────────────────────────────────
-  section('07','DOCUMENTS A FOURNIR');
-  const docs2=[["Carte d'identite / Passeport","CV a jour"],["Permis de conduire","Diplomes / certifications"],["Justificatif de domicile","Certif. CACES / Habilitations"]];
-  docs2.forEach(([a,b])=>{
-    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);
-    doc.rect(ML,y-3,3.5,3.5);setF(8,false,DARK);doc.text(a,ML+6,y);
-    doc.rect(ML+TW/2+4,y-3,3.5,3.5);doc.text(b,ML+TW/2+10,y);
-    y+=6;
-  });
-
-  // ── SIGNATURE ─────────────────────────────────────────────────
-  y+=4; sLine(); y+=4;
-  setF(7.5,false,GREY);
-  doc.text('Je soussigne(e) certifie l\'exactitude des informations fournies et autorise NOVALEM a traiter',ML,y);y+=4;
-  doc.text('mes donnees personnelles conformement au RGPD (conservation 2 ans).',ML,y);y+=8;
-  doc.setDrawColor(180,180,180);doc.setLineWidth(0.3);
-  doc.line(ML,y,ML+70,y);doc.text('Date et lieu',ML,y+4);
-  doc.line(ML+90,y,ML+TW,y);doc.text('Signature du candidat',ML+90,y+4);
-  y+=12;
-
-  // ── FOOTER ────────────────────────────────────────────────────
-  const pages=doc.getNumberOfPages();
-  for(let p=1;p<=pages;p++){
-    doc.setPage(p);
-    doc.setFontSize(6);doc.setTextColor(180,180,180);
-    doc.text(`NOVALEM - Cabinet de recrutement BTP - contact@novalem-recrutement.fr - Page ${p}/${pages}`,W/2,290,{align:'center'});
-  }
-
-  const uri=doc.output('datauristring');
-  return uri.split(',')[1];
-}
-
-
-// ── Proposer d'ajouter un événement à l'agenda (toast non-bloquant) ──
-// delay = jours à ajouter à aujourd'hui (0 = aujourd'hui, 1 = demain...)
-// hour  = heure de l'événement (entier, ex: 10 = 10h00)
-function _proposeAgendaItem({type='task', title='', notes='', cand_id=null, co_id=null, delay=0, hour=9, question=''}){
-  // Calculer la date cible
-  const d = new Date();
-  d.setDate(d.getDate() + delay);
-  // Sauter le week-end
-  while(d.getDay()===0||d.getDay()===6){ d.setDate(d.getDate()+1); }
-  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const timeStr = `${String(hour).padStart(2,'0')}:00`;
-
-  // Afficher une modale de confirmation légère
-  const mo = document.createElement('div');
-  mo.id = '_agenda-propose-mo';
-  mo.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9998;background:var(--s3);border:1px solid var(--gold-bd,rgba(200,144,10,.3));border-radius:10px;padding:16px 18px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideInRight .3s ease';
-
-  const f = new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d);
-  mo.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:flex-start">
-      <span style="font-size:20px;flex-shrink:0">📅</span>
-      <div style="flex:1">
-        <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">${esc(question)||'Ajouter à l\'agenda ?'}</div>
-        <div style="font-size:10px;color:var(--mu);margin-bottom:10px">${f} à ${timeStr} — ${esc(title)}</div>
-        <div style="display:flex;gap:8px">
-          <button onclick="_addProposedItem()" style="flex:1;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px;font-size:12px;font-weight:700;cursor:pointer">Oui, ajouter</button>
-          <button onclick="document.getElementById('_agenda-propose-mo')?.remove()" style="background:var(--s4);color:var(--mu);border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer">Non</button>
-        </div>
-      </div>
-    </div>`;
-
-  // Stocker les données pour _addProposedItem
-  window._proposedItem = {type, title, notes, cand_id, co_id, date: dateStr, time: timeStr};
-
-  // Supprimer après 12 secondes si pas de réponse
-  if(document.getElementById('_agenda-propose-mo')) document.getElementById('_agenda-propose-mo').remove();
-  document.body.appendChild(mo);
-  setTimeout(()=>mo.remove(), 12000);
-}
-
-function _addProposedItem(){
-  const p = window._proposedItem;
-  if(!p) return;
-  document.getElementById('_agenda-propose-mo')?.remove();
-  DB.agenda.push({
-    id: uid(),
-    type:    p.type,
-    title:   p.title,
-    date:    new Date(p.date).toISOString(),
-    time:    p.time,
-    cand_id: p.cand_id || null,
-    comp_id: p.co_id   || null,
-    notes:   p.notes   || '',
-    done:    false,
-    created: now_(),
-  });
-  save();
-  badges();
-  toast(`📅 Ajouté à l'agenda : ${p.title}`, 's');
-  window._proposedItem = null;
-}
-
-// CSS pour l'animation du toast agenda
-(()=>{
-  if(document.getElementById('_agenda-css')) return;
-  const st = document.createElement('style');
-  st.id = '_agenda-css';
-  st.textContent = '@keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}';
-  document.head.appendChild(st);
-})();
-
-function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
-
+// ═══════════════════════════════════════════════════════
+// PANEL SYSTEM
+// ═══════════════════════════════════════════════════════
 function openPanel(){document.getElementById('panel').classList.add('open');}
 function closePanel(){document.getElementById('panel').classList.remove('open');UI.ptype=null;UI.pid=null;}
+
 function setPanel(name,sub,tabs,body,actions){
  document.getElementById('ph-name').textContent=name;
  document.getElementById('ph-sub').innerHTML=sub||'';
@@ -5070,7 +3952,7 @@ function openCoPanel(id){
  const contacts=c.contacts||[];
  const tl=c.timeline||[];
 
- const tabs=['Fiche','Besoins',`Timeline (${tl.length})`,'Notes','Contrats'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setCoTab(${i},'${id}')">${t}</div>`).join('');
+ const tabs=['Fiche','Besoins',`Timeline (${tl.length})`,'Notes'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setCoTab(${i},'${id}')">${t}</div>`).join('');
  const B=[
  // 0 FICHE
  `${c.phone?`<div class="callbox"><div class="callbox-ph">${fPhone(c.phone)}</div><div class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">⧉</div></div>`:''}
@@ -5105,10 +3987,8 @@ function openCoPanel(id){
  <div>${renderTimeline(id)}</div>`,
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
-    // 4 CONTRATS
-    renderCoContrats(id),
-    ];
- const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bg bsm" style="background:#C9891A;color:#fff;border:none" onclick="genContrat('${id}')">📄 Contrat</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
+ ];
+ const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span> <span class="pill ${c.type==='client'?'pwin':'ptoc'}">${c.type==='client'?'Client':'Prospect'}</span>`,tabs,B[Math.min(UI.ptab,B.length-1)],acts);
 }
 
@@ -5143,7 +4023,6 @@ function openNeedPanel(id){
  const acts=`<button class="btn bp bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delNeed('${id}')"></button>`;
  setPanel(n.title,`${co?`<span>${esc(co.name)}</span> · `:''}<span class="tag ${cat.cls}">${cat.l}</span>`,tabs,B[UI.ptab],acts);
 }
-
 
 // ── AGENDA PANEL ────────────────────────────────────────────
 function openAgPanel(id){
@@ -5498,7 +4377,7 @@ function markCVSent(candId,coId){const co=coById(coId);if(!co)return;co.status='
 function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo(' Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier</button>`);}
 function cpTpl(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Copié ✓','i'));}
 function genBoardTexts(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;const txt=`═ FRANCE TRAVAIL ═\nIntitulé: ${p.title}\nLocalisation: ${p.location||'—'}\nType: CDI\nSalaire: ${p.salary||'—'}\n\n${p.body||''}\n\n═ INDEED ═\n${p.title} | ${p.location||''}\n${p.salary||''}\n\n${(p.body||'').slice(0,280)}…\n\n═ LINKEDIN ═\nNous recrutons pour notre client : ${p.title}\n${p.location||'France'} | ${p.salary||'—'}\n\n${p.body||''}`;openMo('Textes adaptés',`<textarea style="min-height:220px;font-size:11px;line-height:1.6">${txt}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier tout</button>`);}
-
+function togPostSt(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;p.status=p.status==='active'?'closed':'active';p.updated=now_();save();openPostPanel(id);rPosts();toast(`Annonce ${p.status==='active'?'activée':'clôturée'}`,'s');}
 function findForNeed(needId){const n=nById(needId);if(!n)return;const cands=DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==needId);openMo('Candidats disponibles — '+n.title,`<div>${cands.length?cands.map(c=>`<div class="aitem">${esc(c.name)} <span class="mu_ fs10 flex" style="flex:1;margin-left:8px">${esc(c.role||'')}</span><button class="btn bp bxs" onclick="toggleLink('${c.id}','${needId}');closeMo()">Lier</button></div>`).join(''):'<div class="mu_ fs11">Aucun disponible dans cette catégorie</div>'}</div>`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function openStatusMo(type,id){
  if(type==='co'){
@@ -5882,6 +4761,20 @@ function openSettings(){
  openMo(`Parametres — ${currentUserName()}`,`
  <div style="max-height:72vh;overflow-y:auto;padding-right:4px">
 
+ <!-- BOUTON STYLE -->
+ <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+ <button onclick="closeMo();setTimeout(openStylePanel,80)" style="
+ display:inline-flex;align-items:center;gap:7px;
+ padding:8px 14px;font-size:11px;font-family:inherit;cursor:pointer;
+ border-radius:var(--r2);border:1.5px solid var(--bd);
+ background:var(--s3);color:var(--tx);font-weight:600;
+ transition:all .2s;
+ " onmouseover="this.style.borderColor='var(--ac)';this.style.color='var(--ac)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--tx)'">
+ 🎨 Apparence & Style
+ <span style="font-size:9px;color:var(--mu)">3 thèmes · 5 options →</span>
+ </button>
+ </div>
+
  <!-- PROFIL -->
  <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
  <div style="font-size:11px;font-weight:700;margin-bottom:10px;color:var(--ac)">Profil — ${currentUserName()}</div>
@@ -5968,9 +4861,6 @@ function saveSettings(){
  localStorage.setItem(uKey('btp_user_name'), nom);
  localStorage.setItem(uKey('btp_user_tel'), tel);
  localStorage.setItem('btp_user_email', userEmail);
- // CRM Secret
- const crmSecret=(document.getElementById('set-crmsecret')?.value||'').trim();
- if(crmSecret) localStorage.setItem('btp_crm_secret', crmSecret);
 
  // Business
  const objCA=(document.getElementById('set-obj-ca')?.value||'10000').trim();
@@ -6554,12 +5444,6 @@ Novalem — Cabinet de recrutement`
 Cordialement,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
-  },
-  contrat:{
-    label:'Envoi contrat cadre',
-    to:(co)=>co?.email||'',
-    subject:(co)=>`Proposition professionnelle NOVALEM — ${co?.name||''}`,
-    body:(co,nom,tel)=>`Bonjour,\n\nSuite à notre échange, je vous transmets le contrat cadre de recrutement NOVALEM en pièce jointe.\n\nCe contrat définit les conditions de notre collaboration pour vos recrutements CDI dans le secteur du BTP. Nos honoraires sont calculés en pourcentage du salaire brut annuel convenu et ne sont dus qu'en cas d'intégration effective du candidat — aucun frais si le recrutement n'aboutit pas.\n\nPour démarrer, merci de bien vouloir :\n1. Signer le contrat et me le retourner (signature + cachet si disponible)\n2. Me préciser le(s) profil(s) que vous recherchez actuellement\n\nDès réception, je lance les recherches et vous présente des candidats qualifiés sous 10 jours ouvrés.\n\nJe reste disponible pour toute question.\n\nCordialement,\n${nom||'Louis RENAULT'}${tel?'\n'+tel:''}\nNOVALEM — Cabinet de recrutement BTP\ncontact@novalem-recrutement.fr\nnovalem-recrutement.fr`
   }
 };
 
@@ -6630,7 +5514,7 @@ function rEmails(){
           ?`<div style="color:var(--mu2);font-size:9px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Signature</div>
              <div style="color:var(--mu);line-height:1.5">${esc(nom)}${tel?'<br>'+esc(tel):''}</div>`
           :`<div style="color:var(--orange);font-size:10px">Signature non configurée</div>`}
-        <button class="btn bg bxs" style="margin-top:6px;width:100%;justify-content:center;font-size:9px" onclick="openEmailSettings()">⚙ Paramètres mail</button>
+        <button class="btn bg bxs" style="margin-top:6px;width:100%;justify-content:center;font-size:9px" onclick="openSettings()">Parametres</button>
       </div>
     </div>
 
@@ -6655,145 +5539,6 @@ function emRenderView(view,cands,cos,history,drafts,nom,tel){
   return emRenderCompose(cands,cos,nom,tel);
 }
 
-
-// ── Paramètres email — templates éditables ─────────────────────
-function openEmailSettings(){
-  // Charger les overrides de templates depuis localStorage
-  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-
-  // Construire les onglets de templates
-  const tplList = Object.entries(EMAIL_TPLS).map(([key,tpl])=>{
-    const override = overrides[key]||{};
-    const label  = override.label  || tpl.label  || key;
-    const subj   = override.subject|| '';
-    const body   = override.body   || '';
-    return {key, label, subj, body, original: tpl};
-  });
-
-  let activeKey = tplList[0]?.key||'';
-
-  function renderTplEditor(){
-    const t = tplList.find(x=>x.key===activeKey)||tplList[0];
-    if(!t) return '';
-    // Appliquer l'override au contenu courant
-    const ov = overrides[t.key]||{};
-    const bodyVal = ov.body !== undefined ? ov.body : '(par défaut — modifiez pour personnaliser)';
-    return `
-      <div style="display:grid;gap:10px">
-        <div class="fgrp">
-          <span class="lbl">Libellé affiché dans le sélecteur</span>
-          <input id="etpl-label" value="${esc(ov.label||t.original.label||t.key)}" placeholder="Nom du template">
-        </div>
-        <div class="fgrp">
-          <span class="lbl">Objet par défaut</span>
-          <input id="etpl-subj" value="${esc(ov.subject||'')}" placeholder="Laisser vide = objet dynamique par défaut">
-        </div>
-        <div class="fgrp">
-          <span class="lbl">Corps du message (laisser vide = template par défaut)</span>
-          <textarea id="etpl-body" style="min-height:180px;font-size:11px;font-family:'DM Mono',monospace;line-height:1.65">${esc(ov.body||'')}</textarea>
-          <span style="font-size:9px;color:var(--mu)">Variables : {nom} = votre nom, {tel} = votre téléphone, {prénom} = prénom candidat/client</span>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn bg bxs" onclick="resetEmailTpl('${t.key}')">Réinitialiser</button>
-          <button class="btn bp bsm" style="margin-left:auto" onclick="saveEmailTpl('${t.key}')">Enregistrer</button>
-        </div>
-      </div>`;
-  }
-
-  const tabs = tplList.map(t=>`
-    <div onclick="(()=>{document.querySelectorAll('.etpl-tab').forEach(x=>x.classList.remove('act'));this.classList.add('act');document.getElementById('etpl-editor').innerHTML=/* rebuild */'';})()" 
-      class="etpl-tab ${t.key===activeKey?'act':''}"
-      style="padding:6px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:${t.key===activeKey?'700':'400'};color:${t.key===activeKey?'var(--gold)':'var(--mu)'};background:${t.key===activeKey?'var(--s4)':'transparent'};white-space:nowrap"
-      onclick="emSelectTpl('${t.key}')">
-      ${esc(t.original.label||t.key)}${overrides[t.key]?'<span style="color:var(--gold);margin-left:3px">●</span>':''}
-    </div>`).join('');
-
-  window._emSettingsKey = activeKey;
-
-  openMo('⚙ Paramètres email', `
-    <div style="display:grid;gap:14px">
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Templates de messages</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--bd)">
-          ${tabs}
-        </div>
-        <div id="etpl-editor">${renderTplEditor()}</div>
-      </div>
-
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:14px">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Signature</div>
-        <div class="fgrp">
-          <span class="lbl">Votre signature (ajoutée automatiquement)</span>
-          <textarea id="etpl-sig" style="min-height:80px;font-size:11px;font-family:'DM Mono',monospace">${esc(localStorage.getItem('btp_email_sig')||'')}</textarea>
-        </div>
-        <button class="btn bp bsm" style="margin-top:6px" onclick="(()=>{localStorage.setItem('btp_email_sig',document.getElementById('etpl-sig').value);toast('Signature enregistrée ✓','s')})()">Enregistrer la signature</button>
-      </div>
-    </div>
-  `, `<button class="btn bg" onclick="closeMo()">Fermer</button>`);
-}
-
-function emSelectTpl(key){
-  window._emSettingsKey = key;
-  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-  const ov = overrides[key]||{};
-  const tpl = EMAIL_TPLS[key];
-  const el = document.getElementById('etpl-editor');
-  if(!el) return;
-  el.innerHTML = `
-    <div style="display:grid;gap:10px">
-      <div class="fgrp">
-        <span class="lbl">Libellé affiché dans le sélecteur</span>
-        <input id="etpl-label" value="${esc(ov.label||tpl?.label||key)}" placeholder="Nom du template">
-      </div>
-      <div class="fgrp">
-        <span class="lbl">Objet par défaut (laisser vide = dynamique)</span>
-        <input id="etpl-subj" value="${esc(ov.subject||'')}" placeholder="">
-      </div>
-      <div class="fgrp">
-        <span class="lbl">Corps du message (laisser vide = défaut)</span>
-        <textarea id="etpl-body" style="min-height:180px;font-size:11px;font-family:'DM Mono',monospace;line-height:1.65">${esc(ov.body||'')}</textarea>
-        <span style="font-size:9px;color:var(--mu)">Variables disponibles dans les templates personnalisés</span>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn bg bxs" onclick="resetEmailTpl('${key}')">Réinitialiser</button>
-        <button class="btn bp bsm" style="margin-left:auto" onclick="saveEmailTpl('${key}')">Enregistrer</button>
-      </div>
-    </div>`;
-}
-
-function saveEmailTpl(key){
-  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-  const label = document.getElementById('etpl-label')?.value?.trim();
-  const subj  = document.getElementById('etpl-subj')?.value?.trim();
-  const body  = document.getElementById('etpl-body')?.value;
-  overrides[key] = {label, subject:subj, body};
-  localStorage.setItem('btp_email_tpls', JSON.stringify(overrides));
-  // Mettre à jour le libellé dans EMAIL_TPLS (runtime)
-  if(label && EMAIL_TPLS[key]) EMAIL_TPLS[key].label = label;
-  toast('Template enregistré ✓','s');
-}
-
-function resetEmailTpl(key){
-  const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-  delete overrides[key];
-  localStorage.setItem('btp_email_tpls', JSON.stringify(overrides));
-  emSelectTpl(key);
-  toast('Template réinitialisé','i');
-}
-
-// Appliquer les overrides au chargement
-function _applyEmailTplOverrides(){
-  try{
-    const overrides = JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-    Object.entries(overrides).forEach(([key,ov])=>{
-      if(!EMAIL_TPLS[key]) return;
-      if(ov.label)   EMAIL_TPLS[key].label   = ov.label;
-      if(ov.body)    EMAIL_TPLS[key]._bodyOverride = ov.body;
-      if(ov.subject) EMAIL_TPLS[key]._subjOverride = ov.subject;
-    });
-  }catch(e){}
-}
-
 function emShowView(view){
   EM_VIEW=view;
   closeAiPanel();
@@ -6805,20 +5550,6 @@ function emShowView(view){
   const cos=DB.companies.filter(c=>c.email).sort((a,b)=>a.name.localeCompare(b.name));
   const main=document.getElementById('em-main');
   if(main)main.innerHTML=emRenderView(view,cands,cos,history,drafts,nom,tel);
-  // Initialiser les chips de destinataires si vue compose
-  if(view==='compose'||!view){
-    setTimeout(()=>{
-      _emInitRecipients();
-      // Afficher la pièce jointe si présente
-      const pj = window._pendingAttachment;
-      const bar = document.getElementById('em-attachment-bar');
-      const nm  = document.getElementById('em-attachment-name');
-      if(pj && bar && nm){
-        nm.textContent = pj.filename;
-        bar.style.display = 'flex';
-      }
-    }, 50);
-  }
   // Update nav
   document.querySelectorAll('.em-nav-item').forEach(el=>{
     const id=el.id;
@@ -6963,9 +5694,7 @@ async function emFetchInbox(forceRefresh=false){
     const resp=await fetch(`${apiBase}/api/imap`,{method:'GET',headers:{'Content-Type':'application/json'}});
     const data=await resp.json();
     if(!resp.ok)throw new Error(data.error||'Erreur serveur');
-    const _deleted=JSON.parse(localStorage.getItem('btp_deleted_emails')||'[]');
-    const _allEmails=(data.emails||[]).filter(e=>!_deleted.includes(String(e.uid)));
-    INBOX_CACHE={emails:_allEmails,fetchedAt:Date.now()};
+    INBOX_CACHE={emails:data.emails||[],fetchedAt:Date.now()};
     INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;
     applyEmailRules();
     const badge=document.getElementById('em-inbox-badge');
@@ -7124,77 +5853,47 @@ function emReplyTo(uid){
 
 // ── Composeur ─────────────────────────────────────────
 function emRenderCompose(cands,cos,nom,tel){
-  const initTo  = EM.to||'';
-  const initSub = EM.subject||'';
-  const initBody= EM.body||(EMAIL_TPLS.blank?.body({},'','')||'');
-
-  // Construire les options pour les selects
-  const candOpts = cands.map(cd=>`<option value="${esc(cd.email)}" data-id="${esc(cd.id)}" data-type="cand">${esc(cd.name)} — ${esc(cd.email)}</option>`).join('');
-  const coOpts   = cos.map(co=>`<option value="${esc(co.email)}" data-id="${esc(co.id)}" data-type="co">${esc(co.name)} — ${esc(co.email)}</option>`).join('');
-  const tplOpts  = Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
+  const initTo=EM.to||'';
+  const initSub=EM.subject||'';
+  const initBody=EM.body||(EMAIL_TPLS.blank.body({},nom,tel));
+  const candOpts=cands.map(c=>`<option value="${c.email}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
+  const coOpts=cos.map(c=>`<option value="${c.email}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
+  const tplOpts=Object.entries(EMAIL_TPLS).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
 
   return`
-    <!-- Header compose -->
     <div style="padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--s1);flex-shrink:0;display:flex;align-items:center;gap:8px">
       <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Nouveau message</span>
       <select onchange="emApplyTpl()" id="em-tpl" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx);padding:3px 8px;border-radius:4px;margin-left:auto">
-        <option value="">— Template —</option>${tplOpts}
+        <option value="">-- Template --</option>${tplOpts}
       </select>
     </div>
-
-    <!-- Champs To / Cc / Objet -->
+    <!-- Champs -->
     <div style="flex-shrink:0;border-bottom:1px solid var(--bd)">
-      <!-- To : chips multi-destinataires -->
-      <div id="em-to-wrap" style="display:flex;align-items:flex-start;padding:4px 14px;border-bottom:1px solid var(--bd);min-height:36px;flex-wrap:wrap;gap:4px;cursor:text" onclick="document.getElementById('em-to-input').focus()">
-        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;padding-top:6px;text-transform:uppercase;letter-spacing:.08em">À</span>
-        <div id="em-chips" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex:1"></div>
-        <input id="em-to-input" value="${esc(initTo)}"
-          placeholder="destinataire@email.com"
-          style="flex:1;min-width:150px;background:transparent;border:none;padding:5px 4px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none"
-          onkeydown="emToKeydown(event)"
-          oninput="emToInput(this.value)">
-      </div>
-      <!-- Cc / Cci -->
-      <div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
-        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">Cc</span>
-        <input id="em-cc" placeholder="En copie…"
-          style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
-        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em;margin-left:8px">Cci</span>
-        <input id="em-bcc" placeholder="Copie cachée…"
-          style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
-      </div>
-      <!-- Objet -->
-      <div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
-        <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">Objet</span>
-        <input id="em-sub" value="${esc(initSub)}" placeholder="Objet du message"
-          style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
-      </div>
-
-      <!-- Sélecteurs contact rapide -->
-      <div style="display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap;align-items:center">
-        <span style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Ajouter&nbsp;:</span>
-        <select onchange="emAddContact(this)" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
-          <option value="">Candidat…</option>${candOpts}
+      ${[
+        {id:'em-to',label:'De',val:initTo,type:'text',placeholder:'destinataire@email.com'},
+        {id:'em-cc',label:'Cc',val:'',type:'text',placeholder:''},
+        {id:'em-sub',label:'Objet',val:initSub,type:'text',placeholder:''},
+      ].map(f=>`<div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
+          <span style="font-size:10px;color:var(--mu);min-width:38px;flex-shrink:0;text-transform:uppercase;letter-spacing:.08em">${f.label}</span>
+          <input id="${f.id}" value="${esc(f.val)}" placeholder="${f.placeholder}" 
+            style="flex:1;background:transparent;border:none;padding:9px 8px;font-size:12px;color:var(--tx);font-family:'DM Mono',monospace;outline:none">
+        </div>`).join('')}
+      <!-- Sélecteurs contact -->
+      <div style="display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap">
+        <select onchange="if(this.value){document.getElementById('em-to').value=this.value;this.value=''}" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
+          <option value="">Candidat...</option>${candOpts}
         </select>
-        <select onchange="emAddContact(this)" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
-          <option value="">Client / Prospect…</option>${coOpts}
+        <select onchange="if(this.value){document.getElementById('em-to').value=this.value;this.value=''}" style="font-size:10px;background:var(--s3);border:1px solid var(--bd2);color:var(--mu);padding:3px 8px;border-radius:4px;max-width:160px">
+          <option value="">Client/Prospect...</option>${coOpts}
         </select>
       </div>
     </div>
-
     <!-- Corps -->
     <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0">${esc(initBody)}</textarea>
-
-    <!-- Pièce jointe en attente -->
-    <div id="em-attachment-bar" style="display:none;padding:6px 14px;border-top:1px solid var(--bd);background:var(--s3);flex-shrink:0;align-items:center;gap:8px">
-      <span style="font-size:10px">📎</span>
-      <span id="em-attachment-name" style="font-size:11px;color:var(--tx)"></span>
-      <button onclick="window._pendingAttachment=null;document.getElementById('em-attachment-bar').style.display='none'" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;margin-left:auto">×</button>
-    </div>
     <!-- Footer -->
     <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:center;flex-shrink:0;background:var(--s2)">
       <button id="em-send-btn" class="btn bp bsm" onclick="emSend()">Envoyer</button>
-      <button class="btn bg bxs" onclick="emOpenMailClient()" title="Ouvrir dans votre messagerie">Via messagerie</button>
+      <button class="btn bg bxs" onclick="emOpenMailClient()" title="Ouvrir dans Gmail/Outlook">Via messagerie</button>
       <button class="btn bg bxs" onclick="emSaveDraft()">Brouillon</button>
       <button class="btn bg bxs" onclick="emClear()">Effacer</button>
       <div id="em-status" style="font-size:10px;margin-left:4px"></div>
@@ -7202,128 +5901,13 @@ function emRenderCompose(cands,cos,nom,tel){
     </div>`;
 }
 
-// ── Chips multi-destinataires ────────────────────────────────────
-let EM_RECIPIENTS = []; // [{email, name, type, entityId}]
-
-function _emInitRecipients(){
-  EM_RECIPIENTS = [];
-  const initTo = (EM.to||'').trim();
-  if(initTo){
-    // Chercher si c'est un client ou candidat connu
-    const co = DB.companies.find(x=>x.email===initTo);
-    const ca = DB.candidates.find(x=>x.email===initTo);
-    EM_RECIPIENTS = [{email:initTo, name:co?.name||ca?.name||initTo, type:co?'co':ca?'cand':'email', entityId:co?.id||ca?.id||null}];
-  }
-  _emRenderChips();
-  const inp = document.getElementById('em-to-input');
-  if(inp) inp.value = '';
-}
-
-function _emRenderChips(){
-  const wrap = document.getElementById('em-chips');
-  if(!wrap) return;
-  wrap.innerHTML = EM_RECIPIENTS.map((r,i)=>`
-    <span style="display:inline-flex;align-items:center;gap:4px;background:var(--s4);border:1px solid var(--bd2);border-radius:100px;padding:2px 8px 2px 6px;font-size:10px;color:var(--tx);cursor:default;max-width:180px"
-      title="${esc(r.email)}">
-      ${r.type==='co'?'🏢':r.type==='cand'?'👤':'✉'}
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px"
-        ${r.entityId?`onclick="event.stopPropagation();emOpenEntityPanel('${r.type}','${r.entityId}')" style="cursor:pointer" title="Voir la fiche"`:''}>
-        ${esc(r.name||r.email)}
-      </span>
-      <span onclick="emRemoveRecipient(${i})" style="cursor:pointer;color:var(--mu);font-size:11px;line-height:1;padding-left:2px;flex-shrink:0">×</span>
-    </span>`).join('');
-}
-
-function emRemoveRecipient(i){
-  EM_RECIPIENTS.splice(i,1);
-  _emRenderChips();
-}
-
-function emAddContact(sel){
-  const email = sel.value;
-  const opt = sel.selectedOptions[0];
-  const type = opt?.dataset?.type||'email';
-  const entityId = opt?.dataset?.id||null;
-  const name = (opt?.text||email).split(' — ')[0];
-  if(!email){ sel.value=''; return; }
-  if(!EM_RECIPIENTS.find(r=>r.email===email)){
-    EM_RECIPIENTS.push({email, name, type, entityId});
-    _emRenderChips();
-    // Ouvrir le panel de la fiche en sidebar
-    if(entityId){
-      setTimeout(()=>emOpenEntityPanel(type, entityId), 50);
-    }
-  }
-  sel.value='';
-}
-
-function emOpenEntityPanel(type, id){
-  if(type==='co') openCoPanel(id);
-  else if(type==='cand') openCandPanel(id);
-}
-
-function emToKeydown(e){
-  if(e.key==='Enter'||e.key===','||e.key===';'){
-    e.preventDefault();
-    const v = e.target.value.trim().replace(/,|;$/,'');
-    if(v && v.includes('@') && !EM_RECIPIENTS.find(r=>r.email===v)){
-      EM_RECIPIENTS.push({email:v, name:v, type:'email', entityId:null});
-      _emRenderChips();
-      e.target.value='';
-    }
-  } else if(e.key==='Backspace' && !e.target.value && EM_RECIPIENTS.length){
-    EM_RECIPIENTS.pop();
-    _emRenderChips();
-  }
-}
-
-function emToInput(val){
-  // Autocomplétion simple : si @ trouvé, proposer des contacts
-}
-
-
 // ── Envoi ─────────────────────────────────────────────
 async function emSend(){
-  // ── Collecter les destinataires depuis toutes les sources ──────
-  // Source 1 : chips (EM_RECIPIENTS)
-  // Source 2 : input libre (em-to-input)
-  // Source 3 : EM.to (fallback)
-  const inputRaw  = (document.getElementById('em-to-input')?.value||'').trim();
-
-  // Ajouter l'input à EM_RECIPIENTS s'il contient un email valide non présent
-  if(inputRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputRaw)){
-    if(!(EM_RECIPIENTS||[]).find(r=>r.email===inputRaw)){
-      (EM_RECIPIENTS = EM_RECIPIENTS||[]).push({email:inputRaw, name:inputRaw, type:'email', entityId:null});
-      _emRenderChips();
-      document.getElementById('em-to-input').value='';
-    }
-  }
-
-  // Construire la liste finale — valider chaque email
-  const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  let recipients = (EM_RECIPIENTS||[]).map(r=>r.email).filter(e=>e&&emailRx.test(e));
-
-  // Fallback si chips vides : tenter l'input ou EM.to
-  if(!recipients.length){
-    const fallback = inputRaw || EM.to || '';
-    if(fallback && emailRx.test(fallback)) recipients = [fallback];
-  }
-
-  if(!recipients.length){
-    toast('Destinataire manquant ou invalide — vérifiez l\'email du client','e');
-    document.getElementById('em-to-input')?.focus();
-    return;
-  }
-
-  // 'to' = premier destinataire (Resend), les autres en CC si multi
-  const to    = recipients[0];
-  const ccExtra = recipients.slice(1).join(',');
-  const ccRaw = (document.getElementById('em-cc')?.value||'').trim();
-  const cc    = [ccRaw, ccExtra].filter(Boolean).join(',');
-  const bcc   = (document.getElementById('em-bcc')?.value||'').trim();
-  const sub   = (document.getElementById('em-sub')?.value||EM.subject||'').trim();
-  const body  = (document.getElementById('em-body')?.value||EM.body||'').trim();
-
+  const to=(document.getElementById('em-to')?.value||EM.to||'').trim();
+  const cc=(document.getElementById('em-cc')?.value||'').trim();
+  const sub=(document.getElementById('em-sub')?.value||EM.subject||'').trim();
+  const body=(document.getElementById('em-body')?.value||EM.body||'').trim();
+  if(!to){toast('Destinataire manquant','e');document.getElementById('em-to')?.focus();return;}
   if(!sub){toast('Objet manquant','e');document.getElementById('em-sub')?.focus();return;}
   const stEl=document.getElementById('em-status');
   const btn=document.getElementById('em-send-btn');
@@ -7333,18 +5917,12 @@ async function emSend(){
   const apiBase=getApiBase();
   if(!apiBase){emOpenMailClient();if(btn){btn.disabled=false;btn.textContent='Envoyer';}setStatus('');return;}
   try{
-    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-          to, cc, bcc,
-          subject: sub,
-          body,
-          ...(window._pendingAttachment ? { attachments:[window._pendingAttachment] } : {})
-        })});
+    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,cc,subject:sub,body})});
     const data=await resp.json();
     if(resp.ok&&(data.sent||data.id)){
       setStatus('<span style="color:var(--green)">Envoye !</span>');
-      window._pendingAttachment=null;
       emLogEmail(to,sub,body,true);
-      toast(`Email envoyé à ${to}`,'s');
+      toast(`Email envoye a ${to}`,'s');
       if(btn){btn.textContent='Envoye !';btn.style.background='var(--green)';btn.style.color='#0a0a08';}
       setTimeout(()=>{emClear();setStatus('');if(btn){btn.disabled=false;btn.textContent='Envoyer';btn.style.background='';btn.style.color='';}emShowView('sent');},2000);
     }else{
@@ -7455,23 +6033,16 @@ function emApplyTpl(){
   const tpl=EMAIL_TPLS[key];if(!tpl)return;
   const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
   const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
-  const overrides=JSON.parse(localStorage.getItem('btp_email_tpls')||'{}');
-  const ov=overrides[key]||{};
-  let ctx={};
-  if(EM.candId)ctx=cById(EM.candId)||{};
-  else if(EM.coId)ctx=coById(EM.coId)||{};
-  // Body : override custom ou défaut
-  const body = ov.body ? ov.body
-    .replace(/\{nom\}/g,nom).replace(/\{tel\}/g,tel)
-    .replace(/\{prénom\}/g,(ctx.name||'').split(' ')[0]||'')
-    : tpl.body(ctx,nom,tel);
-  // Subject : override ou défaut
-  const sub = ov.subject || (typeof tpl.subject==='function'?tpl.subject(ctx):'');
-  const subEl=document.getElementById('em-sub');
-  const bodyEl=document.getElementById('em-body');
+  // Try to find linked candidate
+  let c={};
+  if(EM.candId)c=cById(EM.candId)||{};
+  const body=tpl.body(c,nom,tel);
+  const to=tpl.to(c);const sub=tpl.subject(c);
+  const toEl=document.getElementById('em-to');const subEl=document.getElementById('em-sub');const bodyEl=document.getElementById('em-body');
+  if(toEl&&to)toEl.value=to;
   if(subEl&&sub)subEl.value=sub;
   if(bodyEl)bodyEl.value=body;
-  toast(`Template "${ov.label||tpl.label}" appliqué`,'s');
+  toast(`Template "${tpl.label}" applique`,'s');
 }
 function emQuickTpl(key){
   EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:key};
@@ -7482,16 +6053,7 @@ function emQuickTpl(key){
 
 // ── Ouvrir depuis ailleurs ────────────────────────────
 function openEmailWith({to='',subject='',body='',candId=null,coId=null,tplKey=null}={}){
-  // Assigner les let directement
-  EM = {to,subject,body,candId,coId,tplKey};
-  EM_VIEW = 'compose';
-  if(to){
-    const co = DB.companies.find(x=>x.email===to);
-    const ca = DB.candidates.find(x=>x.email===to);
-    EM_RECIPIENTS = [{email:to, name:co?.name||ca?.name||to, type:co?'co':ca?'cand':'email', entityId:co?.id||ca?.id||null}];
-  }else{
-    EM_RECIPIENTS = [];
-  }
+  EM={to,subject,body,candId,coId,tplKey};
   go('emails');
 }
 function emailFromCand(candId,tplKey){
@@ -7590,7 +6152,7 @@ function emDeleteEmail(uid){
       <div class="confirm-title">Supprimer cet email ?</div>
       <div class="confirm-desc">Il sera retire de l'affichage. La suppression definitive se fait depuis votre boite mail OVH.</div>
       <div class="confirm-actions">
-        <button class="btn-apple primary" onclick="(()=>{if(INBOX_CACHE?.emails){INBOX_CACHE.emails=INBOX_CACHE.emails.filter(e=>String(e.uid)!=='${uid}');INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;const badge=document.getElementById('em-inbox-badge');if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}}const _del=JSON.parse(localStorage.getItem('btp_deleted_emails')||'[]');if(!_del.includes('${uid}'))_del.push('${uid}');localStorage.setItem('btp_deleted_emails',JSON.stringify(_del));closeMo();emShowView('inbox');toast('Email supprimé','w');})()">Supprimer</button>
+        <button class="btn-apple primary" onclick="(()=>{if(INBOX_CACHE?.emails){INBOX_CACHE.emails=INBOX_CACHE.emails.filter(e=>String(e.uid)!=='${uid}');INBOX_UNREAD=INBOX_CACHE.emails.filter(e=>!e.seen).length;const badge=document.getElementById('em-inbox-badge');if(badge){badge.textContent=INBOX_UNREAD;badge.style.display=INBOX_UNREAD>0?'inline-flex':'none';}}closeMo();emShowView('inbox');toast('Email supprime de la vue','w');})()">Supprimer</button>
         <button class="btn-apple ghost" onclick="closeMo()">Annuler</button>
       </div>
     </div>`,``);
@@ -8094,162 +6656,8 @@ function renderRep(){
  </div>
  </div>`;
 }
-
-// ── Supabase Realtime — mise à jour automatique quand un contrat est signé ──
-// Dès que le client signe via la page /sign, le CRM est notifié instantanément
-function initSignatureListener(){
-  try{
-    const sb = getSB();
-    if(!sb) return;
-
-    sb.channel('novalem_signatures_changes')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table:  'novalem_signatures',
-      }, (payload) => {
-        const sig = payload.new;
-        if(!sig || !sig.ct_id) return;
-
-        // Chercher le contrat dans toutes les fiches
-        for(const co of DB.companies){
-          const ct = (co.contracts||[]).find(x=>x.id===sig.ct_id);
-          if(!ct) continue;
-
-          // Mettre à jour le statut
-          ct.status      = 'sign\u00e9';
-          ct.signed_at   = sig.signed_at;
-          ct.signer_name = sig.signer_name;
-          co.updated     = now_();
-          addTimeline(co.id, 'sign', `Contrat sign\u00e9 par ${sig.signer_name}`);
-          save();
-          badges();
-
-          // Notification visuelle
-          toast(`\u2705 Contrat sign\u00e9 par ${sig.signer_name} \u2014 ${esc(co.name)}`, 's');
-
-          // Si la fiche de ce client est ouverte → rafraîchir l'onglet Contrats
-          if(UI.ptype==='co' && UI.pid===co.id){
-            UI.ptab = 4;
-            openCoPanel(co.id);
-          }
-          break;
-        }
-      })
-      .subscribe((status) => {
-        if(status === 'SUBSCRIBED'){
-          console.log('[NOVALEM] Écoute des signatures en temps réel active');
-        }
-      });
-  }catch(e){
-    console.warn('[NOVALEM] Realtime non disponible:', e.message);
-  }
-}
-
-
-// ── Horloges duales France / Guadeloupe ────────────────────────
-// Guadeloupe = UTC-4 (pas de changement d'heure)
-// France métropolitaine = UTC+1 hiver / UTC+2 été (CEST)
-// Le décalage varie : 5h en hiver, 6h en été
-
-function _updateAgTz(){
-  if(currentUserId() !== 'louis') return;
-  const sel = document.getElementById('af-time');
-  const frEl = document.getElementById('ag-tz-fr');
-  const gwEl = document.getElementById('ag-tz-gw');
-  if(!sel||!frEl||!gwEl) return;
-  const val = sel.value;
-  if(!val){ frEl.textContent='—'; gwEl.textContent='—'; return; }
-  const h = parseInt(val.split(':')[0]);
-  const mn = val.split(':')[1]||'00';
-  const gwH = frToGwada(h);
-  frEl.textContent = val + ' 🇫🇷';
-  gwEl.textContent = String(gwH).padStart(2,'0')+':'+mn+' 🌴';
-}
-
-function _getTimezoneOffsetFR(){
-  // Calculer l'offset actuel de Paris via Intl
-  const now = new Date();
-  const parisTz = new Intl.DateTimeFormat('fr-FR',{
-    timeZone:'Europe/Paris', hour:'numeric', hour12:false
-  }).formatToParts(now).find(p=>p.type==='hour');
-  const gwadaTz = new Intl.DateTimeFormat('fr-FR',{
-    timeZone:'America/Guadeloupe', hour:'numeric', hour12:false
-  }).formatToParts(now).find(p=>p.type==='hour');
-  const nowUTC = now.getTime();
-  const frHour = parseInt(parisTz?.value||0);
-  const gwHour = parseInt(gwadaTz?.value||0);
-  // diff = heures France - heures Guadeloupe
-  let diff = frHour - gwHour;
-  if(diff < 0) diff += 24; // cas minuit
-  return diff; // typiquement 5 ou 6
-}
-
-function _formatTz(date, tz){
-  return new Intl.DateTimeFormat('fr-FR',{
-    timeZone: tz,
-    hour:   '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(date);
-}
-
-function _formatDate(date, tz){
-  return new Intl.DateTimeFormat('fr-FR',{
-    timeZone: tz,
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }).format(date);
-}
-
-// Afficher l'heure France & Gwada dans le topbar (Louis uniquement)
-function _tickClocks(){
-  // N'afficher que pour Louis (admin / user1)
-  if(currentUserId() !== 'louis') return;
-
-  const now = new Date();
-  const frEl   = document.getElementById('clock-fr');
-  const gwEl   = document.getElementById('clock-gwada');
-  const diffEl = document.getElementById('tz-diff');
-
-  if(frEl)   frEl.textContent   = _formatTz(now, 'Europe/Paris');
-  if(gwEl)   gwEl.textContent   = _formatTz(now, 'America/Guadeloupe');
-  if(diffEl){
-    const diff = _getTimezoneOffsetFR();
-    diffEl.textContent = `+${diff}h`;
-    diffEl.title = `France = Gwada + ${diff}h`;
-  }
-}
-
-// Convertir une heure France → Guadeloupe
-function frToGwada(h){
-  const diff = _getTimezoneOffsetFR();
-  let gw = h - diff;
-  if(gw < 0) gw += 24;
-  return gw;
-}
-
-// Convertir une heure Guadeloupe → France
-function gwadaToFr(h){
-  const diff = _getTimezoneOffsetFR();
-  let fr = h + diff;
-  if(fr >= 24) fr -= 24;
-  return fr;
-}
-
-// Formater un créneau avec les deux fuseaux
-function fmtSlotDual(h){
-  const diff = _getTimezoneOffsetFR();
-  const gwH = frToGwada(h);
-  return `${h}h00 (France) = ${gwH}h00 (Gwada)`;
-}
-
 (async()=>{
  await load(); // localStorage immédiat + Supabase en arrière-plan
- initSignatureListener(); // Écoute Realtime des signatures
- setInterval(_tickClocks, 1000); _tickClocks(); // Horloges duales
  rDash();
  badges();
  // Show cloud status in indicator
