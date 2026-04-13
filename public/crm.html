@@ -4176,9 +4176,16 @@ function _sendContratFromPreview(coId, ctId){
   save();
 
   // Construire l'URL de signature (données embarquées en base64 pour fallback offline)
-  // btoa avec support Unicode + URL-safe (encode + et / qui cassent URLSearchParams)
-  const _ctJson = JSON.stringify({nom:ct.nom,siret:ct.siret,tarifs:ct.tarifs,taux:ct.taux,opt3070:ct.opt3070,garantie:ct.garantie,date:ct.date});
-  const ctDataB64 = encodeURIComponent(btoa(unescape(encodeURIComponent(_ctJson))));
+  // Encodage pipe-séparé — zéro base64, zéro problème de charset
+  // Format: nom|siret|nc1|nc2|nc3|c1|c2|c3|taux|opt3070|garantie|date
+  const _t = ct.tarifs||{};
+  const ctDataB64 = encodeURIComponent([
+    ct.nom||'', ct.siret||'',
+    _t.nc1||12, _t.nc2||13.5, _t.nc3||15,
+    _t.c1||15,  _t.c2||17,   _t.c3||20,
+    ct.taux||'', ct.opt3070?1:0, ct.garantie?1:0,
+    ct.date||''
+  ].join('|'));
   const API_BASE = typeof getApiBase === 'function' ? (getApiBase()||'https://novalem-crm.vercel.app') : 'https://novalem-crm.vercel.app';
   const signUrl = `${API_BASE.replace('/crm','').replace('novalem-crm.vercel.app','novalem-crm.vercel.app')}/sign?co=${coId}&ct=${ct.id}&t=${signingToken}&n=${encodeURIComponent(co.name||'')}&d=${ctDataB64}`;
 
