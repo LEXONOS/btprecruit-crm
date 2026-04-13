@@ -4168,19 +4168,39 @@ function _sendContratFromPreview(coId, ctId){
   const nom = localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
   const tel = localStorage.getItem(uKey('btp_user_tel')) ||localStorage.getItem('btp_user_tel') ||'';
 
+  // Générer un token de signature unique et le stocker dans le contrat
+  const signingToken = uid() + uid(); // token aléatoire
+  ct.signing_token = signingToken;
+  co.updated = now_();
+  save();
+
+  // Construire l'URL de signature (données embarquées en base64 pour fallback offline)
+  const ctDataB64 = btoa(JSON.stringify({
+    nom:ct.nom, siret:ct.siret, tarifs:ct.tarifs,
+    taux:ct.taux, opt3070:ct.opt3070, garantie:ct.garantie, date:ct.date
+  }));
+  const API_BASE = typeof getApiBase === 'function' ? (getApiBase()||'https://novalem-crm.vercel.app') : 'https://novalem-crm.vercel.app';
+  const signUrl = `${API_BASE.replace('/crm','').replace('novalem-crm.vercel.app','novalem-crm.vercel.app')}/sign?co=${coId}&ct=${ct.id}&t=${signingToken}&n=${encodeURIComponent(co.name||'')}&d=${ctDataB64}`;
+
   const subject = `Proposition professionnelle NOVALEM \u2014 ${ct.nom}`;
   const body = `Bonjour ${appellatif},
 
-Suite \u00e0 notre \u00e9change et \u00e0 l\u2019int\u00e9r\u00eat que vous avez manifest\u00e9 pour le profil que je vous ai pr\u00e9sent\u00e9, je vous transmets en pi\u00e8ce jointe notre proposition professionnelle de recrutement.
+Suite \u00e0 notre \u00e9change, je vous transmets notre proposition professionnelle de recrutement.
 
 Conditions convenues :
 ${lignes.join('\n')}
 
-Nos honoraires sont d\u00fbs exclusivement en cas d\u2019int\u00e9gration effective du candidat. Aucun frais en l\u2019absence d\u2019embauche.
+Nos honoraires sont dus exclusivement en cas d'int\u00e9gration effective du candidat. Aucun frais si le recrutement n'aboutit pas.
 
-\u00c9tape suivante : d\u00e8s r\u00e9ception du contrat sign\u00e9, je vous transmets imm\u00e9diatement les coordonn\u00e9es du candidat afin que vous puissiez convenir directement d\u2019un entretien avec lui. Je l\u2019avertis simultan\u00e9ment que vous le contactez.
+---
 
-Merci de me retourner le document sign\u00e9 (par email ou par retour courrier).
+Pour signer le contrat, cliquez simplement sur le lien ci-dessous :
+
+${signUrl}
+
+Vous n'avez qu'\u00e0 saisir votre nom et confirmer. La signature est imm\u00e9diate, sans impression ni scan.
+
+D\u00e8s r\u00e9ception de votre signature, je vous transmets imm\u00e9diatement les coordonn\u00e9es du candidat pour organiser l'entretien.
 
 Bien cordialement,
 ${nom}${tel?'\n'+tel:''}
@@ -4494,6 +4514,15 @@ async function _genContractBase64(ct){
   return dataUri.split(',')[1];
 }
 
+
+function cpSignLink(coId, ctId){
+  const co = coById(coId);
+  const ct = (co?.contracts||[]).find(x=>x.id===ctId);
+  if(!ct?.signing_token){ toast('Pas de lien de signature pour ce contrat — envoyez-le d\'abord au client','w'); return; }
+  const ctDataB64 = btoa(JSON.stringify({nom:ct.nom,siret:ct.siret,tarifs:ct.tarifs,taux:ct.taux,opt3070:ct.opt3070,garantie:ct.garantie,date:ct.date}));
+  const url = `https://novalem-crm.vercel.app/sign?co=${coId}&ct=${ct.id}&t=${ct.signing_token}&n=${encodeURIComponent(co.name||'')}&d=${ctDataB64}`;
+  navigator.clipboard.writeText(url).then(()=>toast('Lien de signature copié ✓','s')).catch(()=>toast(url,'i'));
+}
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
 
