@@ -1025,8 +1025,47 @@ function rDash(){
  ${DB.needs.filter(n=>n.status==='open').slice(0,5).map(n=>{const co=coById(n.company_id);return`<div class="aitem" onclick="openNeedPanel('${n.id}')"><span style="flex:1">${esc(n.title)}</span><span class="fs10 mu_">${co?esc(co.name):''}</span><span class="fs9" style="color:${{h:'var(--ac3)',m:'var(--ac4)',l:'var(--mu2)'}[n.urgency]||'var(--mu2)'}">${{h:'●',m:'○',l:'·'}[n.urgency]||''}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun besoin ouvert</div>`}
  <div class="dsec mt14"> Entrants à trier</div>
  ${DB.candidates.filter(c=>c.status==='entrant').slice(0,4).map(c=>{const cat=getCat(c.cat);return`<div class="aitem" onclick="switchCandTab('trier');go('cands');setTimeout(()=>openEntrantSplit('${c.id}'),80)"><span class="pill pent">Entrant</span><span style="flex:1">${esc(c.name)}</span><span class="tag ${cat.cls} fs9">${cat.l}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun entrant en attente</div>`}
- </div>
- </div>`;
+  </div>
+  </div>
+
+  ${(()=>{
+    // ── Widget : Contrats signés — candidats à envoyer ──────────
+    const signed = [];
+    DB.companies.forEach(co=>{
+      (co.contracts||[]).forEach(ct=>{
+        if(ct.status==='signé' && !ct.candidates_sent){
+          signed.push({co, ct});
+        }
+      });
+    });
+    if(!signed.length) return '';
+    return `<div class="dash-section" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#3dce8a">
+          ✅ Contrats signés — action requise
+        </div>
+        <span style="font-size:9px;background:rgba(61,206,138,.12);color:#3dce8a;padding:2px 8px;border-radius:100px;font-weight:700">${signed.length}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${signed.map(({co,ct})=>`
+        <div style="background:var(--s3);border:1px solid rgba(61,206,138,.2);border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#3dce8a;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;color:var(--tx)">${esc(co.name)}</div>
+            <div style="font-size:10px;color:var(--mu);margin-top:1px">
+              Signé par ${esc(ct.signer_name||'—')} · ${fD(ct.signed_at||ct.created)}
+            </div>
+          </div>
+          <button class="btn bp bxs" style="font-size:11px;background:#3dce8a;border-color:#3dce8a;color:#0a1a0f;white-space:nowrap"
+            onclick="openEmailWith({to:'${esc(co.email||'')}',subject:'Coordonn\u00e9es du candidat — suite \u00e0 votre signature',body:'Bonjour,\n\nSuite \u00e0 votre signature du contrat cadre, je vous transmets comme convenu les coordonn\u00e9es du candidat :\n\nNom : \nT\u00e9l\u00e9phone : \nEmail : \n\nIl est \u00e9galement pr\u00e9venu que vous allez le contacter pour convenir d\'un entretien.\n\nBien cordialement,',coId:'${co.id}'});markCandidatesSent('${co.id}','${ct.id}')">
+            → Envoyer les contacts
+          </button>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  })()}
+  </div>
+  </div>`;
 }
 
 function rCands(){
@@ -4113,24 +4152,40 @@ ${garC}
 }
 
 function renderCoContrats(coId){
-  const co=coById(coId);if(!co)return'';
+  const co=coById(coId); if(!co) return '';
   const contracts=co.contracts||[];
-  if(!contracts.length)return`<div style="text-align:center;padding:32px 16px"><div style="font-size:32px;margin-bottom:8px;opacity:.4">&#128196;</div><div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px">Aucun contrat g\u00e9n\u00e9r\u00e9</div><div style="font-size:11px;color:var(--mu)">Utilisez le bouton Contrat dans la barre d'actions</div></div>`;
+  if(!contracts.length) return `<div style="text-align:center;padding:32px 16px;color:var(--mu)">
+    <div style="font-size:32px;margin-bottom:8px;opacity:.4">📄</div>
+    <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px">Aucun contrat généré</div>
+    <div style="font-size:11px">Utilisez le bouton <strong>📄 Contrat</strong> dans la barre d'actions</div>
+  </div>`;
+
   return contracts.map(ct=>{
-    const sg=ct.status==='sign\u00e9';
-    const bc=sg?'color:#3dce8a;background:rgba(61,206,138,.12)':'color:var(--gold);background:rgba(200,144,10,.12)';
-    return`<div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:8px">
+    const sg = ct.status === 'signé';
+    const badge = sg
+      ? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;color:#3dce8a;background:rgba(61,206,138,.12);border:1px solid rgba(61,206,138,.25)">✓ Signé</span>`
+      : `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;color:var(--gold);background:rgba(200,144,10,.12);border:1px solid rgba(200,144,10,.25)">⏳ Non signé</span>`;
+
+    const signerInfo = sg && ct.signer_name
+      ? `<div style="font-size:10px;color:#3dce8a;margin-top:3px">Signé par ${esc(ct.signer_name)}${ct.signed_at?' le '+fD(ct.signed_at):''}</div>`
+      : '';
+
+    return `<div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:8px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-    <div><div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ct.nom||'—')}</div>
-    <div style="font-size:10px;color:var(--mu);margin-top:3px">${fD(ct.created)} \u00b7 SIRET ${esc(ct.siret||'—')}</div></div>
-    <span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:100px;${bc}">${sg?'\u2713 Sign\u00e9':'\u23f3 Non sign\u00e9'}</span>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ct.nom||'—')}</div>
+      <div style="font-size:10px;color:var(--mu);margin-top:2px">${fD(ct.created)} · SIRET ${esc(ct.siret||'—')}</div>
+      ${signerInfo}
+    </div>
+    ${badge}
   </div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap">
-    <button class="btn bg bxs" onclick="previewSavedContrat('${coId}','${ct.id}')" style="font-size:11px">Aper\u00e7u</button>
-    <button class="btn bg bxs" onclick="downloadSavedContrat('${coId}','${ct.id}')" style="font-size:11px">\u2b07 PDF</button>
-    <button class="btn bg bxs" <button class="btn bg bxs" onclick="checkContratSignature('${coId}','${ct.id}')" style="font-size:11px">🔄 Vérifier</button>
-    onclick="toggleContratStatus('${coId}','${ct.id}')" style="font-size:11px">${sg?'\u21a9 Non sign\u00e9':'\u2713 Sign\u00e9'}</button>
-    <button class="btn bd_ bxs" onclick="deleteContrat('${coId}','${ct.id}')" style="font-size:11px;margin-left:auto">Supprimer</button>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <button class="btn bg bxs" onclick="previewSavedContrat('${coId}','${ct.id}')" style="font-size:11px">Aperçu</button>
+    <button class="btn bg bxs" onclick="downloadSavedContrat('${coId}','${ct.id}')" style="font-size:11px">⬇ PDF</button>
+    <button class="btn bg bxs" onclick="checkContratSignature('${coId}','${ct.id}')" style="font-size:11px;color:var(--ac5)">🔄 Vérifier</button>
+    <button class="btn bg bxs" onclick="cpSignLink('${coId}','${ct.id}')" style="font-size:11px">🔗 Lien</button>
+    <button class="btn bg bxs" onclick="toggleContratStatus('${coId}','${ct.id}')" style="font-size:11px">${sg?'↩ Non signé':'✓ Signé manuel'}</button>
+    <button class="btn bd_ bxs" onclick="deleteContrat('${coId}','${ct.id}')" style="font-size:11px;margin-left:auto">×</button>
   </div>
 </div>`;
   }).join('');
@@ -4561,6 +4616,17 @@ async function checkContratSignature(coId, ctId){
     UI.ptab=4; openCoPanel(coId);
     toast('✓ Signé par '+data.signer_name+' le '+fD(data.signed_at),'s');
   }catch(e){ toast('Erreur: '+e.message,'e'); }
+}
+
+// Marquer les contacts candidat comme envoyés sur un contrat
+function markCandidatesSent(coId, ctId){
+  const co=coById(coId); if(!co) return;
+  const ct=(co.contracts||[]).find(x=>x.id===ctId); if(!ct) return;
+  ct.candidates_sent=true; ct.candidates_sent_at=now_();
+  co.updated=now_();
+  addTimeline(coId,'candidat',"Coordonnées du candidat envoyées au client");
+  save(); rDash(); badges();
+  toast('Contacts envoyés ✓ — fiche mise à jour','s');
 }
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
