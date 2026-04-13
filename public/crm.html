@@ -2275,12 +2275,8 @@ function rPipeline(){
 function candCard(c,st){
  const cat=getCat(c.cat);
  const docs=(c.docs||[]).filter(d=>d.file).length;
- const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
- const USER_NAMES={louis:'L',corentin:'C'};
- const owner=c.assigned_to||'louis';
- const ownerBadge=`<span style="width:16px;height:16px;border-radius:50%;background:${USER_COLORS[owner]||'var(--mu)'};color:#0a0a08;font-size:8px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" title="${owner}">${USER_NAMES[owner]||owner[0]?.toUpperCase()}</span>`;
  return`<div class="cc ${c.pepite?'pep':''}" onclick="openCandPanel('${c.id}')" oncontextmenu="ctxCand(event,'${c.id}')">
- <div class="cc-name" style="display:flex;align-items:center;gap:5px;padding-right:0">${esc(c.name)}${c.pepite?'':''}<span style="margin-left:auto">${ownerBadge}</span></div>
+ <div class="cc-name">${esc(c.name)}${c.pepite?'':''}</div>
  <div class="cc-role">${esc(c.role||'—')}${c.salary?` · <span style="color:var(--ac2)">${fM(c.salary)}</span>`:''}
  </div>
  <div class="cc-row"><span class="tag ${cat.cls}">${cat.l}</span><span class="fs10 mu_">${esc(c.source||'')}</span>${c.linked_need?`<span class="fs10 ac5"></span>`:''}</div>
@@ -2547,12 +2543,11 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
  done:false,
  created:now_(),
  });
- addCandTimeline(candId,'visio',`Entretien planifié le ${fD(new Date(dateStr))} à ${h}:00 · ${visioLink}`);
  save();closeMo();closePanel();
  badges();
  if(UI.view==='cands') rCands();
  const gwHour=frToGwada(h);
- toast(`${c.name} → Entretien ${h}h FR = ${gwHour}h Gwada · Agenda ✓`,'s');
+  toast(`${c.name} → Entretien ${h}h FR = ${gwHour}h Gwada · Agenda ✓`,'s');
  // Show in pipeline
  setTimeout(()=>{switchCandTab('pipeline');openCandPanel(candId);},300);
 }
@@ -2885,15 +2880,10 @@ function proRow(c) {
  const st = { tocall: { l: 'À appeler', p: 'ptoc' }, nrp: { l: 'NRP', p: 'pnrp' }, callback: { l: 'À rappeler', p: 'pdos' } }[c.status] || { l: c.status, p: 'ptoc' };
  const callbackDate = c.status === 'callback' && c.next_call_date ? `<br><span style="font-size:9px;color:var(--ac5)">${fD(c.next_call_date)}</span>` : '';
  const marge = c.marge ? `<span style="color:var(--ac2);font-weight:600">${Number(c.marge).toLocaleString('fr-FR')}€</span>` : '<span style="color:var(--mu2)">—</span>';
- // Badge owner
- const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
- const USER_NAMES={louis:'L',corentin:'C'};
- const proOwner=c.assigned_to||'';
- const proOwnerBadge=proOwner?`<span style="width:15px;height:15px;border-radius:50%;background:${USER_COLORS[proOwner]||'var(--mu)'};color:#0a0a08;font-size:7px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:5px" title="${proOwner}">${USER_NAMES[proOwner]||proOwner[0]?.toUpperCase()}</span>`:'';
  const chk=_proSelectMode?`<td onclick="event.stopPropagation()" style="width:24px;padding-left:8px"><input type="checkbox" ${_proSelected.has(c.id)?'checked':''} onchange="toggleProSelect('${c.id}',this.checked)" style="width:12px;accent-color:var(--ac3)"></td>`:'';
  return `<tr onclick="${_proSelectMode?`toggleProSelect('${c.id}')`:` openProPopup('${c.id}')`}" style="cursor:pointer${_proSelected.has(c.id)?';background:rgba(224,74,74,.04)':''}">
  ${chk}
- <td><strong>${esc(c.name)}</strong>${proOwnerBadge}</td>
+ <td><strong>${esc(c.name)}</strong></td>
  <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(c.phone || '—')}</td>
  <td>${esc(c.city || '—')}</td>
  <td><span class="pill ${st.p}">${st.l}</span>${callbackDate}</td>
@@ -3008,48 +2998,11 @@ function openProPopup(id) {
 // ═══════════════════════════════════════════════════════
 // TIMELINE — log toutes les interactions par entreprise
 // ═══════════════════════════════════════════════════════
-
-// ── Timeline candidat — suivi des actions sur le dossier ─────────
-function addCandTimeline(candId, type, note){
- const cand=cById(candId);if(!cand)return;
- cand.timeline=cand.timeline||[];
- cand.timeline.unshift({id:uid(),date:now_(),type,note:note||'',by:currentUserId()});
- cand.updated=now_();
- save();
-}
-
-// ── Render timeline candidat ─────────────────────────────────────
-function renderCandTimeline(candId){
- const cand=cById(candId);if(!cand)return'';
- const tl=cand.timeline||[];
- const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
- const USER_NAMES={louis:'Louis',corentin:'Corentin'};
- const icons={precal:'',visio:'',dossier:'',note:'',status:'↺',placed:'✓',ko:'×',call:''};
- const colors={precal:'var(--ac4)',visio:'var(--ac5)',dossier:'var(--ac)',note:'var(--mu)',status:'var(--mu2)',placed:'var(--ac2)',ko:'var(--ac3)',call:'var(--ac2)'};
- if(!tl.length)return`<div style="text-align:center;padding:20px;color:var(--mu2);font-size:11px">Aucune action enregistrée</div>`;
- return tl.map(e=>{
-  const byColor=USER_COLORS[e.by]||'var(--mu2)';
-  const byName=USER_NAMES[e.by]||'';
-  const byBadge=byName?`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:${USER_COLORS[e.by]?byColor+'22':'var(--s3)'};color:${byColor};font-weight:600;border:1px solid ${USER_COLORS[e.by]?byColor+'44':'var(--bd)'}">${byName}</span>`:'';
-  return`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd)">
-   <div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:11px">${icons[e.type]||'·'}</div>
-   <div style="flex:1;min-width:0">
-    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
-     <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({precal:'Précal',visio:'Entretien visio',dossier:'Dossier',note:'Note',status:'Statut modifié',placed:'Placé',ko:'KO',call:'Appel'})[e.type]||e.type}</span>
-     ${byBadge}
-     <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
-    </div>
-    ${e.note?`<div style="font-size:11px;color:var(--mu);line-height:1.5;white-space:pre-wrap">${esc(e.note)}</div>`:''}
-   </div>
-  </div>`;
- }).join('');
-}
-
 function addTimeline(coId, type, note, extra){
- const co=coById(coId);if(!co)return;
- co.timeline=co.timeline||[];
- co.timeline.unshift({id:uid(),date:now_(),type,note:note||'',extra:extra||null,by:currentUserId()});
- co.updated=now_();
+ const c=coById(coId);if(!c)return;
+ c.timeline=c.timeline||[];
+ c.timeline.unshift({id:uid(),date:now_(),type,note:note||'',extra:extra||null});
+ c.updated=now_();
  save();
 }
 
@@ -3062,26 +3015,18 @@ function renderTimeline(coId){
  </div>`;
  const icons={call:'',email:'',note:'',besoin:'',status:'↺',nrp:'',nobiz:'',refused:'×',callback:''};
  const colors={call:'var(--ac2)',email:'var(--ac5)',note:'var(--mu)',besoin:'var(--ac)',status:'var(--mu2)',nrp:'var(--ac4)',nobiz:'var(--mu)',refused:'var(--ac3)',callback:'var(--ac5)'};
-  const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
- const USER_NAMES={louis:'Louis',corentin:'Corentin'};
- return tl.map(e=>{
- const byUser=e.by||'';
- const byColor=USER_COLORS[byUser]||'var(--mu2)';
- const byName=USER_NAMES[byUser]||'';
- const byBadge=byName?`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:${USER_COLORS[byUser]?`${byColor}22`:'var(--s3)'};color:${byColor};font-weight:600;border:1px solid ${USER_COLORS[byUser]?`${byColor}44`:'var(--bd)'}">${byName}</span>`:'';
- return`
+ return tl.map(e=>`
  <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">
  <div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:1px">${icons[e.type]||''}</div>
  <div style="flex:1;min-width:0">
- <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
+ <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
  <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler'})[e.type]||e.type}</span>
- ${byBadge}
  <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
  </div>
  ${e.note?`<div style="font-size:11px;color:var(--mu);line-height:1.5;white-space:pre-wrap">${esc(e.note)}</div>`:''}
  ${e.extra?`<div style="font-size:10px;color:var(--ac4);margin-top:2px">${esc(e.extra)}</div>`:''}
  </div>
- </div>`;}).join('');
+ </div>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3514,7 +3459,8 @@ function rClients(){
  </div>
  <div class="flex fac fg5 mt8 fw" style="flex-wrap:wrap">
  ${openNeeds?`<span style="font-size:10px;padding:1px 6px;background:rgba(74,130,224,.1);color:var(--ac5);border-radius:8px">${openNeeds} besoin(s)</span>`:''}
- ${daysSince!==null?`<span class="fs10 mu_" style="margin-left:auto">Contacté il y a ${daysSince}j</span>`:'<span class="fs10 mu_" style="margin-left:auto;color:var(--ac4)">Jamais contacté</span>'}
+ ${c.contract_terms?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--ac-dim);color:var(--ac);border:1px solid var(--ac-border)">✓ Contrat</span>`:''}
+ <button class="btn bp bxs" style="margin-left:auto;font-size:9px" onclick="event.stopPropagation();openContractModal('${c.id}')"> Contrat</button>
  </div>
  </div>`;
  }).join('')}</div>`:'<div class="empty">Aucun client. Convertissez un prospect ayant un besoin.</div>'}`;
@@ -3959,16 +3905,6 @@ function setPTab(t){
  else if(UI.ptype==='need') openNeedPanel(UI.pid);
  // Rebind file inputs if Fichiers tab (index 1)
  if(UI.ptype==='cand'&&t===1&&UI.pid) setTimeout(()=>bindFileInputs(UI.pid),50);
- if(UI.ptype==='cand'&&t===4&&UI.pid){const pb=document.getElementById('pb');if(pb){const tl=(cById(UI.pid)?.timeline||[]).length;pb.innerHTML=`<div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between"><span class="fs10 mu_">${tl} action(s)</span><button class="btn bg bxs" onclick="addCandNoteQuick('${UI.pid}')">+ Note</button></div>${renderCandTimeline(UI.pid)}`;}}
-}
-
-
-function addCandNoteQuick(candId){
- openMo('Note — Suivi candidat',
-  `<textarea id="cand-quick-note" style="min-height:80px" placeholder="Note d'appel, info importante, retour client…"></textarea>`,
-  `<button class="btn bg" onclick="closeMo()">Annuler</button>
-   <button class="btn bp" onclick="(()=>{const note=document.getElementById('cand-quick-note')?.value.trim();if(!note){toast('Note vide','e');return;}addCandTimeline('${candId}','note',note);closeMo();openCandPanel('${candId}');UI.ptab=4;renderCandPanelTab('${candId}');toast('Note ajoutée ✓','s');})()">Enregistrer</button>`
- );
 }
 
 // ── CANDIDATE PANEL ──────────────────────────────────────
@@ -3976,7 +3912,7 @@ function openCandPanel(id){
  UI.ptype='cand';UI.pid=id;if(!UI.ptab)UI.ptab=0;
  const c=cById(id);if(!c)return;
  const cat=getCat(c.cat);const st=getCS(c.status);
- const tabNames=['Profil','Fichiers','Entretien','Références','Suivi'];
+ const tabNames=['Profil','Fichiers','Entretien','Références'];
  const tabs=tabNames.map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
  const docs=c.docs||[];
  const B=[
@@ -4023,14 +3959,6 @@ function openCandPanel(id){
  <textarea id="gnote-${id}" style="min-height:64px">${esc(c.notes||'')}</textarea>
  <button class="btn bp bsm mt8" onclick="saveGNote('${id}')">Sauvegarder</button>`,
  ];
- B.push(
-  // 4 SUIVI
-  `<div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-   <span class="fs10 mu_">${(c.timeline||[]).length} action(s) enregistrée(s)</span>
-   <button class="btn bg bxs" onclick="addCandNoteQuick('${id}')">+ Note</button>
-  </div>
-  ${renderCandTimeline('${id}')}`
- );
  const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="sendCV('${id}')">CV anonyme</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
 }
@@ -4053,6 +3981,27 @@ function openCoPanel(id){
  <div class="dr"><span class="drk">Email</span><span class="drv">${c.email?`<a href="mailto:${esc(c.email)}" style="color:var(--ac5)">${esc(c.email)}</a>`:'—'}</span></div>
  <div class="dr"><span class="drk">Ville</span><span class="drv">${esc(c.city||'—')}</span></div>
  <div class="dr"><span class="drk">Client depuis</span><span class="drv">${c.contract_date?fD(c.contract_date):'—'}</span></div>
+ ${c.contract_terms?`
+ <div class="sl"> Conditions contractuelles <span><button class="btn bp bxs" onclick="openContractModal('${id}')">Modifier</button></span></div>
+ <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);padding:10px 12px;font-size:11px;line-height:1.9">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+   <span style="color:var(--mu)">Poste</span>
+   <strong>${esc(c.contract_terms.poste||'—')}</strong>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+   <span style="color:var(--mu)">Honoraires</span>
+   <strong style="color:var(--ac)">${c.contract_terms.taux||18}%${c.contract_terms.frais_inscription?` + ${fM(c.contract_terms.frais_inscription)} frais`:''}</strong>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+   <span style="color:var(--mu)">Garantie</span>
+   <span>${c.contract_terms.garantie||3} mois</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center">
+   <span style="color:var(--mu)">Paiement</span>
+   <span>${c.contract_terms.delai_paiement||30} jours</span>
+  </div>
+  ${c.contract_terms.sent_at?`<div style="font-size:10px;color:var(--ac2);margin-top:6px">✓ Contrat envoyé le ${fD(c.contract_terms.sent_at)}</div>`:''}
+ </div>`:''}
  ${contacts.length?`<div class="sl">Contacts</div>${contacts.map((ct,i)=>`<div class="refcard"><div class="flex fac fjb"><strong class="fs11">${esc(ct.name)}</strong></div><div class="mu_ fs10">${esc(ct.role||'—')}${ct.phone?' · '+fPhone(ct.phone):''}${ct.email?' · '+esc(ct.email):''}</div></div>`).join('')}`:''}
  ${needs.length?`
  <div class="sl">Besoins en cours <span><button class="btn bp bxs" onclick="setCoTab(1,'${id}')">Voir tous →</button></span></div>
@@ -4081,7 +4030,8 @@ function openCoPanel(id){
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
  ];
- const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
+ const contractBtn=c.type==='client'?`<button class="btn bp bsm" onclick="openContractModal('${id}')"> Contrat</button>`:'';
+ const acts=`${contractBtn}<button class="btn bg bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span> <span class="pill ${c.type==='client'?'pwin':'ptoc'}">${c.type==='client'?'Client':'Prospect'}</span>`,tabs,B[Math.min(UI.ptab,B.length-1)],acts);
 }
 
@@ -4113,7 +4063,9 @@ function openNeedPanel(id){
  <select id="nc-sel" style="margin-bottom:7px"><option value="">Choisir…</option>${DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==id).map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.role||'')}</option>`).join('')}</select>
  <button class="btn bp bsm" onclick="linkFromSel('${id}')">Lier</button>`,
  ];
- const acts=`<button class="btn bp bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delNeed('${id}')"></button>`;
+ const needCoClient=co&&co.type==='client';
+ const needContractBtn=needCoClient?`<button class="btn bp bsm" onclick="openContractModal('${n.company_id}','${id}')"> Contrat</button>`:'';
+ const acts=`${needContractBtn}<button class="btn bg bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="openNeedPanel('${id}');setTimeout(()=>delNeed('${id}'),50)"></button>`;
  setPanel(n.title,`${co?`<span>${esc(co.name)}</span> · `:''}<span class="tag ${cat.cls}">${cat.l}</span>`,tabs,B[UI.ptab],acts);
 }
 
@@ -4267,7 +4219,7 @@ function saveCandForm(id){
  const name=document.getElementById('cf-n').value.trim();
  if(!name){toast('Nom requis','e');return;}
  const n=now_();
- const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,assigned_to:currentUserId(),updated:n};
+ const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
  if(id){const c=cById(id);Object.assign(c,data);}
  else{data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
  save();closeMo();
@@ -4307,7 +4259,7 @@ function saveCoForm(id,ft){
  const name=document.getElementById('cof-n').value.trim();
  if(!name){toast('Nom requis','e');return;}
  const n=now_();
- const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,assigned_to:currentUserId(),updated:n};
+ const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,updated:n};
  if(id){const c=coById(id);Object.assign(c,data);}
  else{data.id=uid();data.created=n;DB.companies.unshift(data);}
  save();closeMo();
@@ -4402,11 +4354,7 @@ function savePostForm(id){
 function setCS(id,st){
  const c=cById(id);if(!c)return;
  const prev=c.status;
- c.status=st;c.updated=now_();
- // Enregistrer le changement dans la timeline candidat
- const stLabel=getCS(st).l;
- const prevLabel=getCS(prev).l;
- addCandTimeline(id,'status',`${prevLabel} → ${stLabel}`);
+ c.status=st;c.updated=now_();save();
  if(UI.pid===id)openCandPanel(id);
  rCands();badges();
  toast(`→ ${getCS(st).l}`,'s');
@@ -4423,20 +4371,12 @@ function setCS(id,st){
  <strong>${esc(c.name)}</strong> vient d'être placé.${co?` Chez <strong>${esc(co.name)}</strong>.`:''} Créez la facture maintenant.
  </div>
  <div class="fg">
- <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000" oninput="updatePlacedInvoicePreview()"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5" oninput="updatePlacedInvoicePreview()"></div>
- </div>
- <!-- Frais d'inscription — discrets, en bas -->
- <div style="border-top:1px solid var(--bd);padding-top:8px;margin-top:4px;margin-bottom:8px">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-   <span style="font-size:10px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em">Frais d'inscription</span>
-   <span style="font-size:9px;color:var(--mu2);flex:1">(optionnel)</span>
-  </div>
-  <input id="inv-frais" type="number" placeholder="Montant HT — laisser vide si aucun" min="0" step="50" style="font-size:11px" oninput="updatePlacedInvoicePreview()">
+ <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
+ <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
  </div>
  <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
  <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
- <span style="font-size:10px;color:var(--mu)">Montant total HT</span>
+ <span style="font-size:10px;color:var(--mu)">Montant honoraires</span>
  </div>`,
  `<button class="btn bg" onclick="closeMo()">Plus tard</button>
  <button class="btn bp" onclick="createInvoiceFromModal('${id}')">Créer la facture</button>`
@@ -4462,16 +4402,7 @@ function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_(
 function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
 function linkFromSel(needId){const sel=document.getElementById('nc-sel');if(!sel||!sel.value)return;toggleLink(sel.value,needId);}
 function togDoc(id,doc,checked){const c=cById(id);if(!c)return;c.docs=c.docs||[];if(checked&&!c.docs.includes(doc))c.docs.push(doc);else if(!checked)c.docs=c.docs.filter(d=>d!==doc);c.updated=now_();save();rCands();}
-function saveIntNote(id){
- const c=cById(id);if(!c)return;
- const el=document.getElementById('int-note-'+id);if(!el)return;
- const wasNotDone=!c.int_done;
- c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();
- if(el.value&&wasNotDone){
-  addCandTimeline(id,'visio','Synthèse entretien rédigée · '+(el.value.slice(0,80)||''));
- }
- save();toast('Synthèse sauvegardée ✓','s');
-}
+function saveIntNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('int-note-'+id);if(!el)return;c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();save();toast('Synthèse sauvegardée ✓','s');}
 function saveGenNote2(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note2-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_date=now_();c.updated=now_();save();if(UI.pid===id)renderCandPanelTab(id);toast('Entretien marqué fait ✓','s');}
 function openStatusTree(id){openStatusMo('cand',id);}
@@ -6786,6 +6717,361 @@ function renderRep(){
 
 // ═══════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════
+// CONTRAT — Négociation + génération + envoi par email
+// ═══════════════════════════════════════════════════════════════════
+
+let _contractCoId=null;
+function openContractModal(coId, needId){
+ _contractCoId=coId;
+ const co=coById(coId);if(!co)return;
+ const need=needId?DB.needs.find(n=>n.id===needId):DB.needs.filter(n=>n.company_id===coId&&n.status==='open')[0]||null;
+ const taux=Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18);
+ const existingContract=co.contract_terms||null;
+
+ // Pré-remplir avec les données existantes
+ const smax=need?.smax||existingContract?.salaire_max||'';
+ const smin=need?.smin||existingContract?.salaire_min||'';
+ const poste=need?.title||existingContract?.poste||'';
+ const loc=need?.location||co.city||existingContract?.localisation||'';
+ const tauxActuel=existingContract?.taux||taux;
+ const fraisActuels=existingContract?.frais_inscription||0;
+ const garantieActuelle=existingContract?.garantie||3;
+ const paiementActuel=existingContract?.delai_paiement||30;
+
+ // Sélecteur besoin si plusieurs
+ const openNeeds=DB.needs.filter(n=>n.company_id===coId&&n.status==='open');
+ const needSelector=openNeeds.length>1?`
+  <div class="fgrp ff">
+   <span class="lbl">Besoin concerné</span>
+   <select id="ct-need" onchange="updateContractNeedInfo(this.value,'${coId}')">
+    ${openNeeds.map(n=>`<option value="${n.id}" ${n.id===needId?'selected':''}>${esc(n.title)}</option>`).join('')}
+   </select>
+  </div>`:'';
+
+ openMo(` Contrat de recrutement — ${esc(co.name)}`,`
+  <div style="max-height:70vh;overflow-y:auto;padding-right:4px">
+
+  <!-- Info client -->
+  <div style="padding:10px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);margin-bottom:16px;display:flex;align-items:center;gap:10px">
+   <div style="flex:1">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${esc(co.name)}</div>
+    <div style="font-size:11px;color:var(--mu)">${esc(co.contact||'')}${co.ctitle?' · '+esc(co.ctitle):''} · ${esc(co.city||'')}</div>
+   </div>
+   ${co.email?`<a href="mailto:${esc(co.email)}" style="font-size:10px;color:var(--ac5)">${esc(co.email)}</a>`:`<span style="font-size:10px;color:var(--ac3)">! Email manquant</span>`}
+  </div>
+
+  ${needSelector}
+
+  <!-- ONGLETS -->
+  <div style="display:flex;border-bottom:1px solid var(--bd);margin-bottom:16px;gap:0" id="ct-tabs">
+   <div class="ct-tab act" onclick="ctSwitchTab('conditions')" id="ct-tab-conditions" style="padding:8px 16px;font-size:11px;cursor:pointer;color:var(--ac);border-bottom:2px solid var(--ac);transition:.12s;user-select:none">Conditions</div>
+   <div class="ct-tab" onclick="ctSwitchTab('frais')" id="ct-tab-frais" style="padding:8px 16px;font-size:11px;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;transition:.12s;user-select:none">Frais inscription</div>
+   <div class="ct-tab" onclick="ctSwitchTab('preview')" id="ct-tab-preview" style="padding:8px 16px;font-size:11px;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;transition:.12s;user-select:none">Aperçu contrat</div>
+  </div>
+
+  <!-- TAB CONDITIONS -->
+  <div id="ct-panel-conditions">
+   <div class="fg">
+    <div class="fgrp ff"><span class="lbl">Poste à pourvoir *</span>
+     <input id="ct-poste" value="${esc(poste)}" placeholder="Conducteur de travaux GO" oninput="updateContractPreview()">
+    </div>
+    <div class="fgrp"><span class="lbl">Salaire min (€/an)</span>
+     <input id="ct-smin" type="number" value="${smin}" placeholder="38000" oninput="updateContractPreview()">
+    </div>
+    <div class="fgrp"><span class="lbl">Salaire max (€/an)</span>
+     <input id="ct-smax" type="number" value="${smax}" placeholder="50000" oninput="updateContractPreview()">
+    </div>
+    <div class="fgrp"><span class="lbl">Localisation</span>
+     <input id="ct-loc" value="${esc(loc)}" placeholder="Lyon, Paris…" oninput="updateContractPreview()">
+    </div>
+    <div class="fgrp"><span class="lbl">Taux honoraires (%)</span>
+     <input id="ct-taux" type="number" value="${tauxActuel}" min="1" max="40" step="0.5" oninput="updateContractPreview()">
+    </div>
+    <div class="fgrp"><span class="lbl">Délai de paiement (jours)</span>
+     <select id="ct-paiement" onchange="updateContractPreview()">
+      <option value="30" ${paiementActuel==30?'selected':''}>30 jours</option>
+      <option value="45" ${paiementActuel==45?'selected':''}>45 jours</option>
+      <option value="60" ${paiementActuel==60?'selected':''}>60 jours</option>
+     </select>
+    </div>
+    <div class="fgrp"><span class="lbl">Période de garantie (mois)</span>
+     <select id="ct-garantie" onchange="updateContractPreview()">
+      <option value="1" ${garantieActuelle==1?'selected':''}>1 mois</option>
+      <option value="2" ${garantieActuelle==2?'selected':''}>2 mois</option>
+      <option value="3" ${garantieActuelle==3?'selected':''}>3 mois</option>
+      <option value="6" ${garantieActuelle==6?'selected':''}>6 mois</option>
+     </select>
+    </div>
+   </div>
+   <!-- Preview montant HT -->
+   <div id="ct-amount-preview" style="margin-top:8px;padding:10px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);display:flex;align-items:center;gap:10px">
+    <div style="flex:1;font-size:11px;color:var(--mu)">Estimation honoraires</div>
+    <div id="ct-amount-val" style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--ac)">—</div>
+   </div>
+  </div>
+
+  <!-- TAB FRAIS INSCRIPTION -->
+  <div id="ct-panel-frais" style="display:none">
+   <div style="padding:12px 14px;background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:var(--r2);margin-bottom:16px;font-size:11px;line-height:1.7;color:var(--mu)">
+    Les frais d'inscription sont <strong style="color:var(--tx)">intégrés au corps du contrat</strong> comme une ligne ordinaire parmi les conditions tarifaires. Ils n'apparaissent pas sur les formulaires candidats ni dans les emails de suivi — uniquement dans le contrat envoyé au client.
+   </div>
+   <div class="fgrp">
+    <span class="lbl">Frais d'inscription (optionnel)</span>
+    <div style="display:flex;align-items:center;gap:10px">
+     <input id="ct-frais" type="number" value="${fraisActuels||''}" placeholder="0 — aucun frais" min="0" max="600" step="50"
+      style="flex:1;font-size:13px;font-family:'DM Mono',monospace"
+      oninput="clampFrais(this);updateContractPreview()">
+     <span style="font-size:11px;color:var(--mu)">€ HT max. 600€</span>
+    </div>
+    <div style="margin-top:6px">
+     <input type="range" id="ct-frais-slider" min="0" max="600" step="50" value="${fraisActuels||0}"
+      style="width:100%;accent-color:var(--ac)"
+      oninput="document.getElementById('ct-frais').value=this.value;updateContractPreview()">
+     <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mu2);margin-top:2px">
+      <span>0€</span><span>150€</span><span>300€</span><span>450€</span><span>600€</span>
+     </div>
+    </div>
+   </div>
+   <div id="ct-frais-preview" style="margin-top:12px;padding:10px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);font-size:11px;line-height:1.8;display:none">
+    <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:6px">Aperçu ligne contrat</div>
+    <div id="ct-frais-line" style="color:var(--tx)"></div>
+   </div>
+  </div>
+
+  <!-- TAB APERÇU CONTRAT -->
+  <div id="ct-panel-preview" style="display:none">
+   <div style="font-size:10px;color:var(--mu2);margin-bottom:8px">Aperçu du corps du contrat tel qu'il sera envoyé</div>
+   <div id="ct-contract-preview" style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);padding:14px;font-size:11px;line-height:1.9;white-space:pre-wrap;max-height:350px;overflow-y:auto;font-family:'DM Mono',monospace;color:var(--tx)"></div>
+  </div>
+
+  </div>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button>
+   <button class="btn bg" onclick="ctSwitchTab('preview');updateContractPreview()">Aperçu</button>
+   <button class="btn bp" onclick="sendContractEmail('${coId}','${needId||''}')"> Envoyer par email</button>`
+ );
+
+ // Init slider sync
+ setTimeout(()=>{
+  updateContractPreview();
+  const slid=document.getElementById('ct-frais-slider');
+  const inp=document.getElementById('ct-frais');
+  if(slid&&inp){slid.value=inp.value||0;}
+ },80);
+}
+
+function clampFrais(input){
+ let v=Number(input.value)||0;
+ if(v>600)v=600;
+ if(v<0)v=0;
+ input.value=v;
+ // Sync slider
+ const slid=document.getElementById('ct-frais-slider');
+ if(slid)slid.value=v;
+}
+
+function ctSwitchTab(tab){
+ ['conditions','frais','preview'].forEach(t=>{
+  const panel=document.getElementById('ct-panel-'+t);
+  const tabEl=document.getElementById('ct-tab-'+t);
+  const isActive=t===tab;
+  if(panel)panel.style.display=isActive?'block':'none';
+  if(tabEl){
+   tabEl.style.color=isActive?'var(--ac)':'var(--mu)';
+   tabEl.style.borderBottom=isActive?'2px solid var(--ac)':'2px solid transparent';
+  }
+ });
+ if(tab==='preview')updateContractPreview();
+}
+
+function updateContractNeedInfo(needId, coId){
+ const n=DB.needs.find(x=>x.id===needId);if(!n)return;
+ const pi=document.getElementById('ct-poste');if(pi)pi.value=n.title||'';
+ const si=document.getElementById('ct-smin');if(si)si.value=n.smin||'';
+ const sx=document.getElementById('ct-smax');if(sx)sx.value=n.smax||'';
+ const li=document.getElementById('ct-loc');if(li)li.value=n.location||coById(coId)?.city||'';
+ updateContractPreview();
+}
+
+function updateContractPreview(){
+ // Calculer le montant
+ const smax=Number(document.getElementById('ct-smax')?.value||0);
+ const smin=Number(document.getElementById('ct-smin')?.value||0);
+ const taux=Number(document.getElementById('ct-taux')?.value||18);
+ const frais=Number(document.getElementById('ct-frais')?.value||0);
+ const salRef=smax||smin||0;
+ const honoraires=salRef?Math.round(salRef*taux/100):0;
+ const total=honoraires+frais;
+
+ // Update amount preview
+ const amtEl=document.getElementById('ct-amount-val');
+ if(amtEl){
+  if(honoraires){
+   amtEl.textContent=total?fM(total):'—';
+   amtEl.title=frais?`Honoraires ${fM(honoraires)} + Frais inscription ${fM(frais)}`:'';
+  } else {
+   amtEl.textContent='Renseignez un salaire';
+   amtEl.style.fontSize='12px';
+   amtEl.style.color='var(--mu)';
+  }
+ }
+
+ // Update frais preview line
+ const fraisPreview=document.getElementById('ct-frais-preview');
+ const fraisLine=document.getElementById('ct-frais-line');
+ if(frais>0&&fraisPreview&&fraisLine){
+  fraisPreview.style.display='block';
+  fraisLine.textContent=`• Frais de dossier et d'inscription : ${fM(frais)} HT`;
+ } else if(fraisPreview){
+  fraisPreview.style.display='none';
+ }
+
+ // Update contrat preview
+ const previewEl=document.getElementById('ct-contract-preview');
+ if(previewEl){
+  previewEl.textContent=generateContractBody();
+ }
+}
+
+function generateContractBody(){
+ const coId=_contractCoId||'';
+ const co=coId?coById(coId):null;
+ // Récupérer les valeurs du formulaire
+ const poste=document.getElementById('ct-poste')?.value||'[POSTE]';
+ const smin=Number(document.getElementById('ct-smin')?.value||0);
+ const smax=Number(document.getElementById('ct-smax')?.value||0);
+ const taux=Number(document.getElementById('ct-taux')?.value||18);
+ const loc=document.getElementById('ct-loc')?.value||'[LOCALISATION]';
+ const garantie=document.getElementById('ct-garantie')?.value||'3';
+ const paiement=document.getElementById('ct-paiement')?.value||'30';
+ const frais=Number(document.getElementById('ct-frais')?.value||0);
+ const salRef=smax||smin||0;
+ const honoraires=salRef?Math.round(salRef*taux/100):0;
+ const total=honoraires+frais;
+ const nom=localStorage.getItem('btp_user_name_louis')||localStorage.getItem('btp_user_name')||'Novalem';
+ const salStr=smin&&smax?`${fM(smin)} – ${fM(smax)}`:smax?`jusqu'à ${fM(smax)}`:smin?`à partir de ${fM(smin)}`:'à définir';
+
+ return `CONTRAT DE PRESTATION DE RECRUTEMENT
+════════════════════════════════════════
+
+Prestataire : Novalem — Cabinet de recrutement
+${co?esc(co.name):'[NOM CLIENT]'}
+${co&&co.contact?esc(co.contact)+(co.ctitle?' — '+esc(co.ctitle):''):'[NOM CONTACT] — [FONCTION]'}
+Date : ${new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
+
+────────────────────────────────────────
+ARTICLE 1 — OBJET DE LA MISSION
+────────────────────────────────────────
+
+Novalem s'engage à rechercher et présenter des candidats qualifiés pour le poste de :
+
+  Intitulé du poste : ${poste}
+  Localisation : ${loc}
+  Rémunération proposée : ${salStr} brut annuel
+  Type de contrat : CDI
+
+────────────────────────────────────────
+ARTICLE 2 — CONDITIONS TARIFAIRES
+────────────────────────────────────────
+
+Les honoraires de recrutement sont calculés comme suit :
+
+  • Honoraires de placement : ${taux}% du salaire brut annuel convenu
+    Estimation sur la base de la fourchette indiquée : ${honoraires?fM(honoraires):'à calculer à la signature'}${frais>0?`
+  • Frais de dossier et d'inscription : ${fM(frais)} HT`:''}
+
+${total?`  Montant total estimé : ${fM(total)} HT`:''}
+
+Les honoraires sont dus à compter de la date d'entrée effective du candidat dans l'entreprise cliente.
+
+Délai de paiement : ${paiement} jours à réception de la facture.
+
+────────────────────────────────────────
+ARTICLE 3 — PÉRIODE DE GARANTIE
+────────────────────────────────────────
+
+En cas de départ du candidat dans les ${garantie} mois suivant son intégration (quelle qu'en soit la cause, hors faute de l'employeur), Novalem s'engage à reprendre la mission sans facturation supplémentaire.
+
+Cette garantie est valable une seule fois et sous réserve que les honoraires aient été intégralement réglés.
+
+────────────────────────────────────────
+ARTICLE 4 — CONFIDENTIALITÉ
+────────────────────────────────────────
+
+Les deux parties s'engagent à maintenir strictement confidentiels les informations échangées dans le cadre de cette mission, notamment les profils de candidats présentés.
+
+────────────────────────────────────────
+ARTICLE 5 — ACCEPTATION
+────────────────────────────────────────
+
+La validation de l'entretien ou du recrutement d'un candidat présenté par Novalem vaut acceptation des présentes conditions.
+
+────────────────────────────────────────
+
+${nom}
+Novalem — Cabinet de recrutement
+Pour acceptation : _____________________
+Date : _____ / _____ / __________`;
+}
+
+function sendContractEmail(coId, needId){
+ const co=coById(coId);if(!co)return;
+ if(!co.email){toast('Email client manquant — renseignez-le dans la fiche','e');return;}
+
+ const body=generateContractBody();
+ const poste=document.getElementById('ct-poste')?.value||'recrutement';
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+
+ // Sauvegarder les conditions négociées sur la fiche client
+ const taux=Number(document.getElementById('ct-taux')?.value||18);
+ const frais=Number(document.getElementById('ct-frais')?.value||0);
+ const garantie=document.getElementById('ct-garantie')?.value||'3';
+ const paiement=document.getElementById('ct-paiement')?.value||'30';
+ co.contract_terms={
+  poste:document.getElementById('ct-poste')?.value||'',
+  salaire_min:document.getElementById('ct-smin')?.value||null,
+  salaire_max:document.getElementById('ct-smax')?.value||null,
+  localisation:document.getElementById('ct-loc')?.value||'',
+  taux,frais_inscription:frais||null,garantie,delai_paiement:paiement,
+  sent_at:now_()
+ };
+ co.updated=now_();
+ // Passer au statut "Contrat envoyé"
+ if(co.status!=='active')co.status='contract';
+ save();
+
+ // Email à envoyer
+ const emailSubject=`Novalem — Contrat de recrutement | ${poste}`;
+ const emailBody=`Bonjour ${esc(co.contact?.split(' ')[0]||'')},
+
+Comme convenu, veuillez trouver ci-dessous notre contrat de prestation pour la mission de recrutement du poste de ${poste}.
+
+────────────────────────────────────────
+
+${body}
+
+────────────────────────────────────────
+
+Pour valider ce contrat, il vous suffit de nous retourner ce mail avec la mention "Bon pour accord" ou de nous contacter directement.
+
+Bien cordialement,
+${nom||'Novalem'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement`;
+
+ // Ouvrir le composeur email pré-rempli
+ EM={to:co.email,subject:emailSubject,body:emailBody,candId:null,coId:coId,tplKey:null};
+ EM_VIEW='compose';
+ closeMo();
+
+ // Timeline
+ addTimeline(coId,'status',`Contrat envoyé — ${poste}${frais?` (frais inscription : ${fM(frais)})`:''}`,null);
+
+ setTimeout(()=>{go('emails');},100);
+ toast(`Contrat prêt à envoyer à ${co.email}`,'s');
+}
+
+
 // ═══════════════════════════════════════════════════════
 // FACTURATION — Suivi des honoraires et paiements
 // ═══════════════════════════════════════════════════════
@@ -6888,15 +7174,13 @@ function openInvoicePanel(id){
  <div class="dr"><span class="drk">Candidat</span><span class="drv">${cand?`<span class="ac5" style="cursor:pointer" onclick="openCandPanel('${cand.id}')">${esc(cand.name)}</span>`:'—'}</span></div>
  <div class="dr"><span class="drk">Salaire brut</span><span class="drv">${fM(inv.salary)}</span></div>
  <div class="dr"><span class="drk">Taux honoraires</span><span class="drv">${taux}%</span></div>
- <div class="dr"><span class="drk">Honoraires HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--ac)">${fM(inv.honoraires||inv.amount)}</span></div>
- ${inv.frais_inscription?`<div class="dr"><span class="drk">Frais inscription</span><span class="drv" style="color:var(--mu)">${fM(inv.frais_inscription)}</span></div>
- <div class="dr"><span class="drk" style="font-weight:700">Total HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--ac)">${fM(inv.amount)}</span></div>`:`<div class="dr" style="display:none"></div>`}
+ <div class="dr"><span class="drk">Montant HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--ac)">${fM(inv.amount)}</span></div>
  <div class="dr"><span class="drk">Émission</span><span class="drv">${inv.invoice_date?fD(inv.invoice_date):'—'}</span></div>
  <div class="dr"><span class="drk">Échéance</span><span class="drv" style="color:${inv.status==='overdue'?'var(--ac3)':'inherit'}">${inv.due_date?fD(inv.due_date):'—'}</span></div>
  ${inv.paid_date?`<div class="dr"><span class="drk">Payée le</span><span class="drv ac2">✓ ${fD(inv.paid_date)}</span></div>`:''}
  ${inv.notes?`<div class="sl">Notes</div><div class="notebox">${esc(inv.notes)}</div>`:''}
  <div class="sl mt12">Récapitulatif</div>
- <div class="notebox fs10" style="line-height:1.9">${esc(inv.invoice_number||'')} · ${co?esc(co.name):'?'}<br>Placement de ${cand?esc(cand.name):'?'}<br>Honoraires ${taux}% × ${fM(inv.salary)} = ${fM(inv.honoraires||inv.amount)}${inv.frais_inscription?`<br>Frais d'inscription : ${fM(inv.frais_inscription)}`:''}<br><strong style="color:var(--ac)">Total HT : ${fM(inv.amount)}</strong><br>${inv.due_date?`Échéance ${fD(inv.due_date)}`:''}</div>`,
+ <div class="notebox fs10" style="line-height:1.9">${esc(inv.invoice_number||'')} · ${co?esc(co.name):'?'}<br>Placement de ${cand?esc(cand.name):'?'}<br>Honoraires ${taux}% × ${fM(inv.salary)} = <strong style="color:var(--ac)">${fM(inv.amount)}</strong><br>${inv.due_date?`Échéance ${fD(inv.due_date)}`:''}</div>`,
  `${inv.status==='draft'?`<button class="btn bi bsm" onclick="markInvoiceSent('${id}')">Envoyée</button>`:''}
  ${['sent','overdue'].includes(inv.status)?`<button class="btn bp bsm" onclick="markInvoicePaid('${id}')">Payée</button>`:''}
  <button class="btn bg bsm" onclick="editInvoiceNotes('${id}')"></button>
@@ -6918,14 +7202,6 @@ function openInvoiceForm(candId){
  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</div>
  <div style="font-size:10px;color:var(--mu)">Montant honoraires HT</div>
  </div>
- <!-- Frais d'inscription — optionnel, discret -->
- <div class="fgrp ff" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:2px">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-   <span class="lbl" style="margin:0">Frais d'inscription (optionnel)</span>
-   <span style="font-size:9px;color:var(--mu2);flex:1">Montant fixe HT en supplément des honoraires</span>
-  </div>
-  <input id="nif-frais" type="number" placeholder="Ex : 500 — laisser vide si aucun" min="0" step="50" oninput="updateInvoicePreview()" style="font-size:11px">
- </div>
  <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="nif-notes" style="min-height:50px" placeholder="Informations complémentaires…"></textarea></div>
  </div>`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button>
@@ -6937,73 +7213,38 @@ function openInvoiceForm(candId){
 function updateInvoicePreview(){
  const sal=Number(document.getElementById('nif-sal')?.value||0);
  const taux=Number(document.getElementById('nif-taux')?.value||18);
- const frais=Number(document.getElementById('nif-frais')?.value||0);
  const prev=document.getElementById('nif-preview');if(!prev)return;
- if(sal>0){
-  prev.style.display='block';
-  const amt=Math.round(sal*taux/100);
-  const total=amt+frais;
-  prev.children[0].textContent=fM(total);
-  prev.children[1].textContent=frais>0
-   ? `Honoraires ${fM(amt)} + Frais inscription ${fM(frais)}`
-   : `= ${sal.toLocaleString('fr-FR')}€ × ${taux}%`;
- } else prev.style.display='none';
-}
-
-
-function updatePlacedInvoicePreview(){
- const sal=Number(document.getElementById('inv-sal')?.value||0);
- const taux=Number(document.getElementById('inv-taux')?.value||18);
- const frais=Number(document.getElementById('inv-frais')?.value||0);
- const prev=document.getElementById('inv-preview');if(!prev)return;
- if(sal>0){
-  const honoraires=Math.round(sal*taux/100);
-  const total=honoraires+frais;
-  prev.innerHTML=`<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">${fM(total)}</span><br><span style="font-size:10px;color:var(--mu)">${frais>0?`Honoraires ${fM(honoraires)} + Frais ${fM(frais)}`:`${sal.toLocaleString('fr-FR')}€ × ${taux}%`}</span>`;
- }
+ if(sal>0){prev.style.display='block';const amt=Math.round(sal*taux/100);prev.children[0].textContent=fM(amt);prev.children[1].textContent=`= ${sal.toLocaleString('fr-FR')}€ × ${taux}%`;}
+ else prev.style.display='none';
 }
 
 function createInvoiceFromModal(candId){
  const sal=Number(document.getElementById('inv-sal')?.value||0);
  const taux=Number(document.getElementById('inv-taux')?.value||18);
- const frais=Number(document.getElementById('inv-frais')?.value||0);
  if(!sal){toast('Salaire requis','e');return;}
- _createInvoice(candId,sal,taux,'',frais||null);closeMo();
+ _createInvoice(candId,sal,taux,'');closeMo();
 }
 
 function saveInvoiceForm(){
  const candId=document.getElementById('nif-cand')?.value;
  const sal=Number(document.getElementById('nif-sal')?.value||0);
  const taux=Number(document.getElementById('nif-taux')?.value||18);
- const frais=Number(document.getElementById('nif-frais')?.value||0);
  if(!candId||!sal){toast('Candidat et salaire requis','e');return;}
- _createInvoice(candId,sal,taux,document.getElementById('nif-notes')?.value||'',frais||null);closeMo();
+ _createInvoice(candId,sal,taux,document.getElementById('nif-notes')?.value||'');closeMo();
 }
 
-function _createInvoice(candId,salary,taux,notes,fraisInscription=null){
+function _createInvoice(candId,salary,taux,notes){
  DB.invoices=DB.invoices||[];
- const cand=cById(candId);
- const need=cand?.linked_need?DB.needs.find(n=>n.id===cand.linked_need):null;
+ const c=cById(candId);
+ const need=c?.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
  const co=need?coById(need.company_id):null;
- const honoraires=Math.round(Number(salary)*taux/100);
- const frais=fraisInscription?Number(fraisInscription):0;
- const amount=honoraires+frais; // Total = honoraires + frais
+ const amount=Math.round(Number(salary)*taux/100);
  const today=new Date().toISOString().split('T')[0];
  const due=new Date();due.setDate(due.getDate()+30);
- const inv={
-  id:uid(),invoice_number:getInvoiceNumber(),
-  cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,
-  salary:Number(salary),taux,
-  honoraires, // montant honoraires seul
-  frais_inscription:frais||null, // frais optionnels
-  amount, // total facturé
-  status:'draft',invoice_date:today,due_date:due.toISOString().split('T')[0],
-  paid_date:null,notes,created:now_(),updated:now_()
- };
+ const inv={id:uid(),invoice_number:getInvoiceNumber(),cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,salary:Number(salary),taux,amount,status:'draft',invoice_date:today,due_date:due.toISOString().split('T')[0],paid_date:null,notes,created:now_(),updated:now_()};
  DB.invoices.unshift(inv);save();
  if(UI.view==='facturation')rFacturation();
- const fraisLabel=frais?` + ${fM(frais)} frais inscription`:'';
- badges();toast(`Facture ${inv.invoice_number} créée — ${fM(amount)}${fraisLabel}`,'s');
+ badges();toast(`Facture ${inv.invoice_number} créée — ${fM(amount)}`,'s');
 }
 
 function markInvoiceSent(id){
@@ -7291,9 +7532,6 @@ function savePrecalScriptAndPlan(id){
  if(poste)c.role=poste;
  c.pepite=profil==='pepite';
  c.updated=now_();
- // Timeline
- const shortNotes=notesComplet.split('\n').slice(0,3).join(' · ').slice(0,120);
- addCandTimeline(id,'precal',shortNotes||'Précal effectuée');
  save();
  localStorage.removeItem('precal_draft_'+id);
  toast(`Précal sauvegardée ✓ — planifiez le RDV`,'s');
