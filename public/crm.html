@@ -7674,8 +7674,61 @@ function renderRep(){
  </div>
  </div>`;
 }
+
+// ── Supabase Realtime — mise à jour automatique quand un contrat est signé ──
+// Dès que le client signe via la page /sign, le CRM est notifié instantanément
+function initSignatureListener(){
+  try{
+    const sb = getSB();
+    if(!sb) return;
+
+    sb.channel('novalem_signatures_changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table:  'novalem_signatures',
+      }, (payload) => {
+        const sig = payload.new;
+        if(!sig || !sig.ct_id) return;
+
+        // Chercher le contrat dans toutes les fiches
+        for(const co of DB.companies){
+          const ct = (co.contracts||[]).find(x=>x.id===sig.ct_id);
+          if(!ct) continue;
+
+          // Mettre à jour le statut
+          ct.status      = 'sign\u00e9';
+          ct.signed_at   = sig.signed_at;
+          ct.signer_name = sig.signer_name;
+          co.updated     = now_();
+          addTimeline(co.id, 'sign', `Contrat sign\u00e9 par ${sig.signer_name}`);
+          save();
+          badges();
+
+          // Notification visuelle
+          toast(`\u2705 Contrat sign\u00e9 par ${sig.signer_name} \u2014 ${esc(co.name)}`, 's');
+
+          // Si la fiche de ce client est ouverte → rafraîchir l'onglet Contrats
+          if(UI.ptype==='co' && UI.pid===co.id){
+            UI.ptab = 4;
+            openCoPanel(co.id);
+          }
+          break;
+        }
+      })
+      .subscribe((status) => {
+        if(status === 'SUBSCRIBED'){
+          console.log('[NOVALEM] Écoute des signatures en temps réel active');
+        }
+      });
+  }catch(e){
+    console.warn('[NOVALEM] Realtime non disponible:', e.message);
+  }
+}
+
 (async()=>{
  await load(); // localStorage immédiat + Supabase en arrière-plan
+ initSignatureListener(); // Écoute Realtime des signatures
  rDash();
  badges();
  // Show cloud status in indicator
