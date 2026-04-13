@@ -2049,22 +2049,25 @@ Novalem — Cabinet de recrutement`;
 
  closeMo();
 
- // Pré-charger EM et EM_RECIPIENTS (candidat)
- EM = { to: c.email||'', subject: `Confirmation entretien visio — ${dateStr}`, body: emailBody, candId: candId, coId: null, tplKey: null };
+ // ── 1. Ajouter l'entretien dans l'agenda (automatique, toujours) ──
+ confirmEmailSent(candId, visioLink, sel.dateStr, sel.h);
+
+ // ── 2. Email pré-rempli avec dossier en PJ ────────────────────
+ EM = { to: c.email||'', subject: `Entretien visio NOVALEM — ${dateStr}`, body: emailBody, candId: candId, coId: null, tplKey: null };
  EM_VIEW = 'compose';
  EM_RECIPIENTS = c.email ? [{ email: c.email, name: c.name, type: 'cand', entityId: candId }] : [];
  window._pendingAttachment = null;
 
- // Générer le PDF dossier de candidature en arrière-plan
- toast('Préparation du dossier…', 'i');
+ toast('Entretien ajouté à l\'agenda ✓', 's');
+
+ // ── 3. Générer le dossier PDF en arrière-plan ─────────────────
  setTimeout(async () => {
    try {
      const b64 = await _genDossierBase64(c);
      if(b64){
        window._pendingAttachment = {
          filename: `NOVALEM_Dossier_${c.name.replace(/\s+/g,'_').slice(0,30)}.pdf`,
-         content: b64,
-         type: 'application/pdf'
+         content: b64, type: 'application/pdf'
        };
        const bar = document.getElementById('em-attachment-bar');
        const nm  = document.getElementById('em-attachment-name');
@@ -2072,17 +2075,9 @@ Novalem — Cabinet de recrutement`;
        toast('Dossier joint ✓', 's');
      }
    } catch(e){ console.error('[dossier]', e); }
- }, 300);
+ }, 400);
 
- // Naviguer vers email
  go('emails');
-
- // Marquer envoyé après confirmation
- setTimeout(()=>{
-   if(confirm('Email prêt.\n\nMarquer le dossier comme envoyé ?')){
-     confirmEmailSent(candId,visioLink,sel.dateStr,sel.h);
-   }
- }, 500);
 }
 function cpEmail(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Email copié ✓','i'));}
 function cpText(t){navigator.clipboard.writeText(t).then(()=>toast('Copié ✓','i'));}
@@ -4347,6 +4342,19 @@ contact@novalem-recrutement.fr`;
   // Timeline
   if(co){ addTimeline(coId,'contrat','Proposition professionnelle envoy\u00e9e \u2014 en attente de signature'); save(); }
 
+  // Rappel relance signature J+1
+  setTimeout(()=>{
+    _proposeAgendaItem({
+      type:    'relance',
+      title:   `Relance signature \u2014 ${co.name}`,
+      notes:   `Appeler ${co.contact||co.name} pour relancer sur la signature du contrat.`,
+      co_id:   coId,
+      delay:   1,
+      hour:    10,
+      question: `Ajouter un rappel demain \u00e0 10h pour relancer la signature de ${co.name} ?`
+    });
+  }, 1500);
+
   // Assigner directement les variables let (PAS window.XXX)
   // Avertir si l'email du client est absent dans la fiche
   if(!co.email){
@@ -4704,6 +4712,16 @@ function markCandidatesSent(coId, ctId){
   addTimeline(coId,'candidat',"Coordonnées du candidat envoyées au client");
   save(); rDash(); badges();
   toast('Contacts envoyés ✓ — fiche mise à jour','s');
+  // Rappel suivi placement J+3
+  _proposeAgendaItem({
+    type:    'call',
+    title:   `Suivi placement — ${co?.name||coId}`,
+    notes:   'Vérifier que le client a bien contacté le candidat et que l\'entretien est planifié.',
+    co_id:   coId,
+    delay:   3,
+    hour:    11,
+    question: `Rappel dans 3 jours pour vérifier le suivi de la mise en relation ?`
+  });
 }
 
 
@@ -4856,6 +4874,78 @@ async function _genDossierBase64(cand){
   const uri=doc.output('datauristring');
   return uri.split(',')[1];
 }
+
+
+// ── Proposer d'ajouter un événement à l'agenda (toast non-bloquant) ──
+// delay = jours à ajouter à aujourd'hui (0 = aujourd'hui, 1 = demain...)
+// hour  = heure de l'événement (entier, ex: 10 = 10h00)
+function _proposeAgendaItem({type='task', title='', notes='', cand_id=null, co_id=null, delay=0, hour=9, question=''}){
+  // Calculer la date cible
+  const d = new Date();
+  d.setDate(d.getDate() + delay);
+  // Sauter le week-end
+  while(d.getDay()===0||d.getDay()===6){ d.setDate(d.getDate()+1); }
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const timeStr = `${String(hour).padStart(2,'0')}:00`;
+
+  // Afficher une modale de confirmation légère
+  const mo = document.createElement('div');
+  mo.id = '_agenda-propose-mo';
+  mo.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9998;background:var(--s3);border:1px solid var(--gold-bd,rgba(200,144,10,.3));border-radius:10px;padding:16px 18px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideInRight .3s ease';
+
+  const f = new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d);
+  mo.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:20px;flex-shrink:0">📅</span>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">${esc(question)||'Ajouter à l\'agenda ?'}</div>
+        <div style="font-size:10px;color:var(--mu);margin-bottom:10px">${f} à ${timeStr} — ${esc(title)}</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="_addProposedItem()" style="flex:1;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px;font-size:12px;font-weight:700;cursor:pointer">Oui, ajouter</button>
+          <button onclick="document.getElementById('_agenda-propose-mo')?.remove()" style="background:var(--s4);color:var(--mu);border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer">Non</button>
+        </div>
+      </div>
+    </div>`;
+
+  // Stocker les données pour _addProposedItem
+  window._proposedItem = {type, title, notes, cand_id, co_id, date: dateStr, time: timeStr};
+
+  // Supprimer après 12 secondes si pas de réponse
+  if(document.getElementById('_agenda-propose-mo')) document.getElementById('_agenda-propose-mo').remove();
+  document.body.appendChild(mo);
+  setTimeout(()=>mo.remove(), 12000);
+}
+
+function _addProposedItem(){
+  const p = window._proposedItem;
+  if(!p) return;
+  document.getElementById('_agenda-propose-mo')?.remove();
+  DB.agenda.push({
+    id: uid(),
+    type:    p.type,
+    title:   p.title,
+    date:    new Date(p.date).toISOString(),
+    time:    p.time,
+    cand_id: p.cand_id || null,
+    comp_id: p.co_id   || null,
+    notes:   p.notes   || '',
+    done:    false,
+    created: now_(),
+  });
+  save();
+  badges();
+  toast(`📅 Ajouté à l'agenda : ${p.title}`, 's');
+  window._proposedItem = null;
+}
+
+// CSS pour l'animation du toast agenda
+(()=>{
+  if(document.getElementById('_agenda-css')) return;
+  const st = document.createElement('style');
+  st.id = '_agenda-css';
+  st.textContent = '@keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}';
+  document.head.appendChild(st);
+})();
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
 
