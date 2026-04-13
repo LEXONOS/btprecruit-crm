@@ -75,7 +75,7 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);height
 
 /* ── MAIN ──────────────────────────────────────────── */
 #main{display:grid;grid-template-rows:48px 1fr;height:100vh;overflow:hidden;min-width:0}
-.topbar{border-bottom:1px solid var(--bd);padding:0 22px;display:flex;align-items:center;gap:12px;background:var(--s1);flex-shrink:0}
+.topbar{border-bottom:1px solid var(--bd);padding:0 16px 0 22px;display:flex;align-items:center;gap:8px;background:var(--s1);flex-shrink:0;min-height:46px}
 .tbt{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;flex:1;letter-spacing:-.2px}
 .tba{display:flex;gap:6px;align-items:center}
 #content{overflow:auto;padding:20px 22px;background:var(--bg)}
@@ -606,6 +606,18 @@ select option{background:var(--s2)}
  <div class="topbar">
  <div class="tbt" id="tbt">Dashboard</div>
  <div class="tba" id="tba"></div>
+ <!-- Horloges duales : France | Guadeloupe (Louis uniquement) -->
+ <div id="dual-clocks" style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0">
+   <div style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:default" title="Heure en France métropolitaine">
+     <span style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">🇫🇷 France</span>
+     <span id="clock-fr" style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--tx)">--:--</span>
+   </div>
+   <div style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--gold-bd,rgba(200,144,10,.3));border-radius:6px;padding:4px 10px;cursor:default" title="Votre heure locale — Guadeloupe">
+     <span style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em">🌴 Gwada</span>
+     <span id="clock-gwada" style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--gold)">--:--</span>
+   </div>
+   <div style="font-size:9px;color:var(--mu);white-space:nowrap" id="tz-diff"></div>
+ </div>
  <div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">· Local</div>
  </div>
  <div id="content">
@@ -1951,7 +1963,13 @@ function renderCalMo(candId){
  });
  // Slots
  WEEK_HOURS.forEach(h=>{
- gridHtml+=`<div class="cal-time">${h}h</div>`;
+ // Heure France en gras + heure Gwada en dessous (Louis seulement)
+const isLouis = currentUserId()==='louis';
+const gwH = isLouis ? frToGwada(h) : null;
+gridHtml+=`<div class="cal-time" style="flex-direction:column;gap:1px">
+  <span style="font-size:11px;font-weight:700">${h}h</span>
+  ${isLouis?`<span style="font-size:8px;color:var(--gold);opacity:.8">${gwH}h🌴</span>`:''}
+</div>`;
  days.forEach(d=>{
  const dateStr=d.toISOString().split('T')[0];
  const key=`${dateStr}_${h}`;
@@ -1969,7 +1987,13 @@ function renderCalMo(candId){
  const ev=DB.agenda.find(a=>{const dd=new Date(a.date);return dd.toISOString().split('T')[0]===dateStr&&parseInt((a.time||'').split(':')[0])===h;});
  inner=`<div class="cal-ev taken-ev">${ev?esc(ev.title.slice(0,18)):'Occupé'}</div>`;
  }
- if(isSel){inner=`<div class="cal-ev new-ev">✓ Sélectionné</div>`;}
+ if(isSel){
+  const isL = currentUserId()==='louis';
+  const gwH2 = isL ? frToGwada(h) : null;
+  inner=`<div class="cal-ev new-ev" style="font-size:9px;line-height:1.4">
+    ✓ ${h}h FR${isL?`<br><span style="color:var(--gold)">${gwH2}h 🌴</span>`:''}
+  </div>`;
+}
  const clickable=!isPast_&&!isTaken;
  gridHtml+=`<div class="${cls}" ${clickable?`onclick="selectSlot('${candId}','${dateStr}',${h})"`:''}>${inner}</div>`;
  });
@@ -1989,7 +2013,7 @@ function renderCalMo(candId){
  <button class="btn bg bsm" onclick="calNextWeek('${candId}')">Sem. suivante →</button>
  </div>
  <div class="cal-wrap"><div class="cal-grid" style="grid-template-rows:auto ${WEEK_HOURS.map(()=>'34px').join(' ')}">${gridHtml}</div></div>
- ${UI.calSelected?`<div style="margin-top:10px;padding:9px 11px;background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;font-size:11px">Créneau sélectionné : <strong>${UI.calSelected.label}</strong></div>`:''}`,
+ ${UI.calSelected?`<div style="margin-top:10px;padding:9px 11px;background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.2);border-radius:3px;font-size:11px">Créneau : <strong>${UI.calSelected.label}</strong>${currentUserId()==='louis'?`<span style="background:rgba(201,137,26,.12);color:var(--gold);font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;margin-left:6px">${frToGwada(UI.calSelected.h)}h🌴 votre heure</span>`:''}</div>`:''}`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button>
  <button class="btn bg" onclick="startPrecal('${candId}')">← Retour</button>
  <button class="btn bp" ${!UI.calSelected?'disabled style="opacity:.4;cursor:not-allowed"':''} onclick="proceedToEmail('${candId}')">Valider → Préparer email</button>`
@@ -2106,7 +2130,8 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
  save();closeMo();closePanel();
  badges();
  if(UI.view==='cands') rCands();
- toast(`${c.name} → Dossier envoyé · Entretien planifié dans l'agenda`,'s');
+ const gwHour = frToGwada(h);
+toast(`${c.name} → Entretien ${h}h (France) = ${gwHour}h Gwada · Agenda mis à jour`,'s');
  // Show in pipeline
  setTimeout(()=>{switchCandTab('pipeline');openCandPanel(candId);},300);
 }
@@ -3393,6 +3418,15 @@ function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
  const coOpts=`<option value="">— Aucun —</option>`+DB.companies.map(c=>`<option value="${c.id}" ${(a.comp_id||coId)===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
  const initTime=a.time||(preTime||'');
  const timeOpts=`<option value="">— Pas d'heure —</option>`+AG_HOURS_FULL.map(t=>`<option value="${t}" ${initTime===t?'selected':''}>${t}</option>`).join('');
+  // Indicateur dual timezone (Louis uniquement)
+  const tzIndicator = currentUserId()==='louis'
+    ? `<div id="ag-tz-indicator" style="margin-top:4px;font-size:10px;color:var(--gold);padding:4px 8px;background:rgba(201,137,26,.08);border-radius:4px;display:inline-flex;align-items:center;gap:5px">
+        <span>🇫🇷</span><span id="ag-tz-fr">—</span>
+        <span style="color:var(--mu)">→</span>
+        <span>🌴</span><span id="ag-tz-gw">—</span>
+        <span style="color:var(--mu);font-size:9px">votre heure locale</span>
+      </div>`
+    : '';
 
  openMo(id?'Modifier événement':'Nouvel événement',`
  <!-- Titre + type -->
@@ -3423,7 +3457,8 @@ function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
  <!-- Heure — select large et lisible -->
  <div style="margin-bottom:12px">
  <span class="lbl"> Heure</span>
- <select id="af-h" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;padding:9px 12px;margin-top:4px;letter-spacing:.04em">${timeOpts}</select>
+ <select id="af-h" onchange="_updateAgTz()" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;padding:9px 12px;margin-top:4px;letter-spacing:.04em">${timeOpts}</select>
+ ${tzIndicator}
  </div>
 
  <!-- Liens -->
@@ -3432,7 +3467,8 @@ function openAgForm(id=null,candId=null,coId=null,preDate=null,preTime=null){
  <div class="fgrp" style="margin:0"><span class="lbl">Entreprise liée</span><select id="af-co">${coOpts}</select></div>
  </div>
  <div class="fgrp"><span class="lbl">Notes</span><textarea id="af-notes" style="min-height:55px">${esc(a.notes||'')}</textarea></div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}');closeMo()"></button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer ✓</button>`
+ `<button class="btn bg" onclick="closeMo()">Annuler</button>${id?`<button class="btn bd_" onclick="delAg('${id}');
+ setTimeout(()=>_updateAgTz(),50);closeMo()"></button>`:''}<button class="btn bp" onclick="saveAgForm('${id||''}')">Enregistrer ✓</button>`
 );
 }
 
@@ -8110,9 +8146,110 @@ function initSignatureListener(){
   }
 }
 
+
+// ── Horloges duales France / Guadeloupe ────────────────────────
+// Guadeloupe = UTC-4 (pas de changement d'heure)
+// France métropolitaine = UTC+1 hiver / UTC+2 été (CEST)
+// Le décalage varie : 5h en hiver, 6h en été
+
+function _updateAgTz(){
+  if(currentUserId() !== 'louis') return;
+  const sel = document.getElementById('af-time');
+  const frEl = document.getElementById('ag-tz-fr');
+  const gwEl = document.getElementById('ag-tz-gw');
+  if(!sel||!frEl||!gwEl) return;
+  const val = sel.value;
+  if(!val){ frEl.textContent='—'; gwEl.textContent='—'; return; }
+  const h = parseInt(val.split(':')[0]);
+  const mn = val.split(':')[1]||'00';
+  const gwH = frToGwada(h);
+  frEl.textContent = val + ' 🇫🇷';
+  gwEl.textContent = String(gwH).padStart(2,'0')+':'+mn+' 🌴';
+}
+
+function _getTimezoneOffsetFR(){
+  // Calculer l'offset actuel de Paris via Intl
+  const now = new Date();
+  const parisTz = new Intl.DateTimeFormat('fr-FR',{
+    timeZone:'Europe/Paris', hour:'numeric', hour12:false
+  }).formatToParts(now).find(p=>p.type==='hour');
+  const gwadaTz = new Intl.DateTimeFormat('fr-FR',{
+    timeZone:'America/Guadeloupe', hour:'numeric', hour12:false
+  }).formatToParts(now).find(p=>p.type==='hour');
+  const nowUTC = now.getTime();
+  const frHour = parseInt(parisTz?.value||0);
+  const gwHour = parseInt(gwadaTz?.value||0);
+  // diff = heures France - heures Guadeloupe
+  let diff = frHour - gwHour;
+  if(diff < 0) diff += 24; // cas minuit
+  return diff; // typiquement 5 ou 6
+}
+
+function _formatTz(date, tz){
+  return new Intl.DateTimeFormat('fr-FR',{
+    timeZone: tz,
+    hour:   '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+function _formatDate(date, tz){
+  return new Intl.DateTimeFormat('fr-FR',{
+    timeZone: tz,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(date);
+}
+
+// Afficher l'heure France & Gwada dans le topbar (Louis uniquement)
+function _tickClocks(){
+  // N'afficher que pour Louis (admin / user1)
+  if(currentUserId() !== 'louis') return;
+
+  const now = new Date();
+  const frEl   = document.getElementById('clock-fr');
+  const gwEl   = document.getElementById('clock-gwada');
+  const diffEl = document.getElementById('tz-diff');
+
+  if(frEl)   frEl.textContent   = _formatTz(now, 'Europe/Paris');
+  if(gwEl)   gwEl.textContent   = _formatTz(now, 'America/Guadeloupe');
+  if(diffEl){
+    const diff = _getTimezoneOffsetFR();
+    diffEl.textContent = `+${diff}h`;
+    diffEl.title = `France = Gwada + ${diff}h`;
+  }
+}
+
+// Convertir une heure France → Guadeloupe
+function frToGwada(h){
+  const diff = _getTimezoneOffsetFR();
+  let gw = h - diff;
+  if(gw < 0) gw += 24;
+  return gw;
+}
+
+// Convertir une heure Guadeloupe → France
+function gwadaToFr(h){
+  const diff = _getTimezoneOffsetFR();
+  let fr = h + diff;
+  if(fr >= 24) fr -= 24;
+  return fr;
+}
+
+// Formater un créneau avec les deux fuseaux
+function fmtSlotDual(h){
+  const diff = _getTimezoneOffsetFR();
+  const gwH = frToGwada(h);
+  return `${h}h00 (France) = ${gwH}h00 (Gwada)`;
+}
+
 (async()=>{
  await load(); // localStorage immédiat + Supabase en arrière-plan
  initSignatureListener(); // Écoute Realtime des signatures
+ setInterval(_tickClocks, 1000); _tickClocks(); // Horloges duales
  rDash();
  badges();
  // Show cloud status in indicator
