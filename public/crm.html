@@ -4202,19 +4202,38 @@ contact@novalem-recrutement.fr`;
   // Fermer le panel latéral
   closePanel();
 
-  // Générer le PDF en base64 et ouvrir le compose
-  toast('Pr\u00e9paration du mail\u2026','i');
-  _genContractBase64(ct).then(b64 => {
-    // Stocker l'attachment (accessible via window car créé dynamiquement)
-    window._pendingAttachment = b64 ? {
-      filename: `NOVALEM_Proposition_${(ct.nom||'Client').replace(/[^a-zA-Z0-9\-_]/g,'_').slice(0,40)}.pdf`,
-      content:  b64,
-      type:     'application/pdf'
-    } : null;
-    if(!b64) toast('PDF non disponible \u2014 vous pouvez joindre manuellement','w');
-    // Naviguer vers emails — rEmails() lira les nouvelles valeurs des let
-    go('emails');
-  });
+  // Réinitialiser l'attachment
+  window._pendingAttachment = null;
+
+  // Naviguer IMMÉDIATEMENT vers le compose (ne pas freezer l'UI)
+  closePanel();
+  go('emails');
+
+  // Générer le PDF en arrière-plan après que le compose soit affiché
+  toast('Mail prêt — génération du PDF…', 'i');
+  setTimeout(async () => {
+    try {
+      const b64 = await _genContractBase64(ct);
+      if(b64){
+        window._pendingAttachment = {
+          filename: `NOVALEM_Proposition_${(ct.nom||'Client').replace(/[^a-zA-Z0-9\-_]/g,'_').slice(0,40)}.pdf`,
+          content:  b64,
+          type:     'application/pdf'
+        };
+        const bar = document.getElementById('em-attachment-bar');
+        const nm  = document.getElementById('em-attachment-name');
+        if(bar && nm){
+          nm.textContent = window._pendingAttachment.filename;
+          bar.style.display = 'flex';
+        }
+        toast('PDF joint au mail ✓', 's');
+      } else {
+        toast('PDF non généré — joignez-le manuellement', 'w');
+      }
+    } catch(e){
+      console.error('[attachment]', e);
+    }
+  }, 300);
 }
 
 
@@ -4239,17 +4258,16 @@ async function _genContractBase64(ct){
     'position:fixed',
     'top:0',
     'left:0',
-    'width:210mm',
-    'min-height:297mm',
+    'width:794px',               // A4 en pixels @ 96dpi
     'background:#ffffff',
-    'padding:18mm',
+    'padding:60px',
     'font-family:Georgia,serif',
     'font-size:10pt',
     'color:#1A1614',
     'line-height:1.65',
     'z-index:99999',
-    'opacity:0.0001',            // quasi invisible mais rendu par le browser
-    'pointer-events:none',       // ne bloque pas les clics
+    'opacity:0.001',             // quasi invisible mais rendu
+    'pointer-events:none',
     'overflow:visible',
   ].join(';');
 
@@ -4257,25 +4275,25 @@ async function _genContractBase64(ct){
   document.body.appendChild(wrap);
 
   // Laisser le browser rendre (layout + polices)
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 200));
 
   try{
     const blob = await html2pdf().set({
       margin:      [15, 15, 18, 15],
-      image:       { type:'jpeg', quality:0.96 },
+      image:       { type:'jpeg', quality:0.92 },
       html2canvas: {
-        scale:           2,
+        scale:           1.5,          // 1.5 au lieu de 2 = 2.5x plus rapide
         useCORS:         true,
         letterRendering: true,
         logging:         false,
         backgroundColor: '#ffffff',
-        // onclone corrige la position dans le clone capturé
+        windowWidth:     794,          // forcer largeur A4 en px (210mm @ 96dpi)
         onclone: (_doc, el) => {
           el.style.opacity  = '1';
-          el.style.position = 'relative';
-          el.style.top      = '0';
-          el.style.left     = '0';
-          el.style.zIndex   = '0';
+          el.style.position = 'static';
+          el.style.width    = '794px';
+          el.style.padding  = '60px';
+          el.style.background = '#ffffff';
         }
       },
       jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
