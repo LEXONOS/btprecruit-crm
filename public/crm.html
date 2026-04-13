@@ -4238,87 +4238,250 @@ contact@novalem-recrutement.fr`;
 
 
 // Générer le PDF du contrat en base64 pour la pièce jointe Resend
+
+// ── Génération PDF via jsPDF TEXT (pas de html2canvas, pas de freeze) ──
+// jsPDF est exposé par html2pdf.bundle.min.js via window.jspdf.jsPDF
 async function _genContractBase64(ct){
-  if(typeof html2pdf === 'undefined'){
-    console.warn('[genBase64] html2pdf non chargé');
+  // Accéder à jsPDF depuis le bundle html2pdf
+  const jsPDFCtor = (window.jspdf?.jsPDF) || (window.jsPDF);
+  if(!jsPDFCtor){
+    console.warn('[genBase64] jsPDF non disponible');
     return null;
   }
-  // Créer un conteneur CSS injecté dans le HEAD (html2canvas le lit)
-  const tmpStyle = document.createElement('style');
-  tmpStyle.id = '_ct_gen_style';
-  tmpStyle.textContent = _contractCSSInner();
-  document.head.appendChild(tmpStyle);
 
-  // Conteneur visible dans le viewport (opacity quasi nulle)
-  // IMPORTANT : left:-250vw = le browser ne rend pas → page blanche
-  // Solution : top:0;left:0;opacity:0.001 = rendu mais invisible
-  const wrap = document.createElement('div');
-  wrap.id = '_ct_gen_wrap';
-  wrap.style.cssText = [
-    'position:fixed',
-    'top:0',
-    'left:0',
-    'width:794px',               // A4 en pixels @ 96dpi
-    'background:#ffffff',
-    'padding:60px',
-    'font-family:Georgia,serif',
-    'font-size:10pt',
-    'color:#1A1614',
-    'line-height:1.65',
-    'z-index:99999',
-    'opacity:0.001',             // quasi invisible mais rendu
-    'pointer-events:none',
-    'overflow:visible',
-  ].join(';');
+  const {nom='', siret='', tarifs={}, taux='', opt3070=false, garantie=false, date=''} = ct||{};
+  const f = n => String(parseFloat(n||0)).replace('.',',') + '\u00a0%';
 
-  wrap.innerHTML = _buildContractBody(ct);
-  document.body.appendChild(wrap);
+  const doc = new jsPDFCtor('p','mm','a4');
+  const W=210, ML=18, MR=18, TW=W-ML-MR;
+  let y=20;
 
-  // Laisser le browser rendre (layout + polices)
-  await new Promise(r => setTimeout(r, 200));
+  // Couleurs
+  const GOLD  = [201,137,26];
+  const DARK  = [26,22,20];
+  const GREY  = [100,100,100];
+  const LGREY = [240,238,233];
 
-  try{
-    const blob = await html2pdf().set({
-      margin:      [15, 15, 18, 15],
-      image:       { type:'jpeg', quality:0.92 },
-      html2canvas: {
-        scale:           1.5,          // 1.5 au lieu de 2 = 2.5x plus rapide
-        useCORS:         true,
-        letterRendering: true,
-        logging:         false,
-        backgroundColor: '#ffffff',
-        windowWidth:     794,          // forcer largeur A4 en px (210mm @ 96dpi)
-        onclone: (_doc, el) => {
-          el.style.opacity  = '1';
-          el.style.position = 'static';
-          el.style.width    = '794px';
-          el.style.padding  = '60px';
-          el.style.background = '#ffffff';
-        }
-      },
-      jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
-    }).from(wrap).outputPdf('blob');
-
-    // Cleanup
-    document.body.removeChild(wrap);
-    document.head.removeChild(tmpStyle);
-
-    // Blob → base64
-    return await new Promise((res) => {
-      const reader = new FileReader();
-      reader.onload  = () => res(reader.result.split(',')[1]);
-      reader.onerror = () => res(null);
-      reader.readAsDataURL(blob);
+  // Helpers
+  const setFont = (sz, bold=false, color=DARK) => {
+    doc.setFontSize(sz);
+    doc.setFont('helvetica', bold?'bold':'normal');
+    doc.setTextColor(color[0],color[1],color[2]);
+  };
+  const goldLine = (w=0.6) => {
+    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
+    doc.setLineWidth(w);
+    doc.line(ML, y, W-MR, y);
+    y += 4;
+  };
+  const greyLine = () => {
+    doc.setDrawColor(220,218,210);
+    doc.setLineWidth(0.2);
+    doc.line(ML, y, W-MR, y);
+    y += 3;
+  };
+  const txt = (s, x, opts={}) => {
+    if(y > 270){ doc.addPage(); y=20; }
+    doc.text(String(s||''), x, y, opts);
+  };
+  const block = (lines, x=ML, sz=9, color=DARK, bold=false) => {
+    setFont(sz, bold, color);
+    const wrapped = [];
+    lines.forEach(l => {
+      const ws = doc.splitTextToSize(String(l||''), TW-(x-ML));
+      ws.forEach(w => wrapped.push({t:w, x}));
     });
+    wrapped.forEach(({t,x:xi}) => { txt(t, xi); y += sz*0.42; });
+  };
+  const sectionTitle = (artNum, title) => {
+    y += 3;
+    greyLine();
+    setFont(7.5, false, GREY); txt(artNum, ML);
+    setFont(8.5, true, GOLD);  txt(title, ML+12);
+    y += 4;
+  };
 
-  }catch(e){
-    // Cleanup même en cas d'erreur
-    try{ document.body.removeChild(wrap); }catch(_){}
-    try{ document.head.removeChild(tmpStyle); }catch(_){}
-    console.error('[_genContractBase64]', e);
-    return null;
+  // ── EN-TÊTE ────────────────────────────────────────────────────
+  setFont(22, true, DARK); txt('NOVALEM', ML);
+  setFont(7.5, false, GOLD); txt('RECRUTEMENT BTP \u00b7 CDI', ML);
+  y -= 8;
+  setFont(7.5, false, GREY);
+  doc.text('contact@novalem-recrutement.fr', W-MR, y, {align:'right'});
+  y += 4;
+  doc.text('06 58 21 20 96  \u2022  novalem-recrutement.fr', W-MR, y, {align:'right'});
+  y += 5;
+  goldLine(0.8);
+
+  // ── TITRE DOCUMENT ─────────────────────────────────────────────
+  setFont(14, true, DARK);
+  doc.text('CONTRAT CADRE DE RECRUTEMENT', W/2, y, {align:'center'});
+  y += 5;
+  setFont(8.5, false, GREY);
+  doc.text('Prestation de recrutement CDI \u2014 B\u00e2timent & Travaux Publics', W/2, y, {align:'center'});
+  y += 3;
+  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
+  doc.rect(W/2-16, y, 32, 0.8, 'F');
+  y += 8;
+
+  // ── PARTIES ───────────────────────────────────────────────────
+  setFont(9, true, DARK); txt('Parties', ML); y += 4;
+  // Box client
+  doc.setFillColor(LGREY[0],LGREY[1],LGREY[2]);
+  doc.rect(ML, y, TW/2-3, 18, 'F');
+  doc.setFillColor(248,245,239);
+  doc.rect(ML+TW/2+3, y, TW/2-3, 18, 'F');
+  const bx1=ML+3, bx2=ML+TW/2+6, by=y;
+  y = by+4;
+  setFont(6.5, true, GOLD); txt('LE CLIENT', bx1); y+=3;
+  setFont(8.5, true, DARK); txt(nom||'_______________', bx1); y+=3.5;
+  setFont(7.5, false, GREY); txt('SIRET\u00a0: '+(siret||'_______________'), bx1);
+  y = by+4;
+  setFont(6.5, true, GOLD); txt('LE PRESTATAIRE', bx2); y+=3;
+  setFont(8.5, true, DARK); txt('NOVALEM \u2014 Louis RENAULT', bx2); y+=3.5;
+  setFont(7.5, false, GREY); txt('Cabinet de recrutement BTP \u2014 APE 7810Z', bx2);
+  y = by+22;
+
+  // ── ARTICLES ─────────────────────────────────────────────────
+  sectionTitle('Art. 1', 'OBJET');
+  block(["Le pr\u00e9sent contrat cadre d\u00e9finit les conditions dans lesquelles NOVALEM accompagne le Client dans l'ensemble de ses recrutements CDI relevant du B\u00e2timent et des Travaux Publics, sans limitation du nombre de postes, pour toute la dur\u00e9e de l'accord."]);
+
+  sectionTitle('Art. 2', 'ENGAGEMENTS DE NOVALEM');
+  block(["NOVALEM s'engage \u00e0\u00a0: sourcer des candidats qualifi\u00e9s\u00a0; proc\u00e9der \u00e0 leur pr\u00e9s\u00e9lection\u00a0; respecter la confidentialit\u00e9 des informations du Client\u00a0; ne pas approcher les salari\u00e9s du Client pendant la dur\u00e9e du contrat et les 12\u00a0mois suivants\u00a0; ne pas imposer de clause d'exclusivit\u00e9."]);
+
+  sectionTitle('Art. 3', 'ENGAGEMENTS DU CLIENT');
+  block(["Le Client s'engage \u00e0\u00a0: d\u00e9signer un interlocuteur unique\u00a0; communiquer sa d\u00e9cision sur chaque candidature dans les 8\u00a0jours calendaires\u00a0; recevoir les candidats retenus dans les 15\u00a0jours\u00a0; informer NOVALEM de tout recrutement d'un candidat pr\u00e9sent\u00e9\u00a0; ex\u00e9cuter le contrat de bonne foi."]);
+
+  sectionTitle('Art. 4', 'HONORAIRES');
+  block(["Les honoraires sont calcul\u00e9s en pourcentage du salaire brut annuel (SBA) convenu lors de chaque embauche\u00a0:"]);
+  y += 2;
+
+  // Tableau tarifaire
+  const colW = [50, 38, 38, 38];
+  const tHeaders = ['Cat\u00e9gorie', '< 5\u00a0ans', '5\u00a0\u00e0\u00a015\u00a0ans', '> 15\u00a0ans'];
+  const tRows = [
+    ['Non-cadre', f(tarifs.nc1||12), f(tarifs.nc2||13.5), f(tarifs.nc3||15)],
+    ['Cadre',     f(tarifs.c1||15),  f(tarifs.c2||17),    f(tarifs.c3||20)],
+  ];
+  // Header
+  doc.setFillColor(26,22,20);
+  doc.rect(ML, y, TW, 8, 'F');
+  setFont(8, true, [255,255,255]);
+  let cx=ML;
+  tHeaders.forEach((h,i)=>{ doc.text(h,cx+2,y+5); cx+=colW[i]; });
+  y+=8;
+  // Rows
+  tRows.forEach((row, ri)=>{
+    doc.setFillColor(ri%2===0?248:255, ri%2===0?245:255, ri%2===0?239:255);
+    doc.rect(ML, y, TW, 7, 'F');
+    cx=ML;
+    row.forEach((cell,i)=>{
+      if(i===0){ setFont(8.5, true, DARK); }
+      else { setFont(8.5, true, GOLD); }
+      doc.text(cell, i===0?cx+2:cx+colW[i]/2, y+5, {align:i===0?'left':'center'});
+      cx+=colW[i];
+    });
+    y+=7;
+  });
+  y+=4;
+
+  if(taux){
+    doc.setFillColor(255,248,236);
+    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
+    doc.setLineWidth(0.3);
+    const gText = doc.splitTextToSize(`Par d\u00e9rogation\u00a0: taux sp\u00e9cifique de ${taux}\u00a0% du SBA pour votre 1er recrutement. La grille standard reprend effet \u00e0 compter du 2\u00e8me recrutement.`, TW-6);
+    doc.rect(ML, y, TW, gText.length*4+6, 'FD');
+    doc.setDrawColor(ML,y,3);
+    doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
+    doc.rect(ML, y, 2.5, gText.length*4+6, 'F');
+    setFont(8.5, false, DARK);
+    doc.text(gText, ML+5, y+4.5);
+    y += gText.length*4+10;
   }
+
+  block(["\u25b8 Les honoraires sont exigibles exclusivement en cas d'int\u00e9gration effective du candidat. Aucun frais en l'absence d'embauche."]);
+
+  sectionTitle('Art. 5', 'MODALIT\u00c9S DE R\u00c8GLEMENT');
+  if(opt3070){
+    block(["R\u00e8glement en deux versements\u00a0: 30\u00a0% \u00e0 la date d'int\u00e9gration du candidat\u00a0; 70\u00a0% \u00e0 l'issue de la p\u00e9riode d'essai (3\u00a0mois complets)."]);
+  } else {
+    block(["Facturation \u00e0 la date d'int\u00e9gration effective. R\u00e8glement par virement bancaire \u00e0 r\u00e9ception de facture, sans escompte."]);
+  }
+  block(["Retards de paiement\u00a0: p\u00e9nalit\u00e9s de plein droit au taux l\u00e9gal + 5 points + indemnit\u00e9 forfaitaire 40\u20ac (art. L. 441-6 C. com.)."]);
+
+  sectionTitle('Art. 6', 'DROIT DE SUITE');
+  block(["Pendant 24\u00a0mois suivant la fin du contrat, tout recrutement d'un candidat pr\u00e9sent\u00e9 directement ou indirectement ouvre droit aux honoraires de l'article\u00a04."]);
+
+  if(garantie){
+    sectionTitle('Art. 7', 'GARANTIE DE REMPLACEMENT');
+    block(["Si le candidat recrut\u00e9 quitte le poste ou si le Client y met fin pour motif professionnel dans les 3\u00a0mois suivant la prise de poste, NOVALEM relance la recherche sans honoraires suppl\u00e9mentaires pendant 6\u00a0mois (limit\u00e9 \u00e0 un remplacement par mission)."]);
+  }
+
+  const n = garantie ? 8 : 7;
+  sectionTitle(`Art. ${n}`, 'CONFIDENTIALIT\u00c9 & RGPD');
+  block(["Chaque partie traite avec confidentialit\u00e9 les informations \u00e9chang\u00e9es pendant la dur\u00e9e du contrat et les 5\u00a0ans suivants. NOVALEM traite les donn\u00e9es des candidats en qualit\u00e9 de responsable de traitement (R\u00e8gl. UE 2016/679)."]);
+
+  sectionTitle(`Art. ${n+1}`, 'DUR\u00c9E ET R\u00c9SILIATION');
+  block(["Contrat de 12\u00a0mois, renouvelable tacitement par mois. R\u00e9siliation par LRAR sous pr\u00e9avis d'un mois. La clause de droit de suite demeure applicable apr\u00e8s toute extinction."]);
+
+  sectionTitle(`Art. ${n+2}`, 'DROIT APPLICABLE');
+  block(["Contrat soumis au droit fran\u00e7ais. Tout litige non r\u00e9solu amiablement sous 30\u00a0jours\u00a0: comp\u00e9tence exclusive des Tribunaux de Nice (Alpes-Maritimes)."]);
+
+  // ── SIGNATURES ────────────────────────────────────────────────
+  y += 5;
+  if(y > 230){ doc.addPage(); y=20; }
+  greyLine();
+  y += 2;
+  // Boxes signatures
+  const sw = TW/2-5;
+  doc.setFillColor(LGREY[0],LGREY[1],LGREY[2]);
+  doc.rect(ML, y, sw, 38, 'F');
+  doc.rect(ML+sw+10, y, sw, 38, 'F');
+  // Barre or en haut
+  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
+  doc.rect(ML, y, sw, 2, 'F');
+  doc.rect(ML+sw+10, y, sw, 2, 'F');
+  y+=5;
+  setFont(7, true, GOLD);
+  txt('POUR LE CLIENT', ML+3);
+  txt('POUR NOVALEM', ML+sw+13);
+  y+=4;
+  setFont(8.5, true, DARK);
+  txt(nom||'_______________', ML+3);
+  txt('Louis RENAULT', ML+sw+13);
+  y+=3.5;
+  setFont(7.5, false, GREY);
+  txt('SIRET\u00a0: '+(siret||'_______________'), ML+3);
+  txt('Directeur \u2014 NOVALEM', ML+sw+13);
+  y+=14;
+  // Lignes de signature
+  doc.setDrawColor(180,180,180);
+  doc.setLineWidth(0.3);
+  doc.line(ML+3, y, ML+sw-3, y);
+  doc.line(ML+sw+13, y, ML+2*sw+7, y);
+  y+=3;
+  setFont(7, false, GREY);
+  txt('Signature & cachet', ML+3);
+  txt('Signature', ML+sw+13);
+  y+=4;
+  setFont(7.5, false, DARK);
+  txt(`Fait \u00e0 _________, le ${date}`, ML+3);
+  txt(`Fait \u00e0 Nice, le ${date}`, ML+sw+13);
+
+  // ── FOOTER ───────────────────────────────────────────────────
+  const pageCount = doc.getNumberOfPages();
+  for(let p=1; p<=pageCount; p++){
+    doc.setPage(p);
+    doc.setFontSize(6.5);
+    doc.setTextColor(180,180,180);
+    doc.text('NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06 58 21 20 96 \u00b7 Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le '+date, W/2, 290, {align:'center'});
+    doc.text(`${p} / ${pageCount}`, W-MR, 290, {align:'right'});
+  }
+
+  // Retourner base64
+  const dataUri = doc.output('datauristring');
+  return dataUri.split(',')[1];
 }
+
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
 
