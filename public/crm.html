@@ -4194,13 +4194,11 @@ Nos honoraires sont dus exclusivement en cas d'int\u00e9gration effective du can
 
 ---
 
-Pour signer le contrat, cliquez simplement sur le lien ci-dessous :
+Pour signer le contrat, il vous suffit de cliquer sur le bouton ci-dessous. La signature prend moins de 30 secondes, sans impression ni scan.
 
-${signUrl}
+[Signer le contrat NOVALEM ->(${signUrl})
 
-Vous n'avez qu'\u00e0 saisir votre nom et confirmer. La signature est imm\u00e9diate, sans impression ni scan.
-
-D\u00e8s r\u00e9ception de votre signature, je vous transmets imm\u00e9diatement les coordonn\u00e9es du candidat pour organiser l'entretien.
+D\u00e8s r\u00e9ception de votre signature, je vous transmets imm\u00e9diatement les coordonn\u00e9es du candidat afin que vous puissiez organiser l'entretien.
 
 Bien cordialement,
 ${nom}${tel?'\n'+tel:''}
@@ -4334,14 +4332,17 @@ async function _genContractBase64(ct){
   };
 
   // ── EN-TÊTE ────────────────────────────────────────────────────
-  setFont(22, true, DARK); txt('NOVALEM', ML);
-  setFont(7.5, false, GOLD); txt('RECRUTEMENT BTP \u00b7 CDI', ML);
-  y -= 8;
+  // NOVALEM (grande) — y fixe pour le titre
+  const yHeader = y;
+  setFont(22, true, DARK);
+  doc.text('NOVALEM', ML, yHeader);
+  setFont(7.5, false, GOLD);
+  doc.text('RECRUTEMENT BTP - CDI', ML, yHeader + 6);
+  // Infos de contact alignées à droite, même zone
   setFont(7.5, false, GREY);
-  doc.text('contact@novalem-recrutement.fr', W-MR, y, {align:'right'});
-  y += 4;
-  doc.text('06 58 21 20 96  -  novalem-recrutement.fr', W-MR, y, {align:'right'});
-  y += 5;
+  doc.text('contact@novalem-recrutement.fr', W-MR, yHeader + 2, {align:'right'});
+  doc.text('06 58 21 20 96 - novalem-recrutement.fr', W-MR, yHeader + 7, {align:'right'});
+  y = yHeader + 13;
   goldLine(0.8);
 
   // ── TITRE DOCUMENT ─────────────────────────────────────────────
@@ -4459,45 +4460,51 @@ async function _genContractBase64(ct){
   block(["Contrat soumis au droit fran\u00e7ais. Tout litige non r\u00e9solu amiablement sous 30\u00a0jours\u00a0: comp\u00e9tence exclusive des Tribunaux de Nice (Alpes-Maritimes)."]);
 
   // ── SIGNATURES ────────────────────────────────────────────────
-  y += 5;
-  if(y > 230){ doc.addPage(); y=20; }
+  y += 6;
+  if(y > 220){ doc.addPage(); y=20; }
   greyLine();
-  y += 2;
-  // Boxes signatures
+  y += 3;
+
   const sw = TW/2-5;
-  doc.setFillColor(LGREY[0],LGREY[1],LGREY[2]);
-  doc.rect(ML, y, sw, 38, 'F');
-  doc.rect(ML+sw+10, y, sw, 38, 'F');
-  // Barre or en haut
+
+  // ── Box client : SIGNATURE ELECTRONIQUE ────────────────────
+  doc.setFillColor(248,248,255);  // bleu très clair
+  doc.setDrawColor(180,190,220);
+  doc.setLineWidth(0.3);
+  doc.rect(ML, y, sw, 40, 'FD');
+  // Barre dorée
   doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
   doc.rect(ML, y, sw, 2, 'F');
+  const cy = y;
+  setFont(6.5, true, GOLD); doc.text('POUR LE CLIENT', ML+3, cy+6);
+  setFont(8.5, true, DARK); doc.text(nom||'_______________', ML+3, cy+12);
+  setFont(7.5, false, GREY); doc.text('SIRET : '+(siret||'_______________'), ML+3, cy+17);
+  // Zone signature electronique
+  doc.setFillColor(240,245,255);
+  doc.rect(ML+3, cy+20, sw-6, 14, 'F');
+  setFont(7, true, [60,100,180]); doc.text('SIGNATURE ELECTRONIQUE', ML+sw/2, cy+27, {align:'center'});
+  setFont(6.5, false, [100,120,160]); doc.text('Un lien de signature vous est envoye par email', ML+sw/2, cy+31, {align:'center'});
+  doc.text('Ref. : '+(ct.id||'—').slice(0,12).toUpperCase(), ML+sw/2, cy+35, {align:'center'});
+
+  // ── Box NOVALEM : pre-signe ─────────────────────────────────
+  doc.setFillColor(LGREY[0],LGREY[1],LGREY[2]);
+  doc.rect(ML+sw+10, y, sw, 40, 'F');
+  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
   doc.rect(ML+sw+10, y, sw, 2, 'F');
-  y+=5;
-  setFont(7, true, GOLD);
-  txt('POUR LE CLIENT', ML+3);
-  txt('POUR NOVALEM', ML+sw+13);
-  y+=4;
-  setFont(8.5, true, DARK);
-  txt(nom||'_______________', ML+3);
-  txt('Louis RENAULT', ML+sw+13);
-  y+=3.5;
-  setFont(7.5, false, GREY);
-  txt('SIRET\u00a0: '+(siret||'_______________'), ML+3);
-  txt('Directeur -- NOVALEM', ML+sw+13);
-  y+=14;
-  // Lignes de signature
-  doc.setDrawColor(180,180,180);
-  doc.setLineWidth(0.3);
-  doc.line(ML+3, y, ML+sw-3, y);
-  doc.line(ML+sw+13, y, ML+2*sw+7, y);
-  y+=3;
-  setFont(7, false, GREY);
-  txt('Signature & cachet', ML+3);
-  txt('Signature', ML+sw+13);
-  y+=4;
-  setFont(7.5, false, DARK);
-  txt(`Fait \u00e0 _________, le ${date}`, ML+3);
-  txt(`Fait \u00e0 Nice, le ${date}`, ML+sw+13);
+  const nx = ML+sw+13;
+  setFont(6.5, true, GOLD); doc.text('POUR NOVALEM', nx, cy+6);
+  setFont(8.5, true, DARK); doc.text('Louis RENAULT', nx, cy+12);
+  setFont(7.5, false, GREY); doc.text('Directeur -- NOVALEM', nx, cy+17);
+  // Signature pre-imprimee (stylisee en texte)
+  doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
+  doc.line(nx, cy+30, nx+sw-6, cy+30);
+  setFont(10, true, [40,40,40]);
+  doc.setFont('courier','bolditalic');
+  doc.text('L. Renault', nx+4, cy+28);
+  setFont(7, false, GREY); doc.text('Signature', nx, cy+34);
+  setFont(7.5, false, DARK); doc.text('Fait a Nice, le '+date, nx, cy+39);
+
+  y = cy+46;
 
   // ── FOOTER ───────────────────────────────────────────────────
   const pageCount = doc.getNumberOfPages();
