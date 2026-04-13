@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Signature électronique — NOVALEM</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F5F3EF;color:#1A1614;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 16px}
+.logo{font-size:24px;font-weight:900;letter-spacing:-1px;color:#1A1614;margin-bottom:4px}
+.logo span{color:#C9891A}
+.sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#C9891A;margin-bottom:32px}
+.card{background:#fff;border-radius:12px;border:1px solid rgba(10,11,14,.08);box-shadow:0 2px 20px rgba(10,11,14,.06);width:100%;max-width:560px;overflow:hidden}
+.card-head{background:#1A1614;padding:20px 28px;display:flex;align-items:center;gap:12px}
+.card-head-ico{width:36px;height:36px;border-radius:50%;background:rgba(201,137,26,.2);border:1px solid rgba(201,137,26,.4);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.card-head-title{font-size:15px;font-weight:700;color:#fff}
+.card-head-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+.card-body{padding:28px}
+.co-name{font-size:22px;font-weight:800;color:#1A1614;margin-bottom:4px}
+.co-siret{font-size:12px;color:#888;margin-bottom:20px}
+.summary{background:#F8F5EF;border-radius:8px;padding:16px;margin-bottom:20px;border:1px solid rgba(10,11,14,.06)}
+.summary-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#C9891A;margin-bottom:10px}
+.summary-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(10,11,14,.06);font-size:13px}
+.summary-row:last-child{border-bottom:none}
+.summary-label{color:#666}
+.summary-value{font-weight:600;color:#1A1614}
+.gold-badge{background:rgba(201,137,26,.12);color:#C9891A;font-size:11px;font-weight:600;padding:2px 8px;border-radius:100px;border:1px solid rgba(201,137,26,.25)}
+.legal-box{background:#FFF8EC;border:1px solid rgba(201,137,26,.2);border-radius:6px;padding:12px 14px;font-size:12px;color:#666;line-height:1.6;margin-bottom:20px}
+.legal-box strong{color:#1A1614}
+.field-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:6px}
+.field-input{width:100%;border:1.5px solid rgba(10,11,14,.14);border-radius:8px;padding:12px 14px;font-size:15px;font-family:inherit;color:#1A1614;outline:none;transition:border-color .2s,box-shadow .2s;background:#fff}
+.field-input:focus{border-color:#C9891A;box-shadow:0 0 0 3px rgba(201,137,26,.1)}
+.check-row{display:flex;align-items:flex-start;gap:10px;margin:16px 0;cursor:pointer}
+.check-row input[type=checkbox]{width:18px;height:18px;accent-color:#C9891A;margin-top:1px;flex-shrink:0;cursor:pointer}
+.check-label{font-size:13px;color:#444;line-height:1.5}
+.btn-sign{width:100%;background:#C9891A;color:#fff;border:none;border-radius:8px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .2s,transform .15s,box-shadow .2s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-sign:hover:not(:disabled){background:#B07010;transform:translateY(-1px);box-shadow:0 6px 20px rgba(201,137,26,.3)}
+.btn-sign:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.loading{display:none;align-items:center;justify-content:center;gap:8px;padding:20px;font-size:14px;color:#888}
+.spinner{width:20px;height:20px;border:2.5px solid rgba(201,137,26,.2);border-top-color:#C9891A;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.success{display:none;text-align:center;padding:32px 24px}
+.success-ico{width:64px;height:64px;border-radius:50%;background:rgba(61,206,138,.1);border:1px solid rgba(61,206,138,.3);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
+.success-title{font-size:18px;font-weight:800;color:#1A1614;margin-bottom:8px}
+.success-sub{font-size:14px;color:#666;line-height:1.6}
+.success-meta{margin-top:16px;background:#F5F3EF;border-radius:6px;padding:12px;font-size:12px;color:#888;text-align:left}
+.error-box{background:rgba(200,50,50,.07);border:1px solid rgba(200,50,50,.2);border-radius:6px;padding:10px 14px;font-size:13px;color:#B03030;margin-top:12px;display:none}
+.footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;line-height:1.8}
+.footer a{color:#C9891A;text-decoration:none}
+.skeleton{background:linear-gradient(90deg,#e8e4de 25%,#f3f0ea 50%,#e8e4de 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:4px;height:16px;margin-bottom:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<div class="logo">Nova<span>lem</span></div>
+<div class="sub">Recrutement BTP · CDI</div>
+
+<div class="card" id="card">
+  <!-- Loading skeleton -->
+  <div id="loading" class="card-body">
+    <div class="skeleton" style="width:60%;height:24px;margin-bottom:6px"></div>
+    <div class="skeleton" style="width:40%;height:12px;margin-bottom:20px"></div>
+    <div class="skeleton" style="height:100px;margin-bottom:16px"></div>
+    <div class="skeleton" style="height:48px"></div>
+  </div>
+
+  <!-- Formulaire de signature -->
+  <div id="form-view" style="display:none">
+    <div class="card-head">
+      <div class="card-head-ico">📄</div>
+      <div>
+        <div class="card-head-title">Signature électronique</div>
+        <div class="card-head-sub">Contrat cadre de recrutement NOVALEM</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="co-name" id="co-name"></div>
+      <div class="co-siret" id="co-siret"></div>
+
+      <div class="summary" id="summary">
+        <div class="summary-title">Récapitulatif des conditions</div>
+        <div id="summary-rows"></div>
+      </div>
+
+      <div class="legal-box">
+        En signant ce document, vous acceptez les conditions du <strong>Contrat Cadre de Recrutement NOVALEM</strong>
+        et reconnaissez avoir pris connaissance de ses articles. Cette signature électronique a la même valeur
+        juridique qu'une signature manuscrite conformément au <strong>Règlement UE n°910/2014 (eIDAS)</strong>.
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div class="field-label">Votre nom et prénom *</div>
+        <input id="signer-name" class="field-input" type="text" placeholder="Ex : Jean DUPONT" autocomplete="name">
+      </div>
+
+      <label class="check-row">
+        <input type="checkbox" id="agree-check">
+        <span class="check-label">J'ai lu et j'accepte les conditions du contrat cadre NOVALEM. Je signe électroniquement ce document.</span>
+      </label>
+
+      <button class="btn-sign" id="btn-sign" onclick="submitSignature()" disabled>
+        Signer le contrat
+      </button>
+      <div class="error-box" id="error-box"></div>
+    </div>
+  </div>
+
+  <!-- Succès -->
+  <div id="success-view" style="display:none">
+    <div class="success">
+      <div class="success-ico">✓</div>
+      <div class="success-title">Contrat signé !</div>
+      <div class="success-sub">
+        Merci. Votre signature a bien été enregistrée.<br>
+        NOVALEM vous contactera dans les plus brefs délais avec les coordonnées du candidat.
+      </div>
+      <div class="success-meta" id="success-meta"></div>
+    </div>
+  </div>
+
+  <!-- Erreur chargement -->
+  <div id="invalid-view" style="display:none">
+    <div class="success">
+      <div class="success-ico">⚠</div>
+      <div class="success-title" style="color:#B03030">Lien invalide</div>
+      <div class="success-sub" id="invalid-msg">Ce lien de signature est invalide ou a expiré. Contactez NOVALEM pour obtenir un nouveau lien.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <a href="https://novalem-recrutement.fr">novalem-recrutement.fr</a> · 
+  <a href="mailto:contact@novalem-recrutement.fr">contact@novalem-recrutement.fr</a><br>
+  Signature électronique simple — conforme eIDAS niveau 1
+</div>
+
+<script>
+const API = 'https://novalem-crm.vercel.app';
+const params = new URLSearchParams(location.search);
+const CO_ID  = params.get('co');
+const CT_ID  = params.get('ct');
+const TOKEN  = params.get('t');
+const CO_NAME = decodeURIComponent(params.get('n') || '');
+const CT_DATA = (() => { try { return JSON.parse(atob(params.get('d') || '')); } catch(_) { return null; } })();
+
+// Initialiser les listeners
+document.getElementById('signer-name').addEventListener('input', updateBtn);
+document.getElementById('agree-check').addEventListener('change', updateBtn);
+
+function updateBtn() {
+  const name = document.getElementById('signer-name').value.trim();
+  const agreed = document.getElementById('agree-check').checked;
+  document.getElementById('btn-sign').disabled = !(name.length >= 3 && agreed);
+}
+
+// Charger les données du contrat
+function init() {
+  if(!CO_ID || !CT_ID || !TOKEN) {
+    showInvalid('Lien de signature incomplet.');
+    return;
+  }
+
+  // Si les données sont embarquées dans l'URL (mode offline)
+  if(CT_DATA && CO_NAME) {
+    renderForm(CO_NAME, CT_DATA);
+    return;
+  }
+
+  // Sinon charger depuis l'API
+  fetch(`${API}/api/jobs?action=get_contract_info&co_id=${CO_ID}&ct_id=${CT_ID}&token=${TOKEN}`)
+    .then(r => r.json())
+    .then(data => {
+      if(!data.success || !data.contract) {
+        showInvalid(data.error || 'Contrat introuvable.');
+        return;
+      }
+      if(data.contract.status === 'signé') {
+        showAlreadySigned(data.contract);
+        return;
+      }
+      renderForm(data.contract.co_name, data.contract);
+    })
+    .catch(() => {
+      // Fallback si API inaccessible : utiliser les données URL
+      if(CT_DATA && CO_NAME) {
+        renderForm(CO_NAME, CT_DATA);
+      } else {
+        showInvalid('Impossible de charger le contrat. Vérifiez votre connexion.');
+      }
+    });
+}
+
+function renderForm(coName, ct) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form-view').style.display = 'block';
+  document.getElementById('co-name').textContent = coName || ct.nom || '—';
+  document.getElementById('co-siret').textContent = ct.siret ? 'SIRET : ' + ct.siret : '';
+
+  const f = n => String(parseFloat(n||0)).replace('.',',') + ' %';
+  const t = ct.tarifs || {};
+  const rows = [
+    ['Non-cadre < 5 ans',     f(t.nc1||12)],
+    ['Non-cadre 5-15 ans',    f(t.nc2||13.5)],
+    ['Non-cadre > 15 ans',    f(t.nc3||15)],
+    ['Cadre < 5 ans',         f(t.c1||15)],
+    ['Cadre 5-15 ans',        f(t.c2||17)],
+    ['Cadre > 15 ans',        f(t.c3||20)],
+  ];
+  if(ct.taux) rows.push(['Geste commercial (1er)', ct.taux + ' %']);
+
+  const opts = [];
+  if(ct.opt3070) opts.push('Règlement 30 / 70 %');
+  if(ct.garantie) opts.push('Garantie remplacement 3 mois');
+
+  let html = rows.map(([l,v]) => `
+    <div class="summary-row">
+      <span class="summary-label">${l}</span>
+      <span class="gold-badge">${v}</span>
+    </div>`).join('');
+  if(opts.length) html += opts.map(o => `
+    <div class="summary-row">
+      <span class="summary-label">${o}</span>
+      <span class="summary-value" style="color:#3dce8a">✓ Inclus</span>
+    </div>`).join('');
+
+  document.getElementById('summary-rows').innerHTML = html;
+}
+
+async function submitSignature() {
+  const name = document.getElementById('signer-name').value.trim();
+  if(!name || name.length < 3) return;
+
+  const btn = document.getElementById('btn-sign');
+  const err = document.getElementById('error-box');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Enregistrement...';
+  err.style.display = 'none';
+
+  try {
+    const resp = await fetch(`${API}/api/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:      'sign_contract',
+        co_id:       CO_ID,
+        ct_id:       CT_ID,
+        token:       TOKEN,
+        signer_name: name,
+      })
+    });
+    const data = await resp.json();
+
+    if(data.success || resp.status === 409) {
+      // Succès ou déjà signé
+      document.getElementById('form-view').style.display = 'none';
+      document.getElementById('success-view').style.display = 'block';
+      const dt = new Date(data.signed_at || new Date()).toLocaleString('fr-FR', {
+        day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'
+      });
+      document.getElementById('success-meta').innerHTML =
+        `Signataire : <strong>${data.signer_name || name}</strong><br>Date : ${dt}<br>` +
+        `Référence : ${CT_ID?.slice(0,8).toUpperCase() || '—'}`;
+    } else {
+      err.textContent = data.error || 'Erreur lors de la signature. Réessayez.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = 'Signer le contrat';
+    }
+  } catch(e) {
+    err.textContent = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Signer le contrat';
+  }
+}
+
+function showInvalid(msg) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('invalid-view').style.display = 'block';
+  document.getElementById('invalid-msg').textContent = msg;
+}
+
+function showAlreadySigned(ct) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('success-view').style.display = 'block';
+  document.getElementById('success-meta').innerHTML =
+    `Contrat déjà signé par <strong>${ct.signer_name || '—'}</strong><br>` +
+    `Le ${ct.signed_at ? new Date(ct.signed_at).toLocaleString('fr-FR') : '—'}`;
+}
+
+init();
+</script>
+</body>
+</html>
