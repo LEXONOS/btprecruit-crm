@@ -2188,7 +2188,8 @@ function renderCPFichiers(c){
  ${existing?.name?`<div class="file-meta">Docs ${esc(existing.name)} · ${existing.size||''} · ${fD(existing.date)}</div>`:`<div class="file-meta mu_">Non reçu</div>`}
  </div>
  <span class="file-status ${existing?.file?'fs-ok':'fs-miss'}">${existing?.file?'✓ OK':'Manquant'}</span>
- <label class="file-upload-btn">
+ ${existing?.file?`<button class="btn bg bxs" onclick="openDocPreview('${c.id}','${d.id}')" style="font-size:11px" title="Aperçu">👁</button>`:''}
+    <label class="file-upload-btn">
  ${existing?.file?'↑ Remplacer':'↑ Upload'}
  <input type="file" data-docid="${d.id}" data-candid="${c.id}" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="handleFileUpload(event)">
  </label>
@@ -2207,6 +2208,56 @@ function renderCPFichiers(c){
  </div>`:`
  <div style="margin-top:10px;font-size:10px;color:var(--mu2)"> Uploadez le CV pour activer l'extraction IA automatique.</div>`}`;
 }
+
+// ── Aperçu document candidat ──────────────────────────────────
+function openDocPreview(candId, docId){
+  const cand = cById(candId);
+  if(!cand) return;
+  const doc = (cand.docs||[]).find(d=>d.id===docId);
+  if(!doc?.file){ toast('Aucun fichier disponible','w'); return; }
+
+  const isPdf = doc.type==='application/pdf' || doc.file.startsWith('data:application/pdf');
+  const isImg = doc.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name||'');
+  const label = doc.name || docId;
+
+  // Créer l'overlay d'aperçu
+  const existing = document.getElementById('doc-preview-ov');
+  if(existing) existing.remove();
+
+  const ov = document.createElement('div');
+  ov.id = 'doc-preview-ov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = (e) => { if(e.target===ov) ov.remove(); };
+
+  let content = '';
+  if(isPdf){
+    content = `<iframe src="${doc.file}" style="width:min(880px,96vw);height:min(88vh,900px);border:none;border-radius:8px;background:#fff"></iframe>`;
+  } else if(isImg){
+    content = `<img src="${doc.file}" style="max-width:min(880px,96vw);max-height:min(88vh,900px);object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5)">`;
+  } else {
+    content = `<div style="background:var(--s2);border-radius:8px;padding:32px;text-align:center;color:var(--mu)">
+      <div style="font-size:40px;margin-bottom:12px">📄</div>
+      <div style="font-size:14px;color:var(--tx);margin-bottom:8px">${esc(label)}</div>
+      <div style="font-size:12px">Aperçu non disponible pour ce format</div>
+    </div>`;
+  }
+
+  ov.innerHTML = `
+    <div style="position:relative;max-width:min(900px,98vw)">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:#fff">${esc(label)}</div>
+        <div style="display:flex;gap:8px">
+          <a href="${doc.file}" download="${esc(label)}" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:5px">⬇ Télécharger</a>
+          <button onclick="document.getElementById('doc-preview-ov').remove()" style="background:#2a2a2e;color:#aaa;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer">× Fermer</button>
+        </div>
+      </div>
+      ${content}
+    </div>`;
+
+  document.body.appendChild(ov);
+}
+
 function bindFileInputs(candId){/* inputs already bound via onchange in HTML */}
 function handleFileUpload(event){
  const input=event.target;
