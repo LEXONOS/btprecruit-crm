@@ -8,8 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 
 /* ═══════════════════════════════════════════════════════
@@ -4161,21 +4160,27 @@ function _sendContratFromPreview(coId, ctId){
   if(ct.opt3070)  lignes.push('\u25b8 R\u00e8glement 30/70\u00a0% : 30\u00a0% \u00e0 l\u2019int\u00e9gration, 70\u00a0% apr\u00e8s la p\u00e9riode d\u2019essai');
   if(ct.garantie) lignes.push('\u25b8 Garantie de remplacement 3\u00a0mois en cas de d\u00e9part en p\u00e9riode d\u2019essai');
 
-  const prenom = (co.contact||'').split(' ')[0] || 'Madame, Monsieur';
+  // Formule d'appel professionnelle B2B — jamais le prénom seul
+  const contactName = (co.contact||'').trim();
+  const appellatif = contactName
+    ? `M. ${contactName.split(' ').pop()}` // Prendre le nom de famille (dernier mot)
+    : 'Madame, Monsieur';
   const nom = localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
   const tel = localStorage.getItem(uKey('btp_user_tel')) ||localStorage.getItem('btp_user_tel') ||'';
 
   const subject = `Proposition professionnelle NOVALEM \u2014 ${ct.nom}`;
-  const body = `Bonjour ${prenom},
+  const body = `Bonjour ${appellatif},
 
-Suite \u00e0 notre \u00e9change, je vous transmets en pi\u00e8ce jointe notre proposition professionnelle de recrutement.
+Suite \u00e0 notre \u00e9change et \u00e0 l\u2019int\u00e9r\u00eat que vous avez manifest\u00e9 pour le profil que je vous ai pr\u00e9sent\u00e9, je vous transmets en pi\u00e8ce jointe notre proposition professionnelle de recrutement.
 
 Conditions convenues :
 ${lignes.join('\n')}
 
-Nos honoraires sont d\u00fbs exclusivement en cas d\u2019int\u00e9gration effective du candidat. Aucun frais si le recrutement n\u2019aboutit pas.
+Nos honoraires sont d\u00fbs exclusivement en cas d\u2019int\u00e9gration effective du candidat. Aucun frais en l\u2019absence d\u2019embauche.
 
-Pour d\u00e9marrer, merci de me retourner le document sign\u00e9. D\u00e8s r\u00e9ception, je lance les recherches et vous pr\u00e9sente des profils qualifi\u00e9s sous 10\u00a0jours ouvrés.
+\u00c9tape suivante : d\u00e8s r\u00e9ception du contrat sign\u00e9, je vous transmets imm\u00e9diatement les coordonn\u00e9es du candidat afin que vous puissiez convenir directement d\u2019un entretien avec lui. Je l\u2019avertis simultan\u00e9ment que vous le contactez.
+
+Merci de me retourner le document sign\u00e9 (par email ou par retour courrier).
 
 Bien cordialement,
 ${nom}${tel?'\n'+tel:''}
@@ -4199,17 +4204,23 @@ contact@novalem-recrutement.fr`;
     entityId: co.id
   }] : [];
 
-  // Fermer le panel latéral
+  // Fermer le panel + naviguer vers compose IMMÉDIATEMENT
   closePanel();
-
-  // Réinitialiser l'attachment
   window._pendingAttachment = null;
-
-  // Naviguer IMMÉDIATEMENT vers le compose (ne pas freezer l'UI)
-  closePanel();
   go('emails');
 
-  // Générer le PDF en arrière-plan après que le compose soit affiché
+  // Init chips APRÈS que rEmails() ait rendu le compose
+  setTimeout(() => {
+    _emInitRecipients();
+    // Mettre à jour barre PJ si PDF déjà prêt (cas peu probable mais prévu)
+    if(window._pendingAttachment){
+      const bar = document.getElementById('em-attachment-bar');
+      const nm  = document.getElementById('em-attachment-name');
+      if(bar && nm){ nm.textContent=window._pendingAttachment.filename; bar.style.display='flex'; }
+    }
+  }, 80);
+
+  // Générer le PDF en arrière-plan
   toast('Mail prêt — génération du PDF…', 'i');
   setTimeout(async () => {
     try {
@@ -4242,10 +4253,11 @@ contact@novalem-recrutement.fr`;
 // ── Génération PDF via jsPDF TEXT (pas de html2canvas, pas de freeze) ──
 // jsPDF est exposé par html2pdf.bundle.min.js via window.jspdf.jsPDF
 async function _genContractBase64(ct){
-  // Accéder à jsPDF depuis le bundle html2pdf
-  const jsPDFCtor = (window.jspdf?.jsPDF) || (window.jsPDF);
+  // Accéder à jsPDF depuis le CDN UMD (jspdf.umd.min.js)
+  // Expose window.jspdf.jsPDF
+  const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
   if(!jsPDFCtor){
-    console.warn('[genBase64] jsPDF non disponible');
+    console.error('[genBase64] jsPDF introuvable — vérifiez le CDN');
     return null;
   }
 
