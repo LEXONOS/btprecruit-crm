@@ -1832,6 +1832,12 @@ function startPrecal(id){
  const openNeeds=DB.needs.filter(n=>n.status==='open');
  const cat=getCat(c.cat);
  const matchedNeeds=openNeeds.filter(n=>n.cat===c.cat);
+ const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
+ const cvHtml=cvDoc
+   ?(cvDoc.type==='application/pdf'
+     ?`<iframe src="${cvDoc.file}" style="width:100%;height:340px;border:none;border-radius:6px;margin-bottom:12px" title="CV"></iframe>`
+     :`<img src="${cvDoc.file}" style="max-width:100%;max-height:340px;object-fit:contain;border-radius:6px;margin-bottom:12px">`)
+   :`<div style="background:var(--s3);border:1px dashed var(--bd2);border-radius:6px;padding:16px;text-align:center;margin-bottom:12px;color:var(--mu);font-size:11px">Aucun CV — <label style="color:var(--gold);cursor:pointer">Uploader<input type="file" accept=".pdf,.jpg,.png" style="display:none" onchange="uploadCvFromSplit(event,'${id}')"></label></div>`;
  openMo(`Précal — ${c.name}`,`
  <div class="steps">
  <div class="step"><div class="step-dot cur">1</div><span class="step-l cur">Qualifier</span></div>
@@ -1840,6 +1846,7 @@ function startPrecal(id){
  <div class="step-arr">→</div>
  <div class="step"><div class="step-dot">3</div><span class="step-l">Envoyer</span></div>
  </div>
+ ${cvHtml}
  <div class="info-box mb12">
  Appeler <strong>${esc(c.name)}</strong>${c.phone?` au <strong>${fPhone(c.phone)}</strong>`:''}<br>
  <span class="fs10">Objectif : qualifier le profil et déterminer l'intérêt de poursuivre</span>
@@ -2042,21 +2049,40 @@ Novalem — Cabinet de recrutement`;
 
  closeMo();
 
- // Ouvrir directement dans l'onglet Email
- openEmailWith({
- to: c.email||'',
- subject: `Confirmation entretien visio — ${dateStr}`,
- body: emailBody,
- candId: candId,
- tplKey: 'confirmation_entretien'
- });
+ // Pré-charger EM et EM_RECIPIENTS (candidat)
+ EM = { to: c.email||'', subject: `Confirmation entretien visio — ${dateStr}`, body: emailBody, candId: candId, coId: null, tplKey: null };
+ EM_VIEW = 'compose';
+ EM_RECIPIENTS = c.email ? [{ email: c.email, name: c.name, type: 'cand', entityId: candId }] : [];
+ window._pendingAttachment = null;
 
- // Stocker le statut
+ // Générer le PDF dossier de candidature en arrière-plan
+ toast('Préparation du dossier…', 'i');
+ setTimeout(async () => {
+   try {
+     const b64 = await _genDossierBase64(c);
+     if(b64){
+       window._pendingAttachment = {
+         filename: `NOVALEM_Dossier_${c.name.replace(/\s+/g,'_').slice(0,30)}.pdf`,
+         content: b64,
+         type: 'application/pdf'
+       };
+       const bar = document.getElementById('em-attachment-bar');
+       const nm  = document.getElementById('em-attachment-name');
+       if(bar && nm){ nm.textContent = window._pendingAttachment.filename; bar.style.display='flex'; }
+       toast('Dossier joint ✓', 's');
+     }
+   } catch(e){ console.error('[dossier]', e); }
+ }, 300);
+
+ // Naviguer vers email
+ go('emails');
+
+ // Marquer envoyé après confirmation
  setTimeout(()=>{
- if(confirm(`Email pré-rempli dans l'onglet Emails.\n\nMarquer le dossier comme envoyé et passer en étape "Dossier" ?`)){
- confirmEmailSent(candId,visioLink,sel.dateStr,sel.h);
- }
- },300);
+   if(confirm('Email prêt.\n\nMarquer le dossier comme envoyé ?')){
+     confirmEmailSent(candId,visioLink,sel.dateStr,sel.h);
+   }
+ }, 500);
 }
 function cpEmail(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Email copié ✓','i'));}
 function cpText(t){navigator.clipboard.writeText(t).then(()=>toast('Copié ✓','i'));}
@@ -4627,6 +4653,157 @@ function markCandidatesSent(coId, ctId){
   addTimeline(coId,'candidat',"Coordonnées du candidat envoyées au client");
   save(); rDash(); badges();
   toast('Contacts envoyés ✓ — fiche mise à jour','s');
+}
+
+
+// ── Génération PDF Dossier de Candidature via jsPDF ─────────────
+async function _genDossierBase64(cand){
+  const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
+  if(!jsPDFCtor) return null;
+
+  const c = cand||{};
+  const doc = new jsPDFCtor('p','mm','a4');
+  const W=210, ML=16, MR=16, TW=W-ML-MR;
+  const GOLD=[201,137,26], DARK=[26,22,20], GREY=[120,120,120], LGREY=[240,238,233];
+  let y=18;
+
+  const setF=(sz,bold=false,color=DARK)=>{doc.setFontSize(sz);doc.setFont('helvetica',bold?'bold':'normal');doc.setTextColor(color[0],color[1],color[2]);};
+  const txt=(s,x,opts={})=>{if(y>270){doc.addPage();y=18;}doc.text(String(s||''),x,y,opts);};
+  const gLine=()=>{doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.7);doc.line(ML,y,W-MR,y);y+=5;};
+  const sLine=()=>{doc.setDrawColor(220,218,210);doc.setLineWidth(0.2);doc.line(ML,y,W-MR,y);y+=3;};
+  const section=(num,title)=>{y+=4;sLine();setF(8.5,true,GOLD);txt(`${num} - ${title}`,ML);y+=5;};
+  const field=(label,val='',w=TW)=>{
+    setF(7.5,false,GREY);txt(label,ML);
+    doc.setDrawColor(180,180,180);doc.setLineWidth(0.2);
+    doc.line(ML+32,y,ML+32+Math.min(w-32,120),y);
+    if(val){setF(8.5,false,DARK);doc.text(String(val),ML+34,y-0.5);}
+    y+=6;
+  };
+  const field2=(l1,v1,l2,v2)=>{
+    setF(7.5,false,GREY);doc.text(l1,ML,y);
+    doc.setDrawColor(180,180,180);doc.setLineWidth(0.2);
+    const w2=TW/2-4;
+    doc.line(ML+24,y,ML+24+w2-24,y);
+    if(v1){setF(8.5,false,DARK);doc.text(String(v1),ML+26,y-0.5);}
+    const x2=ML+TW/2+4;
+    setF(7.5,false,GREY);doc.text(l2,x2,y);
+    doc.line(x2+24,y,x2+24+w2-24,y);
+    if(v2){setF(8.5,false,DARK);doc.text(String(v2),x2+26,y-0.5);}
+    y+=6;
+  };
+  const box=(label,checked)=>{
+    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
+    doc.setLineWidth(0.3);
+    doc.rect(ML,y-3,4,4);
+    if(checked){setF(8,true,GOLD);doc.text('x',ML+0.8,y);}
+    setF(8,false,DARK);doc.text(label,ML+6,y);
+    return ML+6+doc.getTextWidth(label)+8;
+  };
+
+  // ── EN-TÊTE ──────────────────────────────────────────────────
+  const yH=y;
+  setF(20,true,DARK);doc.text('NOVALEM',ML,yH);
+  setF(7,false,GOLD);doc.text('RECRUTEMENT BTP',ML,yH+6);
+  setF(8,false,GREY);
+  doc.text('contact@novalem-recrutement.fr',W-MR,yH+2,{align:'right'});
+  doc.text('novalem-recrutement.fr',W-MR,yH+7,{align:'right'});
+  y=yH+12; gLine();
+
+  setF(16,true,DARK);doc.text('DOSSIER DE CANDIDATURE',W/2,y,{align:'center'});y+=5;
+  setF(8,false,GREY);doc.text('Document confidentiel - Usage exclusif NOVALEM',W/2,y,{align:'center'});y+=3;
+  doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);doc.rect(W/2-20,y,40,0.8,'F');y+=8;
+
+  // Pre-remplissage depuis la fiche candidat
+  const name = c.name||'';
+  const parts = name.trim().split(' ');
+  const prenom = parts[0]||'';
+  const nom = parts.slice(1).join(' ')||'';
+
+  // ── 01 IDENTITE ──────────────────────────────────────────────
+  section('01','IDENTITE ET COORDONNEES');
+  field2('Nom',nom,'Prenom',prenom);
+  field('Adresse','');
+  field2('Code postal','','Ville','');
+  field2('Telephone portable',c.phone||'','Email',c.email||'');
+
+  // ── 02 ETAT CIVIL ─────────────────────────────────────────────
+  section('02','ETAT CIVIL');
+  field2('Date de naissance','','Lieu de naissance','');
+  field2('Nationalite','','N° Securite Sociale','');
+  field2('Type de piece d\'identite','','N° piece','');
+
+  // ── 03 POSTE SOUHAITE ─────────────────────────────────────────
+  section('03','POSTE SOUHAITE');
+  field('Intitule du poste',c.role||'');
+  field2('Experience sur ce poste','','Salaire souhaite (K€ brut/an)',c.salary?String(Math.round(c.salary/1000)):'');
+  // Cases contrat
+  y+=1;
+  let bx=ML;
+  setF(7.5,false,GREY);doc.text('Type de contrat :',bx,y);bx+=28;
+  setF(8,false,DARK);
+  ['CDI','CDD','CDI de Chantier'].forEach(t=>{
+    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx,y-3,3.5,3.5);
+    setF(8,false,DARK);doc.text(t,bx+5,y);bx+=5+doc.getTextWidth(t)+8;
+  });
+  y+=7;
+
+  // ── 04 DISPONIBILITES ─────────────────────────────────────────
+  section('04','DISPONIBILITES ET MOBILITE');
+  field2('Disponible a partir du',c.avail||'','Duree du preavis','');
+  y+=1;
+  let bx2=ML;
+  setF(7.5,false,GREY);doc.text('Mobilite :',bx2,y);bx2+=20;
+  ['Locale','Regionale','Nationale','Internationale'].forEach(m=>{
+    const isChecked = c.mobility&&c.mobility.toLowerCase().includes(m.toLowerCase().slice(0,4));
+    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx2,y-3,3.5,3.5);
+    if(isChecked){setF(8,true,GOLD);doc.text('x',bx2+0.6,y);}
+    setF(8,false,DARK);doc.text(m,bx2+5,y);bx2+=5+doc.getTextWidth(m)+8;
+  });
+  y+=7;
+  field('Zones/regions acceptees',c.mobility||'');
+
+  // ── 05 PERMIS ─────────────────────────────────────────────────
+  section('05','PERMIS ET TRANSPORTS');
+  y+=1;
+  let bx3=ML;
+  setF(7.5,false,GREY);doc.text('Permis B :',bx3,y);bx3+=18;
+  ['Oui','Non'].forEach(v=>{doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx3,y-3,3.5,3.5);setF(8,false,DARK);doc.text(v,bx3+5,y);bx3+=5+doc.getTextWidth(v)+10;});
+  bx3+=10;
+  setF(7.5,false,GREY);doc.text('Permis A :',bx3,y);bx3+=18;
+  ['Oui','Non'].forEach(v=>{doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);doc.rect(bx3,y-3,3.5,3.5);setF(8,false,DARK);doc.text(v,bx3+5,y);bx3+=5+doc.getTextWidth(v)+10;});
+  y+=7;
+  field('CACES / Habilitations','');
+
+  // ── 07 DOCUMENTS REQUIS ───────────────────────────────────────
+  section('07','DOCUMENTS A FOURNIR');
+  const docs2=[["Carte d'identite / Passeport","CV a jour"],["Permis de conduire","Diplomes / certifications"],["Justificatif de domicile","Certif. CACES / Habilitations"]];
+  docs2.forEach(([a,b])=>{
+    doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);doc.setLineWidth(0.3);
+    doc.rect(ML,y-3,3.5,3.5);setF(8,false,DARK);doc.text(a,ML+6,y);
+    doc.rect(ML+TW/2+4,y-3,3.5,3.5);doc.text(b,ML+TW/2+10,y);
+    y+=6;
+  });
+
+  // ── SIGNATURE ─────────────────────────────────────────────────
+  y+=4; sLine(); y+=4;
+  setF(7.5,false,GREY);
+  doc.text('Je soussigne(e) certifie l\'exactitude des informations fournies et autorise NOVALEM a traiter',ML,y);y+=4;
+  doc.text('mes donnees personnelles conformement au RGPD (conservation 2 ans).',ML,y);y+=8;
+  doc.setDrawColor(180,180,180);doc.setLineWidth(0.3);
+  doc.line(ML,y,ML+70,y);doc.text('Date et lieu',ML,y+4);
+  doc.line(ML+90,y,ML+TW,y);doc.text('Signature du candidat',ML+90,y+4);
+  y+=12;
+
+  // ── FOOTER ────────────────────────────────────────────────────
+  const pages=doc.getNumberOfPages();
+  for(let p=1;p<=pages;p++){
+    doc.setPage(p);
+    doc.setFontSize(6);doc.setTextColor(180,180,180);
+    doc.text(`NOVALEM - Cabinet de recrutement BTP - contact@novalem-recrutement.fr - Page ${p}/${pages}`,W/2,290,{align:'center'});
+  }
+
+  const uri=doc.output('datauristring');
+  return uri.split(',')[1];
 }
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
