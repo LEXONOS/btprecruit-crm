@@ -4257,7 +4257,7 @@ async function _genContractBase64(ct){
   // Expose window.jspdf.jsPDF
   const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
   if(!jsPDFCtor){
-    console.error('[genBase64] jsPDF introuvable — vérifiez le CDN');
+    console.error('[genBase64] jsPDF introuvable -- vérifiez le CDN');
     return null;
   }
 
@@ -4320,7 +4320,7 @@ async function _genContractBase64(ct){
   setFont(7.5, false, GREY);
   doc.text('contact@novalem-recrutement.fr', W-MR, y, {align:'right'});
   y += 4;
-  doc.text('06 58 21 20 96  \u2022  novalem-recrutement.fr', W-MR, y, {align:'right'});
+  doc.text('06 58 21 20 96  -  novalem-recrutement.fr', W-MR, y, {align:'right'});
   y += 5;
   goldLine(0.8);
 
@@ -4329,7 +4329,7 @@ async function _genContractBase64(ct){
   doc.text('CONTRAT CADRE DE RECRUTEMENT', W/2, y, {align:'center'});
   y += 5;
   setFont(8.5, false, GREY);
-  doc.text('Prestation de recrutement CDI \u2014 B\u00e2timent & Travaux Publics', W/2, y, {align:'center'});
+  doc.text('Prestation de recrutement CDI -- B\u00e2timent & Travaux Publics', W/2, y, {align:'center'});
   y += 3;
   doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
   doc.rect(W/2-16, y, 32, 0.8, 'F');
@@ -4349,8 +4349,8 @@ async function _genContractBase64(ct){
   setFont(7.5, false, GREY); txt('SIRET\u00a0: '+(siret||'_______________'), bx1);
   y = by+4;
   setFont(6.5, true, GOLD); txt('LE PRESTATAIRE', bx2); y+=3;
-  setFont(8.5, true, DARK); txt('NOVALEM \u2014 Louis RENAULT', bx2); y+=3.5;
-  setFont(7.5, false, GREY); txt('Cabinet de recrutement BTP \u2014 APE 7810Z', bx2);
+  setFont(8.5, true, DARK); txt('NOVALEM -- Louis RENAULT', bx2); y+=3.5;
+  setFont(7.5, false, GREY); txt('Cabinet de recrutement BTP -- APE 7810Z', bx2);
   y = by+22;
 
   // ── ARTICLES ─────────────────────────────────────────────────
@@ -4410,7 +4410,7 @@ async function _genContractBase64(ct){
     y += gText.length*4+10;
   }
 
-  block(["\u25b8 Les honoraires sont exigibles exclusivement en cas d'int\u00e9gration effective du candidat. Aucun frais en l'absence d'embauche."]);
+  block(["> Les honoraires sont exigibles exclusivement en cas d'int\u00e9gration effective du candidat. Aucun frais en l'absence d'embauche."]);
 
   sectionTitle('Art. 5', 'MODALIT\u00c9S DE R\u00c8GLEMENT');
   if(opt3070){
@@ -4463,7 +4463,7 @@ async function _genContractBase64(ct){
   y+=3.5;
   setFont(7.5, false, GREY);
   txt('SIRET\u00a0: '+(siret||'_______________'), ML+3);
-  txt('Directeur \u2014 NOVALEM', ML+sw+13);
+  txt('Directeur -- NOVALEM', ML+sw+13);
   y+=14;
   // Lignes de signature
   doc.setDrawColor(180,180,180);
@@ -4485,7 +4485,7 @@ async function _genContractBase64(ct){
     doc.setPage(p);
     doc.setFontSize(6.5);
     doc.setTextColor(180,180,180);
-    doc.text('NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06 58 21 20 96 \u00b7 Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le '+date, W/2, 290, {align:'center'});
+    doc.text('NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 contact@novalem-recrutement.fr \u00b7 06 58 21 20 96 \u00b7 Document confidentiel -- g\u00e9n\u00e9r\u00e9 le '+date, W/2, 290, {align:'center'});
     doc.text(`${p} / ${pageCount}`, W-MR, 290, {align:'right'});
   }
 
