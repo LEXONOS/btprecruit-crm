@@ -121,7 +121,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
     </div>
     <div class="foot">
       <a href="https://novalem-recrutement.fr">novalem-recrutement.fr</a> ·
-      <a href="mailto:contact@novalem-recrutement.fr">contact@novalem-recrutement.fr</a><br>
+      <a href="/cdn-cgi/l/email-protection#1e7d71706a7f7d6a5e7071687f727b73336c7b7d6c6b6a7b737b706a30786c"><span class="__cf_email__" data-cfemail="e5868a8b91848691a58b8a9384898088c89780869790918088808b91cb8397">[email&#160;protected]</span></a><br>
       Signature électronique simple · Conforme eIDAS · Horodatée et archivée
     </div>
   </div>
@@ -153,13 +153,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
       <div class="state-ico r">⚠</div>
       <div class="state-title" style="color:#B03030">Lien invalide</div>
       <div class="state-sub" id="err-msg">Ce lien est invalide ou a expiré.</div>
-      <a href="mailto:contact@novalem-recrutement.fr" style="color:#C9891A;font-size:13px">Contacter NOVALEM →</a>
+      <a href="/cdn-cgi/l/email-protection#9efdf1f0eafffdeadef0f1e8fff2fbf3b3ecfbfdecebeafbf3fbf0eab0f8ec" style="color:#C9891A;font-size:13px">Contacter NOVALEM →</a>
     </div></div>
   </div>
 
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const API = 'https://novalem-crm.vercel.app';
 const q = new URLSearchParams(location.search);
 const CO_ID = q.get('co'), CT_ID = q.get('ct'), TOKEN = q.get('t');
@@ -213,13 +213,4 @@ async function sign(){
     show('v-ok');
     document.getElementById('ok-name').textContent=d.signer_name||name;
     document.getElementById('ok-proof').innerHTML=proofHtml(d);
-  }catch(e){err.textContent='Erreur réseau. Vérifiez votre connexion.';err.style.display='block';btn.disabled=false;btn.innerHTML='✍&nbsp; Signer le contrat';}
-}
-
-// Init
-if(!CO_ID||!CT_ID||!TOKEN){show('v-err');document.getElementById('err-msg').textContent='Lien incomplet. Contactez NOVALEM.';}
-else if(CT&&CO_NAME){renderForm();}
-else{show('v-err');document.getElementById('err-msg').textContent='Données manquantes. Contactez NOVALEM.';}
-</script>
-</body>
-</html>
+  }catch(e){err.textContent='Erreur réseau. Vérifiez votre connexion.';err.style.display='block';btn.disabled=false;btn.innerHTML='✍&nbsp; Signer le con
