@@ -27,7 +27,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .tr:nth-child(even){background:#F8F5EF}
 .tl{font-size:12px;font-weight:700}
 .tp{text-align:center;font-size:13px;font-weight:700;color:#C9891A}
-.to{padding:8px 12px;border-top:1px solid rgba(10,11,14,.05);font-size:11px;color:#555;display:flex;align-items:center;gap:6px;background:#FFFBF0}
+.to{padding:8px 12px;border-top:1px solid rgba(10,11,14,.05);font-size:11px;color:#555;display:flex;align-items:center;gap:6px;background:#FFFBF0}.to.frais{color:#999;font-size:10px;background:#FAFAF8}
 .leg{background:#FFFBF0;border:1px solid rgba(201,137,26,.18);border-radius:8px;padding:13px 16px;margin-bottom:18px;font-size:12px;color:#666;line-height:1.65}
 .leg strong{color:#1A1614}
 .fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px;display:block}
@@ -110,7 +110,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
           <div class="cb2" id="chk"></div>
           <div class="cl">J'ai lu et j'accepte les conditions du contrat. Je reconnais que cette signature électronique a la même valeur juridique qu'une signature manuscrite.</div>
         </div>
-        <button class="btn" id="btn" onclick="dosign()" disabled>✍ Signer le contrat</button>
+        <button class="btn" id="btn" onclick="dosign()" disabled> Signer le contrat</button>
         <div class="er" id="er"></div>
       </div>
     </div>
@@ -165,7 +165,7 @@ try{
   var d=q.get('d')||'';
   if(d&&d.indexOf('|')>=0){
     var p=d.split('|');
-    CT={nom:p[0]||'',siret:p[1]||'',tarifs:{nc1:+p[2]||12,nc2:+p[3]||13.5,nc3:+p[4]||15,c1:+p[5]||15,c2:+p[6]||17,c3:+p[7]||20},taux:p[8]||'',opt3070:p[9]==='1',garantie:p[10]==='1',date:p[11]||''};
+    CT={nom:p[0]||'',siret:p[1]||'',tarifs:{nc1:+p[2]||12,nc2:+p[3]||13.5,nc3:+p[4]||15,c1:+p[5]||15,c2:+p[6]||17,c3:+p[7]||20},taux:p[8]||'',opt3070:p[9]==='1',garantie:p[10]==='1',date:p[11]||'',frais:+p[12]||0};
   }
 }catch(e){CT=null;}
 
@@ -212,9 +212,10 @@ function renderForm(){
     if(CT.taux)opts.push('Geste commercial : '+CT.taux+' % pour le 1er recrutement');
     if(CT.opt3070)opts.push('Règlement 30 / 70 %');
     if(CT.garantie)opts.push('Garantie de remplacement 3 mois');
+    if(CT.frais&&CT.frais>0)opts.push('Frais de dossier : '+CT.frais+' € HT');
     document.getElementById('tr').innerHTML=
       rows.map(function(r){return'<div class="tr"><span class="tl">'+r[0]+'</span><span class="tp">'+r[1]+'</span><span class="tp">'+r[2]+'</span><span class="tp">'+r[3]+'</span></div>';}).join('')+
-      opts.map(function(o){return'<div class="to"><span style="color:#C9891A;font-weight:700">✓</span> '+o+'</div>';}).join('');
+      opts.map(function(o){var isFrais=o.indexOf('Frais de dossier')>=0;return'<div class="to'+(isFrais?' frais':'')+'">'+(isFrais?'<span style="color:#bbb">·</span>':'<span style="color:#C9891A;font-weight:700">✓</span>')+' '+o+'</div>';}).join('');
   }else{
     document.getElementById('tg').style.display='none';
   }
@@ -230,11 +231,11 @@ async function dosign(){
     var r=await fetch(API+'/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sign_contract',co_id:CO_ID,ct_id:CT_ID,token:TOKEN,signer_name:name,signer_email:email||null,co_name:CO_NAME||CT&&CT.nom||null})});
     var d=await r.json();
     if(r.status===409){show('val');document.getElementById('alp').innerHTML=phtml(d);return;}
-    if(!r.ok||!d.success){er.textContent=d.error||'Erreur. Réessayez.';er.style.display='block';btn.disabled=false;btn.innerHTML='✍ Signer le contrat';return;}
+    if(!r.ok||!d.success){er.textContent=d.error||'Erreur. Réessayez.';er.style.display='block';btn.disabled=false;btn.innerHTML=' Signer le contrat';return;}
     show('vok');
     document.getElementById('okn').textContent=d.signer_name||name;
     document.getElementById('okp').innerHTML=phtml(d);
-  }catch(e){er.textContent='Erreur réseau. Vérifiez votre connexion.';er.style.display='block';btn.disabled=false;btn.innerHTML='✍ Signer le contrat';}
+  }catch(e){er.textContent='Erreur réseau. Vérifiez votre connexion.';er.style.display='block';btn.disabled=false;btn.innerHTML=' Signer le contrat';}
 }
 
 // Init
