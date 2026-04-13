@@ -4128,7 +4128,8 @@ function renderCoContrats(coId){
   <div style="display:flex;gap:6px;flex-wrap:wrap">
     <button class="btn bg bxs" onclick="previewSavedContrat('${coId}','${ct.id}')" style="font-size:11px">Aper\u00e7u</button>
     <button class="btn bg bxs" onclick="downloadSavedContrat('${coId}','${ct.id}')" style="font-size:11px">\u2b07 PDF</button>
-    <button class="btn bg bxs" onclick="toggleContratStatus('${coId}','${ct.id}')" style="font-size:11px">${sg?'\u21a9 Non sign\u00e9':'\u2713 Sign\u00e9'}</button>
+    <button class="btn bg bxs" <button class="btn bg bxs" onclick="checkContratSignature('${coId}','${ct.id}')" style="font-size:11px">🔄 Vérifier</button>
+    onclick="toggleContratStatus('${coId}','${ct.id}')" style="font-size:11px">${sg?'\u21a9 Non sign\u00e9':'\u2713 Sign\u00e9'}</button>
     <button class="btn bd_ bxs" onclick="deleteContrat('${coId}','${ct.id}')" style="font-size:11px;margin-left:auto">Supprimer</button>
   </div>
 </div>`;
@@ -4529,6 +4530,31 @@ function cpSignLink(coId, ctId){
   const ctDataB64 = btoa(JSON.stringify({nom:ct.nom,siret:ct.siret,tarifs:ct.tarifs,taux:ct.taux,opt3070:ct.opt3070,garantie:ct.garantie,date:ct.date}));
   const url = `https://novalem-crm.vercel.app/sign?co=${coId}&ct=${ct.id}&t=${ct.signing_token}&n=${encodeURIComponent(co.name||'')}&d=${ctDataB64}`;
   navigator.clipboard.writeText(url).then(()=>toast('Lien de signature copié ✓','s')).catch(()=>toast(url,'i'));
+}
+
+// Vérifier la signature depuis Supabase
+async function checkContratSignature(coId, ctId){
+  const co = coById(coId);
+  const ct = (co?.contracts||[]).find(x=>x.id===ctId);
+  if(!ct){ toast('Contrat introuvable','e'); return; }
+  const sb = getSB();
+  if(!sb){ toast('Supabase non configuré','w'); return; }
+  toast('Vérification…','i');
+  try{
+    const {data,error} = await sb
+      .from('novalem_signatures')
+      .select('signer_name,signer_email,signed_at')
+      .eq('ct_id',ctId)
+      .maybeSingle();
+    if(error) throw error;
+    if(!data){ toast('Pas encore signé','w'); return; }
+    ct.status='signé'; ct.signed_at=data.signed_at; ct.signer_name=data.signer_name;
+    co.updated=now_();
+    addTimeline(coId,'sign','Contrat signé par '+data.signer_name);
+    save();
+    UI.ptab=4; openCoPanel(coId);
+    toast('✓ Signé par '+data.signer_name+' le '+fD(data.signed_at),'s');
+  }catch(e){ toast('Erreur: '+e.message,'e'); }
 }
 
 function sendContratEmail(coId,ctId){const co=coById(coId);const ct=(co?.contracts||[]).find(x=>x.id===ctId);if(!ct)return;const s=`Contrat cadre NOVALEM \u2014 ${ct.nom}`;const b=`Bonjour,\n\nVeuillez trouver ci-joint le contrat cadre NOVALEM.\n\nMerci de nous le retourner sign\u00e9.\n\nCordialement,\nLouis RENAULT \u2014 NOVALEM`;openEmailWith({to:co.email||'',subject:s,body:b,coId});toast('Composez l\'email et joignez le PDF','i');}
