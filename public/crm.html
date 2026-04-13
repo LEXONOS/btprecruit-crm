@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<!-- NOVALEM CRM v4.3 — Design System 2026 — build:optimized-20260413 -->
+<!-- NOVALEM CRM v4.2 — Design System 2026 — build:redesign-20260408 -->
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Novalem — CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
@@ -41,7 +41,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px;-webkit-font-smoothing:antialiased}
-body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:grid;grid-template-columns:var(--sb-w,200px) 1fr}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:grid;grid-template-columns:200px 1fr}
 
 /* ── SCROLLBAR ─────────────────────────────────────── */
 ::-webkit-scrollbar{width:3px;height:3px}
@@ -555,15 +555,6 @@ select option{background:var(--s2)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .view.active{animation:fadeIn .18s ease}
 
-/* ── REPORTING EXTRA ────────────────────────────────── */
-.rep-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.rep-funnel{display:flex;flex-direction:column;gap:3px}
-.rep-funnel-lbl{flex:1;font-size:10px;color:var(--mu)}
-.rep-funnel-n{font-size:11px;font-weight:700;min-width:20px;text-align:right}
-.rep-source-row{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);font-size:11px}
-.rep-period{display:flex;gap:5px;flex-wrap:wrap}
-.rep-bar-val{font-size:11px;font-weight:700;min-width:24px;text-align:right}
-
 </style>
 
 <style id="novalem-themes">
@@ -688,14 +679,14 @@ select option{background:var(--s2)}
 [data-anim="bouncy"] .mo-inner{animation:modalBounce .25s cubic-bezier(.34,1.56,.64,1);}
 @keyframes modalBounce{from{transform:scale(.88) translateY(16px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
 
-[data-sidebar="compact"]{--sb-w:52px;}[data-sidebar="compact"] #sb{width:52px;}
+[data-sidebar="compact"] #sb{width:52px;}
 [data-sidebar="compact"] .lo,[data-sidebar="compact"] .nav-sec,[data-sidebar="compact"] .nav-settings,[data-sidebar="compact"] .nf{display:none;}
-[data-sidebar="compact"] #main{margin-left:0;}
+[data-sidebar="compact"] #main{margin-left:52px;}
 [data-sidebar="compact"] .ni{justify-content:center;padding:8px 4px;}
 [data-sidebar="compact"] .ni-ico{margin:0;font-size:16px;}
 [data-sidebar="compact"] .ni > span:last-child{display:none;}
-[data-sidebar="wide"]{--sb-w:220px;}[data-sidebar="wide"] #sb{width:220px;}
-[data-sidebar="wide"] #main{margin-left:0;}
+[data-sidebar="wide"] #sb{width:220px;}
+[data-sidebar="wide"] #main{margin-left:220px;}
 
 [data-density="compact"] .kpi{padding:10px 14px;}
 [data-density="compact"] .ni{padding:6px 14px;font-size:11px;}
@@ -718,7 +709,7 @@ select option{background:var(--s2)}
   if(!s){window.location.href='/';return;}
   try{
     const u=JSON.parse(s);
-    if(!u||!u.id||(Date.now()-u.ts)>12*3600000){
+    if(!u||!u.id||(Date.now()-u.ts)>8*3600000){
       sessionStorage.removeItem('novalem_user');
       window.location.href='/';return;
     }
@@ -745,7 +736,7 @@ select option{background:var(--s2)}
  <div class="nav-sec">Outils</div>
  <div class="ni" data-v="agenda"><span class="ni-ico">·</span>Agenda<span class="nbadge nb-red" id="badge-ag" style="display:none">0</span></div>
  <div class="ni" data-v="posts"><span class="ni-ico">·</span>Annonces</div>
- <div class="ni" data-v="emails"><span class="ni-ico">·</span>Emails<span class="nbadge nb-red" id="em-inbox-badge" style="display:none">0</span></div>
+ <div class="ni" data-v="emails"><span class="ni-ico">·</span>Emails</div>
  <div class="ni" data-v="reporting"><span class="ni-ico">·</span>Reporting</div>
  <div class="ni" data-v="facturation"><span class="ni-ico">·</span>Facturation<span class="nbadge nb-red" id="badge-inv" style="display:none">0</span></div>
  </div>
@@ -759,7 +750,7 @@ select option{background:var(--s2)}
  <div class="topbar">
  <div class="tbt" id="tbt">Dashboard</div>
  <div class="tba" id="tba"></div>
- <div id="dual-clocks" style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0" id="dual-clocks-wrap">
+ <div id="dual-clocks" style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0">
  <div style="display:flex;align-items:center;gap:5px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:3px 9px" title="Heure France">
  <span style="font-size:9px;color:var(--mu)">🇫🇷</span>
  <span id="clock-fr" style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--tx)">--:--</span>
@@ -820,22 +811,6 @@ select option{background:var(--s2)}
 <div class="ctx" id="ctx" style="display:none"></div>
 <div id="toaster"></div>
 <script>
-
-// ── Renouveler la session automatiquement à chaque interaction ───
-(function(){
-  const renew=()=>{
-    const s=sessionStorage.getItem('novalem_user');
-    if(!s)return;
-    try{
-      const u=JSON.parse(s);
-      if(u&&u.id){u.ts=Date.now();sessionStorage.setItem('novalem_user',JSON.stringify(u));}
-    }catch(e){}
-  };
-  // Renouveler toutes les 30 minutes si l'utilisateur est actif
-  let _renewTimer=null;
-  document.addEventListener('mousedown',()=>{clearTimeout(_renewTimer);_renewTimer=setTimeout(renew,1000);});
-  document.addEventListener('keydown',()=>{clearTimeout(_renewTimer);_renewTimer=setTimeout(renew,1000);});
-})();
 // ═══════════════════════════════════════════════════════
 // CONSTANTS — exact pipelines as specified
 // ═══════════════════════════════════════════════════════
@@ -897,7 +872,6 @@ const PRO_TABS=[
 ];
 let proTab='active';
 let proSelectedId=null;
-let repPeriod='month'; // Période reporting courante
 const AG_TYPES=[{id:'call',ico:'',l:'Appel'},{id:'visio',ico:'',l:'Entretien visio'},{id:'task',ico:'',l:'Tâche'},{id:'relance',ico:'',l:'Relance'}];
 const BOARDS=['France Travail','Indeed','LinkedIn Jobs','APEC','Welcome to the Jungle','Monster','Meteojob'];
 const WEEK_HOURS=[8,9,10,11,12,13,14,15,16,17,18];
@@ -952,14 +926,9 @@ function getSupabaseKey(){return localStorage.getItem(uKey('btp_sb_key'))||local
 function setSupabaseUrl(v){localStorage.setItem(uKey('btp_sb_url'),v);}
 function setSupabaseKey(v){localStorage.setItem(uKey('btp_sb_key'),v);}
 
-
-// ── Mapping user → Supabase row ID ───────────────────
-// Ajouter ici les utilisateurs avec leur ID Supabase
-const USER_SUPABASE_IDS={louis:1,corentin:2};
-function getUserSupabaseId(){return USER_SUPABASE_IDS[currentUserId()]||1;}
-
 // ── Supabase client (created lazily) ─────────────────────
 let _sbClient=null;
+let _sbClientUser=null;
 function getSB(){
  const url=getSupabaseUrl();
  const key=getSupabaseKey();
@@ -988,7 +957,7 @@ function syncToSupabase(){
   if(!sb)return;
   try{
     const payload=JSON.stringify(DB);
-    const userId=getUserSupabaseId();
+    const userId=(currentUserId()==='corentin'?2:1);
     const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
     if(error)throw error;
     const ind=document.getElementById('sync-ind');
@@ -1326,8 +1295,6 @@ function openDocPreview(candId,docId){
 // Theme + clocks init (runs immediately on script parse)
 loadTheme();
 setInterval(_tickClocks,1000);_tickClocks();
-// Masquer les clocks si pas Louis
-(()=>{if(currentUserId()!=='louis'){const dc=document.getElementById('dual-clocks');if(dc)dc.style.display='none';}})();
 
 // ── save() = localStorage immédiat + Supabase en arrière-plan
 function save(){
@@ -1349,7 +1316,7 @@ async function load(){
  if(!sb)return; // Pas configuré — localStorage seul
 
  try{
- const userId=getUserSupabaseId();
+ const userId=(currentUserId()==='corentin'?2:1);
     const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',userId).maybeSingle();
  if(error)throw error;
  if(data?.data){
@@ -1365,7 +1332,7 @@ async function load(){
  }
  } else {
  // Première connexion Supabase — uploader les données locales
- await sb.from('crm_data').upsert({id:getUserSupabaseId(),data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
+ await sb.from('crm_data').upsert({id:(currentUserId()==='corentin'?2:1),data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
  const ind=document.getElementById('sync-ind');
  if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données initiales envoyées vers le cloud';}
  }
@@ -1420,7 +1387,6 @@ function go(v){
  document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('act',el.dataset.v===v));
  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
  document.getElementById('view-'+v).classList.add('active');
- try{document.getElementById('view-'+v).scrollTop=0;}catch(_){}
  const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting',facturation:'Facturation'};
  document.getElementById('tbt').textContent=T[v]||v;
  const A={dash:'',facturation:`<button class="btn bp bsm" onclick="openInvoiceForm()">+ Facture</button>`,cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<button class="btn bg bsm" onclick="downloadCsvTemplate()">↓ Modèle</button><label class="btn bg bsm" style="cursor:pointer">↑ Import Excel / CSV<input type="file" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="importProspects(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
@@ -1433,7 +1399,7 @@ function badges(){
  const active=DB.candidates.filter(c=>!['ko','placed'].includes(c.status));
  document.getElementById('badge-cands').textContent=active.length;
  document.getElementById('badge-needs').textContent=DB.needs.filter(n=>n.status==='open').length;
- const pros=DB.companies.filter(c=>c.type==='prospect'&&!['nobiz','refused'].includes(c.status)).length;
+ const pros=DB.companies.filter(c=>c.type==='prospect'&&c.status!=='nobiz').length;
  document.getElementById('badge-pros').textContent=pros;
  // urgency badge
  const urg=computeAlerts().length;
@@ -1444,8 +1410,7 @@ function badges(){
  const ab=document.getElementById('badge-ag');
  ab.textContent=ag;ab.style.display=ag?'':'none';
  // revenue
- const _tauxRev=Number(localStorage.getItem('btp_taux_hon_louis')||localStorage.getItem('btp_taux_hon')||18)/100;
- const rev=DB.candidates.filter(c=>c.status==='placed').reduce((a,c)=>a+(Number(c.salary||0)*_tauxRev),0);
+ const rev=DB.candidates.filter(c=>c.status==='placed').reduce((a,c)=>a+(Number(c.salary||0)*.18),0);
  document.getElementById('nf-rev').textContent=rev?fM(Math.round(rev)):'0€';
  // Invoice badge: unpaid/overdue
  const unpaid=(DB.invoices||[]).filter(inv=>['sent','overdue'].includes(inv.status)).length;
@@ -1478,7 +1443,7 @@ function computeAlerts(){
  const todayStr=new Date().toISOString().split('T')[0];
  (DB.invoices||[]).filter(inv=>inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr).forEach(inv=>{
  const co=coById(inv.company_id);
- a.push({color:'var(--ac3)',msg:`Facture ${inv.invoice_number||'?'} en retard — ${co?co.name:'?'} ${fM(inv.amount)}`,act:`go('facturation');setTimeout(()=>openInvoicePanel('${inv.id}'),100)`});
+ a.push({color:'var(--ac3)',msg:`Facture impayée en retard — ${co?co.name:'?'} (${fM(inv.amount)})`,act:`go('facturation')`});
  });
  return a;
 }
@@ -1492,9 +1457,8 @@ function rDash(){
  const placed=c.filter(x=>x.status==='placed');
  const active=c.filter(x=>!['ko','placed','entrant'].includes(x.status));
  const ents=c.filter(x=>x.status==='entrant');
- const _taux=Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18)/100;
- const revEnc=placed.reduce((a,x)=>a+(Number(x.salary||0)*_taux),0);
- const revPot=active.reduce((a,x)=>a+(Number(x.salary||0)*_taux),0);
+ const revEnc=placed.reduce((a,x)=>a+(Number(x.salary||0)*.18),0);
+ const revPot=active.reduce((a,x)=>a+(Number(x.salary||0)*.18),0);
  const alerts=computeAlerts();
  const todayAg=DB.agenda.filter(a=>!a.done&&isToday(a.date)).sort((a,b)=>a.time>b.time?1:-1);
 
@@ -1528,7 +1492,7 @@ function rDash(){
  <strong>Action prioritaire</strong>
  <span>${esc(topAlert.msg)}</span>
  </div>
- <span style="font-size:10px;color:var(--mu)">→</span>
+ <button class="btn bp bsm" onclick="${topAlert.act}">→ Traiter</button>
  </div>`:'';
 
  document.getElementById('view-dash').innerHTML=imminentBanner+priorityBanner+`
@@ -1660,14 +1624,8 @@ function entRow(c){
 
 function koEntrant(id){
  const c=cById(id);if(!c)return;
- openMo('',`<div class="confirm-dialog">
-  <div class="confirm-icon" style="background:var(--red-dim);border:2px solid var(--red-border);font-size:22px"></div>
-  <div class="confirm-title">Mettre ${esc(c.name)} en KO ?</div>
-  <div class="confirm-desc">Ce candidat sera archivé et n'apparaîtra plus dans le pipeline actif.</div>
-  <div class="confirm-actions">
-   <button class="btn-apple danger" onclick="(()=>{const c=cById('${id}');if(c){c.status='ko';c.updated=now_();save();rCands();badges();toast(c.name+' — archivé KO','w');}closeMo();})()">Mettre en KO</button>
-   <button class="btn-apple ghost" onclick="closeMo()">Annuler</button>
-  </div></div>`,``);
+ c.status='ko';c.updated=now_();save();rCands();badges();
+ toast(`${c.name} — marqué KO`,'w');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2317,8 +2275,12 @@ function rPipeline(){
 function candCard(c,st){
  const cat=getCat(c.cat);
  const docs=(c.docs||[]).filter(d=>d.file).length;
+ const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
+ const USER_NAMES={louis:'L',corentin:'C'};
+ const owner=c.assigned_to||'louis';
+ const ownerBadge=`<span style="width:16px;height:16px;border-radius:50%;background:${USER_COLORS[owner]||'var(--mu)'};color:#0a0a08;font-size:8px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" title="${owner}">${USER_NAMES[owner]||owner[0]?.toUpperCase()}</span>`;
  return`<div class="cc ${c.pepite?'pep':''}" onclick="openCandPanel('${c.id}')" oncontextmenu="ctxCand(event,'${c.id}')">
- <div class="cc-name">${esc(c.name)}${c.pepite?'':''}</div>
+ <div class="cc-name" style="display:flex;align-items:center;gap:5px;padding-right:0">${esc(c.name)}${c.pepite?'':''}<span style="margin-left:auto">${ownerBadge}</span></div>
  <div class="cc-role">${esc(c.role||'—')}${c.salary?` · <span style="color:var(--ac2)">${fM(c.salary)}</span>`:''}
  </div>
  <div class="cc-row"><span class="tag ${cat.cls}">${cat.l}</span><span class="fs10 mu_">${esc(c.source||'')}</span>${c.linked_need?`<span class="fs10 ac5"></span>`:''}</div>
@@ -2585,11 +2547,12 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
  done:false,
  created:now_(),
  });
+ addCandTimeline(candId,'visio',`Entretien planifié le ${fD(new Date(dateStr))} à ${h}:00 · ${visioLink}`);
  save();closeMo();closePanel();
  badges();
  if(UI.view==='cands') rCands();
  const gwHour=frToGwada(h);
-  toast(`${c.name} → Entretien ${h}h FR = ${gwHour}h Gwada · Agenda ✓`,'s');
+ toast(`${c.name} → Entretien ${h}h FR = ${gwHour}h Gwada · Agenda ✓`,'s');
  // Show in pipeline
  setTimeout(()=>{switchCandTab('pipeline');openCandPanel(candId);},300);
 }
@@ -2617,7 +2580,6 @@ function renderCPProfil(c){
  <div class="dr"><span class="drk">Disponibilité</span><span class="drv">${esc(c.avail||'—')}</span></div>
  <div class="dr"><span class="drk">Mobilité</span><span class="drv">${esc(c.mobility||'—')}</span></div>
  <div class="dr"><span class="drk">Source</span><span class="drv">${esc(c.source||'—')}</span></div>
- <div class="dr"><span class="drk">Géré par</span><span class="drv" style="display:flex;align-items:center;gap:5px">${(()=>{const uid_=c.assigned_to||'louis';const uColors={louis:'#c8e040',corentin:'#4a84e2'};const uNames={louis:'Louis',corentin:'Corentin'};return`<span style="width:14px;height:14px;border-radius:50%;background:${uColors[uid_]||'var(--mu)'};display:inline-block"></span>${uNames[uid_]||uid_}`;})()}</span></div>
  <div class="dr"><span class="drk">Email envoyé</span><span class="drv">${c.email_sent?`${fD(c.email_sent)}`:'—'}</span></div>
  <div class="dr"><span class="drk">Entretien planifié</span><span class="drv">${c.int_date_planned?`${fD(c.int_date_planned)} à ${c.int_time||'—'}`:'—'}</span></div>
  <div class="sl">Notes précal</div>
@@ -2687,51 +2649,6 @@ function renderCPFichiers(c){
  </div>`:`
  <div style="margin-top:10px;font-size:10px;color:var(--mu2)"> Uploadez le CV pour activer l'extraction IA automatique.</div>`}`;
 }
-
-// ── Smart multi-upload — classe automatiquement les fichiers ─────
-function handleSmartUpload(event, candId){
- const files=Array.from(event.target.files);
- if(!files.length)return;
- const c=cById(candId);if(!c)return;
- c.docs=c.docs||[];
- let uploaded=0;
- const MATCH_RULES=[
-  {id:'cv', keywords:['cv','curriculum','resume','profil']},
-  {id:'id_card', keywords:["identit","id_card","carte_nat","cni","passport","passeport","permis_sejour"]},
-  {id:'carte_vit', keywords:['vitale','carte_vit','sante']},
-  {id:'permis', keywords:['permis','driving','license']},
-  {id:'att_permis', keywords:['attestation','honneur']},
-  {id:'visite_med', keywords:['visite','medical','medic','aptitude']},
-  {id:'rgpd', keywords:['rgpd','gdpr','consentement']},
-  {id:'auth_ref', keywords:['autoris','reference','ref_']},
-  {id:'dossier', keywords:['dossier','candidature','complet']},
- ];
-
- const readers=files.map(file=>new Promise(resolve=>{
-  if(file.size>5*1024*1024){toast(file.name+' trop lourd (max 5MB)','e');resolve();return;}
-  const reader=new FileReader();
-  reader.onload=(e)=>{
-   const nameLower=file.name.toLowerCase().replace(/[\s\-\.]/g,'_');
-   let docId='cv'; // default
-   for(const rule of MATCH_RULES){
-    if(rule.keywords.some(k=>nameLower.includes(k))){docId=rule.id;break;}
-   }
-   const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:e.target.result};
-   const idx=c.docs.findIndex(d=>d.id===docId);
-   if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
-   uploaded++;
-   resolve();
-  };
-  reader.readAsDataURL(file);
- }));
-
- Promise.all(readers).then(()=>{
-  c.updated=now_();save();
-  renderCandPanelTab(candId);
-  toast(`${uploaded} fichier(s) classé(s) automatiquement ✓`,'s');
- });
-}
-
 function bindFileInputs(candId){/* inputs already bound via onchange in HTML */}
 function handleFileUpload(event){
  const input=event.target;
@@ -2968,10 +2885,15 @@ function proRow(c) {
  const st = { tocall: { l: 'À appeler', p: 'ptoc' }, nrp: { l: 'NRP', p: 'pnrp' }, callback: { l: 'À rappeler', p: 'pdos' } }[c.status] || { l: c.status, p: 'ptoc' };
  const callbackDate = c.status === 'callback' && c.next_call_date ? `<br><span style="font-size:9px;color:var(--ac5)">${fD(c.next_call_date)}</span>` : '';
  const marge = c.marge ? `<span style="color:var(--ac2);font-weight:600">${Number(c.marge).toLocaleString('fr-FR')}€</span>` : '<span style="color:var(--mu2)">—</span>';
+ // Badge owner
+ const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
+ const USER_NAMES={louis:'L',corentin:'C'};
+ const proOwner=c.assigned_to||'';
+ const proOwnerBadge=proOwner?`<span style="width:15px;height:15px;border-radius:50%;background:${USER_COLORS[proOwner]||'var(--mu)'};color:#0a0a08;font-size:7px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:5px" title="${proOwner}">${USER_NAMES[proOwner]||proOwner[0]?.toUpperCase()}</span>`:'';
  const chk=_proSelectMode?`<td onclick="event.stopPropagation()" style="width:24px;padding-left:8px"><input type="checkbox" ${_proSelected.has(c.id)?'checked':''} onchange="toggleProSelect('${c.id}',this.checked)" style="width:12px;accent-color:var(--ac3)"></td>`:'';
  return `<tr onclick="${_proSelectMode?`toggleProSelect('${c.id}')`:` openProPopup('${c.id}')`}" style="cursor:pointer${_proSelected.has(c.id)?';background:rgba(224,74,74,.04)':''}">
  ${chk}
- <td><strong>${esc(c.name)}</strong></td>
+ <td><strong>${esc(c.name)}</strong>${proOwnerBadge}</td>
  <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(c.phone || '—')}</td>
  <td>${esc(c.city || '—')}</td>
  <td><span class="pill ${st.p}">${st.l}</span>${callbackDate}</td>
@@ -3086,11 +3008,48 @@ function openProPopup(id) {
 // ═══════════════════════════════════════════════════════
 // TIMELINE — log toutes les interactions par entreprise
 // ═══════════════════════════════════════════════════════
+
+// ── Timeline candidat — suivi des actions sur le dossier ─────────
+function addCandTimeline(candId, type, note){
+ const cand=cById(candId);if(!cand)return;
+ cand.timeline=cand.timeline||[];
+ cand.timeline.unshift({id:uid(),date:now_(),type,note:note||'',by:currentUserId()});
+ cand.updated=now_();
+ save();
+}
+
+// ── Render timeline candidat ─────────────────────────────────────
+function renderCandTimeline(candId){
+ const cand=cById(candId);if(!cand)return'';
+ const tl=cand.timeline||[];
+ const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
+ const USER_NAMES={louis:'Louis',corentin:'Corentin'};
+ const icons={precal:'',visio:'',dossier:'',note:'',status:'↺',placed:'✓',ko:'×',call:''};
+ const colors={precal:'var(--ac4)',visio:'var(--ac5)',dossier:'var(--ac)',note:'var(--mu)',status:'var(--mu2)',placed:'var(--ac2)',ko:'var(--ac3)',call:'var(--ac2)'};
+ if(!tl.length)return`<div style="text-align:center;padding:20px;color:var(--mu2);font-size:11px">Aucune action enregistrée</div>`;
+ return tl.map(e=>{
+  const byColor=USER_COLORS[e.by]||'var(--mu2)';
+  const byName=USER_NAMES[e.by]||'';
+  const byBadge=byName?`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:${USER_COLORS[e.by]?byColor+'22':'var(--s3)'};color:${byColor};font-weight:600;border:1px solid ${USER_COLORS[e.by]?byColor+'44':'var(--bd)'}">${byName}</span>`:'';
+  return`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd)">
+   <div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:11px">${icons[e.type]||'·'}</div>
+   <div style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
+     <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({precal:'Précal',visio:'Entretien visio',dossier:'Dossier',note:'Note',status:'Statut modifié',placed:'Placé',ko:'KO',call:'Appel'})[e.type]||e.type}</span>
+     ${byBadge}
+     <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
+    </div>
+    ${e.note?`<div style="font-size:11px;color:var(--mu);line-height:1.5;white-space:pre-wrap">${esc(e.note)}</div>`:''}
+   </div>
+  </div>`;
+ }).join('');
+}
+
 function addTimeline(coId, type, note, extra){
- const c=coById(coId);if(!c)return;
- c.timeline=c.timeline||[];
- c.timeline.unshift({id:uid(),date:now_(),type,note:note||'',extra:extra||null});
- c.updated=now_();
+ const co=coById(coId);if(!co)return;
+ co.timeline=co.timeline||[];
+ co.timeline.unshift({id:uid(),date:now_(),type,note:note||'',extra:extra||null,by:currentUserId()});
+ co.updated=now_();
  save();
 }
 
@@ -3103,18 +3062,26 @@ function renderTimeline(coId){
  </div>`;
  const icons={call:'',email:'',note:'',besoin:'',status:'↺',nrp:'',nobiz:'',refused:'×',callback:''};
  const colors={call:'var(--ac2)',email:'var(--ac5)',note:'var(--mu)',besoin:'var(--ac)',status:'var(--mu2)',nrp:'var(--ac4)',nobiz:'var(--mu)',refused:'var(--ac3)',callback:'var(--ac5)'};
- return tl.map(e=>`
+  const USER_COLORS={louis:'#c8e040',corentin:'#4a84e2'};
+ const USER_NAMES={louis:'Louis',corentin:'Corentin'};
+ return tl.map(e=>{
+ const byUser=e.by||'';
+ const byColor=USER_COLORS[byUser]||'var(--mu2)';
+ const byName=USER_NAMES[byUser]||'';
+ const byBadge=byName?`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:${USER_COLORS[byUser]?`${byColor}22`:'var(--s3)'};color:${byColor};font-weight:600;border:1px solid ${USER_COLORS[byUser]?`${byColor}44`:'var(--bd)'}">${byName}</span>`:'';
+ return`
  <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">
  <div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:1px">${icons[e.type]||''}</div>
  <div style="flex:1;min-width:0">
- <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+ <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
  <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler'})[e.type]||e.type}</span>
+ ${byBadge}
  <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
  </div>
  ${e.note?`<div style="font-size:11px;color:var(--mu);line-height:1.5;white-space:pre-wrap">${esc(e.note)}</div>`:''}
  ${e.extra?`<div style="font-size:10px;color:var(--ac4);margin-top:2px">${esc(e.extra)}</div>`:''}
  </div>
- </div>`).join('');
+ </div>`;}).join('');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3526,9 +3493,6 @@ function rClients(){
  <div class="tb">
  <div class="srch"><input id="scli" placeholder="Rechercher client…" oninput="rClients()"></div>
  <span class="fs10 mu_">${clients.length} client(s)</span>
- <div style="margin-left:auto">
-  <button class="btn bp bsm" onclick="openNeedForm()">+ Besoin client</button>
- </div>
  </div>
  ${clients.length?`<div class="g3">${clients.map(c=>{
  const cat=getCat(c.cat);
@@ -3995,6 +3959,16 @@ function setPTab(t){
  else if(UI.ptype==='need') openNeedPanel(UI.pid);
  // Rebind file inputs if Fichiers tab (index 1)
  if(UI.ptype==='cand'&&t===1&&UI.pid) setTimeout(()=>bindFileInputs(UI.pid),50);
+ if(UI.ptype==='cand'&&t===4&&UI.pid){const pb=document.getElementById('pb');if(pb){const tl=(cById(UI.pid)?.timeline||[]).length;pb.innerHTML=`<div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between"><span class="fs10 mu_">${tl} action(s)</span><button class="btn bg bxs" onclick="addCandNoteQuick('${UI.pid}')">+ Note</button></div>${renderCandTimeline(UI.pid)}`;}}
+}
+
+
+function addCandNoteQuick(candId){
+ openMo('Note — Suivi candidat',
+  `<textarea id="cand-quick-note" style="min-height:80px" placeholder="Note d'appel, info importante, retour client…"></textarea>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button>
+   <button class="btn bp" onclick="(()=>{const note=document.getElementById('cand-quick-note')?.value.trim();if(!note){toast('Note vide','e');return;}addCandTimeline('${candId}','note',note);closeMo();openCandPanel('${candId}');UI.ptab=4;renderCandPanelTab('${candId}');toast('Note ajoutée ✓','s');})()">Enregistrer</button>`
+ );
 }
 
 // ── CANDIDATE PANEL ──────────────────────────────────────
@@ -4002,7 +3976,7 @@ function openCandPanel(id){
  UI.ptype='cand';UI.pid=id;if(!UI.ptab)UI.ptab=0;
  const c=cById(id);if(!c)return;
  const cat=getCat(c.cat);const st=getCS(c.status);
- const tabNames=['Profil','Fichiers','Entretien','Références'];
+ const tabNames=['Profil','Fichiers','Entretien','Références','Suivi'];
  const tabs=tabNames.map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
  const docs=c.docs||[];
  const B=[
@@ -4049,6 +4023,14 @@ function openCandPanel(id){
  <textarea id="gnote-${id}" style="min-height:64px">${esc(c.notes||'')}</textarea>
  <button class="btn bp bsm mt8" onclick="saveGNote('${id}')">Sauvegarder</button>`,
  ];
+ B.push(
+  // 4 SUIVI
+  `<div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+   <span class="fs10 mu_">${(c.timeline||[]).length} action(s) enregistrée(s)</span>
+   <button class="btn bg bxs" onclick="addCandNoteQuick('${id}')">+ Note</button>
+  </div>
+  ${renderCandTimeline('${id}')}`
+ );
  const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="sendCV('${id}')">CV anonyme</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
 }
@@ -4285,7 +4267,7 @@ function saveCandForm(id){
  const name=document.getElementById('cf-n').value.trim();
  if(!name){toast('Nom requis','e');return;}
  const n=now_();
- const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
+ const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,assigned_to:currentUserId(),updated:n};
  if(id){const c=cById(id);Object.assign(c,data);}
  else{data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
  save();closeMo();
@@ -4325,7 +4307,7 @@ function saveCoForm(id,ft){
  const name=document.getElementById('cof-n').value.trim();
  if(!name){toast('Nom requis','e');return;}
  const n=now_();
- const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,updated:n};
+ const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,assigned_to:currentUserId(),updated:n};
  if(id){const c=coById(id);Object.assign(c,data);}
  else{data.id=uid();data.created=n;DB.companies.unshift(data);}
  save();closeMo();
@@ -4420,7 +4402,11 @@ function savePostForm(id){
 function setCS(id,st){
  const c=cById(id);if(!c)return;
  const prev=c.status;
- c.status=st;c.updated=now_();save();
+ c.status=st;c.updated=now_();
+ // Enregistrer le changement dans la timeline candidat
+ const stLabel=getCS(st).l;
+ const prevLabel=getCS(prev).l;
+ addCandTimeline(id,'status',`${prevLabel} → ${stLabel}`);
  if(UI.pid===id)openCandPanel(id);
  rCands();badges();
  toast(`→ ${getCS(st).l}`,'s');
@@ -4437,12 +4423,20 @@ function setCS(id,st){
  <strong>${esc(c.name)}</strong> vient d'être placé.${co?` Chez <strong>${esc(co.name)}</strong>.`:''} Créez la facture maintenant.
  </div>
  <div class="fg">
- <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
+ <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000" oninput="updatePlacedInvoicePreview()"></div>
+ <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5" oninput="updatePlacedInvoicePreview()"></div>
+ </div>
+ <!-- Frais d'inscription — discrets, en bas -->
+ <div style="border-top:1px solid var(--bd);padding-top:8px;margin-top:4px;margin-bottom:8px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+   <span style="font-size:10px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em">Frais d'inscription</span>
+   <span style="font-size:9px;color:var(--mu2);flex:1">(optionnel)</span>
+  </div>
+  <input id="inv-frais" type="number" placeholder="Montant HT — laisser vide si aucun" min="0" step="50" style="font-size:11px" oninput="updatePlacedInvoicePreview()">
  </div>
  <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
  <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
- <span style="font-size:10px;color:var(--mu)">Montant honoraires</span>
+ <span style="font-size:10px;color:var(--mu)">Montant total HT</span>
  </div>`,
  `<button class="btn bg" onclick="closeMo()">Plus tard</button>
  <button class="btn bp" onclick="createInvoiceFromModal('${id}')">Créer la facture</button>`
@@ -4468,14 +4462,23 @@ function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_(
 function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
 function linkFromSel(needId){const sel=document.getElementById('nc-sel');if(!sel||!sel.value)return;toggleLink(sel.value,needId);}
 function togDoc(id,doc,checked){const c=cById(id);if(!c)return;c.docs=c.docs||[];if(checked&&!c.docs.includes(doc))c.docs.push(doc);else if(!checked)c.docs=c.docs.filter(d=>d!==doc);c.updated=now_();save();rCands();}
-function saveIntNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('int-note-'+id);if(!el)return;c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();save();toast('Synthèse sauvegardée ✓','s');}
+function saveIntNote(id){
+ const c=cById(id);if(!c)return;
+ const el=document.getElementById('int-note-'+id);if(!el)return;
+ const wasNotDone=!c.int_done;
+ c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();
+ if(el.value&&wasNotDone){
+  addCandTimeline(id,'visio','Synthèse entretien rédigée · '+(el.value.slice(0,80)||''));
+ }
+ save();toast('Synthèse sauvegardée ✓','s');
+}
+function saveGenNote2(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note2-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_date=now_();c.updated=now_();save();if(UI.pid===id)renderCandPanelTab(id);toast('Entretien marqué fait ✓','s');}
 function openStatusTree(id){openStatusMo('cand',id);}
 function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(c.linked_need?'Besoin lié ✓':'Lien retiré','s');}
+function saveGNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 // Alias — lit gen-note-{id} ou gnote-{id} selon le panel
-function saveGenNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note-'+id)||document.getElementById('gen-note2-'+id)||document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
-function saveGNote(id){saveGenNote(id);}
-function saveGenNote2(id){saveGenNote(id);}
+function saveGenNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note-'+id)||document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function saveCoNote(id){const c=coById(id);if(!c)return;const el=document.getElementById('conote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function addRef(id){openMo('Ajouter référence',`<div class="fg"><div class="fgrp ff"><span class="lbl">Entreprise</span><input id="rf-co" placeholder="Nom entreprise"></div><div class="fgrp"><span class="lbl">Contact</span><input id="rf-ct"></div><div class="fgrp"><span class="lbl">Téléphone</span><input id="rf-ph"></div></div>`,`<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="saveRef('${id}')">Ajouter</button>`);}
 function saveRef(id){const c=cById(id);if(!c)return;const co=document.getElementById('rf-co').value.trim();if(!co)return;c.refs=c.refs||[];c.refs.push({company:co,contact:document.getElementById('rf-ct').value,phone:document.getElementById('rf-ph').value,done:false,note:''});c.updated=now_();save();closeMo();openCandPanel(id);toast('Référence ajoutée ✓','s');}
@@ -4874,7 +4877,7 @@ function openSettings(){
 
  <!-- BOUTON STYLE -->
  <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
- <button onclick="closeMo();setTimeout(openStylePanel,150)" style="
+ <button onclick="closeMo();setTimeout(openStylePanel,80)" style="
  display:inline-flex;align-items:center;gap:7px;
  padding:8px 14px;font-size:11px;font-family:inherit;cursor:pointer;
  border-radius:var(--r2);border:1.5px solid var(--bd);
@@ -4882,7 +4885,7 @@ function openSettings(){
  transition:all .2s;
  " onmouseover="this.style.borderColor='var(--ac)';this.style.color='var(--ac)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--tx)'">
  🎨 Apparence & Style
- <span style="font-size:9px;color:var(--mu)">4 thèmes · 5 options →</span>
+ <span style="font-size:9px;color:var(--mu)">3 thèmes · 5 options →</span>
  </button>
  </div>
 
@@ -5046,106 +5049,6 @@ function resetAllData(){
  save();go('dash');
  toast('Toutes les données ont été effacées','w');
 }
-
-// ── Trouver des prospects via France Travail ─────────────────────
-function openBonnesBoites(){
- openMo('Trouver des entreprises BTP',`
-  <div style="font-size:12px;line-height:1.8;color:var(--mu);margin-bottom:14px">
-   Recherchez des entreprises BTP sur <strong style="color:var(--tx)">France Travail / API Offres d'emploi</strong>
-   et importez-les directement comme prospects.
-  </div>
-  <div class="fg">
-   <div class="fgrp ff">
-    <span class="lbl">Mot-clé secteur BTP</span>
-    <select id="bb-sector">
-     <option value="gros oeuvre">Gros Œuvre</option>
-     <option value="second oeuvre">Second Œuvre</option>
-     <option value="VRD travaux publics">VRD / TP</option>
-     <option value="bureau études BTP">Bureau d'Études</option>
-     <option value="HSE QSE BTP">HSE / QSE</option>
-     <option value="conducteur travaux BTP">Management BTP</option>
-    </select>
-   </div>
-   <div class="fgrp">
-    <span class="lbl">Ville / Département</span>
-    <input id="bb-city" placeholder="Lyon, Paris, Nice, 06…">
-   </div>
-   <div class="fgrp">
-    <span class="lbl">Rayon (km)</span>
-    <select id="bb-range">
-     <option value="10">10 km</option>
-     <option value="30" selected>30 km</option>
-     <option value="50">50 km</option>
-     <option value="100">100 km</option>
-    </select>
-   </div>
-  </div>
-  <div id="bb-results" style="margin-top:10px;max-height:300px;overflow-y:auto"></div>`,
-  `<button class="btn bg" onclick="closeMo()">Fermer</button>
-   <button class="btn bp" onclick="searchBonnesBoites()">Rechercher</button>`
- );
-}
-
-async function searchBonnesBoites(){
- const sector=document.getElementById('bb-sector')?.value||'BTP';
- const city=document.getElementById('bb-city')?.value||'';
- const range=document.getElementById('bb-range')?.value||'30';
- const resultsEl=document.getElementById('bb-results');
- if(!resultsEl)return;
- resultsEl.innerHTML=`<div style="text-align:center;padding:20px;color:var(--mu)"><div style="width:16px;height:16px;border:2px solid var(--bd2);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;margin-right:8px"></div>Recherche en cours…</div>`;
-
- try{
-  const apiBase=getApiBase();
-  if(!apiBase){
-   // Mode local — ouvrir France Travail en onglet
-   resultsEl.innerHTML=`
-    <div style="padding:14px;background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:6px;font-size:11px;line-height:1.8">
-     <strong>Mode local</strong> — La recherche automatique est disponible sur Vercel.<br>
-     <a href="https://candidat.francetravail.fr/offres/recherche?motsCles=${encodeURIComponent(sector)}&lieuTravail=${encodeURIComponent(city)}&rayonRecherche=${range}&typeContrat=CDI" 
-        target="_blank" style="color:var(--blue)">→ Ouvrir France Travail (${sector} à ${city||'France'})</a>
-    </div>`;
-   return;
-  }
-  const resp=await fetch(`${apiBase}/api/find-prospects?sector=${encodeURIComponent(sector)}&city=${encodeURIComponent(city)}&range=${range}`);
-  const data=await resp.json();
-  const companies=data.companies||[];
-  if(!companies.length){
-   resultsEl.innerHTML=`<div style="text-align:center;padding:20px;color:var(--mu2);font-size:11px">Aucune entreprise trouvée — essayez un secteur ou rayon différent</div>`;
-   return;
-  }
-  // Filter existing
-  const existing=new Set(DB.companies.map(c=>c.name.toLowerCase().trim()));
-  const newOnes=companies.filter(c=>!existing.has((c.name||'').toLowerCase().trim()));
-  resultsEl.innerHTML=`
-   <div style="font-size:10px;color:var(--mu);margin-bottom:8px">${newOnes.length} nouvelles entreprises trouvées (${companies.length-newOnes.length} déjà dans votre base)</div>
-   ${newOnes.map((co,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;margin-bottom:4px;font-size:11px">
-     <input type="checkbox" id="bb-co-${i}" checked style="width:12px;accent-color:var(--ac)">
-     <div style="flex:1">
-      <div style="font-weight:600">${esc(co.name)}</div>
-      <div style="font-size:10px;color:var(--mu)">${esc(co.city||'')}${co.phone?' · '+esc(co.phone):''}</div>
-     </div>
-    </div>`).join('')}
-   <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);display:flex;gap:8px">
-    <button class="btn bp btn-full" onclick="importBonnesBoites(${JSON.stringify(newOnes).replace(/"/g,'&quot;')})">Importer sélectionnés</button>
-   </div>`;
- }catch(err){
-  resultsEl.innerHTML=`<div style="text-align:center;padding:20px;color:var(--red);font-size:11px">Erreur: ${esc(err.message)}</div>`;
- }
-}
-
-function importBonnesBoites(companies){
- let n=0;
- companies.forEach((co,i)=>{
-  const chk=document.getElementById('bb-co-'+i);
-  if(!chk?.checked)return;
-  DB.companies.unshift({id:uid(),name:co.name,phone:co.phone||'',city:co.city||'',contact:'',cat:'go',type:'prospect',status:'tocall',source:'France Travail',created:now_(),updated:now_()});
-  n++;
- });
- save();closeMo();rPros();badges();
- toast(`${n} prospect(s) importé(s) depuis France Travail ✓`,'s');
-}
-
 
 // ═══════════════════════════════════════════════════════
 // IA — EXTRACTION CV (Anthropic API)
@@ -5320,10 +5223,10 @@ Réponds UNIQUEMENT avec le texte de l'annonce, sans titre, sans markdown, sans 
 function openNobizEmailForm(coId){
  const c=coById(coId);if(!c)return;
  closeProPopup_direct();
- // Set nobiz status + reminder (2 mois)
+ // Set nobiz status + reminder
  c.status='nobiz';
  c.nobiz_date=now_();
- const remind=new Date();remind.setMonth(remind.getMonth()+2);
+ const remind=new Date();remind.setMonth(remind.getMonth()+1);
  c.nobiz_remind=remind.toISOString();
  c.updated=now_();
  save();
@@ -6081,7 +5984,7 @@ function emRenderCompose(cands,cos,nom,tel){
     <!-- Champs -->
     <div style="flex-shrink:0;border-bottom:1px solid var(--bd)">
       ${[
-        {id:'em-to',label:'À',val:initTo,type:'text',placeholder:'destinataire@email.com'},
+        {id:'em-to',label:'De',val:initTo,type:'text',placeholder:'destinataire@email.com'},
         {id:'em-cc',label:'Cc',val:'',type:'text',placeholder:''},
         {id:'em-sub',label:'Objet',val:initSub,type:'text',placeholder:''},
       ].map(f=>`<div style="display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--bd)">
@@ -6100,7 +6003,7 @@ function emRenderCompose(cands,cos,nom,tel){
       </div>
     </div>
     <!-- Corps -->
-    <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0" onkeydown="if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();emSend()}">${esc(initBody)}</textarea>
+    <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0">${esc(initBody)}</textarea>
     <!-- Footer -->
     <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:center;flex-shrink:0;background:var(--s2)">
       <button id="em-send-btn" class="btn bp bsm" onclick="emSend()">Envoyer</button>
@@ -6637,9 +6540,8 @@ function renderRep(){
  const placed=cands.filter(c=>c.status==='placed');
  const active=cands.filter(c=>!['ko','placed','entrant'].includes(c.status));
  const entrants=cands.filter(c=>c.status==='entrant');
- const _tauxRep=Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18)/100;
- const revEnc=placed.reduce((a,c)=>a+(Number(c.salary||0)*_tauxRep),0);
- const revPot=active.reduce((a,c)=>a+(Number(c.salary||0)*_tauxRep),0);
+ const revEnc=placed.reduce((a,c)=>a+(Number(c.salary||0)*.18),0);
+ const revPot=active.reduce((a,c)=>a+(Number(c.salary||0)*.18),0);
  const clients=comps.filter(c=>c.type==='client');
  const prospects=comps.filter(c=>c.type==='prospect'&&!['refused'].includes(c.status));
  const convRate=(()=>{
@@ -6707,40 +6609,6 @@ function renderRep(){
  <div class="rep-period-btn ${repPeriod===p?'act':''}" onclick="setRepPeriod('${p}')">
  ${{week:'7j',month:'Mois',quarter:'Trim.',all:'Tout'}[p]}
  </div>`).join('');
-
-
- // ── Stats par utilisateur (si multi-user) ────────────────
- const allUsers=[
-  {id:'louis',name:'Louis',color:'#c8e040'},
-  {id:'corentin',name:'Corentin',color:'#4a84e2'},
- ];
- const userStatsHtml=allUsers.map(u=>{
-  const ust=computeUserStats(u.id);
-  return`<div style="flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2)">
-   <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-    <div style="width:28px;height:28px;border-radius:50%;background:${u.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0a0a08">${u.name[0]}</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${u.name}</div>
-   </div>
-   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <div style="text-align:center;padding:8px;background:var(--s3);border-radius:var(--r)">
-     <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:${u.color}">${ust.prospectsTotal}</div>
-     <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Prospects</div>
-    </div>
-    <div style="text-align:center;padding:8px;background:var(--s3);border-radius:var(--r)">
-     <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:${u.color}">${ust.candidatsTotal}</div>
-     <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Candidats</div>
-    </div>
-    <div style="text-align:center;padding:8px;background:var(--s3);border-radius:var(--r)">
-     <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--ac2)">${ust.placed}</div>
-     <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Placés</div>
-    </div>
-    <div style="text-align:center;padding:8px;background:var(--s3);border-radius:var(--r)">
-     <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--ac4)">${ust.agendaToday}</div>
-     <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">Agenda today</div>
-    </div>
-   </div>
-  </div>`;
- }).join('');
 
  document.getElementById('rep-content').innerHTML=`
  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
@@ -6884,11 +6752,6 @@ function renderRep(){
  </div>
  </div>
 
- <!-- Stats par utilisateur -->
- <div class="rep-card" style="margin-bottom:12px">
- <div class="rep-card-t" style="margin-bottom:12px"> Performance par utilisateur</div>
- <div style="display:flex;gap:10px">${userStatsHtml}</div>
- </div>
  <!-- Activité agenda -->
  <div class="rep-card">
  <div class="rep-card-t"> Activité récente</div>
@@ -7025,15 +6888,15 @@ function openInvoicePanel(id){
  <div class="dr"><span class="drk">Candidat</span><span class="drv">${cand?`<span class="ac5" style="cursor:pointer" onclick="openCandPanel('${cand.id}')">${esc(cand.name)}</span>`:'—'}</span></div>
  <div class="dr"><span class="drk">Salaire brut</span><span class="drv">${fM(inv.salary)}</span></div>
  <div class="dr"><span class="drk">Taux honoraires</span><span class="drv">${taux}%</span></div>
- <div class="dr"><span class="drk">Montant HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--ac)">${fM(inv.amount)}</span></div>
- <div class="dr"><span class="drk">TVA 20%</span><span class="drv" style="color:var(--mu)">${fM(Math.round(inv.amount*.2))}</span></div>
- <div class="dr"><span class="drk">Montant TTC</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:700">${fM(Math.round(inv.amount*1.2))}</span></div>
+ <div class="dr"><span class="drk">Honoraires HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--ac)">${fM(inv.honoraires||inv.amount)}</span></div>
+ ${inv.frais_inscription?`<div class="dr"><span class="drk">Frais inscription</span><span class="drv" style="color:var(--mu)">${fM(inv.frais_inscription)}</span></div>
+ <div class="dr"><span class="drk" style="font-weight:700">Total HT</span><span class="drv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--ac)">${fM(inv.amount)}</span></div>`:`<div class="dr" style="display:none"></div>`}
  <div class="dr"><span class="drk">Émission</span><span class="drv">${inv.invoice_date?fD(inv.invoice_date):'—'}</span></div>
  <div class="dr"><span class="drk">Échéance</span><span class="drv" style="color:${inv.status==='overdue'?'var(--ac3)':'inherit'}">${inv.due_date?fD(inv.due_date):'—'}</span></div>
  ${inv.paid_date?`<div class="dr"><span class="drk">Payée le</span><span class="drv ac2">✓ ${fD(inv.paid_date)}</span></div>`:''}
  ${inv.notes?`<div class="sl">Notes</div><div class="notebox">${esc(inv.notes)}</div>`:''}
  <div class="sl mt12">Récapitulatif</div>
- <div class="notebox fs10" style="line-height:1.9">${esc(inv.invoice_number||'')} · ${co?esc(co.name):'?'}<br>Placement de ${cand?esc(cand.name):'?'}<br>Honoraires ${taux}% × ${fM(inv.salary)} = <strong style="color:var(--ac)">${fM(inv.amount)}</strong><br>${inv.due_date?`Échéance ${fD(inv.due_date)}`:''}</div>`,
+ <div class="notebox fs10" style="line-height:1.9">${esc(inv.invoice_number||'')} · ${co?esc(co.name):'?'}<br>Placement de ${cand?esc(cand.name):'?'}<br>Honoraires ${taux}% × ${fM(inv.salary)} = ${fM(inv.honoraires||inv.amount)}${inv.frais_inscription?`<br>Frais d'inscription : ${fM(inv.frais_inscription)}`:''}<br><strong style="color:var(--ac)">Total HT : ${fM(inv.amount)}</strong><br>${inv.due_date?`Échéance ${fD(inv.due_date)}`:''}</div>`,
  `${inv.status==='draft'?`<button class="btn bi bsm" onclick="markInvoiceSent('${id}')">Envoyée</button>`:''}
  ${['sent','overdue'].includes(inv.status)?`<button class="btn bp bsm" onclick="markInvoicePaid('${id}')">Payée</button>`:''}
  <button class="btn bg bsm" onclick="editInvoiceNotes('${id}')"></button>
@@ -7055,6 +6918,14 @@ function openInvoiceForm(candId){
  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</div>
  <div style="font-size:10px;color:var(--mu)">Montant honoraires HT</div>
  </div>
+ <!-- Frais d'inscription — optionnel, discret -->
+ <div class="fgrp ff" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:2px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+   <span class="lbl" style="margin:0">Frais d'inscription (optionnel)</span>
+   <span style="font-size:9px;color:var(--mu2);flex:1">Montant fixe HT en supplément des honoraires</span>
+  </div>
+  <input id="nif-frais" type="number" placeholder="Ex : 500 — laisser vide si aucun" min="0" step="50" oninput="updateInvoicePreview()" style="font-size:11px">
+ </div>
  <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="nif-notes" style="min-height:50px" placeholder="Informations complémentaires…"></textarea></div>
  </div>`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button>
@@ -7066,38 +6937,73 @@ function openInvoiceForm(candId){
 function updateInvoicePreview(){
  const sal=Number(document.getElementById('nif-sal')?.value||0);
  const taux=Number(document.getElementById('nif-taux')?.value||18);
+ const frais=Number(document.getElementById('nif-frais')?.value||0);
  const prev=document.getElementById('nif-preview');if(!prev)return;
- if(sal>0){prev.style.display='block';const amt=Math.round(sal*taux/100);prev.children[0].textContent=fM(amt);prev.children[1].textContent=`HT · TVA ${fM(Math.round(amt*.2))} · TTC ${fM(Math.round(amt*1.2))} · (${sal.toLocaleString('fr-FR')}€ × ${taux}%)`; }
- else prev.style.display='none';
+ if(sal>0){
+  prev.style.display='block';
+  const amt=Math.round(sal*taux/100);
+  const total=amt+frais;
+  prev.children[0].textContent=fM(total);
+  prev.children[1].textContent=frais>0
+   ? `Honoraires ${fM(amt)} + Frais inscription ${fM(frais)}`
+   : `= ${sal.toLocaleString('fr-FR')}€ × ${taux}%`;
+ } else prev.style.display='none';
+}
+
+
+function updatePlacedInvoicePreview(){
+ const sal=Number(document.getElementById('inv-sal')?.value||0);
+ const taux=Number(document.getElementById('inv-taux')?.value||18);
+ const frais=Number(document.getElementById('inv-frais')?.value||0);
+ const prev=document.getElementById('inv-preview');if(!prev)return;
+ if(sal>0){
+  const honoraires=Math.round(sal*taux/100);
+  const total=honoraires+frais;
+  prev.innerHTML=`<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">${fM(total)}</span><br><span style="font-size:10px;color:var(--mu)">${frais>0?`Honoraires ${fM(honoraires)} + Frais ${fM(frais)}`:`${sal.toLocaleString('fr-FR')}€ × ${taux}%`}</span>`;
+ }
 }
 
 function createInvoiceFromModal(candId){
  const sal=Number(document.getElementById('inv-sal')?.value||0);
  const taux=Number(document.getElementById('inv-taux')?.value||18);
+ const frais=Number(document.getElementById('inv-frais')?.value||0);
  if(!sal){toast('Salaire requis','e');return;}
- _createInvoice(candId,sal,taux,'');closeMo();
+ _createInvoice(candId,sal,taux,'',frais||null);closeMo();
 }
 
 function saveInvoiceForm(){
  const candId=document.getElementById('nif-cand')?.value;
  const sal=Number(document.getElementById('nif-sal')?.value||0);
  const taux=Number(document.getElementById('nif-taux')?.value||18);
+ const frais=Number(document.getElementById('nif-frais')?.value||0);
  if(!candId||!sal){toast('Candidat et salaire requis','e');return;}
- _createInvoice(candId,sal,taux,document.getElementById('nif-notes')?.value||'');closeMo();
+ _createInvoice(candId,sal,taux,document.getElementById('nif-notes')?.value||'',frais||null);closeMo();
 }
 
-function _createInvoice(candId,salary,taux,notes){
+function _createInvoice(candId,salary,taux,notes,fraisInscription=null){
  DB.invoices=DB.invoices||[];
- const c=cById(candId);
- const need=c?.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const cand=cById(candId);
+ const need=cand?.linked_need?DB.needs.find(n=>n.id===cand.linked_need):null;
  const co=need?coById(need.company_id):null;
- const amount=Math.round(Number(salary)*taux/100);
+ const honoraires=Math.round(Number(salary)*taux/100);
+ const frais=fraisInscription?Number(fraisInscription):0;
+ const amount=honoraires+frais; // Total = honoraires + frais
  const today=new Date().toISOString().split('T')[0];
  const due=new Date();due.setDate(due.getDate()+30);
- const inv={id:uid(),invoice_number:getInvoiceNumber(),cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,salary:Number(salary),taux,amount,status:'draft',invoice_date:today,due_date:due.toISOString().split('T')[0],paid_date:null,notes,created:now_(),updated:now_()};
+ const inv={
+  id:uid(),invoice_number:getInvoiceNumber(),
+  cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,
+  salary:Number(salary),taux,
+  honoraires, // montant honoraires seul
+  frais_inscription:frais||null, // frais optionnels
+  amount, // total facturé
+  status:'draft',invoice_date:today,due_date:due.toISOString().split('T')[0],
+  paid_date:null,notes,created:now_(),updated:now_()
+ };
  DB.invoices.unshift(inv);save();
  if(UI.view==='facturation')rFacturation();
- badges();toast(`Facture ${inv.invoice_number} créée — ${fM(amount)}`,'s');
+ const fraisLabel=frais?` + ${fM(frais)} frais inscription`:'';
+ badges();toast(`Facture ${inv.invoice_number} créée — ${fM(amount)}${fraisLabel}`,'s');
 }
 
 function markInvoiceSent(id){
@@ -7123,14 +7029,8 @@ function editInvoiceNotes(id){
 }
 
 function deleteInvoice(id){
- openMo('',`<div class="confirm-dialog">
-  <div class="confirm-icon" style="background:var(--red-dim);border:2px solid var(--red-border)"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
-  <div class="confirm-title">Supprimer cette facture ?</div>
-  <div class="confirm-desc">Action irréversible.</div>
-  <div class="confirm-actions">
-   <button class="btn-apple danger" onclick="(()=>{DB.invoices=(DB.invoices||[]).filter(i=>i.id!=='${id}');save();closePanel();closeMo();if(UI.view==='facturation')rFacturation();badges();toast('Facture supprimée','w');})()">Supprimer</button>
-   <button class="btn-apple ghost" onclick="closeMo()">Annuler</button>
-  </div></div>`,``);
+ if(!confirm('Supprimer cette facture ?'))return;
+ DB.invoices=(DB.invoices||[]).filter(i=>i.id!==id);save();closePanel();if(UI.view==='facturation')rFacturation();badges();toast('Supprimé','w');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7191,22 +7091,16 @@ function closeGS(){document.getElementById('gs-overlay').classList.remove('open'
 function renderGS(q){
  const el=document.getElementById('gs-results');
  if(!el)return;
- if(!q.trim()){
-  // Afficher les actions urgentes dans la recherche vide
-  const alerts=computeAlerts().slice(0,3);
-  const urgHtml=alerts.length?alerts.map(a=>`<div class="gs-item" onclick="closeGS();${a.act}"><div class="adot" style="background:${a.color};width:7px;height:7px;border-radius:50%;flex-shrink:0"></div><div class="gs-item-main"><div class="gs-item-name">${esc(a.msg)}</div></div></div>`).join(""):"";
-  el.innerHTML=`<div class="gs-section">Actions urgentes</div>${urgHtml||'<div class="gs-empty" style="padding:10px 14px">Aucune action urgente ✓</div>'}<div class="gs-empty" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:4px">Tapez pour chercher candidat, prospect, besoin, agenda…</div>`;
-  return;
- }
+ if(!q.trim()){el.innerHTML=`<div class="gs-empty">Tapez pour chercher un candidat, prospect, besoin…<br><span style="font-size:10px;color:var(--mu2);margin-top:6px;display:block">Candidats · Prospects · Clients · Besoins · Annonces</span></div>`;return;}
  const qL=q.toLowerCase();
  const cands=DB.candidates.filter(c=>!['ko'].includes(c.status)&&(c.name+' '+(c.role||'')+' '+(c.phone||'')).toLowerCase().includes(qL)).slice(0,5);
- const pros=DB.companies.filter(c=>(c.name+' '+(c.contact||'')+' '+(c.city||'')+' '+(c.phone||'')).toLowerCase().includes(qL)).slice(0,4);
+ const pros=DB.companies.filter(c=>(c.name+' '+(c.contact||'')+' '+(c.city||'')).toLowerCase().includes(qL)).slice(0,4);
  const needs=DB.needs.filter(n=>(n.title+' '+(coById(n.company_id)?.name||'')).toLowerCase().includes(qL)).slice(0,3);
  const posts=DB.posts.filter(p=>p.title.toLowerCase().includes(qL)).slice(0,2);
  let html='';
  if(cands.length){
  html+=`<div class="gs-section">Candidats</div>`;
- html+=cands.map(c=>{const st=getCS(c.status);const cat=getCat(c.cat);const _candTab=c.status==='entrant'?'trier':['new','precal'].includes(c.status)?'encours':['dossier','interview','presented'].includes(c.status)?'dossiers':'pipeline';return`<div class="gs-item" onclick="closeGS();go('cands');setTimeout(()=>{switchCandTab('`+_candTab+`');openCandPanel('${c.id}')},80)">`<span class="gs-item-ico"></span><div class="gs-item-main"><div class="gs-item-name">${esc(c.name)}</div><div class="gs-item-sub"><span class="pill ${st.p}" style="font-size:8px">${st.l}</span> · ${esc(c.role||cat.l)} · ${fPhone(c.phone)}</div></div></div>`;}).join('');
+ html+=cands.map(c=>{const st=getCS(c.status);const cat=getCat(c.cat);return`<div class="gs-item" onclick="closeGS();go('cands');setTimeout(()=>{switchCandTab('trier');openCandPanel('${c.id}')},80)"><span class="gs-item-ico"></span><div class="gs-item-main"><div class="gs-item-name">${esc(c.name)}</div><div class="gs-item-sub"><span class="pill ${st.p}" style="font-size:8px">${st.l}</span> · ${esc(c.role||cat.l)} · ${fPhone(c.phone)}</div></div></div>`;}).join('');
  }
  if(pros.length){
  html+=`<div class="gs-section">${pros.some(c=>c.type==='client')?'Entreprises':'Prospects / Clients'}</div>`;
@@ -7397,6 +7291,9 @@ function savePrecalScriptAndPlan(id){
  if(poste)c.role=poste;
  c.pepite=profil==='pepite';
  c.updated=now_();
+ // Timeline
+ const shortNotes=notesComplet.split('\n').slice(0,3).join(' · ').slice(0,120);
+ addCandTimeline(id,'precal',shortNotes||'Précal effectuée');
  save();
  localStorage.removeItem('precal_draft_'+id);
  toast(`Précal sauvegardée ✓ — planifiez le RDV`,'s');
@@ -7433,11 +7330,10 @@ function checkEntretienNotifs(){
  if(diff>0&&diff<=30&&!sessionStorage.getItem(notifKey)){
  sessionStorage.setItem(notifKey,'1');
  const cand=a.cand_id?cById(a.cand_id):null;
- new Notification(`🎯 Entretien dans ${Math.round(diff)} min — ${cand?cand.name:a.title}`,{
- body:`${a.time} · ${a.title}${cand&&cand.visio_link?' · Lien Jitsi prêt':''}`,
+ new Notification(` Entretien dans ${Math.round(diff)} min`,{
+ body:`${a.title}${cand?' — '+cand.name:''}`,
  icon:'/favicon.ico',
  tag:'entretien-'+a.id,
- requireInteraction:true
  });
  }
  });
@@ -7463,9 +7359,6 @@ document.addEventListener('keydown',e=>{
  if(e.key==='4') go('needs');
  if(e.key==='5') go('agenda');
  if(e.key==='6') go('emails');
- if(e.key==='n'&&UI.view==='agenda') openAgForm();
- if(e.key==='n'&&UI.view==='cands') openAddCVModal();
- if(e.key==='n'&&UI.view==='pros') openCoForm();
  }
 });
 
