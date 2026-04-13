@@ -6866,7 +6866,7 @@ function sendContractEmail(coId){
  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const prenom=co.contact?.split(' ')[0]||'';
 
- const emailBody=`Bonjour${prenom?' '+prenom:''},
+ const emailBody=(prenom?'Bonjour '+prenom+',':'Bonjour,')+`
 
 Comme convenu, veuillez trouver ci-dessous le lien pour signer notre Contrat Cadre de Recrutement Novalem.
 
@@ -6877,12 +6877,11 @@ Ce lien vous donnera accès à la grille tarifaire négociée et aux conditions 
 Pour toute question, n'hésitez pas à me contacter directement.
 
 Bien cordialement,
-${nom||'Novalem'}${tel?'
-'+tel:''}
+`+(nom||'Novalem')+(tel?'\n'+tel:'')+`
 Novalem — Cabinet de recrutement`;
 
  // Timeline
- addTimeline(coId,'status',`Contrat envoyé${frais?` (frais inscription inclus : ${frais}€)`:''}`,null);
+ addTimeline(coId,'status','Contrat envoyé'+(frais?' (frais inscription inclus : '+frais+'\u20ac)':''),null);
 
  // Ouvrir composeur email
  EM={to:co.email,subject:'Novalem — Contrat Cadre de Recrutement',body:emailBody,candId:null,coId:coId,tplKey:null};
