@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 
 /* ═══════════════════════════════════════════════════════
@@ -6694,203 +6695,313 @@ function renderRep(){
 
 // ═══════════════════════════════════════════════════════
 
+
 // ═══════════════════════════════════════════════════════════════════
-// CONTRAT — Négociation + envoi vers sign.html
-// Grille : Non-cadre (nc1/nc2/nc3) et Cadre (c1/c2/c3) × exp
-// Options : geste commercial 1er recrutement, paiement 30/70, garantie
-// Frais inscription : 0–200€ optionnel, fondus dans le contrat
+// CONTRAT — Génération PDF (jsPDF) + Aperçu + Envoi email avec PJ
 // ═══════════════════════════════════════════════════════════════════
 
-function openContractModal(coId){
- const co=coById(coId);if(!co)return;
- // Reprendre les valeurs sauvegardées si elles existent
- const ct=co._contract_draft||{};
+let _contractCoId = null;
 
- openMo(`📄 Contrat — ${esc(co.name)}`,`
+function openContractModal(coId) {
+ _contractCoId = coId;
+ const co = coById(coId); if (!co) return;
+ const ct = co._contract_draft || {};
+
+ openMo('📄 Contrat — ' + esc(co.name), `
   <div style="max-height:68vh;overflow-y:auto;padding-right:2px">
-
-  <!-- Info client -->
   <div style="padding:9px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);margin-bottom:14px;font-size:11px;display:flex;align-items:center;gap:8px">
    <div style="flex:1">
     <div style="font-weight:700">${esc(co.name)}</div>
     <div style="color:var(--mu)">${esc(co.contact||'')}${co.city?' · '+esc(co.city):''}</div>
    </div>
-   ${co.email?`<span style="font-size:10px;color:var(--ac5)">${esc(co.email)}</span>`:`<span style="font-size:10px;color:var(--ac3)">⚠ Email manquant</span>`}
+   ${co.email?`<span style="font-size:10px;color:var(--ac5)">${esc(co.email)}</span>`:'<span style="font-size:10px;color:var(--ac3)">⚠ Email manquant</span>'}
   </div>
-
-  <!-- GRILLE TARIFAIRE -->
   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Grille tarifaire</div>
   <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:14px">
-   <!-- En-tête -->
    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;background:var(--s2);padding:7px 12px;gap:4px">
-    <span style="font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em">Profil</span>
-    <span style="font-size:9px;color:var(--mu2);text-align:center;text-transform:uppercase;letter-spacing:.08em">&lt; 5 ans</span>
-    <span style="font-size:9px;color:var(--mu2);text-align:center;text-transform:uppercase;letter-spacing:.08em">5–15 ans</span>
-    <span style="font-size:9px;color:var(--mu2);text-align:center;text-transform:uppercase;letter-spacing:.08em">&gt; 15 ans</span>
+    <span style="font-size:9px;color:var(--mu2)">Profil</span>
+    <span style="font-size:9px;color:var(--mu2);text-align:center">&lt; 5 ans</span>
+    <span style="font-size:9px;color:var(--mu2);text-align:center">5–15 ans</span>
+    <span style="font-size:9px;color:var(--mu2);text-align:center">&gt; 15 ans</span>
    </div>
-   <!-- Non-cadre -->
-   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid var(--bd);align-items:center;gap:4px">
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid var(--bd);align-items:center">
     <span style="font-size:11px;font-weight:600">Non-cadre</span>
     <div style="text-align:center"><input id="ct-nc1" type="number" value="${ct.nc1||12}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
     <div style="text-align:center"><input id="ct-nc2" type="number" value="${ct.nc2||13.5}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
     <div style="text-align:center"><input id="ct-nc3" type="number" value="${ct.nc3||15}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
    </div>
-   <!-- Cadre -->
-   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid var(--bd);align-items:center;gap:4px">
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid var(--bd);align-items:center">
     <span style="font-size:11px;font-weight:600">Cadre</span>
     <div style="text-align:center"><input id="ct-c1" type="number" value="${ct.c1||15}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
     <div style="text-align:center"><input id="ct-c2" type="number" value="${ct.c2||17}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
     <div style="text-align:center"><input id="ct-c3" type="number" value="${ct.c3||20}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
    </div>
   </div>
-
-  <!-- OPTIONS -->
   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Options</div>
   <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
-   <!-- Geste commercial 1er recrutement -->
-   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer">
     <input type="checkbox" id="ct-geste" ${ct.geste?'checked':''} style="width:14px;height:14px;accent-color:var(--ac);flex-shrink:0">
-    <div style="flex:1">
-     <div style="font-size:11px;font-weight:600">Geste commercial — 1er recrutement</div>
-     <div style="font-size:10px;color:var(--mu)">Taux réduit pour le premier placement chez ce client</div>
-    </div>
+    <div style="flex:1"><div style="font-size:11px;font-weight:600">Geste commercial — 1er recrutement</div><div style="font-size:10px;color:var(--mu)">Taux réduit pour le premier placement</div></div>
     <div style="display:flex;align-items:center;gap:5px">
      <input id="ct-geste-val" type="number" value="${ct.geste_val||12}" min="1" max="40" step="0.5" style="width:50px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac4);padding:4px 6px" onclick="event.stopPropagation()">
      <span style="font-size:9px;color:var(--mu)">%</span>
     </div>
    </label>
-   <!-- Paiement 30/70 -->
-   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer">
     <input type="checkbox" id="ct-3070" ${ct.opt3070?'checked':''} style="width:14px;height:14px;accent-color:var(--ac);flex-shrink:0">
-    <div>
-     <div style="font-size:11px;font-weight:600">Règlement 30 / 70 %</div>
-     <div style="font-size:10px;color:var(--mu)">30% à la signature du contrat d'embauche, 70% à l'intégration</div>
-    </div>
+    <div><div style="font-size:11px;font-weight:600">Règlement 30 / 70 %</div><div style="font-size:10px;color:var(--mu)">30% signature contrat, 70% à l'intégration</div></div>
    </label>
-   <!-- Garantie de remplacement -->
-   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer">
     <input type="checkbox" id="ct-garantie" ${ct.garantie?'checked':''} style="width:14px;height:14px;accent-color:var(--ac);flex-shrink:0">
-    <div>
-     <div style="font-size:11px;font-weight:600">Garantie de remplacement — 3 mois</div>
-     <div style="font-size:10px;color:var(--mu)">Remplacement gratuit si départ dans les 3 mois suivant l'intégration</div>
-    </div>
+    <div><div style="font-size:11px;font-weight:600">Garantie de remplacement — 3 mois</div><div style="font-size:10px;color:var(--mu)">Remplacement gratuit si départ dans les 3 mois</div></div>
    </label>
   </div>
-
-  <!-- FRAIS D'INSCRIPTION — optionnel, discret -->
   <div style="border-top:1px solid var(--bd);padding-top:12px;margin-bottom:4px">
    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
     <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2)">Frais d'inscription</span>
     <span style="font-size:9px;color:var(--mu2)">optionnel · max 200€</span>
    </div>
    <div style="display:flex;align-items:center;gap:10px">
-    <input type="range" id="ct-frais-slider" min="0" max="200" step="25" value="${ct.frais||0}"
-     style="flex:1;accent-color:var(--ac)"
-     oninput="document.getElementById('ct-frais').value=this.value;document.getElementById('ct-frais-disp').textContent=this.value>0?this.value+'€ HT':'Aucun'">
-    <span id="ct-frais-disp" style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;color:${(ct.frais||0)>0?'var(--ac)':'var(--mu2)'};min-width:60px;text-align:right">${(ct.frais||0)>0?(ct.frais||0)+'€ HT':'Aucun'}</span>
+    <input type="range" id="ct-frais-slider" min="0" max="200" step="25" value="${ct.frais||0}" style="flex:1;accent-color:var(--ac)" oninput="document.getElementById('ct-frais').value=this.value;document.getElementById('ct-frais-disp').textContent=this.value>0?this.value+'€ HT':'Aucun'">
+    <span id="ct-frais-disp" style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;min-width:60px;text-align:right">${(ct.frais||0)>0?(ct.frais||0)+'€ HT':'Aucun'}</span>
     <input type="hidden" id="ct-frais" value="${ct.frais||0}">
    </div>
-   <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mu2);margin-top:3px;padding:0 2px">
+   <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mu2);margin-top:3px">
     <span>Aucun</span><span>50€</span><span>100€</span><span>150€</span><span>200€</span>
    </div>
   </div>
-
   </div>`,
-  `<button class="btn bg" onclick="closeMo()">Annuler</button>
-   <button class="btn bp" onclick="sendContractEmail('${coId}')">📧 Envoyer au client</button>`
+  '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
+  '<button class="btn bg" onclick="previewContract(\'' + coId + '\')">👁 Aperçu contrat</button>' +
+  '<button class="btn bp" onclick="sendContractEmail(\'' + coId + '\')">📧 Envoyer au client</button>'
  );
- // Sync slider display
- setTimeout(()=>{
-  const sl=document.getElementById('ct-frais-slider');
-  const dp=document.getElementById('ct-frais-disp');
-  if(sl){sl.oninput=function(){
-   document.getElementById('ct-frais').value=this.value;
-   if(dp)dp.textContent=this.value>0?this.value+'€ HT':'Aucun';
-   if(dp)dp.style.color=this.value>0?'var(--ac)':'var(--mu2)';
-  };}
- },80);
+ setTimeout(() => {
+  const sl = document.getElementById('ct-frais-slider');
+  const dp = document.getElementById('ct-frais-disp');
+  const hi = document.getElementById('ct-frais');
+  if (sl && dp && hi) {
+   sl.oninput = function() {
+    hi.value = this.value;
+    dp.textContent = this.value > 0 ? this.value + '€ HT' : 'Aucun';
+   };
+  }
+ }, 80);
 }
 
-function sendContractEmail(coId){
- const co=coById(coId);if(!co)return;
- if(!co.email){
-  toast('Email client manquant — ajoutez-le dans la fiche','e');
-  return;
- }
-
- // Récupérer les valeurs du formulaire
- const nc1=document.getElementById('ct-nc1')?.value||12;
- const nc2=document.getElementById('ct-nc2')?.value||13.5;
- const nc3=document.getElementById('ct-nc3')?.value||15;
- const c1=document.getElementById('ct-c1')?.value||15;
- const c2=document.getElementById('ct-c2')?.value||17;
- const c3=document.getElementById('ct-c3')?.value||20;
- const gesteCheck=document.getElementById('ct-geste')?.checked||false;
- const gesteVal=document.getElementById('ct-geste-val')?.value||12;
- const opt3070=document.getElementById('ct-3070')?.checked||false;
- const garantie=document.getElementById('ct-garantie')?.checked||false;
- const frais=Number(document.getElementById('ct-frais')?.value||0);
-
- // Sauvegarder le brouillon sur la fiche
- co._contract_draft={
-  nc1:Number(nc1),nc2:Number(nc2),nc3:Number(nc3),
-  c1:Number(c1),c2:Number(c2),c3:Number(c3),
-  geste:gesteCheck,geste_val:Number(gesteVal),
-  opt3070,garantie,frais,
-  saved_at:now_()
+function _getContractData(coId) {
+ const co = coById(coId); if (!co) return null;
+ const nom   = localStorage.getItem(uKey('btp_user_name'))  || localStorage.getItem('btp_user_name')  || 'Louis RENAULT';
+ const tel   = localStorage.getItem(uKey('btp_user_tel'))   || localStorage.getItem('btp_user_tel')   || '06 58 21 20 96';
+ const email = localStorage.getItem('btp_user_email') || 'contact@novalem-recrutement.fr';
+ const dateStr = new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
+ return {
+  client_name: co.name, client_siret: co.siret || '',
+  nc1: parseFloat(document.getElementById('ct-nc1')?.value || 12),
+  nc2: parseFloat(document.getElementById('ct-nc2')?.value || 13.5),
+  nc3: parseFloat(document.getElementById('ct-nc3')?.value || 15),
+  c1:  parseFloat(document.getElementById('ct-c1')?.value  || 15),
+  c2:  parseFloat(document.getElementById('ct-c2')?.value  || 17),
+  c3:  parseFloat(document.getElementById('ct-c3')?.value  || 20),
+  geste:     !!(document.getElementById('ct-geste')?.checked),
+  geste_val: parseFloat(document.getElementById('ct-geste-val')?.value || 12),
+  opt3070:   !!(document.getElementById('ct-3070')?.checked),
+  garantie:  !!(document.getElementById('ct-garantie')?.checked),
+  frais:     parseInt(document.getElementById('ct-frais')?.value || 0),
+  date_str:  dateStr,
+  ref:       Math.random().toString(36).slice(2,12).toUpperCase(),
+  user_name: nom, user_email: email, user_phone: tel,
  };
- co.updated=now_();
+}
+
+function generateContractPDF(data) {
+ const jsPDFLib = window.jspdf;
+ if (!jsPDFLib) { toast('jsPDF non chargé, réessayez', 'w'); return null; }
+ const doc = new jsPDFLib.jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+ const W=210, H=297, ML=18, MR=18, MT=14, CW=174, bW=(CW-4)/2;
+ const C = { n:[26,22,20], o:[201,137,26], g:[85,85,85], f:[245,243,239], l:[232,228,220] };
+ const fc=(...rgb)=>doc.setFillColor(...rgb);
+ const tc=(...rgb)=>doc.setTextColor(...rgb);
+ const dc=(...rgb)=>doc.setDrawColor(...rgb);
+ const sf=(s,sz)=>{doc.setFont('helvetica',s);doc.setFontSize(sz);};
+ const wt=(t,x,y,o)=>doc.text(t,x,y,o||{});
+ let y=MT;
+
+ // En-tête
+ sf('bold',22); tc(...C.n); wt('NOVA',ML,y+8);
+ const nw=doc.getTextWidth('NOVA');
+ tc(...C.o); wt('LEM',ML+nw,y+8);
+ sf('normal',7.5); tc(...C.g);
+ wt(data.user_email+'  ·  '+data.user_phone+'  ·  novalem-recrutement.fr',W-MR,y+4,{align:'right'});
+ y+=10; sf('normal',8.5); tc(...C.o); wt('RECRUTEMENT BTP - CDI',ML,y+2);
+ y+=5; dc(...C.o); doc.setLineWidth(0.8); doc.line(ML,y,W-MR,y); y+=7;
+
+ // Titre
+ sf('bold',14); tc(...C.n); wt('CONTRAT CADRE DE RECRUTEMENT',ML,y); y+=5;
+ sf('normal',8.5); tc(...C.g); wt('Prestation de recrutement CDI \u2014 B\u00e2timent & Travaux Publics',ML,y); y+=9;
+
+ // Parties
+ function box(x,titre,nom,l2,l3){
+  const h=l3?34:28;
+  fc(...C.n);doc.rect(x,y,bW,8,'F');
+  sf('bold',7.5);tc(255,255,255);wt(titre,x+4,y+5.2);
+  fc(...C.f);doc.rect(x,y+8,bW,h-8,'F');
+  dc(...C.l);doc.setLineWidth(0.3);doc.rect(x,y,bW,h,'S');
+  sf('bold',10);tc(...C.n);wt(nom,x+4,y+15);
+  sf('normal',8);tc(...C.g);wt(l2,x+4,y+21);
+  if(l3)wt(l3,x+4,y+27);
+  return h;
+ }
+ const bh1=box(ML,'LE CLIENT',data.client_name,'SIRET : '+(data.client_siret||'_______________'));
+ box(ML+bW+4,'LE PRESTATAIRE','NOVALEM \u2014 '+data.user_name,'Cabinet de recrutement BTP \u2014 APE 7810Z',data.user_email+'  \u00b7  '+data.user_phone);
+ y+=bh1+4;
+
+ // Articles
+ function art(num,titre,corps){
+  if(y>H-52){doc.addPage();y=MT;}
+  sf('bold',8.5);tc(...C.o);wt('Art. '+num+' \u2014 '+titre,ML,y);y+=4.5;
+  sf('normal',8.5);tc(...C.n);
+  const lines=doc.splitTextToSize(corps,CW);
+  wt(lines,ML,y);y+=lines.length*4.2+2;
+ }
+ art('1','OBJET',"Le pr\u00e9sent contrat cadre d\u00e9finit les conditions dans lesquelles NOVALEM accompagne le Client dans l'ensemble de ses recrutements CDI relevant du B\u00e2timent et des Travaux Publics, sans limitation du nombre de postes, pour toute la dur\u00e9e de l'accord.");
+ art('2','ENGAGEMENTS DE NOVALEM',"NOVALEM s'engage \u00e0 : sourcer des candidats qualifi\u00e9s ; proc\u00e9der \u00e0 leur pr\u00e9s\u00e9lection ; respecter la confidentialit\u00e9 des informations du Client ; ne pas approcher les salari\u00e9s du Client pendant la dur\u00e9e du contrat et les 12 mois suivants ; ne pas imposer de clause d'exclusivit\u00e9.");
+ art('3','ENGAGEMENTS DU CLIENT',"Le Client s'engage \u00e0 : d\u00e9signer un interlocuteur unique ; communiquer sa d\u00e9cision sur chaque candidature dans les 8 jours calendaires ; recevoir les candidats retenus dans les 15 jours ; informer NOVALEM de tout recrutement d'un candidat pr\u00e9sent\u00e9 ; ex\u00e9cuter le contrat de bonne foi.");
+
+ // Art. 4 Honoraires
+ if(y>H-85){doc.addPage();y=MT;}
+ sf('bold',8.5);tc(...C.o);wt('Art. 4 \u2014 HONORAIRES',ML,y);y+=4.5;
+ sf('normal',8.5);tc(...C.n);
+ wt('Les honoraires sont calcul\u00e9s en pourcentage du salaire brut annuel (SBA) convenu lors de chaque embauche :',ML,y);y+=5;
+ const TR=[['Cat\u00e9gorie','< 5 ans','5 \u00e0 15 ans','> 15 ans'],['Non-cadre',data.nc1+' %',data.nc2+' %',data.nc3+' %'],['Cadre',data.c1+' %',data.c2+' %',data.c3+' %']];
+ const CLS=[42,36,36,36];
+ TR.forEach((row,ri)=>{
+  let cx=ML;
+  row.forEach((cell,ci)=>{
+   if(ri===0)fc(...C.n);else if(ri===1)fc(...C.f);else fc(255,255,255);
+   doc.rect(cx,y,CLS[ci],7,'F');
+   dc(...C.l);doc.setLineWidth(0.3);doc.rect(cx,y,CLS[ci],7,'S');
+   if(ri===0){sf('bold',8);tc(255,255,255);}
+   else if(ci===0){sf('bold',8.5);tc(...C.n);}
+   else{sf('normal',8.5);tc(...C.n);}
+   wt(cell,ci===0?cx+4:cx+CLS[ci]/2,y+4.7,{align:ci===0?'left':'center'});
+   cx+=CLS[ci];
+  });
+  y+=7;
+ });
+ y+=3;
+ const opts=[];
+ if(data.geste)opts.push('\u203a Geste commercial 1er recrutement : taux r\u00e9duit \u00e0 '+data.geste_val+' % pour le premier placement.');
+ if(data.opt3070)opts.push('\u203a Modalit\u00e9 de r\u00e8glement 30/70 : 30 % \u00e0 la signature, 70 % \u00e0 l\'int\u00e9gration effective.');
+ if(data.garantie)opts.push('\u203a Garantie de remplacement : d\u00e9part dans les 3 mois = reprise mission sans suppl\u00e9ment d\'honoraires.');
+ if(data.frais>0)opts.push('\u203a Frais de dossier : '+data.frais+' \u20ac HT, exigibles \u00e0 la signature du pr\u00e9sent contrat.');
+ opts.push('\u203a Les honoraires sont exigibles exclusivement en cas d\'int\u00e9gration effective. Aucun frais en l\'absence d\'embauche.');
+ opts.forEach((line,i)=>{
+  sf('normal',8.5);tc(...(i===opts.length-1?C.g:C.n));
+  const w=doc.splitTextToSize(line,CW-4);
+  wt(w,ML+2,y);y+=w.length*4.2+1.5;
+ });
+ y+=1;
+
+ art('5','MODALIT\u00c9S DE R\u00c8GLEMENT',"Facturation \u00e0 la date d'int\u00e9gration effective. R\u00e8glement par virement bancaire \u00e0 r\u00e9ception de facture, sans escompte. Retards de paiement : p\u00e9nalit\u00e9s de plein droit au taux l\u00e9gal + 5 points + indemnit\u00e9 forfaitaire 40 \u20ac (art. L. 441-6 C. com.).");
+ art('6','DROIT DE SUITE',"Pendant 24 mois suivant la fin du contrat, tout recrutement d'un candidat pr\u00e9sent\u00e9 directement ou indirectement ouvre droit aux honoraires de l'article 4.");
+ art('7','CONFIDENTIALIT\u00c9 & RGPD',"Chaque partie traite avec confidentialit\u00e9 les informations \u00e9chang\u00e9es pendant la dur\u00e9e du contrat et les 5 ans suivants. NOVALEM traite les donn\u00e9es des candidats en qualit\u00e9 de responsable de traitement (R\u00e8gl. UE 2016/679).");
+ art('8','DUR\u00c9E ET R\u00c9SILIATION',"Contrat de 12 mois, renouvelable tacitement par mois. R\u00e9siliation par LRAR sous pr\u00e9avis d'un mois. La clause de droit de suite demeure applicable apr\u00e8s toute extinction.");
+ art('9','DROIT APPLICABLE',"Contrat soumis au droit fran\u00e7ais. Tout litige non r\u00e9solu amiablement sous 30 jours : comp\u00e9tence exclusive des Tribunaux de Nice (Alpes-Maritimes).");
+
+ y+=3;dc(...C.l);doc.setLineWidth(0.4);doc.line(ML,y,W-MR,y);y+=6;
+
+ // Signatures
+ if(y>H-58){doc.addPage();y=MT;}
+ fc(...C.n);doc.rect(ML,y,bW,8,'F');sf('bold',7.5);tc(255,255,255);wt('POUR LE CLIENT',ML+4,y+5.2);
+ fc(...C.f);doc.rect(ML,y+8,bW,42,'F');dc(...C.l);doc.setLineWidth(0.3);doc.rect(ML,y,bW,50,'S');
+ sf('bold',10);tc(...C.n);wt(data.client_name,ML+4,y+15);
+ sf('normal',8);tc(...C.g);wt('SIRET : '+(data.client_siret||'_______________'),ML+4,y+21);
+ sf('bold',8);tc(...C.o);wt('SIGNATURE \u00c9LECTRONIQUE',ML+4,y+33);
+ sf('normal',7.5);tc(...C.g);wt('Un lien de signature vous est envoy\u00e9 par email',ML+4,y+38);
+ sf('bold',8);tc(...C.n);wt('R\u00e9f. : '+data.ref,ML+4,y+44);
+
+ const bx2=ML+bW+4;
+ fc(...C.n);doc.rect(bx2,y,bW,8,'F');sf('bold',7.5);tc(255,255,255);wt('POUR NOVALEM',bx2+4,y+5.2);
+ fc(...C.f);doc.rect(bx2,y+8,bW,42,'F');dc(...C.l);doc.setLineWidth(0.3);doc.rect(bx2,y,bW,50,'S');
+ sf('bold',10);tc(...C.n);wt(data.user_name,bx2+4,y+15);
+ sf('normal',8);tc(...C.g);wt('Directeur \u2014 NOVALEM',bx2+4,y+21);
+ sf('italic',12);tc(...C.o);wt('L. Renault',bx2+4,y+34);
+ sf('normal',7.5);tc(...C.g);wt('Signature',bx2+4,y+39);
+ sf('normal',8);tc(...C.n);wt('Fait \u00e0 Nice, le '+data.date_str,bx2+4,y+45);
+
+ const np=doc.getNumberOfPages();
+ const ft='NOVALEM \u00b7 Cabinet de recrutement BTP \u00b7 APE 7810Z \u00b7 '+data.user_email+' \u00b7 '+data.user_phone+' \u00b7 Document confidentiel \u2014 g\u00e9n\u00e9r\u00e9 le '+data.date_str;
+ for(let p=1;p<=np;p++){
+  doc.setPage(p);
+  dc(...C.l);doc.setLineWidth(0.3);doc.line(ML,H-12,W-MR,H-12);
+  sf('normal',6.5);tc(...C.g);
+  wt(ft,ML,H-8);wt(p+' / '+np,W-MR,H-8,{align:'right'});
+ }
+ return doc.output('datauristring');
+}
+
+function previewContract(coId) {
+ const data = _getContractData(coId); if(!data) return;
+ const co = coById(coId);
+ if(co){
+  co._contract_draft={nc1:data.nc1,nc2:data.nc2,nc3:data.nc3,c1:data.c1,c2:data.c2,c3:data.c3,geste:data.geste,geste_val:data.geste_val,opt3070:data.opt3070,garantie:data.garantie,frais:data.frais};
+  save();
+ }
+ toast('Génération du contrat…','i');
+ setTimeout(()=>{
+  const uri=generateContractPDF(data); if(!uri) return;
+  closeMo();
+  const de=encodeURIComponent(JSON.stringify(data));
+  openMo('👁 Aperçu — Contrat '+esc(data.client_name),
+   '<div style="text-align:center;margin-bottom:8px;font-size:11px;color:var(--mu)">Vérifiez le contrat avant envoi</div>'+
+   '<iframe src="'+uri+'" style="width:100%;height:520px;border:none;border-radius:6px;background:#fff"></iframe>',
+   '<button class="btn bg" onclick="closeMo();openContractModal(\''+coId+'\')">← Modifier</button>'+
+   '<button class="btn bp" onclick="sendContractEmail(\''+coId+'\',\''+de+'\')">📧 Envoyer au client</button>'
+  );
+ },150);
+}
+
+function sendContractEmail(coId, encodedData) {
+ let data;
+ if(encodedData){try{data=JSON.parse(decodeURIComponent(encodedData));}catch(e){data=null;}}
+ if(!data) data=_getContractData(coId);
+ if(!data) return;
+ const co=coById(coId);if(!co)return;
+ if(!co.email){toast('Email client manquant — ajoutez-le dans la fiche','e');return;}
+
+ co._contract_draft={nc1:data.nc1,nc2:data.nc2,nc3:data.nc3,c1:data.c1,c2:data.c2,c3:data.c3,geste:data.geste,geste_val:data.geste_val,opt3070:data.opt3070,garantie:data.garantie,frais:data.frais,sent_at:now_()};
  save();
 
- // Générer le lien sign.html
- const ctId=uid();
- const token=uid()+uid();
- const siret=co.siret||'';
- const gesteStr=gesteCheck?String(gesteVal):'';
- const dateStr=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
- // Format: nom|siret|nc1|nc2|nc3|c1|c2|c3|taux_geste|opt3070|garantie|date|frais
- const dataParam=[
-  encodeURIComponent(co.name),
-  encodeURIComponent(siret),
-  nc1,nc2,nc3,c1,c2,c3,
-  gesteStr,
-  opt3070?'1':'0',
-  garantie?'1':'0',
-  encodeURIComponent(dateStr),
-  frais||''
- ].join('|');
+ const uri=generateContractPDF(data);
+ if(uri){
+  sessionStorage.setItem('_contract_pdf_b64',uri.split(',')[1]||'');
+  sessionStorage.setItem('_contract_pdf_name','Contrat_Novalem_'+co.name.replace(/\W+/g,'_')+'.pdf');
+ }
 
- const base='https://novalem-crm.vercel.app';
- const signUrl=`${base}/sign.html?co=${encodeURIComponent(coId)}&ct=${ctId}&t=${token}&n=${encodeURIComponent(co.name)}&d=${encodeURIComponent(dataParam)}`;
+ const ctId=uid(),token=uid()+uid();
+ const dp=[encodeURIComponent(co.name),encodeURIComponent(co.siret||''),
+  data.nc1,data.nc2,data.nc3,data.c1,data.c2,data.c3,
+  data.geste?String(data.geste_val):'',data.opt3070?'1':'0',data.garantie?'1':'0',
+  encodeURIComponent(data.date_str),data.frais||''].join('|');
+ const signUrl='https://novalem-crm.vercel.app/sign.html?co='+encodeURIComponent(coId)+'&ct='+ctId+'&t='+token+'&n='+encodeURIComponent(co.name)+'&d='+encodeURIComponent(dp);
 
- const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
- const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
- const prenom=co.contact?.split(' ')[0]||'';
+ const prenom=co.contact?co.contact.split(' ')[0]:'';
+ let recap='  › Honoraires Non-cadre : '+data.nc1+'% / '+data.nc2+'% / '+data.nc3+'%\n'+'  › Honoraires Cadre : '+data.c1+'% / '+data.c2+'% / '+data.c3+'%\n';
+ if(data.geste)recap+='  › Geste 1er recrutement : '+data.geste_val+'%\n';
+ if(data.opt3070)recap+='  › Règlement 30/70%\n';
+ if(data.garantie)recap+='  › Garantie de remplacement 3 mois\n';
+ if(data.frais>0)recap+='  › Frais de dossier : '+data.frais+' € HT\n';
 
- const emailBody=(prenom?'Bonjour '+prenom+',':'Bonjour,')+`
+ const emailBody='Bonjour'+(prenom?' '+prenom:'')+',\n\nVous trouverez en pièce jointe notre Contrat Cadre de Recrutement Novalem.\n\nConditions négociées :\n'+recap+'\nPour signer électroniquement :\n'+signUrl+'\n\nBien cordialement,\n'+(data.user_name||'Novalem')+'\n'+(data.user_phone||'')+'\nNovalem — Cabinet de recrutement BTP';
 
-Comme convenu, veuillez trouver ci-dessous le lien pour signer notre Contrat Cadre de Recrutement Novalem.
-
-→ Signer le contrat : ${signUrl}
-
-Ce lien vous donnera accès à la grille tarifaire négociée et aux conditions applicables à nos futures collaborations. La signature est 100% électronique et juridiquement valide.
-
-Pour toute question, n'hésitez pas à me contacter directement.
-
-Bien cordialement,
-`+(nom||'Novalem')+(tel?'\n'+tel:'')+`
-Novalem — Cabinet de recrutement`;
-
- // Timeline
- addTimeline(coId,'status','Contrat envoyé'+(frais?' (frais inscription inclus : '+frais+'\u20ac)':''),null);
-
- // Ouvrir composeur email
- EM={to:co.email,subject:'Novalem — Contrat Cadre de Recrutement',body:emailBody,candId:null,coId:coId,tplKey:null};
+ addTimeline(coId,'status','Contrat envoyé'+(data.frais>0?' (frais : '+data.frais+'€)':''),null);
+ EM={to:co.email,subject:'Novalem — Contrat Cadre de Recrutement BTP',body:emailBody,candId:null,coId:coId,tplKey:null};
  EM_VIEW='compose';
  closeMo();
  setTimeout(()=>go('emails'),100);
- toast('Contrat prêt à envoyer à '+co.email,'s');
+ toast('Contrat généré — PDF joint à l\'envoi','s');
 }
+
 
 // ═══════════════════════════════════════════════════════
 // FACTURATION — Suivi des honoraires et paiements
