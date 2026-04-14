@@ -37,6 +37,7 @@
  /* Legacy compat */
  --ac2:var(--green);--ac3:var(--red);--ac4:var(--orange);--ac5:var(--blue);--ac6:var(--purple);
  --ac2:var(--green);--green:var(--green);
+  --gold:#c8e040;--gold-bd:rgba(200,224,64,.3);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px;-webkit-font-smoothing:antialiased}
@@ -761,6 +762,25 @@ select option{background:var(--s2)}
  <span id="tz-diff" style="font-size:9px;color:var(--mu)"></span>
 </div>
 <div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">· Local</div>
+ <!-- User badge -->
+ <div id="user-badge" onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:7px;margin-left:10px;padding:4px 10px 4px 6px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;cursor:pointer;transition:all .15s;flex-shrink:0;user-select:none" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd2)'">
+  <div id="user-avatar" style="width:22px;height:22px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0a0a08;flex-shrink:0;font-family:'Syne',sans-serif">?</div>
+  <span id="user-badge-name" style="font-size:11px;color:var(--tx);font-weight:600">—</span>
+  <span style="font-size:9px;color:var(--mu)">▾</span>
+ </div>
+ <!-- User menu dropdown -->
+ <div id="user-menu" style="display:none;position:fixed;top:52px;right:16px;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r2);min-width:180px;box-shadow:var(--sh3);z-index:100;overflow:hidden">
+  <div style="padding:12px 14px;border-bottom:1px solid var(--bd)">
+   <div id="um-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:2px">—</div>
+   <div id="um-role" style="font-size:10px;color:var(--mu)"></div>
+  </div>
+  <div style="padding:6px">
+   <div onclick="closeUserMenu();go('reporting')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'"> Reporting</div>
+   <div onclick="closeUserMenu();openSettings()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'"> Paramètres</div>
+   <div style="height:1px;background:var(--bd);margin:4px 0"></div>
+   <div onclick="logout()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--red)" onmouseover="this.style.background='var(--red-dim)'" onmouseout="this.style.background=''"> Déconnexion</div>
+  </div>
+ </div>
  </div>
  <div id="content">
  <div class="view active" id="view-dash"></div>
@@ -932,7 +952,24 @@ let _syncTimer=null;
 function syncToSupabase(){
  // Debounce: wait 800ms of inactivity before syncing
  clearTimeout(_syncTimer);
- _syncTimer=setTimeout
+ _syncTimer=setTimeout(async()=>{
+  const sb=getSB();
+  if(!sb)return;
+  try{
+    const payload=JSON.stringify(DB);
+    const userId=(currentUserId()==='corentin'?2:1);
+    const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
+    if(error)throw error;
+    const ind=document.getElementById('sync-ind');
+    if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='· Cloud ✓';ind.style.color='var(--green)';}
+  }catch(e){
+    const ind=document.getElementById('sync-ind');
+    if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+e.message;}
+    console.warn('Supabase sync error:',e);
+  }
+ },800);
+}
+
 // ══════════════════════════════════════════════════════════════════
 // NOVALEM THEME ENGINE
 // ══════════════════════════════════════════════════════════════════
@@ -1255,26 +1292,9 @@ function openDocPreview(candId,docId){
   document.head.appendChild(st);
 })();
 
-(async()=>{
-  loadTheme();
-  setInterval(_tickClocks,1000);_tickClocks(); // Appliquer le thème avant tout rendu
- const sb=getSB();
- if(!sb)return;
- try{
- const payload=JSON.stringify(DB);
- const userId=(currentUserId()==='corentin'?2:1);
-      const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
- if(error)throw error;
- // Update sync indicator
- const ind=document.getElementById('sync-ind');
- if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='· Cloud ✓';ind.style.color='var(--green)';}
- }catch(e){
- const ind=document.getElementById('sync-ind');
- if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+e.message;}
- console.warn('Supabase sync error:',e);
- }
- },800);
-}
+// Theme + clocks init (runs immediately on script parse)
+loadTheme();
+setInterval(_tickClocks,1000);_tickClocks();
 
 // ── save() = localStorage immédiat + Supabase en arrière-plan
 function save(){
@@ -3988,7 +4008,8 @@ function openCoPanel(id){
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
  ];
- const acts=`<button class="btn bp bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')"> Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')"></button>`;
+ const contractBtn=c.type==='client'?`<button class="btn bp bsm" onclick="openContractModal('${id}')">📄 Contrat</button>`:'';
+ const acts=`${contractBtn}<button class="btn bg bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')">🔔 Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')">🗑</button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span> <span class="pill ${c.type==='client'?'pwin':'ptoc'}">${c.type==='client'?'Client':'Prospect'}</span>`,tabs,B[Math.min(UI.ptab,B.length-1)],acts);
 }
 
@@ -6399,6 +6420,7 @@ function rReporting(){
  renderRep();
 }
 
+let repPeriod='month';
 function setRepPeriod(p){repPeriod=p;renderRep();}
 
 function getRepRange(){
@@ -6660,6 +6682,7 @@ function renderRep(){
  await load(); // localStorage immédiat + Supabase en arrière-plan
  rDash();
  badges();
+ initUserBadge();
  // Show cloud status in indicator
  const sb=getSB();
  const ind=document.getElementById('sync-ind');
@@ -6670,6 +6693,204 @@ function renderRep(){
 })();
 
 // ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTRAT — Négociation + envoi vers sign.html
+// Grille : Non-cadre (nc1/nc2/nc3) et Cadre (c1/c2/c3) × exp
+// Options : geste commercial 1er recrutement, paiement 30/70, garantie
+// Frais inscription : 0–200€ optionnel, fondus dans le contrat
+// ═══════════════════════════════════════════════════════════════════
+
+function openContractModal(coId){
+ const co=coById(coId);if(!co)return;
+ // Reprendre les valeurs sauvegardées si elles existent
+ const ct=co._contract_draft||{};
+
+ openMo(`📄 Contrat — ${esc(co.name)}`,`
+  <div style="max-height:68vh;overflow-y:auto;padding-right:2px">
+
+  <!-- Info client -->
+  <div style="padding:9px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);margin-bottom:14px;font-size:11px;display:flex;align-items:center;gap:8px">
+   <div style="flex:1">
+    <div style="font-weight:700">${esc(co.name)}</div>
+    <div style="color:var(--mu)">${esc(co.contact||'')}${co.city?' · '+esc(co.city):''}</div>
+   </div>
+   ${co.email?`<span style="font-size:10px;color:var(--ac5)">${esc(co.email)}</span>`:`<span style="font-size:10px;color:var(--ac3)">⚠ Email manquant</span>`}
+  </div>
+
+  <!-- GRILLE TARIFAIRE -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Grille tarifaire</div>
+  <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:14px">
+   <!-- En-tête -->
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;background:var(--s2);padding:7px 12px;gap:4px">
+    <span style="font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em">Profil</span>
+    <span style="font-size:9px;color:var(--mu2);text-align:center;text-transform:uppercase;letter-spacing:.08em">&lt; 5 ans</span>
+    <span style="font-size:9px;color:var(--mu2);text-align:center;text-transform:uppercase;letter-spacing:.08em">5–15 ans</span>
+    <span style="font-size:9px;color:var(--mu2);text-align:center;text-transform:uppercase;letter-spacing:.08em">&gt; 15 ans</span>
+   </div>
+   <!-- Non-cadre -->
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid var(--bd);align-items:center;gap:4px">
+    <span style="font-size:11px;font-weight:600">Non-cadre</span>
+    <div style="text-align:center"><input id="ct-nc1" type="number" value="${ct.nc1||12}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
+    <div style="text-align:center"><input id="ct-nc2" type="number" value="${ct.nc2||13.5}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
+    <div style="text-align:center"><input id="ct-nc3" type="number" value="${ct.nc3||15}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
+   </div>
+   <!-- Cadre -->
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid var(--bd);align-items:center;gap:4px">
+    <span style="font-size:11px;font-weight:600">Cadre</span>
+    <div style="text-align:center"><input id="ct-c1" type="number" value="${ct.c1||15}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
+    <div style="text-align:center"><input id="ct-c2" type="number" value="${ct.c2||17}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
+    <div style="text-align:center"><input id="ct-c3" type="number" value="${ct.c3||20}" min="1" max="40" step="0.5" style="width:60px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);padding:4px 6px"> <span style="font-size:9px;color:var(--mu)">%</span></div>
+   </div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Options</div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+   <!-- Geste commercial 1er recrutement -->
+   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+    <input type="checkbox" id="ct-geste" ${ct.geste?'checked':''} style="width:14px;height:14px;accent-color:var(--ac);flex-shrink:0">
+    <div style="flex:1">
+     <div style="font-size:11px;font-weight:600">Geste commercial — 1er recrutement</div>
+     <div style="font-size:10px;color:var(--mu)">Taux réduit pour le premier placement chez ce client</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:5px">
+     <input id="ct-geste-val" type="number" value="${ct.geste_val||12}" min="1" max="40" step="0.5" style="width:50px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ac4);padding:4px 6px" onclick="event.stopPropagation()">
+     <span style="font-size:9px;color:var(--mu)">%</span>
+    </div>
+   </label>
+   <!-- Paiement 30/70 -->
+   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+    <input type="checkbox" id="ct-3070" ${ct.opt3070?'checked':''} style="width:14px;height:14px;accent-color:var(--ac);flex-shrink:0">
+    <div>
+     <div style="font-size:11px;font-weight:600">Règlement 30 / 70 %</div>
+     <div style="font-size:10px;color:var(--mu)">30% à la signature du contrat d'embauche, 70% à l'intégration</div>
+    </div>
+   </label>
+   <!-- Garantie de remplacement -->
+   <label style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);cursor:pointer;transition:.12s" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd)'">
+    <input type="checkbox" id="ct-garantie" ${ct.garantie?'checked':''} style="width:14px;height:14px;accent-color:var(--ac);flex-shrink:0">
+    <div>
+     <div style="font-size:11px;font-weight:600">Garantie de remplacement — 3 mois</div>
+     <div style="font-size:10px;color:var(--mu)">Remplacement gratuit si départ dans les 3 mois suivant l'intégration</div>
+    </div>
+   </label>
+  </div>
+
+  <!-- FRAIS D'INSCRIPTION — optionnel, discret -->
+  <div style="border-top:1px solid var(--bd);padding-top:12px;margin-bottom:4px">
+   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2)">Frais d'inscription</span>
+    <span style="font-size:9px;color:var(--mu2)">optionnel · max 200€</span>
+   </div>
+   <div style="display:flex;align-items:center;gap:10px">
+    <input type="range" id="ct-frais-slider" min="0" max="200" step="25" value="${ct.frais||0}"
+     style="flex:1;accent-color:var(--ac)"
+     oninput="document.getElementById('ct-frais').value=this.value;document.getElementById('ct-frais-disp').textContent=this.value>0?this.value+'€ HT':'Aucun'">
+    <span id="ct-frais-disp" style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;color:${(ct.frais||0)>0?'var(--ac)':'var(--mu2)'};min-width:60px;text-align:right">${(ct.frais||0)>0?(ct.frais||0)+'€ HT':'Aucun'}</span>
+    <input type="hidden" id="ct-frais" value="${ct.frais||0}">
+   </div>
+   <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mu2);margin-top:3px;padding:0 2px">
+    <span>Aucun</span><span>50€</span><span>100€</span><span>150€</span><span>200€</span>
+   </div>
+  </div>
+
+  </div>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button>
+   <button class="btn bp" onclick="sendContractEmail('${coId}')">📧 Envoyer au client</button>`
+ );
+ // Sync slider display
+ setTimeout(()=>{
+  const sl=document.getElementById('ct-frais-slider');
+  const dp=document.getElementById('ct-frais-disp');
+  if(sl){sl.oninput=function(){
+   document.getElementById('ct-frais').value=this.value;
+   if(dp)dp.textContent=this.value>0?this.value+'€ HT':'Aucun';
+   if(dp)dp.style.color=this.value>0?'var(--ac)':'var(--mu2)';
+  };}
+ },80);
+}
+
+function sendContractEmail(coId){
+ const co=coById(coId);if(!co)return;
+ if(!co.email){
+  toast('Email client manquant — ajoutez-le dans la fiche','e');
+  return;
+ }
+
+ // Récupérer les valeurs du formulaire
+ const nc1=document.getElementById('ct-nc1')?.value||12;
+ const nc2=document.getElementById('ct-nc2')?.value||13.5;
+ const nc3=document.getElementById('ct-nc3')?.value||15;
+ const c1=document.getElementById('ct-c1')?.value||15;
+ const c2=document.getElementById('ct-c2')?.value||17;
+ const c3=document.getElementById('ct-c3')?.value||20;
+ const gesteCheck=document.getElementById('ct-geste')?.checked||false;
+ const gesteVal=document.getElementById('ct-geste-val')?.value||12;
+ const opt3070=document.getElementById('ct-3070')?.checked||false;
+ const garantie=document.getElementById('ct-garantie')?.checked||false;
+ const frais=Number(document.getElementById('ct-frais')?.value||0);
+
+ // Sauvegarder le brouillon sur la fiche
+ co._contract_draft={
+  nc1:Number(nc1),nc2:Number(nc2),nc3:Number(nc3),
+  c1:Number(c1),c2:Number(c2),c3:Number(c3),
+  geste:gesteCheck,geste_val:Number(gesteVal),
+  opt3070,garantie,frais,
+  saved_at:now_()
+ };
+ co.updated=now_();
+ save();
+
+ // Générer le lien sign.html
+ const ctId=uid();
+ const token=uid()+uid();
+ const siret=co.siret||'';
+ const gesteStr=gesteCheck?String(gesteVal):'';
+ const dateStr=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+ // Format: nom|siret|nc1|nc2|nc3|c1|c2|c3|taux_geste|opt3070|garantie|date|frais
+ const dataParam=[
+  encodeURIComponent(co.name),
+  encodeURIComponent(siret),
+  nc1,nc2,nc3,c1,c2,c3,
+  gesteStr,
+  opt3070?'1':'0',
+  garantie?'1':'0',
+  encodeURIComponent(dateStr),
+  frais||''
+ ].join('|');
+
+ const base='https://novalem-crm.vercel.app';
+ const signUrl=`${base}/sign.html?co=${encodeURIComponent(coId)}&ct=${ctId}&t=${token}&n=${encodeURIComponent(co.name)}&d=${encodeURIComponent(dataParam)}`;
+
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+ const prenom=co.contact?.split(' ')[0]||'';
+
+ const emailBody=(prenom?'Bonjour '+prenom+',':'Bonjour,')+`
+
+Comme convenu, veuillez trouver ci-dessous le lien pour signer notre Contrat Cadre de Recrutement Novalem.
+
+→ Signer le contrat : ${signUrl}
+
+Ce lien vous donnera accès à la grille tarifaire négociée et aux conditions applicables à nos futures collaborations. La signature est 100% électronique et juridiquement valide.
+
+Pour toute question, n'hésitez pas à me contacter directement.
+
+Bien cordialement,
+`+(nom||'Novalem')+(tel?'\n'+tel:'')+`
+Novalem — Cabinet de recrutement`;
+
+ // Timeline
+ addTimeline(coId,'status','Contrat envoyé'+(frais?' (frais inscription inclus : '+frais+'\u20ac)':''),null);
+
+ // Ouvrir composeur email
+ EM={to:co.email,subject:'Novalem — Contrat Cadre de Recrutement',body:emailBody,candId:null,coId:coId,tplKey:null};
+ EM_VIEW='compose';
+ closeMo();
+ setTimeout(()=>go('emails'),100);
+ toast('Contrat prêt à envoyer à '+co.email,'s');
+}
 
 // ═══════════════════════════════════════════════════════
 // FACTURATION — Suivi des honoraires et paiements
