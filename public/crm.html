@@ -6986,20 +6986,65 @@ function sendContractEmail(coId, encodedData) {
  const signUrl='https://novalem-crm.vercel.app/sign.html?co='+encodeURIComponent(coId)+'&ct='+ctId+'&t='+token+'&n='+encodeURIComponent(co.name)+'&d='+encodeURIComponent(dp);
 
  const prenom=co.contact?co.contact.split(' ')[0]:'';
- let recap='  › Honoraires Non-cadre : '+data.nc1+'% / '+data.nc2+'% / '+data.nc3+'%\n'+'  › Honoraires Cadre : '+data.c1+'% / '+data.c2+'% / '+data.c3+'%\n';
- if(data.geste)recap+='  › Geste 1er recrutement : '+data.geste_val+'%\n';
- if(data.opt3070)recap+='  › Règlement 30/70%\n';
- if(data.garantie)recap+='  › Garantie de remplacement 3 mois\n';
- if(data.frais>0)recap+='  › Frais de dossier : '+data.frais+' € HT\n';
+ const contactName=prenom?'M. '+prenom.toUpperCase():co.contact||'';
 
- const emailBody='Bonjour'+(prenom?' '+prenom:'')+',\n\nVous trouverez en pièce jointe notre Contrat Cadre de Recrutement Novalem.\n\nConditions négociées :\n'+recap+'\nPour signer électroniquement :\n'+signUrl+'\n\nBien cordialement,\n'+(data.user_name||'Novalem')+'\n'+(data.user_phone||'')+'\nNovalem — Cabinet de recrutement BTP';
+ // Lignes conditions
+ let condLines='';
+ condLines+='<tr><td style="padding:8px 0;border-left:3px solid #C9891A;padding-left:14px;font-size:14px;color:#333">Non-cadre : <strong>'+data.nc1+' %</strong> / <strong>'+data.nc2+' %</strong> / <strong>'+data.nc3+' %</strong> du SBA (selon expérience)</td></tr>';
+ condLines+='<tr><td style="padding:8px 0;border-left:3px solid #C9891A;padding-left:14px;font-size:14px;color:#333">Cadre : <strong>'+data.c1+' %</strong> / <strong>'+data.c2+' %</strong> / <strong>'+data.c3+' %</strong> du SBA (selon expérience)</td></tr>';
+ if(data.geste) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #e0a030;padding-left:14px;font-size:14px;color:#333">Geste commercial 1<sup>er</sup> recrutement : <strong>'+data.geste_val+' %</strong></td></tr>';
+ if(data.opt3070) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #e0a030;padding-left:14px;font-size:14px;color:#333">Règlement <strong>30 / 70 %</strong></td></tr>';
+ if(data.garantie) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #e0a030;padding-left:14px;font-size:14px;color:#333">Garantie de remplacement <strong>3 mois</strong></td></tr>';
+ if(data.frais>0) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #aaa;padding-left:14px;font-size:13px;color:#888">Frais de dossier : '+data.frais+' € HT</td></tr>';
+
+ const emailHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#F5F3EF;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">'+
+ '<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;padding:32px 0">'+
+ '<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">'+
+ // Header noir
+ '<tr><td style="background:#1A1614;border-radius:10px 10px 0 0;padding:22px 32px">'+
+ '<table width="100%" cellpadding="0" cellspacing="0">'+
+ '<tr><td><span style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px">NOVA<span style="color:#C9891A">LEM</span></span><br>'+
+ '<span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4)">Recrutement BTP · CDI</span></td></tr>'+
+ '</table></td></tr>'+
+ // Corps blanc
+ '<tr><td style="background:#fff;padding:36px 40px;border-radius:0 0 10px 10px;box-shadow:0 4px 24px rgba(0,0,0,.08)">'+
+ '<p style="font-size:16px;color:#1A1614;margin:0 0 8px 0">Bonjour'+( contactName?' '+contactName:'')+',</p>'+
+ '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 24px 0">Suite à notre échange, je vous transmets notre proposition professionnelle de recrutement.</p>'+
+ '<p style="font-size:13px;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px 0">Conditions convenues :</p>'+
+ '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px"><tbody style="display:flex;flex-direction:column;gap:10px">'+condLines+'</tbody></table>'+
+ '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 28px 0">Nos honoraires sont dus exclusivement en cas d\'intégration effective du candidat. Aucun frais si le recrutement n\'aboutit pas.</p>'+
+ '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 28px 0">Pour signer le contrat, il vous suffit de cliquer sur le bouton ci-dessous. La signature prend moins de 30 secondes, sans impression ni scan.</p>'+
+ // Bouton orange
+ '<table cellpadding="0" cellspacing="0" style="margin:0 auto 32px auto">'+
+ '<tr><td align="center" style="border-radius:8px;background:#C9891A">'+
+ '<a href="'+signUrl+'" target="_blank" style="display:inline-block;padding:16px 36px;font-size:16px;font-weight:700;color:#fff;text-decoration:none;letter-spacing:.02em">Signer le contrat NOVALEM →</a>'+
+ '</td></tr></table>'+
+ '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 32px 0">Dès réception de votre signature, je vous transmets immédiatement les coordonnées du candidat afin que vous puissiez organiser l\'entretien.</p>'+
+ '<p style="font-size:14px;color:#555;margin:0 0 4px 0">Bien cordialement,</p>'+
+ '<p style="font-size:14px;font-weight:700;color:#1A1614;margin:0 0 2px 0">'+( data.user_name||'Louis Renault')+'</p>'+
+ (data.user_phone?'<p style="font-size:13px;color:#888;margin:0 0 2px 0">'+data.user_phone+'</p>':'')+
+ '<p style="font-size:13px;color:#888;margin:0 0 2px 0">NOVALEM — Recrutement BTP</p>'+
+ '<p style="font-size:13px;margin:0"><a href="mailto:contact@novalem-recrutement.fr" style="color:#C9891A;text-decoration:none">contact@novalem-recrutement.fr</a></p>'+
+ // Footer
+ '<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:32px;border-top:1px solid #eee;padding-top:16px">'+
+ '<tr><td style="font-size:11px;color:#aaa;text-align:center">Le contrat complet est joint en pièce jointe à cet email. · Signature électronique simple conforme eIDAS</td></tr>'+
+ '</table>'+
+ '</td></tr>'+
+ '</table></td></tr></table></body></html>';
+
+ // Stocker le HTML pour l'envoi
+ sessionStorage.setItem('_contract_email_html', emailHtml);
 
  addTimeline(coId,'status','Contrat envoyé'+(data.frais>0?' (frais : '+data.frais+'€)':''),null);
- EM={to:co.email,subject:'Novalem — Contrat Cadre de Recrutement BTP',body:emailBody,candId:null,coId:coId,tplKey:null};
+
+ // Corps texte fallback pour le composeur
+ const emailBody='Bonjour'+(prenom?' '+prenom:'')+',\n\nVeuillez trouver en pièce jointe notre Contrat Cadre de Recrutement Novalem.\n\nConditions convenues :\n  › Non-cadre : '+data.nc1+'% / '+data.nc2+'% / '+data.nc3+'%\n  › Cadre : '+data.c1+'% / '+data.c2+'% / '+data.c3+'%\n'+(data.geste?'  › Geste 1er recrutement : '+data.geste_val+'%\n':'')+(data.opt3070?'  › Règlement 30/70%\n':'')+(data.garantie?'  › Garantie remplacement 3 mois\n':'')+(data.frais>0?'  › Frais de dossier : '+data.frais+' € HT\n':'')+'\nSigner le contrat : '+signUrl+'\n\nBien cordialement,\n'+(data.user_name||'Novalem')+'\n'+(data.user_phone||'')+'\nNovalem — Cabinet de recrutement BTP';
+
+ EM={to:co.email,subject:'Proposition professionnelle NOVALEM — '+co.name,body:emailBody,candId:null,coId:coId,tplKey:null};
  EM_VIEW='compose';
  closeMo();
  setTimeout(()=>go('emails'),100);
- toast('Contrat généré — PDF joint à l\'envoi','s');
+ toast('Email prêt — bouton orange + PDF joint','s');
 }
 
 
