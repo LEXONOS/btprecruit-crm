@@ -154,7 +154,7 @@ body{background:#F5F3EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
    </label>
 
    <button class="btn-sign" id="btn" onclick="dosign()" disabled>
-    Signer le contrat
+    ✍ Signer le contrat
    </button>
 
    <div class="err" id="er"></div>
@@ -341,7 +341,7 @@ async function dosign() {
    er.textContent = d.error || 'Erreur. Réessayez.';
    er.style.display = 'block';
    btn.disabled = false;
-   btn.innerHTML = 'Signer le contrat';
+   btn.innerHTML = '✍ Signer le contrat';
    return;
   }
 
@@ -353,7 +353,7 @@ async function dosign() {
   er.textContent = 'Erreur réseau. Vérifiez votre connexion.';
   er.style.display = 'block';
   btn.disabled = false;
-  btn.innerHTML = ' Signer le contrat';
+  btn.innerHTML = '✍ Signer le contrat';
  }
 }
 
