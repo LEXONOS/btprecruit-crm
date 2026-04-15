@@ -1486,6 +1486,10 @@ function rDash(){
  ${imminentInt.cand_id&&cById(imminentInt.cand_id)?.visio_link?`<a href="${esc(cById(imminentInt.cand_id).visio_link)}" target="_blank" class="btn bi">Rejoindre</a>`:''}
  </div>`:'';
 
+ // Notif contrat signé non acquittée
+ const cn=DB._contract_notif;
+ const contractBanner=cn?'<div style="background:rgba(45,212,160,.1);border:1px solid rgba(45,212,160,.3);border-left:3px solid var(--green);border-radius:var(--r2);padding:13px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px"><span style="font-size:20px">&#x2705;</span><div style="flex:1"><div style="font-family:Syne,sans-serif;font-weight:700;font-size:13px;color:var(--green)">Contrat sign&eacute; !</div><div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(cn.coName||'Client')+' &mdash; sign&eacute; par '+esc(cn.signer||'&mdash;')+'</div></div><button class="btn bg bxs" onclick="dismissContractNotif()" style="font-size:10px">&#x2715;</button>&nbsp;<button class="btn bp bxs" onclick="goToSignedContract()">Voir &rarr;</button></div>':'';
+
  const priorityBanner=topAlert?`
  <div class="priority-action ${topAlert.color==='var(--ac3)'?'':' warn'}" onclick="${topAlert.act}" style="cursor:pointer;margin-bottom:12px">
  <div class="priority-dot ${topAlert.color==='var(--ac3)'?'red':'orange'}"></div>
@@ -1496,7 +1500,7 @@ function rDash(){
  <button class="btn bp bsm" onclick="${topAlert.act}">→ Traiter</button>
  </div>`:'';
 
- document.getElementById('view-dash').innerHTML=imminentBanner+priorityBanner+`
+ document.getElementById('view-dash').innerHTML=contractBanner+imminentBanner+priorityBanner+`
  <div class="dkpi">
  <div class="kpi" style="cursor:pointer" onclick="switchCandTab('encours');go('cands')"><div class="kpi-v ac2">${active.length}</div><div class="kpi-l">Pipeline actif</div><div class="kpi-s">${ents.length} entrant(s) à trier</div></div>
  <div class="kpi"><div class="kpi-v ac">${placed.length}</div><div class="kpi-l">Placements</div><div class="kpi-s">${fM(Math.round(revEnc))} encaissé</div></div>
@@ -3973,7 +3977,11 @@ function openCoPanel(id){
  const contacts=c.contacts||[];
  const tl=c.timeline||[];
 
- const tabs=['Fiche','Besoins',`Timeline (${tl.length})`,'Notes'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setCoTab(${i},'${id}')">${t}</div>`).join('');
+ const hasContract = !!(c._contract_draft);
+ const ctTabLabel = hasContract
+  ? (c._contract_signed ? '✅ Contrat' : '📄 Contrat')
+  : '📄 Contrat';
+ const tabs=['Fiche','Besoins',`Timeline (${tl.length})`,'Notes',ctTabLabel].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setCoTab(${i},'${id}')">${t}</div>`).join('');
  const B=[
  // 0 FICHE
  `${c.phone?`<div class="callbox"><div class="callbox-ph">${fPhone(c.phone)}</div><div class="btn bg bxs" onclick="cpPhone('${esc(c.phone)}')">⧉</div></div>`:''}
@@ -4008,6 +4016,8 @@ function openCoPanel(id){
  <div>${renderTimeline(id)}</div>`,
  // 3 NOTES
  `<textarea id="conote-${id}" style="min-height:100px">${esc(c.notes||'')}</textarea><button class="btn bp bsm mt8" onclick="saveCoNote('${id}')">Sauvegarder</button>`,
+ // 4 CONTRAT
+ renderContractTab(c),
  ];
  const contractBtn=c.type==='client'?`<button class="btn bp bsm" onclick="openContractModal('${id}')">📄 Contrat</button>`:'';
  const acts=`${contractBtn}<button class="btn bg bsm" onclick="openCoForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,null,'${id}')">🔔 Relance</button><button class="btn bd_ bsm" onclick="delCo('${id}')">🗑</button>`;
@@ -5939,10 +5949,21 @@ async function emSend(){
   const apiBase=getApiBase();
   if(!apiBase){emOpenMailClient();if(btn){btn.disabled=false;btn.textContent='Envoyer';}setStatus('');return;}
   try{
-    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,cc,subject:sub,body})});
+    // Récupérer HTML et PDF contrat si présents
+    const contractHtml = sessionStorage.getItem('_contract_email_html') || null;
+    const contractPdf  = sessionStorage.getItem('_contract_pdf_b64')    || null;
+    const contractName = sessionStorage.getItem('_contract_pdf_name')   || 'Contrat_Novalem.pdf';
+    const payload = { to, cc, subject: sub, body };
+    if (contractHtml) payload.html = contractHtml;
+    if (contractPdf)  payload.attachments = [{ filename: contractName, content: contractPdf, type: 'application/pdf' }];
+    const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await resp.json();
     if(resp.ok&&(data.sent||data.id)){
       setStatus('<span style="color:var(--green)">Envoye !</span>');
+      // Nettoyer les données contrat après envoi
+      sessionStorage.removeItem('_contract_email_html');
+      sessionStorage.removeItem('_contract_pdf_b64');
+      sessionStorage.removeItem('_contract_pdf_name');
       emLogEmail(to,sub,body,true);
       toast(`Email envoye a ${to}`,'s');
       if(btn){btn.textContent='Envoye !';btn.style.background='var(--green)';btn.style.color='#0a0a08';}
@@ -6681,6 +6702,7 @@ function renderRep(){
 }
 (async()=>{
  await load(); // localStorage immédiat + Supabase en arrière-plan
+ setTimeout(startSignaturePolling, 5000); // Démarrer le polling signatures
  rDash();
  badges();
  initUserBadge();
@@ -6961,6 +6983,7 @@ function previewContract(coId) {
  },150);
 }
 
+
 function sendContractEmail(coId, encodedData) {
  let data;
  if(encodedData){try{data=JSON.parse(decodeURIComponent(encodedData));}catch(e){data=null;}}
@@ -6969,83 +6992,82 @@ function sendContractEmail(coId, encodedData) {
  const co=coById(coId);if(!co)return;
  if(!co.email){toast('Email client manquant — ajoutez-le dans la fiche','e');return;}
 
- co._contract_draft={nc1:data.nc1,nc2:data.nc2,nc3:data.nc3,c1:data.c1,c2:data.c2,c3:data.c3,geste:data.geste,geste_val:data.geste_val,opt3070:data.opt3070,garantie:data.garantie,frais:data.frais,sent_at:now_()};
+ // Sauvegarder le draft négocié
+ co._contract_draft={
+  nc1:data.nc1,nc2:data.nc2,nc3:data.nc3,
+  c1:data.c1,c2:data.c2,c3:data.c3,
+  geste:data.geste,geste_val:data.geste_val,
+  opt3070:data.opt3070,garantie:data.garantie,
+  frais:data.frais,sent_at:now_()
+ };
  save();
 
+ // Générer le PDF et le stocker pour emSend
  const uri=generateContractPDF(data);
  if(uri){
   sessionStorage.setItem('_contract_pdf_b64',uri.split(',')[1]||'');
   sessionStorage.setItem('_contract_pdf_name','Contrat_Novalem_'+co.name.replace(/\W+/g,'_')+'.pdf');
  }
 
+ // Générer l'URL de signature
  const ctId=uid(),token=uid()+uid();
- const dp=[encodeURIComponent(co.name),encodeURIComponent(co.siret||''),
+ const dp=[
+  encodeURIComponent(co.name),encodeURIComponent(co.siret||''),
   data.nc1,data.nc2,data.nc3,data.c1,data.c2,data.c3,
-  data.geste?String(data.geste_val):'',data.opt3070?'1':'0',data.garantie?'1':'0',
-  encodeURIComponent(data.date_str),data.frais||''].join('|');
- const signUrl='https://novalem-crm.vercel.app/sign.html?co='+encodeURIComponent(coId)+'&ct='+ctId+'&t='+token+'&n='+encodeURIComponent(co.name)+'&d='+encodeURIComponent(dp);
+  data.geste?String(data.geste_val):'',
+  data.opt3070?'1':'0',data.garantie?'1':'0',
+  encodeURIComponent(data.date_str),data.frais||''
+ ].join('|');
+ const signUrl='https://novalem-crm.vercel.app/sign.html?co='+encodeURIComponent(coId)
+  +'&ct='+ctId+'&t='+token
+  +'&n='+encodeURIComponent(co.name)
+  +'&d='+encodeURIComponent(dp);
 
- const prenom=co.contact?co.contact.split(' ')[0]:'';
- const contactName=prenom?'M. '+prenom.toUpperCase():co.contact||'';
+ // ── EMAIL HTML via buildHtml de l'API ──────────────
+ // Syntaxe spéciale : [Texte ->(url) = bouton CTA, > = puce dorée, **gras**
+ const prenom = co.contact ? co.contact.split(' ')[0] : '';
+ const civPrenom = prenom ? 'M. ' + prenom.toUpperCase() : (co.contact || '');
 
- // Lignes conditions
- let condLines='';
- condLines+='<tr><td style="padding:8px 0;border-left:3px solid #C9891A;padding-left:14px;font-size:14px;color:#333">Non-cadre : <strong>'+data.nc1+' %</strong> / <strong>'+data.nc2+' %</strong> / <strong>'+data.nc3+' %</strong> du SBA (selon expérience)</td></tr>';
- condLines+='<tr><td style="padding:8px 0;border-left:3px solid #C9891A;padding-left:14px;font-size:14px;color:#333">Cadre : <strong>'+data.c1+' %</strong> / <strong>'+data.c2+' %</strong> / <strong>'+data.c3+' %</strong> du SBA (selon expérience)</td></tr>';
- if(data.geste) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #e0a030;padding-left:14px;font-size:14px;color:#333">Geste commercial 1<sup>er</sup> recrutement : <strong>'+data.geste_val+' %</strong></td></tr>';
- if(data.opt3070) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #e0a030;padding-left:14px;font-size:14px;color:#333">Règlement <strong>30 / 70 %</strong></td></tr>';
- if(data.garantie) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #e0a030;padding-left:14px;font-size:14px;color:#333">Garantie de remplacement <strong>3 mois</strong></td></tr>';
- if(data.frais>0) condLines+='<tr><td style="padding:8px 0;border-left:3px solid #aaa;padding-left:14px;font-size:13px;color:#888">Frais de dossier : '+data.frais+' € HT</td></tr>';
+ let conditions = '';
+ conditions += '> Non-cadre : **' + data.nc1 + ' %** / **' + data.nc2 + ' %** / **' + data.nc3 + ' %** du SBA (selon expérience)\n\n';
+ conditions += '> Cadre : **' + data.c1 + ' %** / **' + data.c2 + ' %** / **' + data.c3 + ' %** du SBA (selon expérience)\n\n';
+ if(data.geste)   conditions += '> Geste commercial 1er recrutement : **' + data.geste_val + ' %**\n\n';
+ if(data.opt3070) conditions += '> Règlement **30 / 70 %**\n\n';
+ if(data.garantie)conditions += '> Garantie de remplacement **3 mois**\n\n';
+ // Frais non affichés dans le mail (subtil, dans le PDF uniquement)
 
- const emailHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#F5F3EF;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">'+
- '<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;padding:32px 0">'+
- '<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">'+
- // Header noir
- '<tr><td style="background:#1A1614;border-radius:10px 10px 0 0;padding:22px 32px">'+
- '<table width="100%" cellpadding="0" cellspacing="0">'+
- '<tr><td><span style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px">NOVA<span style="color:#C9891A">LEM</span></span><br>'+
- '<span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4)">Recrutement BTP · CDI</span></td></tr>'+
- '</table></td></tr>'+
- // Corps blanc
- '<tr><td style="background:#fff;padding:36px 40px;border-radius:0 0 10px 10px;box-shadow:0 4px 24px rgba(0,0,0,.08)">'+
- '<p style="font-size:16px;color:#1A1614;margin:0 0 8px 0">Bonjour'+( contactName?' '+contactName:'')+',</p>'+
- '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 24px 0">Suite à notre échange, je vous transmets notre proposition professionnelle de recrutement.</p>'+
- '<p style="font-size:13px;font-weight:700;color:#1A1614;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px 0">Conditions convenues :</p>'+
- '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px"><tbody style="display:flex;flex-direction:column;gap:10px">'+condLines+'</tbody></table>'+
- '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 28px 0">Nos honoraires sont dus exclusivement en cas d\'intégration effective du candidat. Aucun frais si le recrutement n\'aboutit pas.</p>'+
- '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 28px 0">Pour signer le contrat, il vous suffit de cliquer sur le bouton ci-dessous. La signature prend moins de 30 secondes, sans impression ni scan.</p>'+
- // Bouton orange
- '<table cellpadding="0" cellspacing="0" style="margin:0 auto 32px auto">'+
- '<tr><td align="center" style="border-radius:8px;background:#C9891A">'+
- '<a href="'+signUrl+'" target="_blank" style="display:inline-block;padding:16px 36px;font-size:16px;font-weight:700;color:#fff;text-decoration:none;letter-spacing:.02em">Signer le contrat NOVALEM →</a>'+
- '</td></tr></table>'+
- '<p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 32px 0">Dès réception de votre signature, je vous transmets immédiatement les coordonnées du candidat afin que vous puissiez organiser l\'entretien.</p>'+
- '<p style="font-size:14px;color:#555;margin:0 0 4px 0">Bien cordialement,</p>'+
- '<p style="font-size:14px;font-weight:700;color:#1A1614;margin:0 0 2px 0">'+( data.user_name||'Louis Renault')+'</p>'+
- (data.user_phone?'<p style="font-size:13px;color:#888;margin:0 0 2px 0">'+data.user_phone+'</p>':'')+
- '<p style="font-size:13px;color:#888;margin:0 0 2px 0">NOVALEM — Recrutement BTP</p>'+
- '<p style="font-size:13px;margin:0"><a href="mailto:contact@novalem-recrutement.fr" style="color:#C9891A;text-decoration:none">contact@novalem-recrutement.fr</a></p>'+
- // Footer
- '<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:32px;border-top:1px solid #eee;padding-top:16px">'+
- '<tr><td style="font-size:11px;color:#aaa;text-align:center">Le contrat complet est joint en pièce jointe à cet email. · Signature électronique simple conforme eIDAS</td></tr>'+
- '</table>'+
- '</td></tr>'+
- '</table></td></tr></table></body></html>';
+ const body = 'Bonjour' + (civPrenom ? ' ' + civPrenom : '') + ',\n\n'
+  + 'Suite à notre échange, je vous transmets notre proposition professionnelle de recrutement.\n\n'
+  + '---\n\n'
+  + '**Conditions convenues :**\n\n'
+  + conditions
+  + 'Nos honoraires sont dus exclusivement en cas d\'intégration effective du candidat.'
+  + ' Aucun frais si le recrutement n\'aboutit pas.\n\n'
+  + '---\n\n'
+  + 'Pour signer le contrat, cliquez sur le bouton ci-dessous.'
+  + ' La signature prend moins de 30 secondes, sans impression ni scan.\n\n'
+  + '[Signer le contrat NOVALEM ->(' + signUrl + ')\n\n'
+  + 'Dès réception de votre signature, je vous transmets immédiatement les coordonnées'
+  + ' du candidat afin que vous puissiez organiser l\'entretien.\n\n'
+  + 'Bien cordialement,\n'
+  + '**' + (data.user_name || 'Louis Renault') + '**\n'
+  + (data.user_phone || '+33 6 58 21 20 96') + '\n'
+  + 'NOVALEM — Recrutement BTP\n'
+  + 'contact@novalem-recrutement.fr';
 
- // Stocker le HTML pour l'envoi
- sessionStorage.setItem('_contract_email_html', emailHtml);
+ // Stocker le HTML (buildHtml est côté serveur — on garde body pour buildHtml)
+ // Pas besoin de stocker HTML ici — l'API le construit depuis body
+ sessionStorage.removeItem('_contract_email_html'); // Pas de HTML custom = l'API utilise buildHtml
 
  addTimeline(coId,'status','Contrat envoyé'+(data.frais>0?' (frais : '+data.frais+'€)':''),null);
 
- // Corps texte fallback pour le composeur
- const emailBody='Bonjour'+(prenom?' '+prenom:'')+',\n\nVeuillez trouver en pièce jointe notre Contrat Cadre de Recrutement Novalem.\n\nConditions convenues :\n  › Non-cadre : '+data.nc1+'% / '+data.nc2+'% / '+data.nc3+'%\n  › Cadre : '+data.c1+'% / '+data.c2+'% / '+data.c3+'%\n'+(data.geste?'  › Geste 1er recrutement : '+data.geste_val+'%\n':'')+(data.opt3070?'  › Règlement 30/70%\n':'')+(data.garantie?'  › Garantie remplacement 3 mois\n':'')+(data.frais>0?'  › Frais de dossier : '+data.frais+' € HT\n':'')+'\nSigner le contrat : '+signUrl+'\n\nBien cordialement,\n'+(data.user_name||'Novalem')+'\n'+(data.user_phone||'')+'\nNovalem — Cabinet de recrutement BTP';
-
- EM={to:co.email,subject:'Proposition professionnelle NOVALEM — '+co.name,body:emailBody,candId:null,coId:coId,tplKey:null};
+ EM={to:co.email,subject:'Proposition professionnelle NOVALEM — '+co.name,body:body,candId:null,coId:coId,tplKey:null};
  EM_VIEW='compose';
  closeMo();
  setTimeout(()=>go('emails'),100);
- toast('Email prêt — bouton orange + PDF joint','s');
+ toast('Email contrat prêt — PDF joint automatiquement','s');
 }
+
 
 
 // ═══════════════════════════════════════════════════════
@@ -7639,3 +7661,149 @@ function logout(){
 </div>
 </body>
 </html>
+<script>
+// ═══════════════════════════════════════════════════
+// CONTRAT — Onglet suivi sur la fiche client
+// ═══════════════════════════════════════════════════
+function renderContractTab(co) {
+ const ct = co._contract_draft;
+ if (!ct) {
+  return `<div style="text-align:center;padding:30px 20px;color:var(--mu2)">
+   <div style="font-size:32px;margin-bottom:10px">📄</div>
+   <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:6px;color:var(--tx)">Aucun contrat envoyé</div>
+   <div style="font-size:11px;margin-bottom:16px">Cliquez sur "📄 Contrat" pour générer et envoyer le contrat.</div>
+   <button class="btn bp bsm" onclick="openContractModal('${co.id}')">📄 Générer un contrat</button>
+  </div>`;
+ }
+ const signed = co._contract_signed;
+ const sentAt = ct.sent_at ? fD(ct.sent_at) : '—';
+ const signedAt = signed ? fD(signed.signed_at) : null;
+ const statusColor = signed ? 'var(--green)' : 'var(--ac4)';
+ const statusLabel = signed ? '✅ Contrat signé' : '⏳ En attente de signature';
+ const statusBg    = signed ? 'rgba(45,212,160,.08)' : 'rgba(232,152,48,.08)';
+ const statusBd    = signed ? 'rgba(45,212,160,.25)' : 'rgba(232,152,48,.25)';
+
+ return `
+  <!-- Statut -->
+  <div style="padding:12px 14px;background:${statusBg};border:1px solid ${statusBd};border-radius:var(--r2);margin-bottom:14px;display:flex;align-items:center;gap:10px">
+   <div style="flex:1">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${statusColor}">${statusLabel}</div>
+    ${signed
+     ? `<div style="font-size:11px;color:var(--mu);margin-top:2px">Signé par <strong>${esc(signed.signer_name)}</strong> le ${signedAt} · Réf. ${esc(signed.ref||'—')}</div>`
+     : `<div style="font-size:11px;color:var(--mu);margin-top:2px">Envoyé le ${sentAt} — en attente de signature client</div>`}
+   </div>
+   ${!signed ? `<button class="btn bg bxs" onclick="checkContractSignature('${co.id}')">↻ Vérifier</button>` : ''}
+  </div>
+
+  <!-- Conditions négociées -->
+  <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu2);margin-bottom:8px">Conditions négociées</div>
+  <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:12px">
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;background:var(--s2);padding:6px 10px;font-size:9px;color:var(--mu2)">
+    <span>Profil</span><span style="text-align:center">&lt; 5 ans</span><span style="text-align:center">5–15 ans</span><span style="text-align:center">&gt; 15 ans</span>
+   </div>
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:7px 10px;border-top:1px solid var(--bd);font-size:11px">
+    <span style="font-weight:600">Non-cadre</span>
+    <span style="text-align:center;color:var(--ac);font-weight:700">${ct.nc1}%</span>
+    <span style="text-align:center;color:var(--ac);font-weight:700">${ct.nc2}%</span>
+    <span style="text-align:center;color:var(--ac);font-weight:700">${ct.nc3}%</span>
+   </div>
+   <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;padding:7px 10px;border-top:1px solid var(--bd);font-size:11px">
+    <span style="font-weight:600">Cadre</span>
+    <span style="text-align:center;color:var(--ac);font-weight:700">${ct.c1}%</span>
+    <span style="text-align:center;color:var(--ac);font-weight:700">${ct.c2}%</span>
+    <span style="text-align:center;color:var(--ac);font-weight:700">${ct.c3}%</span>
+   </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;font-size:11px">
+   ${ct.geste     ? `<div style="display:flex;align-items:center;gap:7px"><span style="color:var(--ac4)">✓</span> Geste 1er recrutement : <strong>${ct.geste_val}%</strong></div>` : ''}
+   ${ct.opt3070   ? `<div style="display:flex;align-items:center;gap:7px"><span style="color:var(--ac4)">✓</span> Règlement <strong>30 / 70 %</strong></div>` : ''}
+   ${ct.garantie  ? `<div style="display:flex;align-items:center;gap:7px"><span style="color:var(--ac4)">✓</span> Garantie de remplacement <strong>3 mois</strong></div>` : ''}
+   ${ct.frais > 0 ? `<div style="display:flex;align-items:center;gap:7px"><span style="color:var(--mu2)">·</span> <span style="color:var(--mu)">Frais de dossier : ${ct.frais}€ HT</span></div>` : ''}
+  </div>
+
+  <!-- Actions -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+   <button class="btn bg bsm" onclick="openContractModal('${co.id}')">✎ Modifier / Renvoyer</button>
+   <button class="btn bg bsm" onclick="previewContract('${co.id}')">👁 Aperçu PDF</button>
+  </div>`;
+}
+
+// ── Helpers notif contrat signé ───────────────────
+function goToSignedContract() {
+ const cn=DB._contract_notif; if(!cn) return;
+ UI.ptab=4;
+ go('clients');
+ setTimeout(()=>openCoPanel(cn.coId),80);
+}
+
+function dismissContractNotif() {
+ delete DB._contract_notif;
+ save();
+ if(UI.view==='dash') rDash();
+}
+
+// Polling automatique signatures (toutes les 2min si contrats en attente)
+let _sigPollTimer=null;
+function startSignaturePolling() {
+ if(_sigPollTimer) return;
+ _sigPollTimer=setInterval(async()=>{
+  const pending=DB.companies.filter(co=>co._contract_draft&&co._contract_draft.sent_at&&!co._contract_signed);
+  if(!pending.length){clearInterval(_sigPollTimer);_sigPollTimer=null;return;}
+  const sb=getSB();if(!sb)return;
+  for(const co of pending){
+   try{
+    const {data}=await sb.from('novalem_signatures').select('signer_name,signed_at,ct_id').eq('co_id',co.id).order('signed_at',{ascending:false}).limit(1).maybeSingle();
+    if(data&&data.signer_name){
+     co._contract_signed={signer_name:data.signer_name,signed_at:data.signed_at,ref:'NV-'+(data.ct_id||'').slice(0,8).toUpperCase()};
+     DB._contract_notif={coId:co.id,coName:co.name,signer:data.signer_name,at:data.signed_at};
+     addTimeline(co.id,'status','&#x2705; Contrat sign&eacute; par '+data.signer_name,null);
+     save();badges();
+     if(UI.view==='dash')rDash();
+     toast('&#x2705; '+co.name+' a sign&eacute; le contrat !','s');
+    }
+   }catch(e){}
+  }
+ },120000); // 2 minutes
+}
+
+// Vérifier si le contrat a été signé (polling Supabase)
+async function checkContractSignature(coId) {
+ const co = coById(coId); if (!co || !co._contract_draft) return;
+ toast('Vérification en cours…', 'i');
+ const sb = getSB();
+ if (!sb) { toast('Supabase non configuré', 'e'); return; }
+ try {
+  const { data, error } = await sb
+   .from('novalem_signatures')
+   .select('signer_name, signed_at, ct_id, status')
+   .eq('co_id', coId)
+   .order('signed_at', { ascending: false })
+   .limit(1)
+   .maybeSingle();
+  if (error) throw error;
+  if (data) {
+   co._contract_signed = {
+    signer_name: data.signer_name,
+    signed_at:   data.signed_at,
+    ref:         'NV-' + (data.ct_id || '').slice(0,8).toUpperCase(),
+   };
+   save();
+   openCoPanel(coId);
+   UI.ptab = 4;
+   openCoPanel(coId);
+   toast('✅ Contrat signé par ' + data.signer_name, 's');
+   // Ajouter dans timeline
+   addTimeline(coId, 'status', '✅ Contrat signé par ' + data.signer_name, null);
+   // Notif dashboard
+   DB._contract_notif = { coId, coName: co.name, signer: data.signer_name, at: data.signed_at };
+   save();
+   badges();
+   if (UI.view === 'dash') rDash();
+  } else {
+   toast('Pas encore signé', 'w');
+  }
+ } catch(e) {
+  toast('Erreur: ' + e.message, 'e');
+ }
+}
+</script>
