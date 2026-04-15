@@ -432,7 +432,17 @@ textarea.inp{resize:vertical;min-height:70px}
 
  <div class="err-banner" id="err5"></div>
 
- <!-- Upload CV -->
+ <!-- Récapitulatif automatique -->
+ <div id="recap-docs" style="background:#F8F5EF;border:1px solid #E8E4DC;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:11px;line-height:1.8;color:#555">
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#C9891A;margin-bottom:8px">Récapitulatif de votre dossier</div>
+  <div id="recap-content"></div>
+ </div>
+
+ <!-- Titre section documents -->
+ <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Documents à joindre</div>
+ <div style="font-size:11px;color:#aaa;margin-bottom:14px" id="docs-hint">Les documents obligatoires sont déterminés automatiquement selon vos réponses.</div>
+
+ <!-- Upload CV — toujours obligatoire -->
  <div class="fgrp">
   <label class="lbl">CV <span class="req">*</span> — Obligatoire</label>
   <div class="upload-zone" id="uz-cv" onclick="document.getElementById('fi-cv').click()" ondrop="dropFile(event,'cv')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
@@ -443,24 +453,38 @@ textarea.inp{resize:vertical;min-height:70px}
   <div id="file-cv-ok" style="display:none"></div>
  </div>
 
- <!-- Upload Permis (conditionnel) -->
+ <!-- Upload CNI/Passeport — obligatoire si UE ou FR -->
+ <div id="upload-id" class="fgrp" style="display:none">
+  <label class="lbl">Pièce d'identité — CNI ou Passeport (recto-verso) <span class="req">*</span></label>
+  <div class="upload-zone" id="uz-id" onclick="document.getElementById('fi-id').click()" ondrop="dropFile(event,'id')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+   <input type="file" id="fi-id" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'id')">
+   <div class="ico">🪪</div>
+   <div class="lbl2">Carte nationale d'identité ou passeport <strong>recto-verso</strong><br><span style="font-size:10px">PDF ou image — max 5 Mo</span></div>
+  </div>
+  <div id="file-id-ok" style="display:none"></div>
+ </div>
+
+ <!-- Upload Permis — obligatoire si permis coché -->
  <div id="upload-permis" class="fgrp" style="display:none">
-  <label class="lbl">Permis de conduire (recto-verso) <span class="req">*</span> — Obligatoire</label>
+  <label class="lbl">Permis de conduire (recto-verso) <span class="req">*</span></label>
   <div class="upload-zone" id="uz-permis" onclick="document.getElementById('fi-permis').click()" ondrop="dropFile(event,'permis')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
    <input type="file" id="fi-permis" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'permis')">
-   <div class="ico">🪪</div>
-   <div class="lbl2">Glissez votre permis ici ou <strong>cliquez pour parcourir</strong><br><span style="font-size:10px">PDF ou image recto-verso — max 5 Mo</span></div>
+   <div class="ico">🚗</div>
+   <div class="lbl2">Permis de conduire <strong>recto-verso</strong><br><span style="font-size:10px">PDF ou image — max 5 Mo</span></div>
   </div>
   <div id="file-permis-ok" style="display:none"></div>
  </div>
 
- <!-- Upload Titre séjour (conditionnel) -->
+ <!-- Upload Titre séjour — obligatoire si hors UE -->
  <div id="upload-titre" class="fgrp" style="display:none">
-  <label class="lbl">Titre de séjour (recto-verso) <span class="req">*</span> — Obligatoire</label>
+  <label class="lbl">Titre de séjour (recto-verso) <span class="req">*</span></label>
+  <div style="background:rgba(201,137,26,.08);border:1px solid rgba(201,137,26,.25);border-radius:8px;padding:10px 13px;margin-bottom:8px;font-size:11px;color:#9a6510">
+   Votre titre de séjour doit mentionner l'autorisation d'exercer une activité salariée.
+  </div>
   <div class="upload-zone" id="uz-titre" onclick="document.getElementById('fi-titre').click()" ondrop="dropFile(event,'titre')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
    <input type="file" id="fi-titre" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'titre')">
    <div class="ico">📋</div>
-   <div class="lbl2">Glissez votre titre de séjour ici ou <strong>cliquez pour parcourir</strong></div>
+   <div class="lbl2">Titre de séjour <strong>recto-verso</strong> avec mention autorisation travail</div>
   </div>
   <div id="file-titre-ok" style="display:none"></div>
  </div>
@@ -488,6 +512,14 @@ textarea.inp{resize:vertical;min-height:70px}
   <div class="cb" id="cb-exact"></div>
   <div class="cl">Je certifie sur l'honneur l'exactitude des informations fournies dans ce dossier et l'authenticité des documents transmis. <span class="req">*</span></div>
  </label>
+
+ <!-- Attestation permis (conditionnelle) -->
+ <div id="cbl-permis-wrap" style="display:none">
+  <label class="cbl" id="cbl-permis" onclick="togPermisAttest()">
+   <div class="cb" id="cb-permis"></div>
+   <div class="cl">J'atteste sur l'honneur être titulaire d'un permis de conduire valide au jour de la signature du présent dossier, et m'engage à informer NOVALEM de toute suspension ou invalidation. <span class="req">*</span></div>
+  </label>
+ </div>
 
  <!-- Signature -->
  <div class="sig-box">
@@ -590,14 +622,76 @@ function togExact(){
  checkSubmit();
 }
 
+var agreedPermisAttest = false;
+function togPermisAttest(){
+ agreedPermisAttest = !agreedPermisAttest;
+ document.getElementById('cbl-permis').className = 'cbl'+(agreedPermisAttest?' on':'');
+ document.getElementById('cb-permis').textContent = agreedPermisAttest ? '✓' : '';
+ checkSubmit();
+}
+
 function checkSubmit(){
  var hasCV = !!uploadedFiles['cv'];
+
+ // Pièce d'identité : UE/FR → CNI obligatoire | hors-UE → titre séjour obligatoire
+ var needsId    = radioValues['ue'] === 'ue' || radioValues['ue'] === 'fr';
+ var needsTitre = radioValues['ue'] === 'non-ue';
+ var hasId    = !needsId    || !!uploadedFiles['id'];
+ var hasTitre = !needsTitre || !!uploadedFiles['titre'];
+
+ // Permis : obligatoire si coché
  var needsPermis = ['oui','autres'].includes(radioValues['permis']);
  var hasPermis = !needsPermis || !!uploadedFiles['permis'];
- var needsTitre = radioValues['ue'] === 'non-ue';
- var hasTitre = !needsTitre || !!uploadedFiles['titre'];
- var ok = agreedRgpd && agreedExact && hasCV && hasPermis && hasTitre;
+
+ // Afficher/masquer dynamiquement les zones upload
+ var elId    = document.getElementById('upload-id');
+ var elTitre = document.getElementById('upload-titre');
+ if(elId)    elId.style.display    = needsId    ? '' : 'none';
+ if(elTitre) elTitre.style.display = needsTitre ? '' : 'none';
+
+ // Attestation permis requise si permis coché
+ var needsPermisAttest = needsPermis;
+ var hasPermisAttest = !needsPermisAttest || agreedPermisAttest;
+ // Afficher/masquer l'attestation permis
+ var elPermisWrap = document.getElementById('cbl-permis-wrap');
+ if(elPermisWrap) elPermisWrap.style.display = needsPermisAttest ? '' : 'none';
+
+ var ok = agreedRgpd && agreedExact && hasPermisAttest && hasCV && hasId && hasTitre && hasPermis;
  document.getElementById('btn-submit').disabled = !ok;
+
+ // Mettre à jour l'indication des documents
+ var hint = document.getElementById('docs-hint');
+ if(hint){
+  var required = ['CV'];
+  if(needsId)    required.push('Pièce d’identité');
+  if(needsTitre) required.push('Titre de séjour');
+  if(needsPermis)required.push('Permis de conduire');
+  hint.textContent = 'Documents obligatoires : ' + required.join(', ') + '.';
+ }
+}
+
+function buildRecap(){
+ var catLabels = {go:'Gros Œuvre',tp:'Travaux Publics',vrd:'VRD',elec:'Électricité',
+  plomb:'Plomberie/CVC',charp:'Charpente/Couverture',fin:'Second œuvre',archi:"Bureau d'études",autre:'Autre'};
+ var expLabels = {moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'};
+ var el = document.getElementById('recap-content');
+ if(!el) return;
+ var p = function(k,v){ return v ? '<div><strong>' + k + ' :</strong> ' + escHtml(String(v)) + '</div>' : ''; };
+ var html = [
+  p('Nom', (document.getElementById('f-civ')?.value||'') + ' ' + (document.getElementById('f-prenom')?.value||'') + ' ' + (document.getElementById('f-nom')?.value||'')),
+  p('Date de naissance', document.getElementById('f-ddn')?.value),
+  p('Téléphone', document.getElementById('f-tel')?.value),
+  p('Email', document.getElementById('f-email')?.value),
+  p('Poste', document.getElementById('f-poste')?.value),
+  p('Spécialité', catLabels[document.getElementById('f-cat')?.value]||''),
+  p('Expérience', expLabels[radioValues['exp']]||''),
+  p('Salaire souhaité', document.getElementById('f-sal-wish')?.value ? document.getElementById('f-sal-wish').value + ' €/an' : ''),
+  p('Disponibilité', document.getElementById('f-dispo')?.value),
+  p('Mobilité', document.getElementById('f-mob')?.value),
+  p('Permis', {oui:'Oui — Permis B',non:'Non',autres:'Autres catégories'}[radioValues['permis']]||''),
+  p('Nationalité / Séjour', {ue:'Ressortissant UE/EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'}[radioValues['ue']]||''),
+ ].filter(Boolean).join('');
+ el.innerHTML = html || '<em>Complétez les étapes précédentes pour voir le récapitulatif.</em>';
 }
 
 function handleFile(input, key){
@@ -638,35 +732,45 @@ function removeFile(key){
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function showErr(step, msg){
+function showErr(step, msg, fieldId){
  var el = document.getElementById('err'+step);
- if(!el) return;
- el.textContent = msg;
- el.style.display = msg ? '' : 'none';
+ if(el){ el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+ // Scroll vers le banner d'erreur
+ if(msg && el){ el.scrollIntoView({behavior:'smooth', block:'center'}); }
+ // Mettre en rouge le champ invalide + focus
+ if(fieldId){
+  var field = document.getElementById(fieldId);
+  if(field){
+   field.classList.add('err-field');
+   field.addEventListener('input', function(){ this.classList.remove('err-field'); }, {once:true});
+   field.addEventListener('change', function(){ this.classList.remove('err-field'); }, {once:true});
+   setTimeout(function(){ if(field) field.focus(); }, 300);
+  }
+ }
 }
 
 function validateStep(n){
  showErr(n,'');
  if(n===1){
-  if(!document.getElementById('f-civ').value){ showErr(1,'Veuillez sélectionner votre civilité'); return false; }
-  if(!document.getElementById('f-prenom').value.trim()){ showErr(1,'Prénom obligatoire'); return false; }
-  if(!document.getElementById('f-nom').value.trim()){ showErr(1,'Nom obligatoire'); return false; }
-  if(!document.getElementById('f-ddn').value){ showErr(1,'Date de naissance obligatoire'); return false; }
-  if(!document.getElementById('f-nat').value.trim()){ showErr(1,'Nationalité obligatoire'); return false; }
-  if(!document.getElementById('f-adresse').value.trim()){ showErr(1,'Adresse obligatoire'); return false; }
-  if(!document.getElementById('f-cp').value.trim()){ showErr(1,'Code postal obligatoire'); return false; }
-  if(!document.getElementById('f-ville').value.trim()){ showErr(1,'Ville obligatoire'); return false; }
-  if(!document.getElementById('f-tel').value.trim()){ showErr(1,'Téléphone obligatoire'); return false; }
+  if(!document.getElementById('f-civ').value){ showErr(1,'Veuillez sélectionner votre civilité','f-civ'); return false; }
+  if(!document.getElementById('f-prenom').value.trim()){ showErr(1,'Prénom obligatoire','f-prenom'); return false; }
+  if(!document.getElementById('f-nom').value.trim()){ showErr(1,'Nom obligatoire','f-nom'); return false; }
+  if(!document.getElementById('f-ddn').value){ showErr(1,'Date de naissance obligatoire','f-ddn'); return false; }
+  if(!document.getElementById('f-nat').value.trim()){ showErr(1,'Nationalité obligatoire','f-nat'); return false; }
+  if(!document.getElementById('f-adresse').value.trim()){ showErr(1,'Adresse obligatoire','f-adresse'); return false; }
+  if(!document.getElementById('f-cp').value.trim()){ showErr(1,'Code postal obligatoire','f-cp'); return false; }
+  if(!document.getElementById('f-ville').value.trim()){ showErr(1,'Ville obligatoire','f-ville'); return false; }
+  if(!document.getElementById('f-tel').value.trim()){ showErr(1,'Téléphone obligatoire','f-tel'); return false; }
   var email = document.getElementById('f-email').value.trim();
-  if(!email || !email.includes('@')){ showErr(1,'Email valide obligatoire'); return false; }
+  if(!email || !email.includes('@')){ showErr(1,'Email valide obligatoire','f-email'); return false; }
  }
  if(n===2){
-  if(!document.getElementById('f-cat').value){ showErr(2,'Spécialité BTP obligatoire'); return false; }
-  if(!document.getElementById('f-poste').value.trim()){ showErr(2,'Poste recherché obligatoire'); return false; }
+  if(!document.getElementById('f-cat').value){ showErr(2,'Spécialité BTP obligatoire','f-cat'); return false; }
+  if(!document.getElementById('f-poste').value.trim()){ showErr(2,'Poste recherché obligatoire','f-poste'); return false; }
   if(!radioValues['exp']){ showErr(2,'Veuillez indiquer votre niveau d\'expérience'); return false; }
-  if(!document.getElementById('f-sal-wish').value){ showErr(2,'Salaire souhaité obligatoire'); return false; }
-  if(!document.getElementById('f-dispo').value){ showErr(2,'Disponibilité obligatoire'); return false; }
-  if(!document.getElementById('f-mob').value.trim()){ showErr(2,'Mobilité géographique obligatoire'); return false; }
+  if(!document.getElementById('f-sal-wish').value){ showErr(2,'Salaire souhaité obligatoire','f-sal-wish'); return false; }
+  if(!document.getElementById('f-dispo').value){ showErr(2,'Disponibilité obligatoire','f-dispo'); return false; }
+  if(!document.getElementById('f-mob').value.trim()){ showErr(2,'Mobilité géographique obligatoire','f-mob'); return false; }
   if(!radioValues['permis']){ showErr(2,'Veuillez indiquer si vous avez le permis'); return false; }
   // Afficher/masquer upload permis
   var needsPermis = ['oui','autres'].includes(radioValues['permis']);
@@ -683,6 +787,22 @@ function validateStep(n){
   } else {
    document.getElementById('upload-titre').style.display = 'none';
   }
+ }
+ if(n===5){
+  // CV toujours obligatoire
+  if(!uploadedFiles['cv']){ showErr(5,'Veuillez joindre votre CV pour continuer.'); return false; }
+  // Pièce d'identité / Titre de séjour selon situation
+  var needsId    = radioValues['ue'] === 'ue' || radioValues['ue'] === 'fr';
+  var needsTitre = radioValues['ue'] === 'non-ue';
+  if(needsId && !uploadedFiles['id']){ showErr(5,'Veuillez joindre votre pièce d\'identité (CNI ou passeport).'); return false; }
+  if(needsTitre && !uploadedFiles['titre']){ showErr(5,'Veuillez joindre votre titre de séjour.'); return false; }
+  // Permis si coché
+  var needsPermis = ['oui','autres'].includes(radioValues['permis']);
+  if(needsPermis && !uploadedFiles['permis']){ showErr(5,'Veuillez joindre votre permis de conduire.'); return false; }
+  // Consentements
+  if(!agreedRgpd){ showErr(5,'Veuillez accepter les conditions RGPD.'); return false; }
+  if(!agreedExact){ showErr(5,'Veuillez certifier l\'exactitude des informations.'); return false; }
+  if(needsPermis && !agreedPermisAttest){ showErr(5,'Veuillez cocher l\'attestation sur l\'honneur du permis.'); return false; }
  }
  return true;
 }
@@ -703,10 +823,18 @@ function goStep(n){
  var screen = document.getElementById('s'+n);
  if(screen){ screen.classList.add('active'); window.scrollTo(0,0); }
  currentStep = n;
+ // Quand on arrive à l'étape 5 → construire le récap + mettre à jour docs obligatoires
+ if(n === 5){
+  buildRecap();
+  checkSubmit();
+ }
 }
 
 async function submitDossier(){
+ // Protection double-envoi
+ if(window._dossierSubmitting){ return; }
  if(!validateStep(5)) return;
+ window._dossierSubmitting = true;
 
  var btn = document.getElementById('btn-submit');
  btn.disabled = true;
@@ -784,17 +912,21 @@ async function submitDossier(){
   if(!resp.ok || !data.success){
    btn.disabled = false;
    btn.innerHTML = '✍ Finaliser et signer mon dossier';
+   window._dossierSubmitting = false;
    document.getElementById('err5').textContent = data.error || 'Erreur — Réessayez ou contactez NOVALEM';
    document.getElementById('err5').style.display = '';
    return;
   }
 
-  // Succès
+  // Succès — masquer le formulaire définitivement, bloquer tout retour
+  window._dossierSubmitting = true; // rester bloqué
+  window._dossierDone = true;
   showSuccess(dossier);
 
  } catch(e) {
   btn.disabled = false;
   btn.innerHTML = '✍ Finaliser et signer mon dossier';
+  window._dossierSubmitting = false;
   document.getElementById('err5').textContent = 'Erreur réseau. Vérifiez votre connexion.';
   document.getElementById('err5').style.display = '';
  }
@@ -810,10 +942,14 @@ function fileToBase64(file){
 }
 
 function showSuccess(d){
+ // Masquer tous les écrans, désactiver navigation arrière
  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
  document.getElementById('s-ok').classList.add('active');
  document.getElementById('prog-bar').style.display='none';
- window.scrollTo(0,0);
+ // Empêcher tout retour en arrière
+ window.history.pushState(null,'',window.location.href);
+ window.onpopstate = function(){ window.history.pushState(null,'',window.location.href); };
+ window.scrollTo({top:0,behavior:'smooth'});
 
  var nom = d.identite.prenom+' '+d.identite.nom;
  document.getElementById('ok-name').textContent = d.identite.prenom;
