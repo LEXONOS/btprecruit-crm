@@ -1429,7 +1429,10 @@ function computeAlerts(){
  const a=[];
  DB.candidates.forEach(c=>{
  if(c.status==='new') a.push({color:'var(--ac4)',msg:`Précal à faire : ${c.name}`,act:`openCandPanel('${c.id}')`});
- if(c.status==='entrant'&&daysDiff(c.created)>2) a.push({color:'var(--ac4)',msg:`Entrant sans action (${daysDiff(c.created)}j) : ${c.name}`,act:`switchCandTab('trier');go('cands');openEntrantSplit('${c.id}')`});
+ if(c._dossier_validated&&!c._dossier_notif_seen){
+   a.push({color:'var(--ac2)',msg:'&#x2705; Dossier validé — '+c.name+' — prêt à envoyer en anonyme',act:"openCandPanel('"+c.id+"')"});
+  }
+  if(c.status==='entrant'&&daysDiff(c.created)>2) a.push({color:'var(--ac4)',msg:`Entrant sans action (${daysDiff(c.created)}j) : ${c.name}`,act:`switchCandTab('trier');go('cands');openEntrantSplit('${c.id}')`});
  if(c.status==='precal'&&daysDiff(c.updated)>5&&!c.int_date_planned) a.push({color:'var(--ac6)',msg:`Entretien non planifié (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
  if(c.status==='dossier'&&daysDiff(c.updated)>2) a.push({color:'var(--ac3)',msg:`Dossier sans retour (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
  if(c.status==='presented'&&daysDiff(c.updated)>3) a.push({color:'var(--ac3)',msg:`Client sans retour (${daysDiff(c.updated)}j) sur ${c.name}`,act:`openCandPanel('${c.id}')`});
@@ -1449,17 +1452,13 @@ function computeAlerts(){
  const co=coById(inv.company_id);
  a.push({color:'var(--ac3)',msg:`Facture impayée en retard — ${co?co.name:'?'} (${fM(inv.amount)})`,act:`go('facturation')`});
  });
- // Relances après envoi de profil (J+3)
- DB.agenda.filter(a=>!a.done&&a._profile_followup).forEach(ag=>{
-  const diff=(new Date(ag.date)-Date.now())/86400000;
+ // Relances profil J+3
+ DB.agenda.filter(function(ag){return !ag.done&&ag._profile_followup;}).forEach(function(ag){
+  var diff=(new Date(ag.date)-Date.now())/86400000;
   if(diff<2){
-   const co2=coById(ag.comp_id),ca2=cById(ag.cand_id);
-   a.push({color:'var(--ac5)',msg:`📞 Rappeler ${co2?co2.name:'client'} — réception CV ${ca2?ca2.name:''}`,act:`openAgPanel('${ag.id}')`});
+   var co2=coById(ag.comp_id),ca2=cById(ag.cand_id);
+   a.push({color:'var(--ac5)',msg:'&#x1F4DE; Rappeler '+(co2?co2.name:'client')+' — réception CV '+(ca2?ca2.name:''),act:"openAgPanel('"+ag.id+"')"});
   }
- });
- // Dossiers validés non vus
- DB.candidates.filter(c=>c._dossier_validated&&!c._dossier_notif_seen).forEach(c=>{
-  a.push({color:'var(--ac2)',msg:`✅ Dossier validé — ${c.name} — prêt à envoyer en anonyme`,act:`openCandPanel('${c.id}')`});
  });
  return a;
 }
@@ -2510,10 +2509,8 @@ Suite à notre échange téléphonique, je vous confirme notre entretien visio :
  Date : ${dateStr}
  Lien de connexion : ${visioLink}
 
-Merci de vous connecter 2-3 minutes avant l'heure prévue.\n\n─────────────────────────\nDossier de candidature\n─────────────────────────\nMerci de compléter votre dossier en ligne (5 min) :\n https://novalem-crm.vercel.app/dossier.html?cid=${encodeURIComponent(c.id)}&n=${encodeURIComponent(c.name)}
+Merci de vous connecter 2-3 minutes avant l'heure prévue.\n\n─────────────────────────\nDossier de candidature\n─────────────────────────\nMerci de compléter votre dossier en cliquant sur le bouton ci-dessous :\\n\\n[Compléter mon dossier en ligne ->(https://novalem-crm.vercel.app/dossier.html?cid=${encodeURIComponent(c.id)}&n=${encodeURIComponent(c.name)})\\n\\nCordialement,
 
-Cordialement,
-${nom}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`;
 
  closeMo();
@@ -2563,7 +2560,6 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
 // openCandPanel defined below
 function setCPTab(i,id){
  UI.ptab=i;
- // Si on clique sur l'onglet Suivi (4) → marquer notif vue
  if(i===4){const cand=cById(id);if(cand&&cand._dossier_validated&&!cand._dossier_notif_seen){cand._dossier_notif_seen=true;save();badges();}}
  renderCandPanelTab(id);
 }
@@ -2616,7 +2612,10 @@ function renderCPEntretien(c){
 function renderCPFichiers(c){
  const docs=c.docs||[];
  const uploaded=docs.filter(d=>d.file).length;
- return`
+ const dossierBadge=c._dossier_validated
+  ?'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.25);border-radius:var(--r2);margin-bottom:12px"><span style="font-size:18px">&#x2705;</span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ac2)">Dossier signé &amp; validé</div><div style="font-size:10px;color:var(--mu)">Réf. '+(c._dossier_ref||'—')+' · '+(c._dossier_validated_at?fD(c._dossier_validated_at):'—')+'</div></div></div>'
+  :'<div style="padding:9px 12px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);margin-bottom:12px;font-size:11px;color:var(--ac4)">⚠ Dossier non reçu — <a href="https://novalem-crm.vercel.app/dossier.html?cid='+c.id+'&n='+encodeURIComponent(c.name)+'" target="_blank" style="color:var(--ac4);font-weight:700">Envoyer le lien</a></div>';
+return dossierBadge+`
  <div class="flex fjb fac mb8">
  <span class="fs11">${uploaded}/${DOCS_LIST.length} documents</span>
  <div class="pgbar" style="width:100px"><div class="pgfill" style="width:${Math.round(uploaded/DOCS_LIST.length*100)}%"></div></div>
@@ -3035,7 +3034,7 @@ function renderTimeline(coId){
  <div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:1px">${icons[e.type]||''}</div>
  <div style="flex:1;min-width:0">
  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
- <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler',accept_cv:'Accepte CV',ko_email:'Email KO envoyé',profile_sent:'Profil envoyé'})[e.type]||e.type}</span>
+ <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler',accept_cv:'Accepte CV',ko_email:'Email KO envoyé'})[e.type]||e.type}</span>
  ${e.by?`<span style="font-size:9px;padding:1px 6px;border-radius:10px;font-weight:700;background:${e.by==='louis'?'rgba(200,224,64,.15)':'rgba(74,130,224,.15)'};color:${e.by==='louis'?'var(--ac4)':'var(--ac5)'}">${e.byName||e.by}</span>`:''}
  <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
  </div>
