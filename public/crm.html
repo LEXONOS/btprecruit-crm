@@ -1449,6 +1449,18 @@ function computeAlerts(){
  const co=coById(inv.company_id);
  a.push({color:'var(--ac3)',msg:`Facture impayée en retard — ${co?co.name:'?'} (${fM(inv.amount)})`,act:`go('facturation')`});
  });
+ // Relances après envoi de profil (J+3)
+ DB.agenda.filter(a=>!a.done&&a._profile_followup).forEach(ag=>{
+  const diff=(new Date(ag.date)-Date.now())/86400000;
+  if(diff<2){
+   const co2=coById(ag.comp_id),ca2=cById(ag.cand_id);
+   a.push({color:'var(--ac5)',msg:`📞 Rappeler ${co2?co2.name:'client'} — réception CV ${ca2?ca2.name:''}`,act:`openAgPanel('${ag.id}')`});
+  }
+ });
+ // Dossiers validés non vus
+ DB.candidates.filter(c=>c._dossier_validated&&!c._dossier_notif_seen).forEach(c=>{
+  a.push({color:'var(--ac2)',msg:`✅ Dossier validé — ${c.name} — prêt à envoyer en anonyme`,act:`openCandPanel('${c.id}')`});
+ });
  return a;
 }
 
@@ -2549,7 +2561,12 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
 }
 // ═══════════════════════════════════════════════════════════
 // openCandPanel defined below
-function setCPTab(i,id){UI.ptab=i;renderCandPanelTab(id);}
+function setCPTab(i,id){
+ UI.ptab=i;
+ // Si on clique sur l'onglet Suivi (4) → marquer notif vue
+ if(i===4){const cand=cById(id);if(cand&&cand._dossier_validated&&!cand._dossier_notif_seen){cand._dossier_notif_seen=true;save();badges();}}
+ renderCandPanelTab(id);
+}
 function setCoTab(i,id){UI.ptab=i;openCoPanel(id);}
 function renderCandPanelTab(id){
  const c=cById(id);if(!c)return;
@@ -3018,7 +3035,7 @@ function renderTimeline(coId){
  <div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:1px">${icons[e.type]||''}</div>
  <div style="flex:1;min-width:0">
  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
- <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler',accept_cv:'Accepte CV',ko_email:'Email KO envoyé'})[e.type]||e.type}</span>
+ <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler',accept_cv:'Accepte CV',ko_email:'Email KO envoyé',profile_sent:'Profil envoyé'})[e.type]||e.type}</span>
  ${e.by?`<span style="font-size:9px;padding:1px 6px;border-radius:10px;font-weight:700;background:${e.by==='louis'?'rgba(200,224,64,.15)':'rgba(74,130,224,.15)'};color:${e.by==='louis'?'var(--ac4)':'var(--ac5)'}">${e.byName||e.by}</span>`:''}
  <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
  </div>
@@ -4130,7 +4147,7 @@ function openCandPanel(id){
  UI.ptype='cand';UI.pid=id;if(!UI.ptab)UI.ptab=0;
  const c=cById(id);if(!c)return;
  const cat=getCat(c.cat);const st=getCS(c.status);
- const tabNames=['Profil','Fichiers','Entretien','Références'];
+ const tabNames=['Profil','Fichiers','Entretien','Références','Suivi'];
  const tabs=tabNames.map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
  const docs=c.docs||[];
  const B=[
@@ -4176,8 +4193,15 @@ function openCandPanel(id){
  <div class="sl">Notes générales</div>
  <textarea id="gnote-${id}" style="min-height:64px">${esc(c.notes||'')}</textarea>
  <button class="btn bp bsm mt8" onclick="saveGNote('${id}')">Sauvegarder</button>`,
+ // 4 SUIVI — Timeline interactions + statut dossier
+ `<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center">
+  <span class="fs10 mu_">${(c.timeline||[]).length} interaction(s)</span>
+  ${c._dossier_validated?'<span style="font-size:9px;padding:2px 8px;background:rgba(45,212,160,.1);border:1px solid rgba(45,212,160,.25);border-radius:10px;color:var(--ac2)">&#x2705; Dossier validé</span>':''}
+  <button class="btn bg bxs" style="margin-left:auto" onclick="addManualNote('${id}')">+ Note</button>
+ </div>
+ <div>${renderTimeline(id)}</div>`
  ];
- const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="sendCV('${id}')">CV anonyme</button><button class="btn bxs" style="background:rgba(154,74,224,.12);color:var(--purple)" onclick="aiProfileAdvice('${id}')">🤖 IA Profil</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
+ const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="openSendProfileModal('${id}')">📤 Envoyer profil</button><button class="btn bxs" style="background:rgba(154,74,224,.12);color:var(--purple)" onclick="aiProfileAdvice('${id}')">🤖 IA Profil</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
 }
 
@@ -4624,6 +4648,458 @@ function rmRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs.splice(i,1);
 function togRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs[i].done=!c.refs[i].done;c.updated=now_();save();openCandPanel(id);toast(c.refs[i].done?'Contrôle fait ✓':'Remis en attente','s');}
 function prosFromRef(id,i){const c=cById(id);if(!c||!c.refs||!c.refs[i])return;const r=c.refs[i];closePanel();openCoForm();setTimeout(()=>{const n=document.getElementById('cof-n');if(n)n.value=r.company;const ph=document.getElementById('cof-ph');if(ph)ph.value=r.phone||'';const src=document.getElementById('cof-src');if(src)src.value='Contrôle REF';},80);}
 function cpPhone(ph){navigator.clipboard.writeText(ph).then(()=>toast(`${ph} copié`,'i')).catch(()=>toast(ph,'i'));}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ENVOI PROFIL ANONYME — Processus complet
+// 1. openSendProfileModal(candId)  → choisir entreprises cibles
+// 2. generateAnonCV(cand)          → IA anonymise + met en page Novalem
+// 3. sendProfileEmail(candId,coId) → envoie le mail adapté (besoin ou CVthèque)
+// 4. computeAlerts()               → relances J+3 dans le dashboard
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── 1. MODAL CHOIX ENTREPRISE ──────────────────────────────────────────
+function openSendProfileModal(candId) {
+ const cand = cById(candId); if(!cand) return;
+ const cat  = cand.cat;
+ const now  = Date.now();
+ const week = 7*24*3600*1000;
+
+ // Entreprises avec besoin ouvert dans la même catégorie
+ const withNeed = DB.needs
+  .filter(n => n.status==='open' && n.cat===cat)
+  .map(n => {
+   const co = coById(n.company_id);
+   if(!co) return null;
+   const lastSent = co._last_cv_sent_at;
+   const sentThisWeek = lastSent && (now - new Date(lastSent).getTime()) < week;
+   const count = co._cv_sent_count||0;
+   return { co, need:n, sentThisWeek, count, lastSent };
+  }).filter(Boolean);
+
+ // Entreprises CVthèque qui acceptent cette catégorie
+ const cvtheque = DB.companies
+  .filter(co => co._accept_cv && (co._accept_cv_cats||[]).includes(cat) && co.email)
+  .filter(co => !withNeed.find(x=>x.co.id===co.id)) // pas en double
+  .map(co => {
+   const lastSent = co._last_cv_sent_at;
+   const sentThisWeek = lastSent && (now - new Date(lastSent).getTime()) < week;
+   return { co, need:null, sentThisWeek, lastSent };
+  });
+
+ const total = withNeed.length + cvtheque.length;
+
+ const rowHtml = (item, type) => {
+  const co = item.co;
+  const isRed = item.sentThisWeek;
+  const daysSince = item.lastSent ? Math.floor((now - new Date(item.lastSent).getTime())/86400000) : null;
+  const tagLabel = type==='need'
+   ? `<span style="font-size:9px;padding:2px 7px;background:rgba(61,224,154,.1);border:1px solid rgba(61,224,154,.25);border-radius:10px;color:var(--ac2)">Besoin : ${item.need.title}</span>`
+   : `<span style="font-size:9px;padding:2px 7px;background:rgba(201,137,26,.1);border:1px solid rgba(201,137,26,.25);border-radius:10px;color:var(--ac4)">CVthèque</span>`;
+  const warningLabel = isRed
+   ? `<span style="font-size:9px;padding:2px 7px;background:rgba(240,75,75,.1);color:var(--ac3);border-radius:10px;font-weight:700">⚠ Envoyé il y a ${daysSince}j</span>`
+   : '';
+  const hasContract = !!(co._contract_signed || co.contract);
+
+  return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ${isRed?'rgba(240,75,75,.3)':'var(--bd)'};border-radius:var(--r2);cursor:pointer;margin-bottom:6px;background:${isRed?'rgba(240,75,75,.04)':'var(--s2)'}">
+   <input type="checkbox" value="${co.id}|${type}|${item.need?.id||''}" style="accent-color:var(--ac);width:15px;height:15px;flex-shrink:0" ${isRed?'':''}> 
+   <div style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
+     <span style="font-weight:700;font-size:12px">${esc(co.name)}</span>
+     ${hasContract ? '<span style="font-size:9px;color:var(--ac2)">✓ Contrat signé</span>' : ''}
+     ${tagLabel}
+     ${warningLabel}
+    </div>
+    <div style="font-size:10px;color:var(--mu)">${esc(co.contact||'—')} · ${esc(co.city||'—')} · ${esc(co.email||'—')}</div>
+   </div>
+  </label>`;
+ };
+
+ const listHtml = [
+  withNeed.length ? `<div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px;margin-top:4px">Entreprises avec besoin ouvert</div>` + withNeed.map(x=>rowHtml(x,'need')).join('') : '',
+  cvtheque.length ? `<div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px;margin-top:12px">CVthèque — acceptent des profils ${getCat(cat).l}</div>` + cvtheque.map(x=>rowHtml(x,'cv')).join('') : '',
+ ].join('');
+
+ openMo(`📤 Envoyer le profil — ${esc(cand.name)}`,
+  `<div style="margin-bottom:12px;padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);font-size:11px">
+    <strong>${esc(cand.name)}</strong> · ${esc(cand.role||getCat(cat).l)} · ${cand.salary?fM(cand.salary)+'€/an':''} · Dispo : ${esc(cand.avail||'—')} · ${esc(cand.mobility||'—')}
+   </div>
+   ${total ? `<div style="max-height:55vh;overflow-y:auto">${listHtml}</div>` : `<div style="text-align:center;padding:30px;color:var(--mu2);font-size:11px">Aucune entreprise disponible pour cette catégorie.<br>Ajoutez des entreprises dans la CVthèque ou créez des besoins.</div>`}
+   <div style="margin-top:10px;padding:8px 12px;background:rgba(201,137,26,.07);border-radius:var(--r2);font-size:10px;color:var(--ac4)">
+    ⚠ Les entreprises en rouge ont déjà reçu un profil cette semaine. Évitez d'en envoyer plus de 2 par semaine par entreprise.
+   </div>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button>
+   <button class="btn bp" onclick="confirmSendProfiles('${candId}')">📤 Générer et envoyer</button>`
+ );
+}
+
+// ── 2. CONFIRMATION + GÉNÉRATION IA ───────────────────────────────────
+async function confirmSendProfiles(candId) {
+ const selected = [...document.querySelectorAll('#mo-body input[type="checkbox"]:checked')]
+  .map(el => {
+   const [coId, type, needId] = el.value.split('|');
+   return { coId, type, needId: needId||null };
+  });
+
+ if(!selected.length){ toast('Sélectionnez au moins une entreprise','w'); return;}
+
+ const cand = cById(candId); if(!cand) return;
+ const key = getApiKey();
+ if(!key){ toast('Clé API Anthropic manquante — Paramètres','e'); return; }
+
+ closeMo();
+ toast('Génération du CV anonymisé en cours…','i');
+
+ // Générer le CV anonymisé via IA
+ let anonCVText = null;
+ try {
+  anonCVText = await generateAnonCVText(cand, key);
+ } catch(e) {
+  toast('Erreur IA : '+e.message,'e');
+  return;
+ }
+
+ // Générer le PDF anonymisé
+ let pdfB64 = null;
+ try {
+  pdfB64 = generateAnonCVPDF(cand, anonCVText);
+ } catch(e) {
+  console.warn('PDF generation error:', e);
+ }
+
+ // Envoyer à chaque entreprise sélectionnée
+ let sent = 0;
+ for(const item of selected) {
+  const co = coById(item.coId);
+  const need = item.needId ? DB.needs.find(n=>n.id===item.needId) : null;
+  if(!co || !co.email) continue;
+
+  const hasContract = !!(co._contract_signed || co.contract);
+  const ok = await sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, key);
+  if(ok) {
+   sent++;
+   // Mettre à jour compteurs
+   co._last_cv_sent_at = new Date().toISOString();
+   co._cv_sent_count = (co._cv_sent_count||0) + 1;
+   // Changer statut candidat
+   if(cand.status !== 'placed') {
+    cand.status = 'presented';
+    cand.updated = now_();
+   }
+   // Timeline
+   addTimeline(co.id, 'email',
+    `Profil envoyé : ${cand.name} (${cand.role||getCat(cand.cat).l})${need?' → Besoin : '+need.title:''}`,
+    null
+   );
+   // Ajouter relance J+3
+   const relanceDate = new Date(Date.now() + 3*86400*1000);
+   DB.agenda.push({
+    id: uid(),
+    type: 'task',
+    title: `Rappeler ${co.name} — réception CV ${cand.name}`,
+    date: relanceDate.toISOString(),
+    time: '09:00',
+    cand_id: candId,
+    comp_id: item.coId,
+    _profile_followup: true,
+    done: false,
+    created: now_(),
+   });
+  }
+ }
+
+ save();
+ rCands();
+ badges();
+ if(UI.view==='dash') rDash();
+
+ if(sent > 0) {
+  toast(`✅ Profil envoyé à ${sent} entreprise(s) — relance J+3 planifiée`,'s');
+ } else {
+  toast('Erreur lors de l\'envoi — vérifiez les emails','e');
+ }
+}
+
+// ── 3. GÉNÉRATION CV ANONYMISÉ (texte via IA) ─────────────────────────
+async function generateAnonCVText(cand, key) {
+ const profile = [
+  `Poste : ${cand.role || getCat(cand.cat).l}`,
+  `Spécialité : ${getCat(cand.cat).l}`,
+  `Expérience : ${cand.notes_pre||''}`,
+  `Salaire actuel : ${cand.salary ? fM(cand.salary) : 'NC'}`,
+  `Disponibilité : ${cand.avail||'NC'}`,
+  `Mobilité : ${cand.mobility||'NC'}`,
+  `Notes entretien : ${cand.notes_int||''}`,
+  `Notes générales : ${cand.notes||''}`,
+ ].filter(l=>l.split(': ')[1]).join('\n');
+
+ const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body: JSON.stringify({
+   model:'claude-sonnet-4-20250514',
+   max_tokens:1200,
+   system:`Tu es expert en recrutement BTP. Génère un CV anonyme professionnel. 
+RÈGLES STRICTES :
+- Aucun nom de personne, aucune coordonnée (email/téléphone)
+- Aucune entreprise sauf les très grands groupes (Vinci, Bouygues, Eiffage, GTM, SPIE, Colas, NGE, Fayat)
+- Reformuler les expériences pour qu'elles ne soient pas retrouvables sur Google
+- Conserver 100% des compétences, certifications et réalisations
+- Ton professionnel, phrases courtes et percutantes
+- Format JSON strict sans markdown :
+{
+ "titre": "Intitulé du poste",
+ "accroche": "2-3 phrases percutantes sur le profil",
+ "experiences": [{"periode":"","poste":"","contexte":"","realisations":["",""]}],
+ "competences": ["",""],
+ "formations_certs": ["",""],
+ "points_forts": ["","",""]
+}`,
+   messages:[{role:'user', content:'Profil à anonymiser :\n'+profile}]
+  })
+ });
+
+ const data = await resp.json();
+ const txt = data.content?.find(b=>b.type==='text')?.text || '';
+ let parsed = null;
+ try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
+ catch(e) {
+  const m = txt.match(/\{[\s\S]*\}/);
+  if(m) try { parsed = JSON.parse(m[0]); } catch(e2){}
+ }
+ if(!parsed) throw new Error('Réponse IA invalide');
+ return parsed;
+}
+
+// ── 4. GÉNÉRATION PDF CV ANONYME (couleurs Novalem) ───────────────────
+function generateAnonCVPDF(cand, anonCV) {
+ const jsPDFLib = window.jspdf;
+ if(!jsPDFLib) return null;
+ const doc = new jsPDFLib.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+ const W=210,H=297,ML=18,MR=18,MT=14,CW=174;
+ // Palette Novalem : fond blanc/gris, accent orange, texte sombre, zéro bleu
+ const C = { n:[26,22,20], o:[201,137,26], g:[100,95,90], f:[245,243,239], l:[232,228,220], w:[255,255,255] };
+
+ function sf(s,sz){doc.setFont('helvetica',s);doc.setFontSize(sz);}
+ function tc(){doc.setTextColor.apply(doc,arguments);}
+ function fc(){doc.setFillColor.apply(doc,arguments);}
+ function dc(){doc.setDrawColor.apply(doc,arguments);}
+ function wt(t,x,y,o){doc.text(t,x,y,o||{});}
+ function wrap(txt,w){return doc.splitTextToSize(txt,w);}
+
+ let y=MT;
+
+ // ── Header bande noire ───────────────────────────────────────────────
+ fc(...C.n);doc.rect(0,0,W,32,'F');
+ // Logo Novalem (petit, discret)
+ sf('bold',8);tc(255,255,255,0.4);
+ doc.setTextColor(180,170,160);
+ wt('PRÉSENTÉ PAR',W-MR,10,{align:'right'});
+ sf('bold',11);tc(...C.o);wt('NOVALEM',W-MR,17,{align:'right'});
+ sf('normal',7);doc.setTextColor(130,125,120);wt('Recrutement BTP · CDI',W-MR,22,{align:'right'});
+
+ // Titre poste
+ sf('bold',18);tc(255,255,255);
+ wt(anonCV.titre||cand.role||'Profil BTP',ML,14);
+ sf('normal',9);tc(...C.o);wt(getCat(cand.cat).l,ML,21);
+
+ // Infos clés : dispo / salaire / mobilité
+ const kv = [
+  cand.avail ? ['Dispo', cand.avail] : null,
+  cand.salary ? ['Prétentions', fM(cand.salary)+' €/an'] : null,
+  cand.mobility ? ['Mobilité', cand.mobility] : null,
+ ].filter(Boolean);
+ let kx = ML;
+ sf('normal',8);
+ kv.forEach(([k,v])=>{
+  doc.setTextColor(160,150,140);wt(k+' : ',kx,28);
+  const kw=doc.getTextWidth(k+' : ');
+  tc(...C.o);wt(v,kx+kw,28);
+  kx+=kw+doc.getTextWidth(v)+12;
+ });
+
+ y=40;
+
+ // ── Accroche ─────────────────────────────────────────────────────────
+ if(anonCV.accroche){
+  fc(...C.f);doc.roundedRect(ML,y,CW,16,2,2,'F');
+  sf('normal',9);tc(...C.g);
+  const lines=wrap(anonCV.accroche,CW-10);
+  wt(lines,ML+5,y+5);
+  y+=20;
+ }
+
+ // ── Points forts ──────────────────────────────────────────────────────
+ if(anonCV.points_forts?.length){
+  sf('bold',9);tc(...C.o);wt('POINTS FORTS',ML,y);y+=2;
+  dc(...C.o);doc.setLineWidth(0.5);doc.line(ML,y,ML+35,y);y+=4;
+  const pts=anonCV.points_forts.slice(0,3);
+  const colW=(CW-8)/pts.length;
+  pts.forEach((pt,i)=>{
+   fc(...C.f);doc.roundedRect(ML+i*(colW+4),y,colW,14,2,2,'F');
+   sf('bold',8);tc(...C.n);
+   const wrapped=wrap(pt,colW-6);
+   wt(wrapped,ML+i*(colW+4)+3,y+4);
+  });
+  y+=20;
+ }
+
+ // ── Expériences ───────────────────────────────────────────────────────
+ if(anonCV.experiences?.length){
+  sf('bold',9);tc(...C.o);wt('EXPÉRIENCES PROFESSIONNELLES',ML,y);y+=2;
+  dc(...C.o);doc.setLineWidth(0.5);doc.line(ML,y,ML+70,y);y+=5;
+
+  anonCV.experiences.forEach(exp=>{
+   if(y>H-50){doc.addPage();y=MT;}
+   // Période + poste
+   sf('bold',9.5);tc(...C.n);wt((exp.poste||''),ML,y);
+   sf('normal',8.5);tc(...C.g);
+   const pw=doc.getTextWidth(exp.poste||'');
+   if(exp.periode) wt('  '+exp.periode,ML+pw+2,y);
+   y+=5;
+   // Contexte
+   if(exp.contexte){
+    sf('normal',8);tc(...C.g);
+    const cl=wrap(exp.contexte,CW);
+    wt(cl,ML,y);
+    y+=cl.length*3.8+2;
+   }
+   // Réalisations
+   (exp.realisations||[]).forEach(r=>{
+    if(y>H-20){doc.addPage();y=MT;}
+    sf('normal',8.5);tc(...C.n);
+    const rl=wrap('› '+r,CW-5);
+    wt(rl,ML+3,y);
+    y+=rl.length*3.8+1;
+   });
+   y+=3;
+  });
+ }
+
+ // ── Compétences ───────────────────────────────────────────────────────
+ if(anonCV.competences?.length){
+  if(y>H-40){doc.addPage();y=MT;}
+  sf('bold',9);tc(...C.o);wt('COMPÉTENCES TECHNIQUES',ML,y);y+=2;
+  dc(...C.o);doc.setLineWidth(0.5);doc.line(ML,y,ML+55,y);y+=5;
+  const comps=anonCV.competences;
+  const cols=2;const cw2=(CW-6)/cols;
+  for(let i=0;i<comps.length;i+=cols){
+   for(let j=0;j<cols&&i+j<comps.length;j++){
+    sf('normal',8.5);tc(...C.n);
+    wt('· '+comps[i+j],ML+j*(cw2+6),y);
+   }
+   y+=4.5;
+  }
+  y+=4;
+ }
+
+ // ── Formations / Certifications ───────────────────────────────────────
+ if(anonCV.formations_certs?.length){
+  if(y>H-30){doc.addPage();y=MT;}
+  sf('bold',9);tc(...C.o);wt('FORMATIONS & CERTIFICATIONS',ML,y);y+=2;
+  dc(...C.o);doc.setLineWidth(0.5);doc.line(ML,y,ML+60,y);y+=5;
+  anonCV.formations_certs.forEach(f=>{
+   sf('normal',8.5);tc(...C.n);wt('· '+f,ML,y);y+=4.5;
+  });
+ }
+
+ // ── Footer ────────────────────────────────────────────────────────────
+ const np=doc.getNumberOfPages();
+ for(let p=1;p<=np;p++){
+  doc.setPage(p);
+  fc(...C.n);doc.rect(0,H-10,W,10,'F');
+  sf('normal',6.5);tc(180,170,160);
+  wt('NOVALEM · Cabinet de recrutement BTP · contact@novalem-recrutement.fr · Ce document est confidentiel',ML,H-4);
+  wt(p+'/'+np,W-MR,H-4,{align:'right'});
+ }
+
+ return doc.output('datauristring').split(',')[1];
+}
+
+// ── 5. ENVOI EMAIL ADAPTÉ ─────────────────────────────────────────────
+async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, key) {
+ const apiBase = getApiBase(); if(!apiBase) return false;
+
+ const userName = localStorage.getItem(uKey('btp_user_name'))||'Louis RENAULT';
+ const userPhone = localStorage.getItem(uKey('btp_user_tel'))||'06 58 21 20 96';
+ const prenom = co.contact ? co.contact.split(' ')[0] : '';
+
+ // Infos profil visibles
+ const infoLines = [
+  `**Poste :** ${cand.role||getCat(cand.cat).l}`,
+  cand.avail  ? `**Disponibilité :** ${cand.avail}` : null,
+  cand.salary ? `**Prétentions :** ${fM(cand.salary)} €/an` : null,
+  cand.mobility ? `**Mobilité :** ${cand.mobility}` : null,
+  (cand.notes_pre||'').includes('permis') || (cand.notes||'').includes('permis') ? '**Permis B :** Oui' : null,
+ ].filter(Boolean).join('\n');
+
+ let subject, body;
+
+ if(hasContract) {
+  // CLIENT AVEC CONTRAT → CV complet avec contact candidat
+  subject = need
+   ? `Profil candidat — ${cand.role} pour votre besoin "${need.title}"`
+   : `Profil à découvrir — ${cand.role||getCat(cand.cat).l}`;
+
+  body = `Bonjour${prenom?' '+prenom:''},\n\n`
+   +(need
+    ? `Suite à votre besoin de **${need.title}**, je vous transmets ci-joint le profil d'un candidat que j'ai sélectionné et qui me semble correspondre à vos attentes.\n\n`
+    : `Je me permets de vous faire parvenir un profil que j'ai récemment rencontré et qui pourrait vous intéresser.\n\n`)
+   +`---\n\n`
+   +`${infoLines}\n\n`
+   +`---\n\n`
+   +`**Ce candidat a été rencontré en entretien de positionnement, ses compétences ont été vérifiées et son dossier est complet.**\n\n`
+   +`N'hésitez pas à me contacter directement pour échanger sur ce profil et organiser une rencontre :\n\n`
+   +`📞 **${userPhone}**\n\n`
+   +`Bien cordialement,\n**${userName}**\n${userPhone}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr`;
+
+ } else {
+  // PROSPECT / CVthèque → CV anonymisé
+  subject = need
+   ? `Candidat BTP — ${cand.role||getCat(cand.cat).l} pour votre besoin`
+   : `Profil BTP intéressant — ${getCat(cand.cat).l}`;
+
+  body = `Bonjour${prenom?' '+prenom:''},\n\n`
+   +(need
+    ? `Je me permets de vous contacter suite à votre besoin **${need.title}**. J'ai le plaisir de vous présenter un candidat que j'ai rencontré et dont le profil me semble particulièrement correspondre à vos attentes.\n\n`
+    : `Je me permets de vous faire parvenir un profil de ${getCat(cand.cat).l} que j'ai sélectionné avec soin et qui pourrait vous intéresser.\n\n`)
+   +`---\n\n`
+   +`${infoLines}\n\n`
+   +`---\n\n`
+   +`Chaque candidat que nous présentons a été rencontré en entretien de positionnement, ses compétences et références ont été vérifiées. Nous nous engageons à ne vous présenter que des profils qualifiés et motivés.\n\n`
+   +`Vous trouverez le CV anonymisé en pièce jointe. Si ce profil vous intéresse, contactez-moi directement pour organiser une rencontre :\n\n`
+   +`📞 **${userPhone}**\n\n`
+   +`[Répondre à cette proposition ->(mailto:contact@novalem-recrutement.fr?subject=Profil ${encodeURIComponent(cand.role||getCat(cand.cat).l)})]\n\n`
+   +`Bien cordialement,\n**${userName}**\n${userPhone}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr`;
+ }
+
+ try {
+  const payload = {
+   to: co.email,
+   subject,
+   body,
+   ...(pdfB64 && !hasContract ? {
+    attachments:[{
+     filename: `Profil_${(cand.role||'Candidat').replace(/\s+/g,'_')}_Novalem.pdf`,
+     content: pdfB64,
+     type: 'application/pdf'
+    }]
+   } : {}),
+  };
+
+  const resp = await fetch(apiBase+'/api/send-email',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+  return resp.ok && (data.sent || data.id);
+ } catch(e) {
+  console.warn('sendProfileEmail error:', e);
+  return false;
+ }
+}
+
+
 function sendCV(candId){const c=cById(candId);if(!c)return;openMo('CV anonyme à envoyer',`<div class="mu_ fs11 mb8">Envoyer ce profil anonymisé aux prospects avec besoin ouvert dans la même catégorie.</div>${DB.companies.filter(co=>co.type==='prospect'&&['need','cvsent'].includes(co.status)).map(co=>`<div class="aitem" onclick="markCVSent('${candId}','${co.id}')">${esc(co.name)} <span class="mu_ fs10 ml-auto">${esc(co.city||'')}</span></div>`).join('')||'<div class="mu_ fs11">Aucun prospect avec besoin confirmé</div>'}`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function markCVSent(candId,coId){const co=coById(coId);if(!co)return;co.status='cvsent';co.updated=now_();save();closeMo();toast(`CV envoyé à ${co.name} ✓`,'s');}
 function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo(' Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier</button>`);}
