@@ -311,6 +311,48 @@ async function handleSubmitDossier(req, res) {
     } catch(e) {
       console.warn('[dossier] Supabase insert error (non-bloquant):', e.message);
     }
+
+    // Mettre à jour le profil candidat dans crm_data si cand_id fourni
+    if (candId) {
+      try {
+        // Récupérer la crm_data existante (stockée par l'utilisateur CRM)
+        // On met à jour le candidat pour : _dossier_validated, _dossier_ref, et ajouter doc 'dossier'
+        const { data: rows } = await sb
+          .from('crm_data')
+          .select('id, data')
+          .in('id', [1, 2]);  // Louis=1, Corentin=2
+
+        for (const row of (rows || [])) {
+          try {
+            const db = JSON.parse(row.data || '{}');
+            const cands = db.candidates || [];
+            const cand = cands.find(c => c.id === candId);
+            if (cand) {
+              // Marquer dossier validé
+              cand._dossier_validated = true;
+              cand._dossier_ref = ref;
+              cand._dossier_signed_at = sig.signed_at;
+              cand._dossier_notif_seen = false;
+
+              // Ajouter dans la liste docs
+              cand.docs = cand.docs || [];
+              const docEntry = { id: 'dossier', l: 'Dossier candidature signé', ico: '📋',
+                name: `Dossier_${id.prenom}_${id.nom}.pdf`, date: new Date().toISOString(),
+                file: true, ref };
+              const existing = cand.docs.findIndex(d => d.id === 'dossier');
+              if (existing >= 0) cand.docs[existing] = docEntry;
+              else cand.docs.push(docEntry);
+
+              // Sauvegarder
+              await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', row.id);
+              break;
+            }
+          } catch(e2) {}
+        }
+      } catch(e) {
+        console.warn('[dossier] crm_data update error:', e.message);
+      }
+    }
   }
 
   if (RESEND_KEY) {
@@ -417,6 +459,63 @@ async function handleSubmitDossier(req, res) {
           html: htmlCand,
         }),
       }).catch(e => console.warn('[dossier] email candidat:', e.message));
+    }
+  }
+
+  // ── Mettre à jour le profil candidat dans le CRM (Supabase) ────
+  if (sb && candId) {
+    try {
+      // Lire les données CRM existantes
+      const { data: crmRows } = await sb
+        .from('crm_data')
+        .select('id, data')
+        .order('id', { ascending: true });
+
+      if (crmRows?.length) {
+        for (const row of crmRows) {
+          let db;
+          try { db = typeof row.data === 'string' ? JSON.parse(row.data) : row.data; }
+          catch(e) { continue; }
+
+          const cand = (db.candidates || []).find(c => c.id === candId);
+          if (cand) {
+            // Marquer dossier validé
+            cand._dossier_validated = true;
+            cand._dossier_validated_at = new Date().toISOString();
+            cand._dossier_ref = ref;
+            cand._dossier_notif_seen = false;
+
+            // Ajouter dans la liste des docs
+            cand.docs = cand.docs || [];
+            const docEntry = {
+              id: 'dossier',
+              name: `Dossier_${id.prenom}_${id.nom}_${ref}.pdf`,
+              date: new Date().toISOString(),
+              size: 'signé',
+              file: true,
+              signed_by: sig.signed_by,
+              signed_at: sig.signed_at,
+            };
+            // Remplacer ou ajouter
+            const existingIdx = cand.docs.findIndex(d => d.id === 'dossier');
+            if (existingIdx >= 0) cand.docs[existingIdx] = docEntry;
+            else cand.docs.push(docEntry);
+
+            // Passer en statut "dossier" si encore en précal
+            if (['new','precal'].includes(cand.status)) {
+              cand.status = 'dossier';
+            }
+            cand.updated = new Date().toISOString();
+
+            // Sauvegarder
+            await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', row.id);
+            console.log('[dossier] Profil candidat mis à jour:', candId, 'ref:', ref);
+            break;
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('[dossier] Mise à jour profil candidat échouée (non-bloquant):', e.message);
     }
   }
 
