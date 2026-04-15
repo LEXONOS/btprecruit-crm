@@ -855,15 +855,11 @@ const COMP_ST=[
 ];
 
 const DOCS_LIST=[
- {id:'cv', l:'CV', ico:''},
- {id:'id_card', l:"Pièce d'identité (recto/verso)", ico:''},
- {id:'carte_vit', l:'Carte vitale', ico:''},
- {id:'permis', l:'Permis de conduire', ico:''},
- {id:'att_permis', l:"Attestation honneur permis", ico:''},
- {id:'visite_med', l:'Visite médicale', ico:''},
- {id:'rgpd', l:'RGPD signé', ico:''},
- {id:'auth_ref', l:'Autorisation contrôle référence', ico:''},
- {id:'dossier', l:'Dossier candidature complet signé',ico:''},
+ {id:'cv',       l:'CV',                              ico:'📄', required:true},
+ {id:'id_card',  l:"Pièce d'identité (recto/verso)", ico:'🪹', required:true,  note:"CNI, passeport ou titre de séjour selon situation"},
+ {id:'permis',   l:'Permis de conduire (recto/verso)', ico:'🚗', required:false, note:"Obligatoire si permis déclaré dans le dossier"},
+ {id:'carte_vit',l:'Carte vitale',                    ico:'💳', required:false, note:"Recommandé — n° sécu nécessaire pour la DPAE à l'embauche"},
+ {id:'dossier',  l:'Dossier de candidature signé', ico:'✅', required:true,  auto:true, note:"Généré automatiquement à la signature du dossier en ligne"},
 ];
 // Legacy compat — some old candidates stored docs as string arrays
 const DOCS=DOCS_LIST.map(d=>d.l);
@@ -4200,7 +4196,7 @@ function openCandPanel(id){
  </div>
  <div>${renderTimeline(id)}</div>`
  ];
- const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="openSendProfileModal('${id}')">📤 Envoyer profil</button><button class="btn bxs" style="background:rgba(154,74,224,.12);color:var(--purple)" onclick="aiProfileAdvice('${id}')">🤖 IA Profil</button><button class="btn bd_ bsm" onclick="delCand('${id}')"></button>`;
+ const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="openSendProfileModal('${id}')">📤 Envoyer profil</button>${c._dossier_validated?`<button class="btn bxs" style="background:rgba(201,137,26,.12);color:var(--ac4)" onclick="aiMatchEnterprises('${id}')">🤖 Match IA</button>`:''}`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
 }
 
@@ -4443,7 +4439,7 @@ function saveCandForm(id){
  const name=document.getElementById('cf-n').value.trim();
  if(!name){toast('Nom requis','e');return;}
  const n=now_();
- const data={name,cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
+ const data={name,siret:document.getElementById('cof-siret')?.value?.trim()||'',cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
  if(id){const c=cById(id);Object.assign(c,data);}
  else{data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
  save();closeMo();
@@ -4457,6 +4453,41 @@ function autoAg(c){
 }
 
 // ── COMPANY FORM ─────────────────────────────────────────
+
+// ── SIRET Lookup IA ──────────────────────────────────────────────
+async function siretLookup(nameFieldId, siretFieldId) {
+ const name = document.getElementById(nameFieldId)?.value?.trim();
+ if(!name || name.length < 3){ toast('Entrez d\'abord le nom de l\'entreprise','w'); return; }
+ const key = getApiKey();
+ if(!key){ toast('Clé API Anthropic manquante','e'); return; }
+ const btn = event.target;
+ if(btn){ btn.disabled=true; btn.textContent='⏳'; }
+ try {
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({
+    model:'claude-sonnet-4-20250514',
+    max_tokens:100,
+    system:'Tu es un assistant France. Si tu connais le SIRET de cette entreprise française, réponds UNIQUEMENT avec le numéro SIRET (14 chiffres sans espaces). Sinon réponds INCONNU.',
+    messages:[{role:'user',content:'SIRET de l\'entreprise : '+name}]
+   })
+  });
+  const data = await resp.json();
+  const txt = (data.content?.[0]?.text||'').trim();
+  const siret = txt.replace(/\s/g,'').match(/\d{14}/)?.[0];
+  if(siret){
+   const el = document.getElementById(siretFieldId);
+   if(el){ el.value=siret; el.focus(); }
+   toast('SIRET trouvé : '+siret,'s');
+  } else {
+   toast('SIRET non trouvé — à saisir manuellement','w');
+  }
+ } catch(e){ toast('Erreur IA','e'); }
+ finally{ if(btn){btn.disabled=false;btn.textContent='🔍';} }
+}
+
+
 function openCoForm(id=null,ft='prospect'){
  const c=id?coById(id):{};if(!c)return;
  const catOpts=BTP_CATS.map(cat=>`<option value="${cat.id}" ${(c.cat||'go')===cat.id?'selected':''}>${cat.l}</option>`).join('');
@@ -4464,6 +4495,7 @@ function openCoForm(id=null,ft='prospect'){
  openMo(id?'Modifier':ft==='client'?'Nouveau client':'Nouveau prospect',`
  <div class="fg">
  <div class="fgrp ff"><span class="lbl">Raison sociale *</span><input id="cof-n" value="${esc(c.name||'')}"></div>
+  <div class="fgrp"><span class="lbl">SIRET <button type="button" class="btn bxs" style="font-size:10px;padding:1px 7px;margin-left:6px;vertical-align:middle" onclick="siretLookup('cof-n','cof-siret')" title="Recherche auto via IA">🔍 Auto</button></span><input id="cof-siret" value="${esc(c.siret||'')}" placeholder="12345678901234" maxlength="14" style="font-family:'DM Mono',monospace"></div>
  <div class="fgrp"><span class="lbl">Nom contact</span><input id="cof-ct" value="${esc(c.contact||'')}"></div>
  <div class="fgrp"><span class="lbl">Fonction</span><input id="cof-ctt" value="${esc(c.ctitle||'')}" placeholder="Gérant / DRH…"></div>
  <div class="fgrp"><span class="lbl">Téléphone</span><input id="cof-ph" value="${esc(c.phone||'')}"></div>
@@ -5096,6 +5128,191 @@ async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, ke
   console.warn('sendProfileEmail error:', e);
   return false;
  }
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// IA MATCHING — Propose les meilleures entreprises pour un candidat
+// 1 seul appel API, JSON compact, score 0-100
+// ═══════════════════════════════════════════════════════════════
+async function aiMatchEnterprises(candId) {
+ const cand = cById(candId); if(!cand) return;
+ const key = getApiKey();
+ if(!key){ toast('Clé API manquante — Paramètres','e'); return; }
+
+ const now = Date.now();
+ const week = 7*24*3600*1000;
+
+ // Construire la liste des entreprises pertinentes
+ // (clients + prospects avec besoin ou CVthèque)
+ const companies = DB.companies.filter(co =>
+  co.email && (
+   co.type === 'client' ||
+   co._accept_cv ||
+   DB.needs.some(n => n.company_id === co.id && n.status === 'open')
+  )
+ ).map(co => {
+  const needs = DB.needs.filter(n => n.company_id === co.id && n.status === 'open');
+  const lastSent = co._last_cv_sent_at;
+  const daysSince = lastSent ? Math.floor((now - new Date(lastSent))/86400000) : null;
+  return {
+   id: co.id,
+   name: co.name,
+   city: co.city || '',
+   cat: co.cat || '',
+   hasContract: !!(co._contract_signed || co.contract),
+   hasNeed: needs.length > 0,
+   needTitles: needs.map(n => n.title).join(', '),
+   acceptCV: !!co._accept_cv,
+   acceptCats: co._accept_cv_cats || [],
+   daysSince,
+   sentThisWeek: daysSince !== null && daysSince < 7,
+  };
+ });
+
+ if(!companies.length){ toast('Aucune entreprise disponible dans le CRM','w'); return; }
+
+ // Ouvrir modal de chargement
+ openMo('🤖 Match IA — ' + esc(cand.name),
+  '<div style="display:flex;align-items:center;gap:12px;padding:30px;color:var(--mu)">' +
+  '<div style="width:20px;height:20px;border:2px solid var(--bd2);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>' +
+  '<span style="font-size:12px">Analyse des entreprises en cours…</span></div>', '');
+
+ // Profil candidat résumé
+ const profil = [
+  cand.role || getCat(cand.cat).l,
+  'Spécialité: ' + getCat(cand.cat).l,
+  cand.salary ? 'Salaire: ' + cand.salary + '€' : '',
+  cand.avail ? 'Dispo: ' + cand.avail : '',
+  cand.mobility ? 'Mobilité: ' + cand.mobility : '',
+  cand.notes_pre ? cand.notes_pre.slice(0,150) : '',
+ ].filter(Boolean).join(' | ');
+
+ // Liste entreprises compacte pour l'IA (max 20 pour économiser les tokens)
+ const coList = companies.slice(0,20).map(co =>
+  co.id + ':' + co.name + '(' + co.city + ')' + (co.hasNeed ? '[BESOIN:' + co.needTitles + ']' : '') + (co.acceptCV ? '[ACCEPTE:' + (co.acceptCats.join(',') || 'tous') + ']' : '') + (co.hasContract ? '[CONTRAT]' : '')
+ ).join('\n');
+
+ try {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+   method: 'POST',
+   headers: {'Content-Type':'application/json'},
+   body: JSON.stringify({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 800,
+    system: `Tu es expert en recrutement BTP. Pour un profil candidat, analyse les entreprises et retourne un JSON strict (sans markdown) :
+{"matches":[{"id":"id_entreprise","score":85,"raison":"1 phrase max","match":"fort|moyen|faible"}]}
+Trie par score décroissant. Max 10 entreprises. Score : 90+ = profil idéal pour le besoin exact, 70-89 = bon match catégorie/besoins, 50-69 = possible, <50 = ne pas inclure.`,
+    messages:[{role:'user',content:'PROFIL:\n'+profil+'\n\nENTREPRISES:\n'+coList}]
+   })
+  });
+
+  const data = await resp.json();
+  const txt = data.content?.find(b=>b.type==='text')?.text || '';
+  let parsed = null;
+  try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
+  catch(e){ const m=txt.match(/\{[\s\S]*\}/); if(m) try{parsed=JSON.parse(m[0]);}catch(e2){} }
+
+  if(!parsed?.matches?.length){ closeMo(); toast('Aucun match trouvé','w'); return; }
+
+  // Enrichir avec les données CRM
+  const rows = parsed.matches.map(match => {
+   const co = coById(match.id);
+   if(!co) return '';
+   const coCrm = companies.find(x=>x.id===match.id);
+   const sentThisWeek = coCrm?.sentThisWeek;
+   const daysSince = coCrm?.daysSince;
+   const isFort = match.match === 'fort';
+   const isMoyen = match.match === 'moyen';
+
+   const borderColor = sentThisWeek ? 'rgba(240,75,75,.4)' : isFort ? 'rgba(201,137,26,.4)' : 'var(--bd)';
+   const bgColor = sentThisWeek ? 'rgba(240,75,75,.04)' : isFort ? 'rgba(201,137,26,.04)' : 'var(--s2)';
+
+   const badge = isFort && !sentThisWeek
+    ? '<span style="font-size:9px;padding:2px 7px;background:rgba(201,137,26,.15);color:var(--ac4);border-radius:10px;font-weight:700;margin-left:6px">⭐ Match fort</span>'
+    : '';
+   const redBadge = sentThisWeek
+    ? '<span style="font-size:9px;padding:2px 7px;background:rgba(240,75,75,.1);color:var(--ac3);border-radius:10px;font-weight:700">⚠ Envoyé il y a ' + daysSince + 'j</span>'
+    : '';
+   const contractBadge = coCrm?.hasContract
+    ? '<span style="font-size:9px;color:var(--ac2)">✓ Contrat</span>'
+    : coCrm?.hasNeed
+     ? '<span style="font-size:9px;color:var(--ac5)">◎ Besoin ouvert</span>'
+     : '<span style="font-size:9px;color:var(--mu2)">CVthèque</span>';
+
+   return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid ' + borderColor + ';border-radius:var(--r2);cursor:pointer;margin-bottom:7px;background:' + bgColor + '">' +
+    '<input type="checkbox" value="' + co.id + '" style="accent-color:var(--ac);width:15px;height:15px;margin-top:2px;flex-shrink:0" ' + (sentThisWeek?'':'') + '>' +
+    '<div style="flex:1;min-width:0">' +
+     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">' +
+      '<span style="font-weight:700;font-size:12px">' + esc(co.name) + '</span>' + badge + redBadge +
+      '<span style="margin-left:auto">' + contractBadge + '</span>' +
+     '</div>' +
+     '<div style="font-size:10px;color:var(--mu);margin-bottom:4px">' + esc(co.city||'') + ' · ' + esc(co.contact||'—') + '</div>' +
+     '<div style="font-size:11px;color:var(--tx);font-style:italic">"' + esc(match.raison) + '"</div>' +
+    '</div>' +
+    '<div style="font-size:13px;font-weight:800;color:' + (isFort?'var(--ac4)':isMoyen?'var(--ac5)':'var(--mu)') + ';flex-shrink:0;min-width:36px;text-align:right">' + match.score + '%</div>' +
+   '</label>';
+  }).filter(Boolean).join('');
+
+  const body = '<div style="margin-bottom:10px;padding:9px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);font-size:11px">' +
+   '<strong>' + esc(cand.name) + '</strong> · ' + esc(cand.role||getCat(cand.cat).l) + (cand.salary?' · '+fM(cand.salary)+'€':'') + '</div>' +
+   '<div style="max-height:55vh;overflow-y:auto">' + rows + '</div>' +
+   '<div style="margin-top:8px;padding:7px 10px;background:rgba(201,137,26,.06);border-radius:var(--r2);font-size:10px;color:var(--ac4)">⭐ Match fort · <span style="color:var(--ac3)">⚠ Rouge = envoi récent</span> · ✓ Contrat signé · ◎ Besoin ouvert</div>';
+
+  const mbody = document.getElementById('mo-body');
+  if(mbody) mbody.innerHTML = body;
+  const mfoot = document.getElementById('mo-foot');
+  if(mfoot) mfoot.innerHTML =
+   '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
+   '<button class="btn bp" onclick="sendFromAIMatch(&apos;' + candId + '&apos;)">📤 Envoyer aux sélectionnés</button>';
+
+ } catch(e) {
+  closeMo();
+  toast('Erreur IA : ' + e.message, 'e');
+ }
+}
+
+async function sendFromAIMatch(candId) {
+ const selected = [...document.querySelectorAll('#mo-body input[type="checkbox"]:checked')].map(el=>el.value);
+ if(!selected.length){ toast('Sélectionnez au moins une entreprise','w'); return; }
+
+ const cand = cById(candId); if(!cand) return;
+ const key = getApiKey();
+ if(!key){ toast('Clé API Anthropic manquante','e'); return; }
+
+ closeMo();
+ toast('Génération et envoi en cours…','i');
+
+ // Générer le CV anonymisé une seule fois
+ let anonCV = null, pdfB64 = null;
+ try {
+  anonCV = await generateAnonCVText(cand, key);
+  pdfB64 = generateAnonCVPDF(cand, anonCV);
+ } catch(e) { console.warn('CV anon error:', e); }
+
+ let sent = 0;
+ const now = Date.now();
+ const week = 7*24*3600*1000;
+
+ for(const coId of selected) {
+  const co = coById(coId); if(!co||!co.email) continue;
+  const need = DB.needs.find(n=>n.company_id===coId&&n.status==='open')||null;
+  const hasContract = !!(co._contract_signed||co.contract);
+  const ok = await sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, key);
+  if(ok) {
+   sent++;
+   co._last_cv_sent_at = new Date().toISOString();
+   co._cv_sent_count = (co._cv_sent_count||0)+1;
+   if(cand.status!=='placed') { cand.status='presented'; cand.updated=now_(); }
+   addTimeline(co.id,'profile_sent','Profil envoyé : '+cand.name+' (via IA Match)'+(need?' → '+need.title:''),null);
+   addTimeline(cand.id||candId,'profile_sent','Profil envoyé à '+co.name+(need?' → '+need.title:''),null);
+   DB.agenda.push({id:uid(),type:'task',title:'Rappeler '+co.name+' — réception CV '+cand.name,date:new Date(now+3*86400000).toISOString(),time:'09:00',cand_id:candId,comp_id:coId,_profile_followup:true,done:false,created:now_()});
+  }
+ }
+ save(); rCands(); badges();
+ if(UI.view==='dash') rDash();
+ toast('✅ Profil envoyé à '+sent+' entreprise(s) — relance J+3 planifiée','s');
 }
 
 
