@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/hub",
+      "dest": "/hub.html"
+    },
+    {
+      "src": "/crm",
+      "dest": "/crm.html"
+    },
+    {
+      "src": "/formation",
+      "dest": "/formation.html"
+    },
+    {
+      "src": "/annuaire",
+      "dest": "/annuaire.html"
+    },
+    {
+      "src": "/documents",
+      "dest": "/documents.html"
+    },
+    {
+      "src": "/statistiques",
+      "dest": "/statistiques.html"
+    },
+    {
+      "src": "/sign",
+      "dest": "/sign.html"
+    },
+    {
+      "src": "/dossier",
+      "dest": "/dossier.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type,X-CRM-Secret"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-reminders",
+      "schedule": "0 7 * * 1-5"
+    }
+  ]
+}

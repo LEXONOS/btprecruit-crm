@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Novalem — Espace Scout</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════
+   NOVALEM HUB — Espace Scout · Command Center
+   ═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#09090a;--s1:#111112;--s2:#18181a;--s3:#202022;--s4:#27272a;
+  --bd:#2a2a2e;--bd2:#38383d;--bd3:#48484f;
+  --tx:#f0f0ec;--mu:#8c8c84;--mu2:#4a4a44;--mu3:#2e2e2a;
+  --ac:#c8e040;--ac-dim:rgba(200,224,64,.06);--ac-border:rgba(200,224,64,.2);
+  --green:#2dd4a0;--green-dim:rgba(45,212,160,.06);--green-border:rgba(45,212,160,.2);
+  --red:#f04b4b;--red-dim:rgba(240,75,75,.06);
+  --orange:#e89830;--orange-dim:rgba(232,152,48,.06);
+  --blue:#4a84e2;--blue-dim:rgba(74,132,226,.06);--blue-border:rgba(74,132,226,.2);
+  --purple:#9048e0;--purple-dim:rgba(144,72,224,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{
+  font-family:'DM Mono',monospace;
+  background:var(--bg);color:var(--tx);
+  min-height:100vh;position:relative;
+  overflow-x:hidden;
+}
+
+/* ── BG EFFECTS ─────────────────────────────────────── */
+.bg-grid{
+  position:fixed;inset:0;z-index:0;
+  background-image:
+    linear-gradient(rgba(200,224,64,.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,224,64,.015) 1px, transparent 1px);
+  background-size:60px 60px;
+  pointer-events:none;
+}
+.bg-glow-1{
+  position:fixed;width:800px;height:800px;border-radius:50%;
+  background:radial-gradient(circle, rgba(200,224,64,.04) 0%, transparent 60%);
+  top:-200px;right:-200px;pointer-events:none;z-index:0;
+}
+.bg-glow-2{
+  position:fixed;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle, rgba(45,212,160,.03) 0%, transparent 60%);
+  bottom:-150px;left:-100px;pointer-events:none;z-index:0;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(9,9,10,.85);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--bd);
+  padding:0 32px;height:56px;
+  display:flex;align-items:center;gap:16px;
+}
+.tb-logo{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:18px;letter-spacing:-.5px;
+  display:flex;align-items:center;gap:10px;
+}
+.tb-logo span{color:var(--ac)}
+.tb-badge{
+  font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+  padding:3px 8px;border-radius:99px;
+  background:var(--ac-dim);color:var(--ac);
+  border:1px solid var(--ac-border);
+  font-family:'DM Mono',monospace;
+}
+.tb-spacer{flex:1}
+.tb-time{font-size:11px;color:var(--mu);letter-spacing:.05em}
+.tb-user{
+  display:flex;align-items:center;gap:10px;
+  padding:6px 12px 6px 14px;
+  background:var(--s2);border:1px solid var(--bd);
+  border-radius:8px;cursor:pointer;transition:.15s;
+}
+.tb-user:hover{border-color:var(--bd2);background:var(--s3)}
+.tb-avatar{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;
+  color:var(--bg);flex-shrink:0;
+}
+.tb-uname{font-size:11px;font-weight:500}
+.tb-urole{font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em}
+.tb-logout{
+  padding:7px 12px;font-size:10px;
+  background:transparent;border:1px solid var(--bd);
+  color:var(--mu);border-radius:6px;cursor:pointer;
+  font-family:'DM Mono',monospace;transition:.15s;
+}
+.tb-logout:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+
+/* ── MAIN CONTAINER ─────────────────────────────────── */
+.main{
+  position:relative;z-index:1;
+  max-width:1200px;margin:0 auto;
+  padding:40px 32px 60px;
+}
+
+/* ── HERO SECTION ───────────────────────────────────── */
+.hero{margin-bottom:48px}
+.hero-greeting{
+  font-size:11px;color:var(--mu);
+  text-transform:uppercase;letter-spacing:.18em;
+  margin-bottom:8px;
+}
+.hero-title{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:32px;letter-spacing:-1px;
+  line-height:1.15;margin-bottom:6px;
+}
+.hero-title span{color:var(--ac)}
+.hero-sub{font-size:12px;color:var(--mu);max-width:500px;line-height:1.6}
+
+/* ── STATS STRIP ────────────────────────────────────── */
+.stats-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  margin-bottom:40px;
+}
+.stat-card{
+  background:var(--s1);border:1px solid var(--bd);
+  border-radius:10px;padding:18px 18px 16px;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  opacity:0;transition:.2s;
+}
+.stat-card:hover{border-color:var(--bd2);transform:translateY(-2px);
+  box-shadow:0 8px 32px rgba(0,0,0,.3);
+}
+.stat-card:hover::before{opacity:1}
+.stat-card:nth-child(1)::before{background:var(--ac)}
+.stat-card:nth-child(2)::before{background:var(--green)}
+.stat-card:nth-child(3)::before{background:var(--orange)}
+.stat-card:nth-child(4)::before{background:var(--blue)}
+.stat-label{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+.stat-value{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.5px}
+.stat-card:nth-child(1) .stat-value{color:var(--ac)}
+.stat-card:nth-child(2) .stat-value{color:var(--green)}
+.stat-card:nth-child(3) .stat-value{color:var(--orange)}
+.stat-card:nth-child(4) .stat-value{color:var(--blue)}
+.stat-delta{font-size:9px;margin-top:6px;display:flex;align-items:center;gap:4px}
+.stat-up{color:var(--green)}
+.stat-down{color:var(--red)}
+
+/* ── SECTION TITLE ──────────────────────────────────── */
+.sec-title{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:14px;letter-spacing:-.2px;
+  margin-bottom:16px;display:flex;align-items:center;gap:10px;
+}
+.sec-title::after{
+  content:'';flex:1;height:1px;background:var(--bd);
+}
+
+/* ── MODULE GRID ────────────────────────────────────── */
+.modules{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  margin-bottom:40px;
+}
+
+.mod-card{
+  background:var(--s1);
+  border:1px solid var(--bd);
+  border-radius:12px;
+  padding:28px 24px 24px;
+  cursor:pointer;
+  transition:all .25s cubic-bezier(.2,.8,.3,1);
+  position:relative;overflow:hidden;
+  text-decoration:none;color:var(--tx);
+  display:flex;flex-direction:column;
+}
+.mod-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  transition:height .25s;
+}
+.mod-card:hover{
+  border-color:var(--bd2);
+  transform:translateY(-4px);
+  box-shadow:0 12px 48px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+.mod-card:hover::before{height:3px}
+.mod-card:active{transform:translateY(-2px) scale(.995)}
+
+/* Card variants */
+.mod-crm::before{background:var(--ac)}
+.mod-crm:hover{border-color:var(--ac-border)}
+.mod-formation::before{background:var(--green)}
+.mod-formation:hover{border-color:var(--green-border)}
+.mod-annuaire::before{background:var(--blue)}
+.mod-annuaire:hover{border-color:var(--blue-border)}
+.mod-docs::before{background:var(--orange)}
+.mod-docs:hover{border-color:rgba(232,152,48,.2)}
+.mod-site::before{background:var(--purple)}
+.mod-site:hover{border-color:rgba(144,72,224,.2)}
+.mod-stats::before{background:var(--green)}
+.mod-stats:hover{border-color:var(--green-border)}
+
+.mod-icon{
+  width:48px;height:48px;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:18px;
+  transition:.2s;
+}
+.mod-crm .mod-icon{background:var(--ac-dim);border:1px solid var(--ac-border)}
+.mod-formation .mod-icon{background:var(--green-dim);border:1px solid var(--green-border)}
+.mod-annuaire .mod-icon{background:var(--blue-dim);border:1px solid var(--blue-border)}
+.mod-docs .mod-icon{background:var(--orange-dim);border:1px solid rgba(232,152,48,.2)}
+.mod-site .mod-icon{background:var(--purple-dim);border:1px solid rgba(144,72,224,.2)}
+.mod-stats .mod-icon{background:var(--green-dim);border:1px solid var(--green-border)}
+
+.mod-title{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:16px;letter-spacing:-.3px;margin-bottom:6px;
+}
+.mod-desc{font-size:11px;color:var(--mu);line-height:1.6;flex:1}
+.mod-footer{
+  margin-top:16px;padding-top:14px;border-top:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.mod-tag{
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;
+  padding:3px 8px;border-radius:99px;
+}
+.mod-crm .mod-tag{background:var(--ac-dim);color:var(--ac)}
+.mod-formation .mod-tag{background:var(--green-dim);color:var(--green)}
+.mod-annuaire .mod-tag{background:var(--blue-dim);color:var(--blue)}
+.mod-docs .mod-tag{background:var(--orange-dim);color:var(--orange)}
+.mod-site .mod-tag{background:var(--purple-dim);color:var(--purple)}
+.mod-stats .mod-tag{background:var(--green-dim);color:var(--green)}
+.mod-arrow{
+  font-size:14px;color:var(--mu2);transition:.2s;
+}
+.mod-card:hover .mod-arrow{color:var(--tx);transform:translateX(3px)}
+
+/* ── QUICK ACTIONS ──────────────────────────────────── */
+.quick-actions{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  margin-bottom:40px;
+}
+.qa{
+  background:var(--s1);border:1px solid var(--bd);
+  border-radius:8px;padding:14px 16px;
+  cursor:pointer;transition:.2s;
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;color:var(--tx);
+}
+.qa:hover{background:var(--s2);border-color:var(--bd2);transform:translateY(-1px)}
+.qa-icon{font-size:16px;flex-shrink:0}
+.qa-text{font-size:11px}
+
+/* ── ACTIVITY FEED ──────────────────────────────────── */
+.activity-section{
+  display:grid;grid-template-columns:1fr 340px;gap:20px;
+}
+.feed{
+  background:var(--s1);border:1px solid var(--bd);
+  border-radius:12px;overflow:hidden;
+}
+.feed-header{
+  padding:16px 20px;border-bottom:1px solid var(--bd);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
+  display:flex;align-items:center;gap:8px;
+}
+.feed-dot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.feed-list{max-height:320px;overflow-y:auto}
+.feed-item{
+  padding:14px 20px;border-bottom:1px solid rgba(42,42,46,.5);
+  display:flex;gap:12px;align-items:flex-start;
+  transition:.1s;
+}
+.feed-item:hover{background:var(--s2)}
+.feed-item:last-child{border-bottom:none}
+.fi-dot{
+  width:8px;height:8px;border-radius:50%;
+  margin-top:4px;flex-shrink:0;
+}
+.fi-dot.green{background:var(--green)}
+.fi-dot.orange{background:var(--orange)}
+.fi-dot.blue{background:var(--blue)}
+.fi-dot.ac{background:var(--ac)}
+.fi-text{font-size:11px;line-height:1.5;flex:1}
+.fi-time{font-size:9px;color:var(--mu2);margin-top:3px}
+
+/* ── SIDEBAR PANEL ──────────────────────────────────── */
+.side-panel{display:flex;flex-direction:column;gap:16px}
+.sp-card{
+  background:var(--s1);border:1px solid var(--bd);
+  border-radius:12px;padding:20px;
+}
+.sp-title{
+  font-family:'Syne',sans-serif;font-weight:700;font-size:12px;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.sp-title-icon{font-size:14px}
+
+/* Raccourcis */
+.shortcut{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:6px;
+  cursor:pointer;transition:.15s;
+  margin-bottom:4px;font-size:11px;color:var(--mu);
+}
+.shortcut:hover{background:var(--s2);color:var(--tx)}
+.shortcut-key{
+  font-size:9px;padding:2px 6px;
+  background:var(--s3);border:1px solid var(--bd);
+  border-radius:4px;color:var(--mu2);
+  margin-left:auto;font-family:'DM Mono',monospace;
+}
+
+/* Team status */
+.team-member{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;
+}
+.tm-avatar{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:11px;
+  position:relative;
+}
+.tm-status{
+  position:absolute;bottom:-1px;right:-1px;
+  width:10px;height:10px;border-radius:50%;
+  border:2px solid var(--s1);
+}
+.tm-status.online{background:var(--green)}
+.tm-status.offline{background:var(--mu2)}
+.tm-info{flex:1}
+.tm-name{font-size:11px;font-weight:500}
+.tm-role{font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em}
+
+/* ── FOOTER ─────────────────────────────────────────── */
+.hub-footer{
+  margin-top:48px;padding-top:20px;border-top:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:9px;color:var(--mu2);
+  text-transform:uppercase;letter-spacing:.1em;
+}
+.hub-footer a{color:var(--mu);text-decoration:none;transition:.15s}
+.hub-footer a:hover{color:var(--ac)}
+
+/* ── ANIMATIONS ─────────────────────────────────────── */
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.hero{animation:fadeIn .5s cubic-bezier(.2,.8,.3,1) .1s both}
+.stats-strip{animation:fadeIn .5s cubic-bezier(.2,.8,.3,1) .2s both}
+.modules{animation:fadeIn .5s cubic-bezier(.2,.8,.3,1) .3s both}
+.quick-actions{animation:fadeIn .5s cubic-bezier(.2,.8,.3,1) .35s both}
+.activity-section{animation:fadeIn .5s cubic-bezier(.2,.8,.3,1) .4s both}
+
+/* ── RESPONSIVE ─────────────────────────────────────── */
+@media(max-width:900px){
+  .modules{grid-template-columns:repeat(2,1fr)}
+  .stats-strip{grid-template-columns:repeat(2,1fr)}
+  .quick-actions{grid-template-columns:repeat(2,1fr)}
+  .activity-section{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .topbar{padding:0 16px}
+  .main{padding:24px 16px 40px}
+  .modules{grid-template-columns:1fr}
+  .stats-strip{grid-template-columns:repeat(2,1fr)}
+  .quick-actions{grid-template-columns:1fr}
+  .hero-title{font-size:24px}
+  .tb-time{display:none}
+}
+
+/* ── SCROLLBAR ──────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:99px}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow-1"></div>
+<div class="bg-glow-2"></div>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="tb-logo">Nova<span>lem</span></div>
+  <div class="tb-badge">Espace Scout</div>
+  <div class="tb-spacer"></div>
+  <div class="tb-time" id="tb-time"></div>
+  <div class="tb-user" id="tb-user" onclick="toggleUserMenu()">
+    <div class="tb-avatar" id="tb-avatar"></div>
+    <div>
+      <div class="tb-uname" id="tb-uname">—</div>
+      <div class="tb-urole" id="tb-urole">—</div>
+    </div>
+  </div>
+  <button class="tb-logout" onclick="logout()">Deconnexion</button>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-greeting" id="hero-greeting">Bienvenue</div>
+    <div class="hero-title" id="hero-title">Bonjour, <span>Scout</span></div>
+    <div class="hero-sub">Votre espace de travail centralise — CRM, formations, ressources et outils. Tout ce dont vous avez besoin pour performer.</div>
+  </div>
+
+  <!-- Stats Strip -->
+  <div class="stats-strip" id="stats-strip">
+    <div class="stat-card">
+      <div class="stat-label">Candidats actifs</div>
+      <div class="stat-value" id="st-candidates">—</div>
+      <div class="stat-delta stat-up" id="st-candidates-d">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Placements ce mois</div>
+      <div class="stat-value" id="st-placements">—</div>
+      <div class="stat-delta stat-up" id="st-placements-d">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Offres en cours</div>
+      <div class="stat-value" id="st-offers">—</div>
+      <div class="stat-delta" id="st-offers-d">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Taux de conversion</div>
+      <div class="stat-value" id="st-rate">—</div>
+      <div class="stat-delta stat-up" id="st-rate-d">—</div>
+    </div>
+  </div>
+
+  <!-- Modules -->
+  <div class="sec-title">Modules</div>
+  <div class="modules">
+
+    <!-- CRM -->
+    <a href="/crm" class="mod-card mod-crm">
+      <div class="mod-icon">&#9883;</div>
+      <div class="mod-title">CRM Recrutement</div>
+      <div class="mod-desc">Gestion des candidats, entreprises, offres d'emploi, pipeline de recrutement et suivi complet des placements.</div>
+      <div class="mod-footer">
+        <span class="mod-tag">Production</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Formation -->
+    <a href="/formation" class="mod-card mod-formation">
+      <div class="mod-icon">&#9733;</div>
+      <div class="mod-title">Centre de Formation</div>
+      <div class="mod-desc">Parcours d'onboarding, techniques de sourcing, scripts d'appel, methodes de qualification et best practices BTP.</div>
+      <div class="mod-footer">
+        <span class="mod-tag">Actif</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Annuaire -->
+    <a href="/annuaire" class="mod-card mod-annuaire">
+      <div class="mod-icon">&#9782;</div>
+      <div class="mod-title">Annuaire & Contacts</div>
+      <div class="mod-desc">Repertoire complet des contacts internes, partenaires, clients cles et interlocuteurs par secteur geographique.</div>
+      <div class="mod-footer">
+        <span class="mod-tag">Actif</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Documents -->
+    <a href="/documents" class="mod-card mod-docs">
+      <div class="mod-icon">&#128196;</div>
+      <div class="mod-title">Documents & Ressources</div>
+      <div class="mod-desc">Templates de contrats, grilles tarifaires, procedures internes, modeles d'emails et documents administratifs.</div>
+      <div class="mod-footer">
+        <span class="mod-tag">Actif</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Site web -->
+    <a href="https://www.novalem-recrutement.fr/" target="_blank" rel="noopener" class="mod-card mod-site">
+      <div class="mod-icon">&#127760;</div>
+      <div class="mod-title">Site Novalem</div>
+      <div class="mod-desc">Acces direct au site vitrine novalem-recrutement.fr — offres publiques, candidatures spontanees et image de marque.</div>
+      <div class="mod-footer">
+        <span class="mod-tag">Externe</span>
+        <span class="mod-arrow">↗</span>
+      </div>
+    </a>
+
+    <!-- Statistiques -->
+    <a href="/statistiques" class="mod-card mod-stats">
+      <div class="mod-icon">&#128200;</div>
+      <div class="mod-title">Statistiques & KPIs</div>
+      <div class="mod-desc">Tableaux de bord avances, performances individuelles, KPIs d'equipe, tendances et rapports d'activite detailles.</div>
+      <div class="mod-footer">
+        <span class="mod-tag">Bientot</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="sec-title">Actions rapides</div>
+  <div class="quick-actions">
+    <a href="/crm" class="qa">
+      <span class="qa-icon">&#10133;</span>
+      <span class="qa-text">Nouveau candidat</span>
+    </a>
+    <a href="/crm" class="qa">
+      <span class="qa-icon">&#128188;</span>
+      <span class="qa-text">Nouvelle offre</span>
+    </a>
+    <a href="/formation" class="qa">
+      <span class="qa-icon">&#128218;</span>
+      <span class="qa-text">Voir les formations</span>
+    </a>
+    <a href="https://www.novalem-recrutement.fr/" target="_blank" class="qa">
+      <span class="qa-icon">&#127760;</span>
+      <span class="qa-text">Site vitrine</span>
+    </a>
+  </div>
+
+  <!-- Activity + Side Panel -->
+  <div class="activity-section">
+
+    <!-- Feed -->
+    <div class="feed">
+      <div class="feed-header">
+        <div class="feed-dot"></div>
+        Activite recente
+      </div>
+      <div class="feed-list" id="feed-list">
+        <div class="feed-item">
+          <div class="fi-dot green"></div>
+          <div>
+            <div class="fi-text">Chargement de l'activite...</div>
+            <div class="fi-time">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div class="side-panel">
+      <!-- Team -->
+      <div class="sp-card">
+        <div class="sp-title"><span class="sp-title-icon">&#128101;</span> Equipe</div>
+        <div class="team-member">
+          <div class="tm-avatar" style="background:rgba(200,224,64,.12);color:#c8e040">
+            LR
+            <div class="tm-status online"></div>
+          </div>
+          <div class="tm-info">
+            <div class="tm-name">Louis Renault</div>
+            <div class="tm-role">Admin · Fondateur</div>
+          </div>
+        </div>
+        <div class="team-member">
+          <div class="tm-avatar" style="background:rgba(45,212,160,.12);color:#2dd4a0">
+            C
+            <div class="tm-status online"></div>
+          </div>
+          <div class="tm-info">
+            <div class="tm-name">Corentin</div>
+            <div class="tm-role">Commercial</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Raccourcis -->
+      <div class="sp-card">
+        <div class="sp-title"><span class="sp-title-icon">&#9889;</span> Raccourcis</div>
+        <div class="shortcut" onclick="window.location='/crm'">
+          &#9883; Ouvrir le CRM
+          <span class="shortcut-key">C</span>
+        </div>
+        <div class="shortcut" onclick="window.location='/formation'">
+          &#9733; Formations
+          <span class="shortcut-key">F</span>
+        </div>
+        <div class="shortcut" onclick="window.location='/annuaire'">
+          &#9782; Annuaire
+          <span class="shortcut-key">A</span>
+        </div>
+        <div class="shortcut" onclick="window.location='/documents'">
+          &#128196; Documents
+          <span class="shortcut-key">D</span>
+        </div>
+      </div>
+
+      <!-- Version -->
+      <div class="sp-card" style="padding:14px 20px">
+        <div style="font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.12em;display:flex;align-items:center;justify-content:space-between">
+          <span>Novalem Platform v2.0</span>
+          <span style="color:var(--green)">&#9679; Operationnel</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="hub-footer">
+    <span>Novalem &copy; 2026 — Cabinet de recrutement BTP</span>
+    <a href="https://www.novalem-recrutement.fr/" target="_blank">novalem-recrutement.fr</a>
+  </div>
+
+</div>
+
+<script>
+// ── AUTH CHECK ────────────────────────────────────────
+const raw = sessionStorage.getItem('novalem_user');
+if (!raw) { window.location.href = '/'; }
+let USER;
+try {
+  USER = JSON.parse(raw);
+  if (!USER || !USER.ts || (Date.now() - USER.ts) > 8*3600000) {
+    sessionStorage.removeItem('novalem_user');
+    window.location.href = '/';
+  }
+} catch(e) {
+  window.location.href = '/';
+}
+
+// ── POPULATE UI ──────────────────────────────────────
+if (USER) {
+  const firstName = USER.name.split(' ')[0];
+  document.getElementById('tb-uname').textContent = USER.name;
+  document.getElementById('tb-urole').textContent = USER.role;
+  document.getElementById('tb-avatar').textContent = USER.initials;
+  document.getElementById('tb-avatar').style.background = USER.color;
+  document.getElementById('hero-title').innerHTML = `Bonjour, <span>${firstName}</span>`;
+
+  // Greeting based on time
+  const h = new Date().getHours();
+  let greeting = 'Bonsoir';
+  if (h < 12) greeting = 'Bonjour';
+  else if (h < 18) greeting = 'Bon apres-midi';
+  document.getElementById('hero-greeting').textContent = greeting + ' — ' + new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+}
+
+// ── CLOCK ────────────────────────────────────────────
+function updateClock(){
+  const now = new Date();
+  document.getElementById('tb-time').textContent = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+updateClock();
+setInterval(updateClock,30000);
+
+// ── LOGOUT ───────────────────────────────────────────
+function logout(){
+  sessionStorage.removeItem('novalem_user');
+  window.location.href = '/';
+}
+
+// ── KEYBOARD SHORTCUTS ───────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'c' || e.key === 'C') window.location.href = '/crm';
+  if (e.key === 'f' || e.key === 'F') window.location.href = '/formation';
+  if (e.key === 'a' || e.key === 'A') window.location.href = '/annuaire';
+  if (e.key === 'd' || e.key === 'D') window.location.href = '/documents';
+});
+
+// ── SUPABASE STATS (optional — graceful fallback) ────
+const SUPA_URL = 'https://hzcjguxttgowrgpmemjh.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2pndXh0dGdvd3JncG1lbWpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTYwNjMsImV4cCI6MjA1ODQ3MjA2M30.4WJhRxkVG_OEuGJnGSarKdSXCbJnHgmJ6lVMVnj8VuU';
+
+async function loadStats(){
+  try {
+    const sb = window.supabase ? supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+    if (!sb) return;
+
+    // Candidates count
+    const {count:cCount} = await sb.from('candidates').select('*',{count:'exact',head:true});
+    document.getElementById('st-candidates').textContent = cCount || '0';
+    document.getElementById('st-candidates-d').innerHTML = '&#9650; actifs';
+
+    // Placements this month
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0,0,0,0);
+    const {count:pCount} = await sb.from('candidates').select('*',{count:'exact',head:true}).eq('status','place').gte('updated_at',monthStart.toISOString());
+    document.getElementById('st-placements').textContent = pCount || '0';
+    document.getElementById('st-placements-d').innerHTML = 'ce mois';
+
+    // Active offers
+    const {count:oCount} = await sb.from('jobs').select('*',{count:'exact',head:true}).eq('status','active');
+    document.getElementById('st-offers').textContent = oCount || '0';
+    document.getElementById('st-offers-d').innerHTML = 'en cours';
+
+    // Conversion rate
+    const {count:totalC} = await sb.from('candidates').select('*',{count:'exact',head:true});
+    const rate = totalC > 0 ? Math.round((pCount/totalC)*100) : 0;
+    document.getElementById('st-rate').textContent = rate + '%';
+    document.getElementById('st-rate-d').innerHTML = 'conversion';
+
+    // Activity feed
+    const {data:recent} = await sb.from('candidates').select('name,status,updated_at').order('updated_at',{ascending:false}).limit(8);
+    if (recent && recent.length) {
+      const statusMap = {
+        'nouveau':'&#128309; Nouveau candidat',
+        'contacte':'&#128992; Contact initie',
+        'entretien':'&#128309; En entretien',
+        'propose':'&#128993; Propose a un client',
+        'place':'&#128994; Place avec succes',
+        'archive':'&#9898; Archive'
+      };
+      const colors = {
+        'nouveau':'blue','contacte':'orange','entretien':'ac',
+        'propose':'orange','place':'green','archive':'blue'
+      };
+      document.getElementById('feed-list').innerHTML = recent.map(c => {
+        const ago = timeAgo(new Date(c.updated_at));
+        const st = statusMap[c.status] || c.status;
+        const col = colors[c.status] || 'blue';
+        return `<div class="feed-item">
+          <div class="fi-dot ${col}"></div>
+          <div>
+            <div class="fi-text"><strong>${c.name||'Candidat'}</strong> — ${st}</div>
+            <div class="fi-time">${ago}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    console.log('Stats load skipped:', e.message);
+    // Graceful fallback — stats stay as "—"
+  }
+}
+
+function timeAgo(date){
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return "A l'instant";
+  if (diff < 3600) return Math.floor(diff/60) + ' min';
+  if (diff < 86400) return Math.floor(diff/3600) + ' h';
+  return Math.floor(diff/86400) + ' j';
+}
+
+loadStats();
+</script>
+</body>
+</html>

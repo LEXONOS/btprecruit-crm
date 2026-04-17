@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Novalem — Centre de Formation</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════
+   NOVALEM — CENTRE DE FORMATION
+   ═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#09090a;--s1:#111112;--s2:#18181a;--s3:#202022;--s4:#27272a;
+  --bd:#2a2a2e;--bd2:#38383d;--bd3:#48484f;
+  --tx:#f0f0ec;--mu:#8c8c84;--mu2:#4a4a44;--mu3:#2e2e2a;
+  --ac:#c8e040;--ac-dim:rgba(200,224,64,.06);--ac-border:rgba(200,224,64,.2);
+  --green:#2dd4a0;--green-dim:rgba(45,212,160,.06);--green-border:rgba(45,212,160,.2);
+  --red:#f04b4b;
+  --orange:#e89830;--orange-dim:rgba(232,152,48,.06);
+  --blue:#4a84e2;--blue-dim:rgba(74,132,226,.06);--blue-border:rgba(74,132,226,.2);
+  --purple:#9048e0;--purple-dim:rgba(144,72,224,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-height:100vh;position:relative;overflow-x:hidden}
+
+/* BG */
+.bg-grid{position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(45,212,160,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(45,212,160,.012) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+.bg-glow{position:fixed;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(45,212,160,.04) 0%,transparent 60%);top:-200px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(9,9,10,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);padding:0 32px;height:52px;display:flex;align-items:center;gap:14px}
+.tb-back{padding:6px 12px;font-size:11px;background:var(--s2);border:1px solid var(--bd);color:var(--mu);border-radius:6px;cursor:pointer;font-family:'DM Mono',monospace;transition:.15s;text-decoration:none;display:flex;align-items:center;gap:6px}
+.tb-back:hover{border-color:var(--bd2);color:var(--tx);background:var(--s3)}
+.tb-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.4px}
+.tb-logo span{color:var(--green)}
+.tb-sep{color:var(--mu2);font-size:14px}
+.tb-page{font-size:12px;color:var(--mu);font-weight:500}
+.tb-spacer{flex:1}
+.tb-progress-wrap{display:flex;align-items:center;gap:10px}
+.tb-progress-label{font-size:10px;color:var(--mu)}
+.tb-progress-bar{width:120px;height:4px;background:var(--s3);border-radius:99px;overflow:hidden}
+.tb-progress-fill{height:100%;background:var(--green);border-radius:99px;transition:width .5s ease}
+.tb-progress-pct{font-size:11px;color:var(--green);font-weight:500}
+
+/* LAYOUT */
+.layout{position:relative;z-index:1;display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 52px)}
+
+/* SIDEBAR */
+.sidebar{background:var(--s1);border-right:1px solid var(--bd);padding:20px 0;overflow-y:auto;height:calc(100vh - 52px);position:sticky;top:52px}
+.sb-section{padding:0 12px;margin-bottom:20px}
+.sb-title{font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:var(--mu2);padding:8px 12px 6px;margin-bottom:2px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;cursor:pointer;color:var(--mu);font-size:11px;transition:.15s;border:1px solid transparent;margin-bottom:2px;position:relative}
+.sb-item:hover{background:var(--s2);color:var(--tx)}
+.sb-item.active{background:rgba(45,212,160,.07);color:var(--green);border-color:var(--green-border)}
+.sb-item.completed::after{content:'✓';position:absolute;right:12px;color:var(--green);font-size:12px}
+.sb-item.locked{opacity:.4;cursor:not-allowed}
+.sb-item.locked:hover{background:transparent;color:var(--mu)}
+.sb-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.sb-item-text{flex:1}
+.sb-badge{font-size:8px;padding:2px 6px;border-radius:99px;background:var(--green-dim);color:var(--green);margin-left:auto}
+.sb-badge.new{background:var(--ac-dim);color:var(--ac)}
+
+/* CONTENT */
+.content{padding:32px 40px 60px;overflow-y:auto;height:calc(100vh - 52px)}
+.content-header{margin-bottom:32px}
+.content-tag{font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:var(--green);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.content-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green)}
+.content-title{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;letter-spacing:-1px;margin-bottom:8px}
+.content-sub{font-size:12px;color:var(--mu);line-height:1.6;max-width:600px}
+
+/* TRAINING CARDS */
+.training-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:32px}
+.t-card{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:22px 20px;transition:.2s;cursor:pointer;position:relative;overflow:hidden}
+.t-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:.2s}
+.t-card:hover{border-color:var(--bd2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.t-card:hover::before{opacity:1}
+.t-card.green::before{background:var(--green)}
+.t-card.blue::before{background:var(--blue)}
+.t-card.orange::before{background:var(--orange)}
+.t-card.purple::before{background:var(--purple)}
+.t-card.ac::before{background:var(--ac)}
+.t-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.t-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.t-card.green .t-icon{background:var(--green-dim);border:1px solid var(--green-border)}
+.t-card.blue .t-icon{background:var(--blue-dim);border:1px solid var(--blue-border)}
+.t-card.orange .t-icon{background:var(--orange-dim);border:1px solid rgba(232,152,48,.2)}
+.t-card.purple .t-icon{background:var(--purple-dim);border:1px solid rgba(144,72,224,.2)}
+.t-card.ac .t-icon{background:var(--ac-dim);border:1px solid var(--ac-border)}
+.t-duration{font-size:9px;color:var(--mu2);display:flex;align-items:center;gap:4px}
+.t-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;letter-spacing:-.2px;margin-bottom:4px}
+.t-desc{font-size:11px;color:var(--mu);line-height:1.5}
+.t-footer{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.t-status{font-size:9px;text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:4px}
+.t-status.done{color:var(--green)}
+.t-status.inprogress{color:var(--orange)}
+.t-status.todo{color:var(--mu2)}
+.t-progress{width:60px;height:3px;background:var(--s3);border-radius:99px;overflow:hidden}
+.t-progress-fill{height:100%;border-radius:99px}
+
+/* LESSON VIEW */
+.lesson{display:none}
+.lesson.active{display:block}
+.lesson-content{background:var(--s1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:20px}
+.lesson-header{padding:24px 28px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:16px}
+.lesson-number{width:36px;height:36px;border-radius:8px;background:var(--green-dim);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--green)}
+.lesson-meta{flex:1}
+.lesson-meta-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-.2px}
+.lesson-meta-info{font-size:10px;color:var(--mu);margin-top:2px}
+.lesson-body{padding:28px}
+.lesson-body h3{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin:24px 0 12px;color:var(--tx);letter-spacing:-.2px}
+.lesson-body h3:first-child{margin-top:0}
+.lesson-body p{font-size:12px;line-height:1.8;color:var(--mu);margin-bottom:12px}
+.lesson-body ul{margin:8px 0 16px 20px}
+.lesson-body li{font-size:12px;line-height:1.8;color:var(--mu);margin-bottom:4px}
+.lesson-body li::marker{color:var(--green)}
+.lesson-body .tip{background:var(--green-dim);border:1px solid var(--green-border);border-radius:8px;padding:14px 16px;margin:16px 0;font-size:11px;line-height:1.7;color:var(--green)}
+.lesson-body .warning{background:var(--orange-dim);border:1px solid rgba(232,152,48,.2);border-radius:8px;padding:14px 16px;margin:16px 0;font-size:11px;line-height:1.7;color:var(--orange)}
+.lesson-body .script-block{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:16px 18px;margin:16px 0;font-size:11px;line-height:1.8;font-style:italic;color:var(--tx)}
+.lesson-body .script-block .label{font-style:normal;font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--ac);margin-bottom:8px;display:block}
+
+.lesson-nav{display:flex;gap:10px;justify-content:space-between}
+.lesson-btn{padding:10px 20px;font-size:11px;font-family:'DM Mono',monospace;border-radius:8px;cursor:pointer;transition:.15s;border:1px solid var(--bd);background:var(--s1);color:var(--mu)}
+.lesson-btn:hover{background:var(--s2);color:var(--tx);border-color:var(--bd2)}
+.lesson-btn.primary{background:var(--green-dim);border-color:var(--green-border);color:var(--green)}
+.lesson-btn.primary:hover{background:rgba(45,212,160,.12)}
+.lesson-btn:disabled{opacity:.3;cursor:not-allowed}
+
+/* RESPONSIVE */
+@media(max-width:800px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .content{padding:20px 16px 40px}
+  .training-grid{grid-template-columns:1fr}
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:99px}
+
+/* ANIMATIONS */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content-header{animation:fadeIn .4s ease .1s both}
+.training-grid{animation:fadeIn .4s ease .2s both}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="/hub" class="tb-back">← Hub</a>
+  <div class="tb-logo">Nova<span>lem</span></div>
+  <div class="tb-sep">/</div>
+  <div class="tb-page">Centre de Formation</div>
+  <div class="tb-spacer"></div>
+  <div class="tb-progress-wrap">
+    <span class="tb-progress-label">Progression</span>
+    <div class="tb-progress-bar"><div class="tb-progress-fill" id="global-progress" style="width:0%"></div></div>
+    <span class="tb-progress-pct" id="global-pct">0%</span>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-section">
+      <div class="sb-title">Parcours Onboarding</div>
+      <div class="sb-item active" data-section="overview" onclick="showSection('overview')">
+        <span class="sb-icon">&#127968;</span>
+        <span class="sb-item-text">Vue d'ensemble</span>
+      </div>
+      <div class="sb-item" data-section="lesson-1" onclick="showSection('lesson-1')">
+        <span class="sb-icon">1</span>
+        <span class="sb-item-text">Novalem — Qui sommes-nous</span>
+      </div>
+      <div class="sb-item" data-section="lesson-2" onclick="showSection('lesson-2')">
+        <span class="sb-icon">2</span>
+        <span class="sb-item-text">Le metier de Scout BTP</span>
+      </div>
+      <div class="sb-item" data-section="lesson-3" onclick="showSection('lesson-3')">
+        <span class="sb-icon">3</span>
+        <span class="sb-item-text">Maitriser le CRM</span>
+      </div>
+      <div class="sb-item" data-section="lesson-4" onclick="showSection('lesson-4')">
+        <span class="sb-icon">4</span>
+        <span class="sb-item-text">Le Sourcing candidats</span>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Techniques Avancees</div>
+      <div class="sb-item" data-section="lesson-5" onclick="showSection('lesson-5')">
+        <span class="sb-icon">5</span>
+        <span class="sb-item-text">Scripts d'appel</span>
+        <span class="sb-badge new">Cle</span>
+      </div>
+      <div class="sb-item" data-section="lesson-6" onclick="showSection('lesson-6')">
+        <span class="sb-icon">6</span>
+        <span class="sb-item-text">Qualifier un candidat</span>
+      </div>
+      <div class="sb-item" data-section="lesson-7" onclick="showSection('lesson-7')">
+        <span class="sb-icon">7</span>
+        <span class="sb-item-text">Presenter a un client</span>
+      </div>
+      <div class="sb-item" data-section="lesson-8" onclick="showSection('lesson-8')">
+        <span class="sb-icon">8</span>
+        <span class="sb-item-text">Negociation & closing</span>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Specialisations BTP</div>
+      <div class="sb-item" data-section="lesson-9" onclick="showSection('lesson-9')">
+        <span class="sb-icon">9</span>
+        <span class="sb-item-text">Metiers du gros oeuvre</span>
+      </div>
+      <div class="sb-item" data-section="lesson-10" onclick="showSection('lesson-10')">
+        <span class="sb-icon">10</span>
+        <span class="sb-item-text">Second oeuvre & finitions</span>
+      </div>
+      <div class="sb-item" data-section="lesson-11" onclick="showSection('lesson-11')">
+        <span class="sb-icon">11</span>
+        <span class="sb-item-text">Cadres & ingenieurs BTP</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content" id="content-area">
+
+    <!-- ══ OVERVIEW ══ -->
+    <div class="lesson active" id="sec-overview">
+      <div class="content-header">
+        <div class="content-tag">Centre de formation</div>
+        <div class="content-title">Votre parcours de formation</div>
+        <div class="content-sub">Devenez un scout d'elite. Chaque module vous rapproche de la maitrise complete du recrutement BTP chez Novalem.</div>
+      </div>
+
+      <div class="training-grid">
+        <div class="t-card green" onclick="showSection('lesson-1')">
+          <div class="t-head">
+            <div class="t-icon">&#127968;</div>
+            <div class="t-duration">&#9200; 15 min</div>
+          </div>
+          <div class="t-name">Novalem — Qui sommes-nous</div>
+          <div class="t-desc">Decouvrez l'ADN de Novalem, notre positionnement unique sur le marche du recrutement BTP et notre vision.</div>
+          <div class="t-footer">
+            <div class="t-status todo">A faire</div>
+            <div class="t-progress"><div class="t-progress-fill" style="width:0%;background:var(--green)"></div></div>
+          </div>
+        </div>
+
+        <div class="t-card blue" onclick="showSection('lesson-2')">
+          <div class="t-head">
+            <div class="t-icon">&#128187;</div>
+            <div class="t-duration">&#9200; 20 min</div>
+          </div>
+          <div class="t-name">Le metier de Scout BTP</div>
+          <div class="t-desc">Comprendre le role, les responsabilites, les objectifs et la journee type d'un scout Novalem.</div>
+          <div class="t-footer">
+            <div class="t-status todo">A faire</div>
+            <div class="t-progress"><div class="t-progress-fill" style="width:0%;background:var(--blue)"></div></div>
+          </div>
+        </div>
+
+        <div class="t-card orange" onclick="showSection('lesson-3')">
+          <div class="t-head">
+            <div class="t-icon">&#9883;</div>
+            <div class="t-duration">&#9200; 25 min</div>
+          </div>
+          <div class="t-name">Maitriser le CRM</div>
+          <div class="t-desc">Tour complet du CRM Novalem : candidats, entreprises, offres, pipeline, emails automatiques et IA integree.</div>
+          <div class="t-footer">
+            <div class="t-status todo">A faire</div>
+            <div class="t-progress"><div class="t-progress-fill" style="width:0%;background:var(--orange)"></div></div>
+          </div>
+        </div>
+
+        <div class="t-card purple" onclick="showSection('lesson-4')">
+          <div class="t-head">
+            <div class="t-icon">&#128269;</div>
+            <div class="t-duration">&#9200; 30 min</div>
+          </div>
+          <div class="t-name">Le Sourcing candidats</div>
+          <div class="t-desc">Ou trouver les meilleurs profils BTP : France Travail, LinkedIn, CVtheques, reseaux terrain et approche directe.</div>
+          <div class="t-footer">
+            <div class="t-status todo">A faire</div>
+            <div class="t-progress"><div class="t-progress-fill" style="width:0%;background:var(--purple)"></div></div>
+          </div>
+        </div>
+
+        <div class="t-card ac" onclick="showSection('lesson-5')">
+          <div class="t-head">
+            <div class="t-icon">&#128222;</div>
+            <div class="t-duration">&#9200; 35 min</div>
+          </div>
+          <div class="t-name">Scripts d'appel</div>
+          <div class="t-desc">Les scripts telephoniques complets : premier contact, relance, proposition de poste et gestion des objections.</div>
+          <div class="t-footer">
+            <div class="t-status todo">A faire</div>
+            <div class="t-progress"><div class="t-progress-fill" style="width:0%;background:var(--ac)"></div></div>
+          </div>
+        </div>
+
+        <div class="t-card green" onclick="showSection('lesson-6')">
+          <div class="t-head">
+            <div class="t-icon">&#9989;</div>
+            <div class="t-duration">&#9200; 25 min</div>
+          </div>
+          <div class="t-name">Qualifier un candidat</div>
+          <div class="t-desc">Les bonnes questions, les red flags, la grille de qualification et les criteres qui font la difference.</div>
+          <div class="t-footer">
+            <div class="t-status todo">A faire</div>
+            <div class="t-progress"><div class="t-progress-fill" style="width:0%;background:var(--green)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 1 ══ -->
+    <div class="lesson" id="sec-lesson-1">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">01</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Novalem — Qui sommes-nous</div>
+            <div class="lesson-meta-info">Module 1 · Onboarding · 15 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Notre mission</h3>
+          <p>Novalem est un cabinet de recrutement specialise dans le BTP (Batiment et Travaux Publics). Notre mission est simple : connecter les meilleurs talents du secteur avec les entreprises qui en ont besoin, de maniere rapide, precise et humaine.</p>
+          <p>Nous nous distinguons par notre approche technologique et notre connaissance approfondie des metiers du batiment.</p>
+
+          <h3>Ce qui nous rend uniques</h3>
+          <ul>
+            <li><strong>Specialisation BTP exclusive</strong> — Nous ne faisons que ca. Chaque scout connait les metiers, les salaires, les certifications et les realites du terrain.</li>
+            <li><strong>Technologie proprietaire</strong> — Notre CRM integre l'IA, l'automatisation des emails, le sourcing France Travail et le scoring candidats.</li>
+            <li><strong>Rapidite d'execution</strong> — Un candidat identifie le matin peut etre presente a un client l'apres-midi.</li>
+            <li><strong>Approche humaine</strong> — Malgre la tech, chaque placement est gere par un humain qui comprend les enjeux des deux parties.</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>A retenir :</strong> Novalem combine la precision technologique avec la connaissance terrain du BTP. C'est notre avantage competitif principal.</div>
+
+          <h3>Notre positionnement marche</h3>
+          <p>Le secteur du BTP en France represente plus de 1,5 million de salaries. La penurie de main-d'oeuvre qualifiee est chronique : conducteurs de travaux, chefs de chantier, macons qualifies, electriciens, plombiers... les entreprises peinent a recruter.</p>
+          <p>Novalem se positionne comme le partenaire de confiance qui resout ce probleme rapidement et durablement.</p>
+
+          <h3>Nos valeurs</h3>
+          <ul>
+            <li><strong>Excellence</strong> — Chaque candidat presente est pre-qualifie et pertinent.</li>
+            <li><strong>Transparence</strong> — Communication claire avec candidats et clients.</li>
+            <li><strong>Reactivite</strong> — Le marche n'attend pas, nous non plus.</li>
+            <li><strong>Innovation</strong> — Toujours ameliorer nos outils et nos methodes.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('overview')">← Retour</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-1','lesson-2')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 2 ══ -->
+    <div class="lesson" id="sec-lesson-2">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">02</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Le metier de Scout BTP</div>
+            <div class="lesson-meta-info">Module 2 · Onboarding · 20 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Qu'est-ce qu'un Scout Novalem ?</h3>
+          <p>Un scout est un recruteur specialise qui identifie, contacte, qualifie et place des candidats BTP aupres d'entreprises clientes. C'est un role hybride entre commercial et RH, avec une forte composante relationnelle.</p>
+
+          <h3>La journee type d'un scout</h3>
+          <ul>
+            <li><strong>8h30 - 9h00</strong> — Check des emails, suivi CRM, priorites du jour</li>
+            <li><strong>9h00 - 11h00</strong> — Sourcing actif : CVtheques, France Travail, LinkedIn, appels sortants</li>
+            <li><strong>11h00 - 12h30</strong> — Appels de qualification candidats et entretiens telephoniques</li>
+            <li><strong>14h00 - 15h30</strong> — Suivi clients : presentations de profils, retours d'entretiens</li>
+            <li><strong>15h30 - 17h00</strong> — Relances, mise a jour CRM, preparation du lendemain</li>
+            <li><strong>17h00 - 17h30</strong> — Debrief d'equipe, partage de leads et best practices</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Regle d'or :</strong> Un scout performant fait au minimum 30 appels/jour et presente 3 candidats/semaine a ses clients.</div>
+
+          <h3>Les KPIs d'un scout</h3>
+          <ul>
+            <li>Nombre d'appels quotidiens (objectif : 30+)</li>
+            <li>Candidats qualifies par semaine (objectif : 10+)</li>
+            <li>Presentations clients par semaine (objectif : 3+)</li>
+            <li>Placements par mois (objectif : 2+)</li>
+            <li>Taux de conversion presentation→placement (objectif : 30%+)</li>
+          </ul>
+
+          <h3>Les qualites d'un bon scout</h3>
+          <p>Perseverance, ecoute active, connaissance du secteur BTP, maitrise du CRM, capacite a gerer plusieurs dossiers en parallele et surtout : l'envie de connecter les bonnes personnes au bon moment.</p>
+
+          <div class="warning">&#9888; <strong>Attention :</strong> Le recrutement BTP a ses specificites. Les candidats sont souvent sur chantier, peu disponibles par email, et preferent le telephone. Adaptez votre approche en consequence.</div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-1')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-2','lesson-3')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 3 ══ -->
+    <div class="lesson" id="sec-lesson-3">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">03</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Maitriser le CRM Novalem</div>
+            <div class="lesson-meta-info">Module 3 · Onboarding · 25 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Vue d'ensemble du CRM</h3>
+          <p>Le CRM Novalem est votre outil principal au quotidien. Il centralise toute votre activite : candidats, entreprises, offres d'emploi, pipeline de recrutement, emails et statistiques.</p>
+
+          <h3>Les sections principales</h3>
+          <ul>
+            <li><strong>Pipeline</strong> — Vue Kanban de vos candidats par statut (nouveau, contacte, entretien, propose, place). Glissez-deposez pour faire avancer les candidats.</li>
+            <li><strong>Candidats</strong> — Fiche complete de chaque candidat avec coordonnees, CV, historique des echanges, notes et scoring IA.</li>
+            <li><strong>Entreprises</strong> — Base clients avec contacts, offres associees, historique de collaboration et statut contractuel.</li>
+            <li><strong>Offres</strong> — Toutes les offres en cours avec matching automatique candidats et suivi des presentations.</li>
+            <li><strong>Emails</strong> — Boite mail integree pour envoyer et suivre les communications sans quitter le CRM.</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Astuce :</strong> Utilisez l'IA integree (bouton IA dans le CRM) pour generer des resumes de candidats, des emails personnalises et des suggestions de matching.</div>
+
+          <h3>Ajouter un candidat</h3>
+          <p>Depuis le CRM, cliquez sur "+ Nouveau candidat" en haut a droite. Remplissez les informations essentielles : nom, telephone, email, poste recherche, zone geographique et pretentions salariales. Le reste peut etre complete au fur et a mesure.</p>
+
+          <h3>Le scoring IA</h3>
+          <p>Chaque candidat recoit automatiquement un score de pertinence base sur son profil, son experience et les offres disponibles. Utilisez ce score comme indicateur, pas comme verite absolue.</p>
+
+          <div class="warning">&#9888; <strong>Important :</strong> Mettez a jour le statut de chaque candidat en temps reel. Un CRM a jour, c'est un CRM utile. Un CRM desorganise, c'est du temps perdu pour toute l'equipe.</div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-2')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-3','lesson-4')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 4 ══ -->
+    <div class="lesson" id="sec-lesson-4">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">04</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Le Sourcing candidats</div>
+            <div class="lesson-meta-info">Module 4 · Onboarding · 30 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Les canaux de sourcing</h3>
+          <p>Le sourcing est le nerf de la guerre. Voici les canaux principaux par ordre d'efficacite pour le BTP :</p>
+
+          <ul>
+            <li><strong>France Travail (ex-Pole Emploi)</strong> — Integre directement dans le CRM. Accedez aux CVs des demandeurs d'emploi BTP en un clic. C'est souvent votre meilleure source pour les profils ouvriers et techniciens.</li>
+            <li><strong>CVtheques payantes</strong> — Indeed CV, Monster, RegionsJob. Indispensables pour les profils cadres et ingenieurs.</li>
+            <li><strong>LinkedIn</strong> — Ideal pour les conducteurs de travaux, charges d'affaires, ingenieurs et directeurs de travaux.</li>
+            <li><strong>Candidatures entrantes</strong> — Via le site novalem-recrutement.fr et les annonces publiees.</li>
+            <li><strong>Reseau et cooptation</strong> — Les meilleurs candidats viennent souvent par recommandation. Cultivez votre reseau.</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Strategie :</strong> Mixez toujours vos sources. Ne dependez jamais d'un seul canal. L'ideal est 40% France Travail, 25% CVtheques, 20% LinkedIn, 15% reseau/entrants.</div>
+
+          <h3>Le sourcing via France Travail dans le CRM</h3>
+          <p>Le CRM integre un acces direct a l'API France Travail. Depuis l'onglet "Sourcing", recherchez par metier ROME, zone geographique et experience. Les profils interessants peuvent etre importes directement dans votre pipeline.</p>
+
+          <h3>L'approche directe sur LinkedIn</h3>
+          <p>Pour les profils cadres, l'approche directe est essentielle. Personnalisez chaque message, mentionnez un element specifique du profil du candidat, et proposez un echange de 10 minutes maximum.</p>
+
+          <div class="warning">&#9888; <strong>Regle :</strong> Tout candidat source doit etre entre dans le CRM dans les 24h. Pas d'Excel parallele, pas de post-it. Tout passe par le CRM.</div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-3')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-4','lesson-5')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 5 ══ -->
+    <div class="lesson" id="sec-lesson-5">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">05</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Scripts d'appel</div>
+            <div class="lesson-meta-info">Module 5 · Techniques avancees · 35 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Le premier appel candidat</h3>
+          <p>Le premier appel est crucial. Vous avez 30 secondes pour capter l'attention et 5 minutes pour qualifier. Voici le script complet :</p>
+
+          <div class="script-block">
+            <span class="label">Script — Premier contact candidat</span>
+            "Bonjour [Prenom], c'est [Votre prenom] du cabinet Novalem, specialise dans le recrutement BTP. Je vous appelle car j'ai vu votre profil et nous avons actuellement des opportunites qui pourraient vous interesser dans le secteur [secteur]. Est-ce que vous avez 5 minutes pour qu'on en discute ?"
+          </div>
+
+          <h3>Gestion des objections frequentes</h3>
+
+          <div class="script-block">
+            <span class="label">"Je ne suis pas en recherche"</span>
+            "Je comprends tout a fait. En realite, les meilleurs candidats ne sont jamais activement en recherche. C'est justement pour ca que je vous contacte — nous avons des opportunites exclusives qui ne sont pas publiees. Est-ce que je peux au moins vous presenter rapidement ce que nous avons ? Ca ne vous engage a rien."
+          </div>
+
+          <div class="script-block">
+            <span class="label">"Envoyez-moi un email"</span>
+            "Bien sur, je vais vous envoyer les details par email. Mais pour etre sur de vous envoyer les bonnes offres, est-ce que vous pouvez me dire en 2 minutes quel type de poste et quelle zone geographique vous interesseraient si une opportunite se presentait ?"
+          </div>
+
+          <div class="script-block">
+            <span class="label">"Je suis sur chantier la"</span>
+            "Pas de souci du tout, je sais que le terrain passe en premier ! A quelle heure est-ce que je peux vous rappeler ce soir ou demain ? Je fais vite, 5 minutes maximum."
+          </div>
+
+          <div class="tip">&#128161; <strong>Cle du succes :</strong> Ne lisez jamais le script mot pour mot. Internalisez la structure et adaptez avec votre personnalite. Les candidats BTP detectent immediatement les scripts recites.</div>
+
+          <h3>L'appel de presentation client</h3>
+
+          <div class="script-block">
+            <span class="label">Script — Appel client pour presenter un profil</span>
+            "Bonjour [Nom], c'est [Prenom] de Novalem. J'ai un profil qui correspond exactement a votre recherche de [poste]. Il s'agit de [description courte : X annees d'experience, specialise en Y, disponible Z]. Est-ce que vous etes disponible pour que je vous envoie son dossier et qu'on en discute 5 minutes ?"
+          </div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-4')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-5','lesson-6')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 6 ══ -->
+    <div class="lesson" id="sec-lesson-6">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">06</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Qualifier un candidat</div>
+            <div class="lesson-meta-info">Module 6 · Techniques avancees · 25 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>La grille de qualification</h3>
+          <p>Chaque candidat doit etre evalue sur 7 criteres cles avant d'etre presente a un client :</p>
+
+          <ul>
+            <li><strong>Competences techniques</strong> — Maitrise-t-il les techniques requises pour le poste ? Quelles certifications ? (CACES, habilitations electriques, etc.)</li>
+            <li><strong>Experience</strong> — Combien d'annees ? Sur quels types de chantiers ? (neuf, renovation, industriel...)</li>
+            <li><strong>Mobilite geographique</strong> — Zone de deplacement acceptable ? Vehicule personnel ? Permis B ?</li>
+            <li><strong>Disponibilite</strong> — Preavis ? Date de demarrage souhaitee ?</li>
+            <li><strong>Pretentions salariales</strong> — En phase avec le marche et le budget client ?</li>
+            <li><strong>Motivation</strong> — Pourquoi veut-il changer ? Qu'est-ce qui l'attire dans cette opportunite ?</li>
+            <li><strong>Fiabilite</strong> — Historique professionnel coherent ? Trous dans le CV expliques ?</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Question decisive :</strong> "Si je vous propose un poste de [X] a [salaire] dans la zone de [ville], avec un demarrage [date], est-ce que vous seriez partant ?" — Cette question filtre 80% des candidats non motives.</div>
+
+          <h3>Les red flags</h3>
+          <ul>
+            <li>Candidat injoignable apres 3 tentatives → archiver</li>
+            <li>Changements d'emploi tres frequents sans explication → creuser</li>
+            <li>Pretentions salariales irrealistes → recadrer ou archiver</li>
+            <li>Indisponible avant 3 mois sans raison valable → mettre en veille</li>
+            <li>Discours flou sur ses competences → exiger des preuves concretes</li>
+          </ul>
+
+          <div class="warning">&#9888; <strong>Regle absolue :</strong> Ne presentez JAMAIS un candidat non qualifie a un client. Un mauvais profil presente, c'est la credibilite de Novalem en jeu.</div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-5')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-6','lesson-7')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 7 ══ -->
+    <div class="lesson" id="sec-lesson-7">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">07</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Presenter a un client</div>
+            <div class="lesson-meta-info">Module 7 · Techniques avancees · 20 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Preparer la presentation</h3>
+          <p>Avant de presenter un candidat, assurez-vous d'avoir : un resume clair du profil (2-3 phrases), les points forts en lien direct avec le poste, la disponibilite et les pretentions confirmees, et un element differenciateur.</p>
+
+          <h3>La structure de presentation</h3>
+          <ul>
+            <li><strong>Contexte</strong> — Rappelez le besoin du client en une phrase</li>
+            <li><strong>Le profil</strong> — Presentez le candidat avec ses 3 points forts majeurs</li>
+            <li><strong>L'adequation</strong> — Expliquez pourquoi ce profil correspond specifiquement a CE poste</li>
+            <li><strong>La disponibilite</strong> — Donnez les infos pratiques (demarrage, mobilite, salaire)</li>
+            <li><strong>Le closing</strong> — "Souhaitez-vous le rencontrer cette semaine ?"</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Technique du "dossier candidat" :</strong> Le CRM genere automatiquement un dossier PDF presentable pour chaque candidat. Utilisez-le — ca professionnalise votre approche et facilite la decision du client.</div>
+
+          <h3>Le suivi post-presentation</h3>
+          <p>Apres chaque presentation, mettez a jour le CRM immediatement. Relancez le client sous 24h si pas de retour. Informez le candidat du retour client dans les 48h maximum.</p>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-6')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-7','lesson-8')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 8 ══ -->
+    <div class="lesson" id="sec-lesson-8">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">08</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Negociation & Closing</div>
+            <div class="lesson-meta-info">Module 8 · Techniques avancees · 25 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>La negociation salariale</h3>
+          <p>Vous etes l'intermediaire. Votre role est de trouver le point d'equilibre entre les attentes du candidat et le budget du client. Gardez toujours une marge de negociation.</p>
+
+          <ul>
+            <li>Demandez toujours au candidat sa "fourchette" et non un chiffre fixe</li>
+            <li>Connaissez les grilles salariales du BTP par metier et par region</li>
+            <li>Presentez toujours le package global (salaire + avantages + evolution)</li>
+            <li>Si le client est en dessous : valorisez les avantages non financiers</li>
+          </ul>
+
+          <h3>Le closing candidat</h3>
+          <div class="script-block">
+            <span class="label">Script — Closing</span>
+            "[Prenom], je resume : le poste de [X] chez [entreprise], base a [ville], a [salaire]€, avec [avantages]. Demarrage le [date]. Est-ce que ca vous convient ? Excellent — je vous envoie le dossier de candidature a signer electroniquement d'ici ce soir."
+          </div>
+
+          <h3>Gerer un refus de derniere minute</h3>
+          <p>Ca arrive. Restez professionnel, comprenez les raisons, et gardez le contact. Un candidat qui refuse aujourd'hui peut accepter dans 3 mois. Mettez-le en statut "veille" dans le CRM.</p>
+
+          <div class="tip">&#128161; <strong>Statistique :</strong> En moyenne, 1 candidat place sur 3 a d'abord dit non lors du premier contact. La perseverance paie.</div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-7')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-8','lesson-9')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 9 ══ -->
+    <div class="lesson" id="sec-lesson-9">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">09</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Metiers du gros oeuvre</div>
+            <div class="lesson-meta-info">Module 9 · Specialisations BTP · 20 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Les metiers cles du gros oeuvre</h3>
+          <p>Le gros oeuvre represente la structure porteuse d'un batiment. Voici les profils les plus demandes :</p>
+          <ul>
+            <li><strong>Macon</strong> — Murs, fondations, dalles. CACES engins de chantier souvent requis. Salaire : 1 800€ - 2 500€ net.</li>
+            <li><strong>Coffreur-bancheur</strong> — Coffrage de beton arme. Profil tres recherche. Salaire : 2 000€ - 2 800€ net.</li>
+            <li><strong>Ferrailleur</strong> — Armatures metalliques. Moins de candidats sur le marche. Salaire : 1 900€ - 2 600€ net.</li>
+            <li><strong>Chef de chantier gros oeuvre</strong> — Management d'equipe, suivi planning. Salaire : 2 800€ - 3 800€ net.</li>
+            <li><strong>Conducteur de travaux gros oeuvre</strong> — Pilotage global du chantier. Salaire : 3 200€ - 4 500€ net.</li>
+            <li><strong>Grutier</strong> — CACES R487 obligatoire. Profil rare et tres demande. Salaire : 2 200€ - 3 000€ net.</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Marche :</strong> Les coffreurs-bancheurs et grutiers sont les profils les plus penuriques du gros oeuvre. Un bon candidat dans ces metiers se place en moins d'une semaine.</div>
+
+          <h3>Certifications a connaitre</h3>
+          <p>CACES (R489, R482, R487), habilitations electriques (B0, B1, B2), AIPR, SST, travail en hauteur. Verifiez systematiquement la validite des certifications.</p>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-8')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-9','lesson-10')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 10 ══ -->
+    <div class="lesson" id="sec-lesson-10">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">10</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Second oeuvre & finitions</div>
+            <div class="lesson-meta-info">Module 10 · Specialisations BTP · 20 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Les metiers du second oeuvre</h3>
+          <p>Le second oeuvre concerne tout ce qui vient apres la structure : electricite, plomberie, chauffage, isolation, peinture, menuiserie...</p>
+          <ul>
+            <li><strong>Electricien</strong> — Habilitations electriques obligatoires. Salaire : 2 000€ - 2 800€ net.</li>
+            <li><strong>Plombier-chauffagiste</strong> — Tres demande, surtout avec les competences en pompes a chaleur. Salaire : 2 100€ - 3 000€ net.</li>
+            <li><strong>Menuisier poseur</strong> — Fenetres, portes, agencement. Salaire : 1 900€ - 2 600€ net.</li>
+            <li><strong>Plaquiste</strong> — Cloisons, faux plafonds. Volume de demande eleve. Salaire : 1 800€ - 2 400€ net.</li>
+            <li><strong>Peintre en batiment</strong> — Finitions et decoration. Salaire : 1 700€ - 2 300€ net.</li>
+            <li><strong>Carreleur</strong> — Profil de plus en plus rare. Salaire : 1 900€ - 2 600€ net.</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Tendance :</strong> Les profils CVC (Chauffage, Ventilation, Climatisation) et les electriciens certifies photovoltaique sont en forte demande avec la transition energetique. Ciblez-les en priorite.</div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-9')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-10','lesson-11')">Termine — Suivant →</button>
+      </div>
+    </div>
+
+    <!-- ══ LESSON 11 ══ -->
+    <div class="lesson" id="sec-lesson-11">
+      <div class="lesson-content">
+        <div class="lesson-header">
+          <div class="lesson-number">11</div>
+          <div class="lesson-meta">
+            <div class="lesson-meta-title">Cadres & ingenieurs BTP</div>
+            <div class="lesson-meta-info">Module 11 · Specialisations BTP · 20 min de lecture</div>
+          </div>
+        </div>
+        <div class="lesson-body">
+          <h3>Les profils cadres</h3>
+          <p>Le recrutement de cadres BTP est different : cycle plus long, approche plus consultative, enjeux financiers plus importants.</p>
+          <ul>
+            <li><strong>Conducteur de travaux</strong> — Le profil le plus place en cabinet. Salaire : 35K€ - 55K€ brut/an.</li>
+            <li><strong>Ingenieur etudes / methodes</strong> — Bureau d'etudes et chiffrage. Salaire : 32K€ - 48K€ brut/an.</li>
+            <li><strong>Charge d'affaires</strong> — Developpement commercial et suivi de projets. Salaire : 38K€ - 60K€ brut/an.</li>
+            <li><strong>Directeur de travaux</strong> — Management de plusieurs chantiers. Salaire : 50K€ - 75K€ brut/an.</li>
+            <li><strong>Ingenieur QSE</strong> — Qualite, Securite, Environnement. Salaire : 35K€ - 50K€ brut/an.</li>
+          </ul>
+
+          <div class="tip">&#128161; <strong>Approche :</strong> Pour les cadres, privilegiez LinkedIn et l'approche directe. Le tutoiement n'est pas systematique. Preparez un pitch detaille du poste et de l'entreprise avant l'appel.</div>
+
+          <h3>La grille tarifaire cadres</h3>
+          <p>Le placement d'un cadre genere des honoraires plus eleves. Nos tarifs sont generalement un pourcentage du salaire annuel brut (entre 15% et 20%). Un placement de conducteur de travaux a 45K€ genere entre 6 750€ et 9 000€ d'honoraires.</p>
+
+          <div class="warning">&#9888; <strong>Attention :</strong> Les candidats cadres sont plus exigeants sur la confidentialite. Ne communiquez jamais le nom de l'entreprise sans l'accord du client ET du candidat.</div>
+
+          <div class="tip" style="margin-top:24px;background:var(--ac-dim);border-color:var(--ac-border);color:var(--ac)">
+            &#127942; <strong>Felicitations !</strong> Vous avez termine l'ensemble du parcours de formation Novalem. Vous disposez maintenant de toutes les bases pour performer. N'hesitez pas a revenir consulter ces modules a tout moment.
+          </div>
+        </div>
+      </div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="showSection('lesson-10')">← Precedent</button>
+        <button class="lesson-btn primary" onclick="completeAndNext('lesson-11','overview')">&#9989; Terminer le parcours</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── AUTH CHECK ────────────────────────────────────────
+const raw = sessionStorage.getItem('novalem_user');
+if (!raw) { window.location.href = '/'; }
+try {
+  const u = JSON.parse(raw);
+  if (!u || !u.ts || (Date.now() - u.ts) > 8*3600000) {
+    sessionStorage.removeItem('novalem_user');
+    window.location.href = '/';
+  }
+} catch(e) { window.location.href = '/'; }
+
+// ── PROGRESS TRACKING ────────────────────────────────
+const TOTAL_LESSONS = 11;
+let completed = JSON.parse(localStorage.getItem('novalem_formation_completed') || '[]');
+
+function updateProgress() {
+  const pct = Math.round((completed.length / TOTAL_LESSONS) * 100);
+  document.getElementById('global-progress').style.width = pct + '%';
+  document.getElementById('global-pct').textContent = pct + '%';
+
+  // Update sidebar items
+  document.querySelectorAll('.sb-item[data-section]').forEach(el => {
+    const section = el.dataset.section;
+    if (section.startsWith('lesson-')) {
+      const num = section.replace('lesson-', '');
+      if (completed.includes(num)) {
+        el.classList.add('completed');
+      }
+    }
+  });
+}
+updateProgress();
+
+// ── NAVIGATION ───────────────────────────────────────
+function showSection(id) {
+  // Hide all lessons
+  document.querySelectorAll('.lesson').forEach(el => el.classList.remove('active'));
+  // Show target
+  const target = document.getElementById('sec-' + id);
+  if (target) {
+    target.classList.add('active');
+    target.style.animation = 'fadeIn .3s ease';
+  }
+  // Update sidebar
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  const sbItem = document.querySelector(`.sb-item[data-section="${id}"]`);
+  if (sbItem) sbItem.classList.add('active');
+  // Scroll to top
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function completeAndNext(currentLesson, nextSection) {
+  const num = currentLesson.replace('lesson-', '');
+  if (!completed.includes(num)) {
+    completed.push(num);
+    localStorage.setItem('novalem_formation_completed', JSON.stringify(completed));
+    updateProgress();
+  }
+  showSection(nextSection);
+}
+</script>
+</body>
+</html>
