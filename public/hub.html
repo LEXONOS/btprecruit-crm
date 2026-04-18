@@ -1,882 +1,223 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Novalem — Espace Scout</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<style>
-/* ═══════════════════════════════════════════════════════════════
-   NOVALEM HUB v2 — Mission Control · Command Center
-   Dark precision · Zero emoji · SVG native · Canvas ambient
-   ═══════════════════════════════════════════════════════════════ */
-:root{
-  --bg:#08080a;--s1:#0f0f11;--s2:#151517;--s3:#1b1b1e;--s4:#222225;
-  --bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.09);--bd3:rgba(255,255,255,.14);
-  --tx:#ededeb;--tx2:#c4c4be;--mu:#7a7a72;--mu2:#4a4a44;--mu3:#2a2a26;
-  --ac:#c8e040;--ac2:rgba(200,224,64,.08);--ac3:rgba(200,224,64,.18);
-  --gn:#2dd4a0;--gn2:rgba(45,212,160,.08);--gn3:rgba(45,212,160,.18);
-  --bl:#5b8def;--bl2:rgba(91,141,239,.08);--bl3:rgba(91,141,239,.18);
-  --or:#e8983c;--or2:rgba(232,152,60,.08);--or3:rgba(232,152,60,.18);
-  --rd:#e05252;--rd2:rgba(224,82,82,.08);
-  --pr:#a36bea;--pr2:rgba(163,107,234,.08);--pr3:rgba(163,107,234,.18);
-  --glass:rgba(15,15,17,.72);
-  --sh1:0 1px 3px rgba(0,0,0,.4);
-  --sh2:0 4px 24px rgba(0,0,0,.4),0 1px 4px rgba(0,0,0,.3);
-  --sh3:0 12px 48px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.3);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-body{font-family:'Instrument Sans','DM Mono',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden;position:relative}
-::selection{background:rgba(200,224,64,.2);color:#fff}
-
-/* ── CANVAS BG ─────────────────────────────────────── */
-#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
-.bg-grad-1{position:fixed;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(200,224,64,.03) 0%,transparent 55%);top:-300px;right:-200px;pointer-events:none;z-index:0;filter:blur(60px)}
-.bg-grad-2{position:fixed;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(45,212,160,.025) 0%,transparent 55%);bottom:-200px;left:-100px;pointer-events:none;z-index:0;filter:blur(60px)}
-
-/* ── TOPBAR ─────────────────────────────────────────── */
-.topbar{
-  position:sticky;top:0;z-index:200;
-  background:var(--glass);
-  backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);
-  border-bottom:1px solid var(--bd);
-  padding:0 28px;height:54px;
-  display:flex;align-items:center;gap:12px;
-}
-.tb-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx)}
-.tb-logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--ac),#a8c030);display:flex;align-items:center;justify-content:center}
-.tb-logo-icon svg{width:16px;height:16px}
-.tb-logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.5px}
-.tb-logo-text span{color:var(--ac)}
-.tb-divider{width:1px;height:20px;background:var(--bd2);margin:0 4px}
-.tb-env{font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:99px;background:var(--ac2);color:var(--ac);border:1px solid var(--ac3);font-weight:600}
-
-.tb-spacer{flex:1}
-
-.tb-cmd{
-  display:flex;align-items:center;gap:8px;
-  padding:6px 14px;background:var(--s2);
-  border:1px solid var(--bd);border-radius:8px;
-  cursor:pointer;transition:all .15s;font-size:11px;color:var(--mu);
-}
-.tb-cmd:hover{border-color:var(--bd2);background:var(--s3);color:var(--tx2)}
-.tb-cmd kbd{font-size:9px;padding:1px 5px;background:var(--s4);border:1px solid var(--bd2);border-radius:3px;font-family:'DM Mono',monospace;color:var(--mu2)}
-.tb-cmd svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;opacity:.5}
-
-.tb-clock{font-family:'DM Mono',monospace;font-size:12px;color:var(--mu);letter-spacing:.04em;font-weight:500}
-
-.tb-user{
-  display:flex;align-items:center;gap:9px;
-  padding:5px 10px 5px 5px;
-  background:var(--s2);border:1px solid var(--bd);
-  border-radius:10px;cursor:pointer;transition:.15s;
-}
-.tb-user:hover{border-color:var(--bd2);background:var(--s3)}
-.tb-avatar{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;flex-shrink:0;position:relative}
-.tb-avatar::after{content:'';position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--gn);border:2px solid var(--s2)}
-.tb-uinfo{line-height:1.3}
-.tb-uname{font-size:11px;font-weight:600;color:var(--tx)}
-.tb-urole{font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
-
-.tb-logout{
-  width:32px;height:32px;border-radius:7px;
-  display:flex;align-items:center;justify-content:center;
-  background:transparent;border:1px solid var(--bd);
-  cursor:pointer;transition:.15s;
-}
-.tb-logout svg{width:15px;height:15px;stroke:var(--mu);fill:none;stroke-width:1.8;transition:.15s}
-.tb-logout:hover{border-color:rgba(224,82,82,.3);background:var(--rd2)}
-.tb-logout:hover svg{stroke:var(--rd)}
-
-/* ── MAIN ───────────────────────────────────────────── */
-.main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:36px 32px 64px}
-
-/* ── HERO ───────────────────────────────────────────── */
-.hero{margin-bottom:40px}
-.hero-date{
-  font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);
-  letter-spacing:.08em;text-transform:uppercase;
-  margin-bottom:10px;display:flex;align-items:center;gap:8px;
-}
-.hero-date::before{content:'';width:16px;height:1px;background:var(--mu2)}
-.hero-title{
-  font-family:'Syne',sans-serif;font-weight:800;
-  font-size:36px;letter-spacing:-1.5px;line-height:1.1;margin-bottom:10px;
-}
-.hero-title .wave{display:inline-block;animation:wave 2s ease-in-out infinite;transform-origin:70% 70%}
-@keyframes wave{0%,100%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-8deg)}40%{transform:rotate(14deg)}50%{transform:rotate(-4deg)}60%{transform:rotate(10deg)}70%{transform:rotate(0)}}
-.hero-title .accent{color:var(--ac)}
-.hero-sub{font-size:14px;color:var(--mu);line-height:1.6;max-width:520px;font-weight:400}
-
-/* ── STATS ──────────────────────────────────────────── */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:36px}
-.stat{
-  background:var(--s1);border:1px solid var(--bd);border-radius:12px;
-  padding:20px 18px 18px;position:relative;overflow:hidden;
-  transition:all .25s cubic-bezier(.22,.68,0,1.2);
-}
-.stat::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:.25s}
-.stat:hover{border-color:var(--bd2);transform:translateY(-3px);box-shadow:var(--sh2)}
-.stat:hover::after{opacity:1}
-.stat:nth-child(1)::after{background:var(--ac)}
-.stat:nth-child(2)::after{background:var(--gn)}
-.stat:nth-child(3)::after{background:var(--bl)}
-.stat:nth-child(4)::after{background:var(--or)}
-.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.stat-label{font-size:11px;color:var(--mu);font-weight:500}
-.stat-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.stat-icon svg{width:16px;height:16px;stroke-width:1.8;fill:none}
-.stat:nth-child(1) .stat-icon{background:var(--ac2);border:1px solid var(--ac3)}
-.stat:nth-child(1) .stat-icon svg{stroke:var(--ac)}
-.stat:nth-child(2) .stat-icon{background:var(--gn2);border:1px solid var(--gn3)}
-.stat:nth-child(2) .stat-icon svg{stroke:var(--gn)}
-.stat:nth-child(3) .stat-icon{background:var(--bl2);border:1px solid var(--bl3)}
-.stat:nth-child(3) .stat-icon svg{stroke:var(--bl)}
-.stat:nth-child(4) .stat-icon{background:var(--or2);border:1px solid var(--or3)}
-.stat:nth-child(4) .stat-icon svg{stroke:var(--or)}
-.stat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.5px;line-height:1}
-.stat:nth-child(1) .stat-val{color:var(--ac)}
-.stat:nth-child(2) .stat-val{color:var(--gn)}
-.stat:nth-child(3) .stat-val{color:var(--bl)}
-.stat:nth-child(4) .stat-val{color:var(--or)}
-.stat-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--mu2);margin-top:6px;display:flex;align-items:center;gap:4px}
-.stat-sub svg{width:10px;height:10px;stroke-width:2.5;fill:none}
-.stat-sub.up{color:var(--gn)}.stat-sub.up svg{stroke:var(--gn)}
-
-/* ── SECTION LABEL ──────────────────────────────────── */
-.sec{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.sec-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--mu2);white-space:nowrap;font-weight:500}
-.sec-line{flex:1;height:1px;background:var(--bd)}
-
-/* ── MODULE GRID ────────────────────────────────────── */
-.modules{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:36px}
-.mod{
-  background:var(--s1);border:1px solid var(--bd);
-  border-radius:14px;padding:26px 22px 22px;
-  cursor:pointer;text-decoration:none;color:var(--tx);
-  display:flex;flex-direction:column;
-  position:relative;overflow:hidden;
-  transition:all .3s cubic-bezier(.22,.68,0,1.2);
-}
-.mod::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;transition:.25s}
-.mod::after{
-  content:'';position:absolute;inset:0;
-  opacity:0;transition:opacity .3s;
-  pointer-events:none;border-radius:14px;
-}
-.mod:hover{border-color:var(--bd2);transform:translateY(-4px);box-shadow:var(--sh3)}
-.mod:hover::before{height:2px}
-.mod:hover::after{opacity:1}
-.mod:active{transform:translateY(-2px) scale(.995);transition-duration:.1s}
-
-/* Variants */
-.mod-crm::before{background:var(--ac)}
-.mod-crm::after{background:radial-gradient(ellipse at 50% 0%,rgba(200,224,64,.04) 0%,transparent 70%)}
-.mod-crm:hover{border-color:rgba(200,224,64,.15)}
-
-.mod-formation::before{background:var(--gn)}
-.mod-formation::after{background:radial-gradient(ellipse at 50% 0%,rgba(45,212,160,.04) 0%,transparent 70%)}
-.mod-formation:hover{border-color:rgba(45,212,160,.15)}
-
-.mod-annuaire::before{background:var(--bl)}
-.mod-annuaire::after{background:radial-gradient(ellipse at 50% 0%,rgba(91,141,239,.04) 0%,transparent 70%)}
-.mod-annuaire:hover{border-color:rgba(91,141,239,.15)}
-
-.mod-docs::before{background:var(--or)}
-.mod-docs::after{background:radial-gradient(ellipse at 50% 0%,rgba(232,152,60,.04) 0%,transparent 70%)}
-.mod-docs:hover{border-color:rgba(232,152,60,.15)}
-
-.mod-site::before{background:var(--pr)}
-.mod-site::after{background:radial-gradient(ellipse at 50% 0%,rgba(163,107,234,.04) 0%,transparent 70%)}
-.mod-site:hover{border-color:rgba(163,107,234,.15)}
-
-.mod-stats::before{background:var(--bl)}
-.mod-stats::after{background:radial-gradient(ellipse at 50% 0%,rgba(91,141,239,.04) 0%,transparent 70%)}
-.mod-stats:hover{border-color:rgba(91,141,239,.15)}
-
-.mod-icon{
-  width:44px;height:44px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  margin-bottom:18px;position:relative;z-index:1;
-}
-.mod-icon svg{width:22px;height:22px;stroke-width:1.6;fill:none}
-.mod-crm .mod-icon{background:var(--ac2);border:1px solid var(--ac3)}
-.mod-crm .mod-icon svg{stroke:var(--ac)}
-.mod-formation .mod-icon{background:var(--gn2);border:1px solid var(--gn3)}
-.mod-formation .mod-icon svg{stroke:var(--gn)}
-.mod-annuaire .mod-icon{background:var(--bl2);border:1px solid var(--bl3)}
-.mod-annuaire .mod-icon svg{stroke:var(--bl)}
-.mod-docs .mod-icon{background:var(--or2);border:1px solid var(--or3)}
-.mod-docs .mod-icon svg{stroke:var(--or)}
-.mod-site .mod-icon{background:var(--pr2);border:1px solid var(--pr3)}
-.mod-site .mod-icon svg{stroke:var(--pr)}
-.mod-stats .mod-icon{background:var(--bl2);border:1px solid var(--bl3)}
-.mod-stats .mod-icon svg{stroke:var(--bl)}
-
-.mod-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-.3px;margin-bottom:6px;position:relative;z-index:1}
-.mod-desc{font-size:12px;color:var(--mu);line-height:1.65;flex:1;position:relative;z-index:1}
-.mod-foot{
-  margin-top:18px;padding-top:14px;border-top:1px solid var(--bd);
-  display:flex;align-items:center;justify-content:space-between;
-  position:relative;z-index:1;
-}
-.mod-tag{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;padding:3px 9px;border-radius:99px;font-weight:500}
-.mod-crm .mod-tag{background:var(--ac2);color:var(--ac)}
-.mod-formation .mod-tag{background:var(--gn2);color:var(--gn)}
-.mod-annuaire .mod-tag{background:var(--bl2);color:var(--bl)}
-.mod-docs .mod-tag{background:var(--or2);color:var(--or)}
-.mod-site .mod-tag{background:var(--pr2);color:var(--pr)}
-.mod-stats .mod-tag{background:var(--bl2);color:var(--bl)}
-.mod-arrow{transition:transform .2s}
-.mod-arrow svg{width:16px;height:16px;stroke:var(--mu2);stroke-width:1.8;fill:none;transition:.2s}
-.mod:hover .mod-arrow svg{stroke:var(--tx);transform:translateX(3px)}
-
-/* ── BOTTOM ROW ─────────────────────────────────────── */
-.bottom{display:grid;grid-template-columns:1fr 320px;gap:14px}
-
-/* Feed */
-.feed{background:var(--s1);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
-.feed-head{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;font-size:12px;font-weight:600}
-.feed-live{width:7px;height:7px;border-radius:50%;background:var(--gn);position:relative}
-.feed-live::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:1px solid var(--gn);animation:ping 2s cubic-bezier(0,0,.2,1) infinite;opacity:0}
-@keyframes ping{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
-.feed-list{max-height:320px;overflow-y:auto}
-.fi{padding:14px 20px;border-bottom:1px solid var(--bd);display:flex;gap:12px;align-items:flex-start;transition:.1s}
-.fi:hover{background:var(--s2)}
-.fi:last-child{border-bottom:none}
-.fi-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.fi-dot.gn{background:var(--gn)}.fi-dot.or{background:var(--or)}.fi-dot.bl{background:var(--bl)}.fi-dot.ac{background:var(--ac)}.fi-dot.mu{background:var(--mu2)}
-.fi-body{flex:1}
-.fi-text{font-size:11px;line-height:1.55;color:var(--tx2)}
-.fi-text strong{color:var(--tx);font-weight:600}
-.fi-time{font-family:'DM Mono',monospace;font-size:9px;color:var(--mu2);margin-top:3px}
-
-/* Side panel */
-.side{display:flex;flex-direction:column;gap:12px}
-.sp{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:20px}
-.sp-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu2);margin-bottom:14px;font-weight:500;display:flex;align-items:center;gap:8px}
-.sp-title svg{width:14px;height:14px;stroke:var(--mu2);stroke-width:1.8;fill:none}
-
-/* Team */
-.tm{display:flex;align-items:center;gap:11px;padding:7px 0}
-.tm-av{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;position:relative}
-.tm-online{position:absolute;bottom:-2px;right:-2px;width:9px;height:9px;border-radius:50%;border:2px solid var(--s1)}
-.tm-online.on{background:var(--gn)}
-.tm-online.off{background:var(--mu2)}
-.tm-info{flex:1}
-.tm-name{font-size:12px;font-weight:600}
-.tm-role{font-size:10px;color:var(--mu2)}
-
-/* Shortcuts */
-.sc{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:7px;cursor:pointer;transition:.12s;color:var(--mu);font-size:11px;font-weight:500}
-.sc:hover{background:var(--s3);color:var(--tx)}
-.sc svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none;flex-shrink:0;opacity:.6}
-.sc-key{margin-left:auto;font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;background:var(--s4);border:1px solid var(--bd2);border-radius:4px;color:var(--mu2)}
-
-/* Version */
-.version{font-family:'DM Mono',monospace;font-size:9px;color:var(--mu2);display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--s1);border:1px solid var(--bd);border-radius:10px}
-.version-dot{width:5px;height:5px;border-radius:50%;background:var(--gn);display:inline-block;margin-right:5px}
-
-/* ── FOOTER ─────────────────────────────────────────── */
-.hub-foot{margin-top:48px;padding-top:20px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--mu2);letter-spacing:.08em}
-.hub-foot a{color:var(--mu);text-decoration:none;transition:.15s}
-.hub-foot a:hover{color:var(--ac)}
-
-/* ── COMMAND PALETTE ────────────────────────────────── */
-.cmd-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);display:none;align-items:flex-start;justify-content:center;padding-top:min(20vh,160px)}
-.cmd-overlay.open{display:flex}
-.cmd-box{
-  width:100%;max-width:520px;
-  background:var(--s1);border:1px solid var(--bd2);
-  border-radius:14px;box-shadow:var(--sh3);
-  overflow:hidden;
-  animation:cmdIn .15s cubic-bezier(.2,.8,.3,1);
-}
-@keyframes cmdIn{from{opacity:0;transform:scale(.96) translateY(-8px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.cmd-input-wrap{padding:16px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
-.cmd-input-wrap svg{width:18px;height:18px;stroke:var(--mu);stroke-width:1.8;fill:none;flex-shrink:0}
-.cmd-input{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--tx);font-family:'Instrument Sans',sans-serif}
-.cmd-input::placeholder{color:var(--mu2)}
-.cmd-results{max-height:320px;overflow-y:auto;padding:6px}
-.cmd-item{
-  display:flex;align-items:center;gap:12px;
-  padding:10px 14px;border-radius:8px;
-  cursor:pointer;transition:.1s;
-}
-.cmd-item:hover,.cmd-item.sel{background:var(--s3)}
-.cmd-item-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.cmd-item-icon svg{width:16px;height:16px;stroke-width:1.8;fill:none}
-.cmd-item-text{flex:1}
-.cmd-item-name{font-size:12px;font-weight:600}
-.cmd-item-desc{font-size:10px;color:var(--mu2);margin-top:1px}
-.cmd-item-key{font-family:'DM Mono',monospace;font-size:9px;color:var(--mu2)}
-.cmd-foot{padding:10px 18px;border-top:1px solid var(--bd);font-family:'DM Mono',monospace;font-size:9px;color:var(--mu2);display:flex;gap:16px}
-.cmd-foot span{display:flex;align-items:center;gap:4px}
-.cmd-foot kbd{padding:1px 4px;background:var(--s4);border:1px solid var(--bd2);border-radius:3px}
-
-/* ── TOAST ──────────────────────────────────────────── */
-.toast-container{position:fixed;bottom:24px;right:24px;z-index:10000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.toast{
-  padding:12px 18px;border-radius:10px;
-  background:var(--s2);border:1px solid var(--bd2);
-  box-shadow:var(--sh2);font-size:11px;color:var(--tx2);
-  display:flex;align-items:center;gap:10px;
-  animation:toastIn .3s ease;pointer-events:auto;
-  font-weight:500;
-}
-.toast svg{width:16px;height:16px;stroke-width:2;fill:none;flex-shrink:0}
-.toast.success svg{stroke:var(--gn)}
-@keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes toastOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-8px)}}
-
-/* ── ANIMATIONS ─────────────────────────────────────── */
-@keyframes enter{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.anim{opacity:0;animation:enter .5s cubic-bezier(.22,.68,0,1.2) forwards}
-.anim-d1{animation-delay:.08s}.anim-d2{animation-delay:.16s}.anim-d3{animation-delay:.24s}
-.anim-d4{animation-delay:.32s}.anim-d5{animation-delay:.4s}.anim-d6{animation-delay:.48s}
-
-/* ── SCROLLBAR ──────────────────────────────────────── */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:99px}
-::-webkit-scrollbar-thumb:hover{background:var(--bd3)}
-
-/* ── RESPONSIVE ─────────────────────────────────────── */
-@media(max-width:960px){
-  .modules{grid-template-columns:repeat(2,1fr)}
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .bottom{grid-template-columns:1fr}
-}
-@media(max-width:600px){
-  .topbar{padding:0 14px;gap:8px}
-  .main{padding:20px 14px 40px}
-  .modules{grid-template-columns:1fr}
-  .hero-title{font-size:26px}
-  .tb-cmd,.tb-clock,.tb-divider,.tb-env{display:none}
-}
-</style>
-</head>
-<body>
-
-<!-- Canvas background -->
-<canvas id="bg-canvas"></canvas>
-<div class="bg-grad-1"></div>
-<div class="bg-grad-2"></div>
-
-<!-- ═══ TOPBAR ═══ -->
-<header class="topbar">
-  <a href="/hub" class="tb-logo">
-    <div class="tb-logo-icon">
-      <svg viewBox="0 0 16 16" fill="none"><path d="M4 12V4l4 3-4 3zM8 12V4l4 3-4 3z" fill="#08080a" stroke="none"/></svg>
-    </div>
-    <div class="tb-logo-text">Nova<span>lem</span></div>
-  </a>
-  <div class="tb-divider"></div>
-  <div class="tb-env">Espace Scout</div>
-  <div class="tb-spacer"></div>
-  <div class="tb-cmd" onclick="openCmd()">
-    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    Rechercher...
-    <kbd>⌘K</kbd>
-  </div>
-  <div class="tb-clock" id="clock"></div>
-  <div class="tb-divider"></div>
-  <div class="tb-user" id="tb-user">
-    <div class="tb-avatar" id="tb-avatar" style="background:var(--ac2);color:var(--ac)">—</div>
-    <div class="tb-uinfo">
-      <div class="tb-uname" id="tb-uname">—</div>
-      <div class="tb-urole" id="tb-urole">—</div>
-    </div>
-  </div>
-  <button class="tb-logout" onclick="logout()" title="Déconnexion">
-    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-  </button>
-</header>
-
-<!-- ═══ MAIN ═══ -->
-<main class="main">
-
-  <!-- Hero -->
-  <section class="hero anim anim-d1">
-    <div class="hero-date" id="hero-date"></div>
-    <h1 class="hero-title">Bonjour, <span class="accent" id="hero-name">Scout</span></h1>
-    <p class="hero-sub">Votre espace de travail centralise. CRM, formations, ressources — tout ce dont vous avez besoin pour performer.</p>
-  </section>
-
-  <!-- Stats -->
-  <div class="stats anim anim-d2">
-    <div class="stat">
-      <div class="stat-top">
-        <div class="stat-label">Candidats actifs</div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </div>
-      </div>
-      <div class="stat-val" id="st-cand">0</div>
-      <div class="stat-sub up" id="st-cand-d"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>dans la base</div>
-    </div>
-    <div class="stat">
-      <div class="stat-top">
-        <div class="stat-label">Placements ce mois</div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        </div>
-      </div>
-      <div class="stat-val" id="st-place">0</div>
-      <div class="stat-sub" id="st-place-d">ce mois</div>
-    </div>
-    <div class="stat">
-      <div class="stat-top">
-        <div class="stat-label">Offres en cours</div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        </div>
-      </div>
-      <div class="stat-val" id="st-offer">0</div>
-      <div class="stat-sub" id="st-offer-d">en cours</div>
-    </div>
-    <div class="stat">
-      <div class="stat-top">
-        <div class="stat-label">Taux de conversion</div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-      </div>
-      <div class="stat-val" id="st-rate">0%</div>
-      <div class="stat-sub" id="st-rate-d">conversion</div>
-    </div>
-  </div>
-
-  <!-- Modules -->
-  <div class="sec anim anim-d3"><div class="sec-label">Modules</div><div class="sec-line"></div></div>
-  <div class="modules anim anim-d3">
-
-    <a href="/crm" class="mod mod-crm">
-      <div class="mod-icon">
-        <svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-      </div>
-      <div class="mod-title">CRM Recrutement</div>
-      <div class="mod-desc">Pipeline candidats, gestion entreprises, offres d'emploi, emails integres et intelligence artificielle.</div>
-      <div class="mod-foot">
-        <span class="mod-tag">Production</span>
-        <span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-      </div>
-    </a>
-
-    <a href="/formation" class="mod mod-formation">
-      <div class="mod-icon">
-        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-      </div>
-      <div class="mod-title">Centre de Formation</div>
-      <div class="mod-desc">11 modules complets : onboarding, scripts d'appel, qualification, metiers BTP et techniques de closing.</div>
-      <div class="mod-foot">
-        <span class="mod-tag">11 modules</span>
-        <span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-      </div>
-    </a>
-
-    <a href="/annuaire" class="mod mod-annuaire">
-      <div class="mod-icon">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      </div>
-      <div class="mod-title">Annuaire & Contacts</div>
-      <div class="mod-desc">Repertoire equipe, partenaires, contacts cles BTP et interlocuteurs par secteur geographique.</div>
-      <div class="mod-foot">
-        <span class="mod-tag">Actif</span>
-        <span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-      </div>
-    </a>
-
-    <a href="/documents" class="mod mod-docs">
-      <div class="mod-icon">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      </div>
-      <div class="mod-title">Documents & Ressources</div>
-      <div class="mod-desc">Contrats, grilles tarifaires, templates emails, procedures internes et modeles administratifs.</div>
-      <div class="mod-foot">
-        <span class="mod-tag">Actif</span>
-        <span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-      </div>
-    </a>
-
-    <a href="https://www.novalem-recrutement.fr/" target="_blank" rel="noopener" class="mod mod-site">
-      <div class="mod-icon">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      </div>
-      <div class="mod-title">Site Novalem</div>
-      <div class="mod-desc">Acces direct au site vitrine — offres publiques, candidatures spontanees et image de marque Novalem.</div>
-      <div class="mod-foot">
-        <span class="mod-tag">Externe</span>
-        <span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>
-      </div>
-    </a>
-
-    <a href="/statistiques" class="mod mod-stats">
-      <div class="mod-icon">
-        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      </div>
-      <div class="mod-title">Statistiques & KPIs</div>
-      <div class="mod-desc">Tableaux de bord avances, performances individuelles, tendances et rapports d'activite en temps reel.</div>
-      <div class="mod-foot">
-        <span class="mod-tag">Analytics</span>
-        <span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-      </div>
-    </a>
-
-  </div>
-
-  <!-- Bottom: Feed + Side -->
-  <div class="sec anim anim-d4"><div class="sec-label">Activite & equipe</div><div class="sec-line"></div></div>
-  <div class="bottom anim anim-d5">
-
-    <div class="feed">
-      <div class="feed-head">
-        <div class="feed-live"></div>
-        Activite recente
-      </div>
-      <div class="feed-list" id="feed-list">
-        <div class="fi"><div class="fi-dot mu"></div><div class="fi-body"><div class="fi-text" style="color:var(--mu2)">Chargement de l'activite...</div></div></div>
-      </div>
-    </div>
-
-    <div class="side">
-      <div class="sp">
-        <div class="sp-title">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          Equipe
-        </div>
-        <div class="tm">
-          <div class="tm-av" style="background:var(--ac2);color:var(--ac)">LR<div class="tm-online on"></div></div>
-          <div class="tm-info"><div class="tm-name">Louis Renault</div><div class="tm-role">Admin · Fondateur</div></div>
-        </div>
-        <div class="tm">
-          <div class="tm-av" style="background:var(--gn2);color:var(--gn)">C<div class="tm-online on"></div></div>
-          <div class="tm-info"><div class="tm-name">Corentin</div><div class="tm-role">Commercial</div></div>
-        </div>
-      </div>
-
-      <div class="sp">
-        <div class="sp-title">
-          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Raccourcis
-        </div>
-        <div class="sc" onclick="location='/crm'">
-          <svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
-          CRM<span class="sc-key">C</span>
-        </div>
-        <div class="sc" onclick="location='/formation'">
-          <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          Formation<span class="sc-key">F</span>
-        </div>
-        <div class="sc" onclick="location='/annuaire'">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          Annuaire<span class="sc-key">A</span>
-        </div>
-        <div class="sc" onclick="location='/documents'">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          Documents<span class="sc-key">D</span>
-        </div>
-      </div>
-
-      <div class="version">
-        <span>Novalem Platform v2.0</span>
-        <span><span class="version-dot"></span>Operationnel</span>
-      </div>
-    </div>
-  </div>
-
-  <footer class="hub-foot anim anim-d6">
-    <span>Novalem © 2026 — Cabinet de recrutement BTP</span>
-    <a href="https://www.novalem-recrutement.fr/" target="_blank">novalem-recrutement.fr</a>
-  </footer>
-</main>
-
-<!-- ═══ COMMAND PALETTE ═══ -->
-<div class="cmd-overlay" id="cmd-overlay" onclick="if(event.target===this)closeCmd()">
-  <div class="cmd-box">
-    <div class="cmd-input-wrap">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input class="cmd-input" id="cmd-input" type="text" placeholder="Rechercher un module, une action..." oninput="filterCmd()" autofocus>
-    </div>
-    <div class="cmd-results" id="cmd-results"></div>
-    <div class="cmd-foot">
-      <span><kbd>↑↓</kbd> Naviguer</span>
-      <span><kbd>↵</kbd> Ouvrir</span>
-      <span><kbd>esc</kbd> Fermer</span>
-    </div>
-  </div>
-</div>
-
-<!-- Toast container -->
-<div class="toast-container" id="toasts"></div>
-
-<script>
-// ═══ AUTH ═══════════════════════════════════════════════
-const raw = sessionStorage.getItem('novalem_user');
-if (!raw) { window.location.href = '/'; }
-let USER;
-try {
-  USER = JSON.parse(raw);
-  if (!USER || !USER.ts || (Date.now() - USER.ts) > 8*3600000) {
-    sessionStorage.removeItem('novalem_user');
-    window.location.href = '/';
-  }
-} catch(e) { window.location.href = '/'; }
-
-// ═══ POPULATE UI ═══════════════════════════════════════
-if (USER) {
-  const fn = USER.name.split(' ')[0];
-  document.getElementById('tb-uname').textContent = USER.name;
-  document.getElementById('tb-urole').textContent = USER.role;
-  document.getElementById('tb-avatar').textContent = USER.initials;
-  document.getElementById('tb-avatar').style.background = USER.color + '18';
-  document.getElementById('tb-avatar').style.color = USER.color;
-  document.getElementById('hero-name').textContent = fn;
-
-  const h = new Date().getHours();
-  const greet = h < 12 ? 'Bonjour' : h < 18 ? 'Bon apres-midi' : 'Bonsoir';
-  const opts = {weekday:'long',day:'numeric',month:'long',year:'numeric'};
-  const dateStr = new Date().toLocaleDateString('fr-FR',opts);
-  document.getElementById('hero-date').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-  document.querySelector('.hero-title').innerHTML = greet + ', <span class="accent">' + fn + '</span>';
-}
-
-// ═══ CLOCK ═════════════════════════════════════════════
-function tick(){
-  const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-}
-tick(); setInterval(tick,1000);
-
-// ═══ ANIMATED COUNTERS ═════════════════════════════════
-function animateCounter(el, target, suffix='') {
-  const duration = 1200;
-  const start = performance.now();
-  const from = 0;
-  function update(now) {
-    const elapsed = now - start;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-    const current = Math.round(from + (target - from) * eased);
-    el.textContent = current + suffix;
-    if (progress < 1) requestAnimationFrame(update);
-  }
-  requestAnimationFrame(update);
-}
-
-// ═══ SUPABASE DATA ═════════════════════════════════════
-const SUPA_URL = 'https://hzcjguxttgowrgpmemjh.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2pndXh0dGdvd3JncG1lbWpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTYwNjMsImV4cCI6MjA1ODQ3MjA2M30.4WJhRxkVG_OEuGJnGSarKdSXCbJnHgmJ6lVMVnj8VuU';
-
-async function loadData() {
-  try {
-    const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
-
-    const {count:cand} = await sb.from('candidates').select('*',{count:'exact',head:true});
-    animateCounter(document.getElementById('st-cand'), cand||0);
-
-    const ms = new Date(); ms.setDate(1); ms.setHours(0,0,0,0);
-    const {count:placed} = await sb.from('candidates').select('*',{count:'exact',head:true}).eq('status','place').gte('updated_at',ms.toISOString());
-    animateCounter(document.getElementById('st-place'), placed||0);
-
-    const {count:offers} = await sb.from('jobs').select('*',{count:'exact',head:true}).eq('status','active');
-    animateCounter(document.getElementById('st-offer'), offers||0);
-
-    const rate = cand > 0 ? Math.round((placed/cand)*100) : 0;
-    animateCounter(document.getElementById('st-rate'), rate, '%');
-
-    // Activity feed
-    const {data:recent} = await sb.from('candidates').select('name,status,updated_at').order('updated_at',{ascending:false}).limit(10);
-    if (recent && recent.length) {
-      const stMap = {nouveau:'Nouveau candidat',contacte:'Contact initie',entretien:'En entretien',propose:'Propose',place:'Place',archive:'Archive'};
-      const dotMap = {nouveau:'bl',contacte:'or',entretien:'ac',propose:'or',place:'gn',archive:'mu'};
-      document.getElementById('feed-list').innerHTML = recent.map(c => {
-        const ago = timeAgo(new Date(c.updated_at));
-        return `<div class="fi">
-          <div class="fi-dot ${dotMap[c.status]||'mu'}"></div>
-          <div class="fi-body">
-            <div class="fi-text"><strong>${c.name||'Candidat'}</strong> — ${stMap[c.status]||c.status}</div>
-            <div class="fi-time">${ago}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    showToast('Donnees synchronisees');
-  } catch(e) {
-    console.log('Data load:', e.message);
-  }
-}
-
-function timeAgo(d){
-  const s=(Date.now()-d.getTime())/1000;
-  if(s<60)return"A l'instant";
-  if(s<3600)return Math.floor(s/60)+' min';
-  if(s<86400)return Math.floor(s/3600)+' h';
-  return Math.floor(s/86400)+' j';
-}
-loadData();
-
-// ═══ TOAST SYSTEM ══════════════════════════════════════
-function showToast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast success';
-  t.innerHTML = `<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>${msg}`;
-  document.getElementById('toasts').appendChild(t);
-  setTimeout(() => { t.style.animation='toastOut .3s ease forwards'; setTimeout(()=>t.remove(),300); }, 2500);
-}
-
-// ═══ COMMAND PALETTE ═══════════════════════════════════
-const CMD_ITEMS = [
-  {name:'CRM Recrutement',desc:'Pipeline, candidats, entreprises',href:'/crm',icon:'crm',color:'ac'},
-  {name:'Centre de Formation',desc:'11 modules de formation',href:'/formation',icon:'book',color:'gn'},
-  {name:'Annuaire & Contacts',desc:'Equipe et contacts',href:'/annuaire',icon:'users',color:'bl'},
-  {name:'Documents',desc:'Templates et ressources',href:'/documents',icon:'file',color:'or'},
-  {name:'Site Novalem',desc:'novalem-recrutement.fr',href:'https://www.novalem-recrutement.fr/',icon:'globe',color:'pr',ext:true},
-  {name:'Statistiques',desc:'KPIs et analytics',href:'/statistiques',icon:'chart',color:'bl'},
-  {name:'Deconnexion',desc:'Fermer la session',href:'#logout',icon:'logout',color:'rd'},
-];
-const ICONS = {
-  crm:'<path d="M12 20V10M18 20V4M6 20v-4"/>',
-  book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
-  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
-  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-  globe:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/>',
-  chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
-  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+text
+
+// ═══ MODULES DATA ═══
+// Block types: h, h4, p, ul, ol, callout, script, quote, compare, stat, chk, obj, sep, kicker
+
+const LEVELS = {
+  i:   { num:'I',   color:'ac', title:"L'Âme du Scout",        subtitle:"Savoir qui tu es avant de chasser.",
+         desc:"Avant de toucher un CV, avant de décrocher un téléphone, tu dois comprendre où tu marches. Ce niveau te donne l'identité. Il ne s'agit pas d'outils — il s'agit de toi dans cette maison.",
+         promise:"À la fin de ce niveau, tu sauras exactement pourquoi tu es là, à qui tu appartiens, et ce que tu représentes quand tu dis « bonjour, Novalem ».",
+         iconPath:`<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>` },
+
+  ii:  { num:'II',  color:'bl', title:"La Chasse",               subtitle:"Trouver ce que les autres ne voient pas.",
+         desc:"Le sourcing n'est pas un volume. C'est un art : comprendre où sont cachés les bons profils, comment les atteindre avant les autres, comment trier sans gaspiller. Le scout qui chasse mal perd son temps. Le scout qui chasse bien gagne ses soirées.",
+         promise:"À la fin de ce niveau, tu remplis ton pipeline tous les jours, avec des candidats qualifiés — pas du bruit.",
+         iconPath:`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>` },
+
+  iii: { num:'III', color:'or', title:"La Voix",                 subtitle:"Chaque mot est un levier.",
+         desc:"Ta voix est ton outil principal. Ce que tu dis, comment tu le dis, et quand tu le dis : voilà ce qui sépare un scout moyen d'un closer. Ce niveau t'apprend à parler pour convaincre, à écrire pour convertir, à présenter pour placer.",
+         promise:"À la fin de ce niveau, tu décroches ton téléphone sans hésitation, tu traites 20 objections sans broncher, et tu closes un placement comme une évidence.",
+         iconPath:`<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>` },
+
+  iv:  { num:'IV',  color:'pr', title:"L'Arsenal Métier",        subtitle:"Parler BTP avec les gens du BTP.",
+         desc:"Les candidats BTP sentent en 30 secondes si tu connais leur métier. Ce niveau te donne le vocabulaire, les grilles salariales, les certifications, les conventions collectives. Tu ne vends plus du vide — tu vends des postes que tu comprends.",
+         promise:"À la fin de ce niveau, tu peux parler métier à un coffreur, un conducteur de travaux, un ingé études ou un directeur. Sans bluff. Avec précision.",
+         iconPath:`<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>` },
+
+  v:   { num:'V',   color:'gn', title:"La Forge Mentale",        subtitle:"Ce qui fait qu'on dure.",
+         desc:"Le recrutement est un métier d'endurance. Ceux qui gagnent ne sont pas les plus brillants — ce sont ceux qui tiennent. Ce niveau n'est pas une formation : c'est une préparation mentale. Tu vas apprendre à encaisser les « non », à refuser la facilité, à construire une réputation qui te survit.",
+         promise:"À la fin de ce niveau, tu ne travailles plus pour un mois. Tu construis une carrière. L'argent ne court plus après toi — tu cours après ce que tu deviens.",
+         iconPath:`<path d="M20.91 8.84 8.56 21.18a4.5 4.5 0 0 1-6.36-6.36L14.55 2.47a3 3 0 0 1 4.24 4.24L9.14 16.36"/>` },
 };
 
-let cmdSel = 0;
-function openCmd(){
-  document.getElementById('cmd-overlay').classList.add('open');
-  document.getElementById('cmd-input').value = '';
-  cmdSel = 0;
-  renderCmd(CMD_ITEMS);
-  setTimeout(()=>document.getElementById('cmd-input').focus(),50);
-}
-function closeCmd(){document.getElementById('cmd-overlay').classList.remove('open')}
-function renderCmd(items){
-  document.getElementById('cmd-results').innerHTML = items.map((it,i) => {
-    const c = `var(--${it.color})`;
-    const bg = `var(--${it.color}2)`;
-    const bd = `var(--${it.color}3)`;
-    return `<div class="cmd-item${i===cmdSel?' sel':''}" onclick="goCmd(${i})" data-i="${i}">
-      <div class="cmd-item-icon" style="background:${bg};border:1px solid ${bd}">
-        <svg viewBox="0 0 24 24" style="stroke:${c}">${ICONS[it.icon]}</svg>
-      </div>
-      <div class="cmd-item-text">
-        <div class="cmd-item-name">${it.name}</div>
-        <div class="cmd-item-desc">${it.desc}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-function filterCmd(){
-  const q = document.getElementById('cmd-input').value.toLowerCase();
-  const filtered = CMD_ITEMS.filter(it=>it.name.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
-  cmdSel=0;
-  renderCmd(filtered);
-}
-function goCmd(i){
-  const q = document.getElementById('cmd-input').value.toLowerCase();
-  const filtered = CMD_ITEMS.filter(it=>it.name.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
-  const it = filtered[i];
-  if(!it)return;
-  closeCmd();
-  if(it.href==='#logout'){logout();return;}
-  if(it.ext)window.open(it.href,'_blank');
-  else window.location.href=it.href;
-}
+const MODULES = {};
 
-// ═══ KEYBOARD SHORTCUTS ════════════════════════════════
-document.addEventListener('keydown', e => {
-  // Cmd+K / Ctrl+K
-  if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); return; }
-  // Escape
-  if (e.key === 'Escape') { closeCmd(); return; }
+// ══════════════════════════════════════════════════════════════
+// NIVEAU I — L'ÂME DU SCOUT
+// ══════════════════════════════════════════════════════════════
 
-  // Inside command palette
-  if (document.getElementById('cmd-overlay').classList.contains('open')) {
-    const items = document.querySelectorAll('.cmd-item');
-    if (e.key === 'ArrowDown') { e.preventDefault(); cmdSel = Math.min(cmdSel+1, items.length-1); items.forEach((el,i)=>el.classList.toggle('sel',i===cmdSel)); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); cmdSel = Math.max(cmdSel-1, 0); items.forEach((el,i)=>el.classList.toggle('sel',i===cmdSel)); }
-    if (e.key === 'Enter') { e.preventDefault(); goCmd(cmdSel); }
-    return;
-  }
+MODULES['i-1'] = {
+  level:'i', num:1, title:"Bienvenue dans la famille",
+  type:'Manifeste', duration:12,
+  lead:"Ce n'est pas un boulot. C'est un choix. Prends 12 minutes pour comprendre dans quoi tu t'engages — vraiment.",
+  content: [
+    { type:'kicker', text:"Tu viens d'ouvrir une porte. Tu ne t'en rendras compte que dans six mois." },
 
-  // Global shortcuts
-  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-  const map = {c:'/crm',f:'/formation',a:'/annuaire',d:'/documents',s:'/statistiques'};
-  if (map[e.key]) window.location.href = map[e.key];
-});
+    { type:'p', text:"Il y a deux façons d'entrer chez NOVALEM. La première, c'est de se dire : <em>ok, nouveau poste, nouvelle société, on va voir</em>. La seconde, c'est de comprendre que tu viens de rejoindre quelque chose qui se construit, en direct, sous tes mains. Ce que tu lis là n'est pas un livret d'accueil — c'est un pacte." },
 
-// ═══ LOGOUT ════════════════════════════════════════════
-function logout() {
-  sessionStorage.removeItem('novalem_user');
-  window.location.href = '/';
-}
+    { type:'h', text:"Pourquoi NOVALEM existe" },
+    { type:'p', text:"Le BTP français tourne avec 1,5 million de salariés et une pénurie chronique de main-d'œuvre qualifiée. Les cabinets classiques livrent lentement, cher, et avec des profils qui sortent d'une CVthèque. NOVALEM a été fondé pour faire mieux — plus vite, plus précis, plus humain. Chaque scout ici porte ça." },
 
-// ═══ CANVAS PARTICLES ══════════════════════════════════
-(function(){
-  const canvas = document.getElementById('bg-canvas');
-  const ctx = canvas.getContext('2d');
-  let w, h, particles = [];
-  const COUNT = 40;
+    { type:'callout', variant:'key', title:"Notre différence", text:"Nous ne sommes pas un cabinet qui fait du BTP. Nous sommes des spécialistes BTP qui font du cabinet. La nuance est énorme — elle se lit dans chaque appel." },
 
-  function resize(){
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
+    { type:'h', text:"Ce que tu es, maintenant" },
+    { type:'p', text:"Dans ce cabinet, tu n'es pas « un commercial », pas « un recruteur ». Tu es un <strong>scout</strong>. Le mot est choisi. Un scout part en éclaireur, observe avant d'agir, reconnaît le terrain, et rapporte. Il ne vend pas du papier — il trouve des gens. Et quand il ramène le bon profil, l'équipe avance." },
 
-  for (let i = 0; i < COUNT; i++) {
-    particles.push({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      r: Math.random() * 1.2 + 0.3,
-      dx: (Math.random() - 0.5) * 0.15,
-      dy: (Math.random() - 0.5) * 0.15,
-      o: Math.random() * 0.12 + 0.03,
-    });
-  }
+    { type:'quote', text:"On ne recrute pas par hasard. On ne place pas par chance. Chaque placement est une conséquence. De ta discipline, de ton écoute, de ta capacité à tenir quand personne ne te regarde.", author:"Louis Renault · fondateur" },
 
-  function draw(){
-    ctx.clearRect(0, 0, w, h);
-    for (const p of particles) {
-      p.x += p.dx;
-      p.y += p.dy;
-      if (p.x < 0) p.x = w;
-      if (p.x > w) p.x = 0;
-      if (p.y < 0) p.y = h;
-      if (p.y > h) p.y = 0;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200,224,64,${p.o})`;
-      ctx.fill();
-    }
-    // Draw connections
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 150) {
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(200,224,64,${0.03 * (1 - dist/150)})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-      }
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
-</script>
-</body>
-</html>
+    { type:'h', text:"Le marché sur lequel on joue" },
+    { type:'p', text:"Un truc que tu dois comprendre tout de suite : le marché du recrutement français est en train de muter. Les salariés français restent en moyenne 8 à 12 ans dans la même boîte. Les Américains, 4 ans. Conclusion : dans 10 ans, le marché français va ressembler au marché américain — avec deux à trois fois plus de volume de placement. Ceux qui sont en place à ce moment-là vont simplement encaisser la vague." },
+    { type:'p', text:"NOVALEM se positionne exactement là : sur l'évolution inévitable du marché français. Tu n'arrives pas trop tôt. Tu arrives au bon moment." },
+
+    { type:'stat', items:[
+      { val:'1,5M', label:'salariés BTP en France', color:'bl' },
+      { val:'8–12', label:"ans d'ancienneté moyenne FR", color:'or' },
+      { val:'×2–3', label:'volume à terme si convergence US', color:'ac' },
+    ]},
+
+    { type:'h', text:"Ce qu'on attend de toi — et ce qui arrive en retour" },
+    { type:'p', text:"Tu vas traverser des journées sans placement. Des semaines sans retour client. Des mois où tu te demanderas si ça va finir par payer. Ça va payer. Mais la condition est simple : tu dois tenir. <strong>Le jeu appartient à ceux qui restent.</strong> L'argent, les primes, la reconnaissance — tout ça suit les compétences. Et les compétences suivent la répétition." },
+
+    { type:'callout', variant:'pro', title:"Un scout NOVALEM ne court pas après l'argent", text:"Il court après ses chiffres, ses compétences, et sa réputation interne. L'argent est une conséquence — pas un objectif. Vise la maîtrise ; le chèque arrive derrière." },
+
+    { type:'h', text:"Ce qui t'attend dans cette académie" },
+    { type:'p', text:"Tu ne vas pas juste « lire des modules ». Tu vas monter en rangs : Aspirant → Scout → Scout Confirmé → Scout d'Élite → Lieutenant → Capitaine. Chaque rang se mérite. Chaque module débloqué est une capacité acquise. Et quand tu fermeras cette académie la première fois, tu auras déjà changé." },
+
+    { type:'p', text:"Maintenant, respire. Et avance." },
+  ],
+  quiz: [
+    { q:"Pourquoi NOVALEM se positionne-t-il sur le marché français maintenant ?",
+      opts:["Parce que le BTP est en crise","Parce que le marché FR converge vers un modèle à plus fort turnover (type US)","Parce que la concurrence est faible","Parce que les honoraires sont plus élevés qu'ailleurs"],
+      correct:1,
+      expl:"Les salariés FR restent 8–12 ans, les US 4 ans. La convergence du marché FR vers un modèle à plus fort turnover crée structurellement 2–3× plus de volume de placement. On anticipe cette vague." },
+    { q:"Qu'est-ce qui sépare un scout qui dure d'un scout qui abandonne ?",
+      opts:["Le talent","La discipline et la capacité à répéter","Le réseau de départ","La chance sur les premiers dossiers"],
+      correct:1,
+      expl:"Les compétences suivent la répétition. Le scout qui tient 6 mois bat presque toujours le scout « talentueux » qui lâche après 2 mois." },
+    { q:"Quelle est la bonne attitude face à l'argent dans ce métier ?",
+      opts:["Le viser directement comme objectif principal","Le considérer comme conséquence de la maîtrise","L'oublier complètement","Négocier en permanence sa rémunération"],
+      correct:1,
+      expl:"Un scout NOVALEM vise la maîtrise. L'argent suit. Courir après l'argent = décisions court-termistes qui détruisent la carrière." },
+  ]
+};
+
+MODULES['i-2'] = {
+  level:'i', num:2, title:"Le Code du Scout",
+  type:'Éthique', duration:14,
+  lead:"Sept principes. Non-négociables. Tu les respectes ou tu n'es pas ici.",
+  content: [
+    { type:'kicker', text:"Un cabinet sans code devient un cabinet qui trompe, ment, et meurt. Les sept principes ci-dessous sont la colonne vertébrale de NOVALEM." },
+
+    { type:'h', text:"1. Jamais de candidat non qualifié présenté à un client" },
+    { type:'p', text:"C'est la règle des règles. Présenter un profil bancal à un client, c'est brûler des mois de réputation pour un appel de cinq minutes. Si le doute existe, tu ne présentes pas. Tu creuses, ou tu archives." },
+
+    { type:'h', text:"2. Jamais d'argent demandé à un candidat" },
+    { type:'p', text:"La loi française (article L5324-1) est absolue : facturer un candidat est interdit et puni. Chez NOVALEM ce n'est pas juste la loi — c'est une ligne morale. Nos honoraires viennent toujours des entreprises. Jamais des gens qu'on cherche à placer." },
+    { type:'callout', variant:'warn', title:"Ligne rouge", text:"Toute tentative de facturer un candidat (frais de dossier, CV payant, consultation facturée) = fin immédiate de la relation. Pas de seconde chance." },
+
+    { type:'h', text:"3. Transparence avec les deux côtés" },
+    { type:'p', text:"Un candidat a le droit de savoir pour quelle entreprise il postule (avec l'accord du client). Un client a le droit de savoir si un profil est présenté ailleurs. Jouer double est tentant mais détruit la confiance. Sans confiance, tu n'as rien." },
+
+    { type:'h', text:"4. Le CRM est la vérité" },
+    { type:'p', text:"Pas d'Excel parallèle. Pas de fiches sur papier. Pas de données dans la tête. Tout ce que tu fais, tout ce que tu découvres, tout ce que tu promets : <strong>entré dans le CRM dans les 24 heures</strong>. Un scout qui n'entre pas ses données vole à l'équipe." },
+
+    { type:'h', text:"5. RGPD : 6 ans maximum" },
+    { type:'p', text:"Les données candidats sont conservées 6 ans maximum (obligation légale). Au-delà, elles sont anonymisées ou supprimées. Un candidat peut demander l'effacement à tout moment — tu le fais sans discuter." },
+
+    { type:'h', text:"6. Tu dois plus à la maison qu'à toi" },
+    { type:'p', text:"Si un lead t'arrive et qu'il est pour un autre scout, tu le transmets. Si une info t'arrive qui aide quelqu'un, tu la partages. Si un junior galère, tu l'aides. <strong>L'équipe te rend ce que tu donnes — avec intérêts.</strong> La famille NOVALEM fonctionne parce que personne ne joue perso." },
+
+    { type:'h', text:"7. Ta parole engage NOVALEM" },
+    { type:'p', text:"Quand tu dis « je rappelle demain à 14h », tu rappelles. Quand tu promets un retour sous 48h, tu le fais. Le jour où tu manques à ta parole, ce n'est pas toi qui perds — c'est le cabinet. Donc tu ne manques pas." },
+
+    { type:'callout', variant:'pro', title:"Le contrat implicite", text:"Si tu respectes ces sept principes tous les jours, NOVALEM te donne : une entreprise solide, des outils qui s'améliorent chaque semaine, une équipe qui t'élève, et la rémunération qui suit tes performances." },
+
+    { type:'h', text:"Ce qui n'est pas dans le code — et pourtant compte" },
+    { type:'ul', items:[
+      "<strong>Zéro emoji dans les communications pro.</strong> Ni aux candidats, ni aux clients. On est sérieux, on l'affiche.",
+      "<strong>Réponse sous 2h en heures ouvrées.</strong> Même un « je te rappelle dans l'heure » vaut mieux que le silence.",
+      "<strong>Pas de candidat perdu par oubli.</strong> Si un candidat ne t'intéresse pas aujourd'hui, tu lui dis et tu archives proprement. Un candidat que tu laisses dans le vide est un candidat que tu n'auras plus jamais.",
+      "<strong>Confidentialité cadres.</strong> Le nom d'une entreprise cliente ne sort jamais sans accord écrit. Jamais.",
+    ]},
+
+    { type:'quote', text:"L'éthique n'est pas un coût. C'est un avantage compétitif. Les cabinets qui trichent meurent — juste plus lentement qu'on ne le croit.", author:"Louis Renault" },
+  ],
+  quiz: [
+    { q:"Peut-on, dans certains cas, facturer un candidat ?",
+      opts:["Oui, pour des prestations annexes","Oui, avec un accord écrit","Non, c'est interdit par la loi et par NOVALEM","Oui si le candidat l'accepte"],
+      correct:2,
+      expl:"Article L5324-1 du Code du travail : interdit. Chez NOVALEM c'est une ligne rouge absolue." },
+    { q:"Quelle est la durée max de conservation des données candidats (RGPD) ?",
+      opts:["2 ans","4 ans","6 ans","10 ans"],
+      correct:2,
+      expl:"6 ans maximum — ensuite anonymisation ou suppression." },
+    { q:"Un lead arrive pour un poste qui correspond à un autre scout. Que fais-tu ?",
+      opts:["Je le garde pour moi","Je le transmets sans hésiter","Je demande d'abord une compensation","Je le traite moi-même puis on verra"],
+      correct:1,
+      expl:"Principe n°6 : l'équipe rend ce que tu donnes. Jouer perso détruit la maison." },
+  ]
+};
+
+MODULES['i-3'] = {
+  level:'i', num:3, title:"NOVALEM sur le marché",
+  type:'Positionnement', duration:15,
+  lead:"Comprendre le terrain sur lequel on joue — pour pouvoir en parler à n'importe quel client ou candidat, sans trembler.",
+  content: [
+    { type:'h', text:"Le BTP français en 3 chiffres" },
+    { type:'stat', items:[
+      { val:'1,5M', label:"salariés BTP", color:'bl' },
+      { val:'€170Md', label:"chiffre d'affaires annuel", color:'ac' },
+      { val:'100k+', label:"postes à pourvoir en permanence", color:'or' },
+    ]},
+    { type:'p', text:"Le BTP c'est 7% du PIB français. Un secteur massif, fragmenté (90% de TPE/PME), et structurellement en sous-effectif qualifié. Les grandes majors (Bouygues, Vinci, Eiffage) aspirent une partie des talents ; le reste du marché se bat pour le vivier qui reste." },
+
+    { type:'h', text:"La pénurie — d'où elle vient, pourquoi elle dure" },
+    { type:'ul', items:[
+      "<strong>Vieillissement des compagnons.</strong> Beaucoup partent à la retraite sans remplaçants formés.",
+      "<strong>Désaffection jeunes.</strong> Les métiers manuels souffrent d'une image dégradée — à tort.",
+      "<strong>Transition énergétique.</strong> Nouveaux besoins (CVC, PV, isolation) qui créent de la demande sans former assez vite.",
+      "<strong>Concurrence grands comptes.</strong> Les majors prennent les meilleurs profils — les ETI/PME se tournent vers les cabinets.",
+    ]},
+
+    { type:'callout', variant:'key', title:"Pourquoi ça nous arrange", text:"Plus la pénurie est dure, plus les entreprises BTP passent par des cabinets. Le marché du recrutement BTP croît quand le BTP souffre — et ça ne va pas s'arrêter." },
+
+    { type:'h', text:"Notre positionnement vs la concurrence" },
+    { type:'compare',
+      bad:{ label:"Cabinets généralistes", text:"Ils traitent BTP comme un secteur parmi 10. Peu de connaissance métier, délais de livraison longs, honoraires standards. Le client sent la distance." },
+      good:{ label:"NOVALEM — spécialiste pur BTP", text:"On ne fait que ça. Chaque scout connaît les métiers, les certifs, les salaires, les conventions. Livraison rapide, candidats pré-qualifiés sur les vraies compétences. Le client sent qu'on parle sa langue." } },
+
+    { type:'h', text:"Notre zone d'action principale" },
+    { type:'p', text:"NOVALEM opère en 100% remote sur tout le territoire français, avec un focus fort sur Nice, Monaco et la Côte d'Azur (PACA) — marchés dynamiques, fort tissu BTP, concurrence encore perfectible. Le modèle remote nous permet de couvrir toute la France sans coûts fixes de local." },
+
+    { type:'h', text:"L'argumentaire long terme — à connaître par cœur" },
+    { type:'p', text:"Quand on te demande « pourquoi vous travaillez comme ça ? », voici la réponse :" },
+    { type:'quote', text:"Aux États-Unis, un salarié change de boîte tous les 4 ans en moyenne. En France : tous les 8 à 12 ans. Le marché français converge lentement mais sûrement vers le modèle américain — ce qui signifie structurellement 2 à 3 fois plus de volume de placement dans les années à venir. NOVALEM s'est construit pour encaisser cette vague. On n'anticipe pas une tendance — on anticipe une loi de marché.", author:"L'argumentaire NOVALEM" },
+
+    { type:'h', text:"Nos honoraires — pourquoi on les défend sans trembler" },
+    { type:'p', text:"Marge de la profession : 15 à 25% du salaire brut annuel. NOVALEM cible 15-20%, avec garantie de remplacement si le candidat part pendant la période d'essai. Un conducteur de travaux à 45K€ → 6 750€ à 9 000€ d'honoraires par placement. Tu n'as pas à t'excuser de ce prix : tu livres de la pénurie résolue." },
+
+    { type:'callout', variant:'tip', title:"Le chiffre qu'un scout doit sortir de mémoire", text:"« Un placement NOVALEM, c'est en moyenne 4 à 6 semaines de recherche, 15 à 30 candidats présélectionnés, 3 présentés, 1 placé. Votre investissement est directement proportionnel à la qualité du tri. »" },
+  ],
+  quiz: [
+    { q:"Quelle est notre fourchette d'honoraires cible ?",
+      opts:["5-10% du salaire annuel","15-20% du salaire brut annuel","25-30% du salaire brut annuel","Forfait de 3 000€"],
+      correct:1,
+      expl:"15-20% du salaire brut annuel, avec garantie de remplacement." },
+    { q:"Pourquoi le marché FR va-t-il générer plus de volume à terme ?",
+      opts:["Parce que la population augmente","Parce que l'ancienneté moyenne va baisser (convergence vers modèle US)","Parce que les salaires baissent","Parce que l'immigration augmente"],
+      correct:1,
+      expl:"Convergence vers un modèle à turnover plus élevé = plus de postes à pourvoir sur la durée d'une carrière." },
+    { q:"Quelle est notre différence principale vs un cabinet généraliste ?",
+      opts:["On est moins cher","On est 100% spécialisé BTP, on parle la langue du secteur","On traite plus vite tous les secteurs","On est basé à Nice"],
+      correct:1,
+      expl:"La spécialisation pure BTP est notre moat. C'est ça qu'on vend au client." },
+  ]
+};
+
+MODULES['i-4'] = {
+  level:'i', num:4, title:"L'écosystème NOVALEM",
+  type:'Outils', duration:18,
+  lead:"Tour d'ensemble de tout ce que tu as sous la main. Si tu ne connais pas tes outils, tu joues avec une main dans le dos.",
+  content: [
+    { type:'h', text:"Les 6 outils de ton arsenal quotidien" },
+    { type:'ol', items:[
+      "<strong>Le CRM</strong> — ta cabine de pilotage. Pipeline, candidats, offres, emails, IA. C'est là que 80% de ton temps se joue.",
+      "<strong>Le Site novalem-recrutement.fr</strong> — vitrine publique, offres en ligne, candidatures entrantes automatiques dans le CRM.",
+      "<strong>L'Académie (ici)</strong> — ta mémoire vive. Scripts, objections, grilles salariales, quiz.",
+      "<strong>L'Arsenal</strong> — onglet dans l'Académie. Scripts et templates prêts à copier-coller.",
+      "<strong>Le Codex</strong> — base de données des métiers BTP, grilles salariales, CACES. Ta Bible technique.",
+      "<strong>Les Défis</strong> — entraînement quotidien. 5 minutes par jour = mois après mois, tu deviens inattaquable.",
+    ]},
+
+    { type:'h', text:"Le CRM — architecture mentale" },
+    { type:'p', text:"Le CRM NOVALEM est organisé autour du <strong>pipeline</strong>. Un candidat circule d'étage en étage : Nouveau →
