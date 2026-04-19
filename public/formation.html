@@ -8,10 +8,8 @@
 <style>
 /* ═══════════════════════════════════════════════════════════════
    NOVALEM ACADÉMIE — Learning-platform grade
-   Inspired by Brilliant · Duolingo · Linear · Notion
    ═══════════════════════════════════════════════════════════════ */
 
-/* Design tokens */
 :root{
   --bg:#fafbfc;
   --s0:#ffffff;
@@ -30,11 +28,10 @@
   --mu2:#9aa0a7;
   --mu3:#c3c7cd;
 
-  /* Novalem primary palette, light-optimized */
-  --pri:#a8c030;         /* olive lime — accent principal */
-  --pri-dark:#7d9020;    /* hover states */
-  --pri-ink:#4a5812;     /* texte sur fond clair */
-  --pri-bg:#f0f5d8;      /* background soft */
+  --pri:#a8c030;
+  --pri-dark:#7d9020;
+  --pri-ink:#4a5812;
+  --pri-bg:#f0f5d8;
   --pri-br:rgba(168,192,48,.40);
 
   --ok:#16a34a;
@@ -87,7 +84,6 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 input,textarea{font-family:inherit}
 a{color:inherit;text-decoration:none}
 
-/* Utility */
 .hidden{display:none !important}
 .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
@@ -112,24 +108,20 @@ a{color:inherit;text-decoration:none}
 .tb-crumb{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
 .tb-spacer{flex:1}
 
-/* Lives (confidence) */
 .tb-lives{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--s1);border:1px solid var(--bd);border-radius:999px;font-family:'DM Mono',monospace;font-size:11px;color:var(--tx2);font-weight:600;transition:.2s}
 .tb-lives.low{background:var(--ko-bg);border-color:var(--ko-br);color:var(--ko-ink)}
 .tb-lives svg{width:14px;height:14px;fill:var(--pri);stroke:var(--pri-ink);stroke-width:1.5;transition:.2s}
 .tb-lives.low svg{fill:var(--ko);stroke:var(--ko-ink)}
 .tb-lives b{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
 
-/* XP chip */
 .tb-xp{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--pri-bg);border:1px solid var(--pri-br);border-radius:999px;font-family:'DM Mono',monospace;font-size:11px;color:var(--pri-ink);font-weight:600}
 .tb-xp svg{width:13px;height:13px;fill:var(--pri-ink);stroke:none}
 .tb-xp b{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
 
-/* Streak chip */
 .tb-streak{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--warn-bg);border:1px solid var(--warn-br);border-radius:999px;font-family:'DM Mono',monospace;font-size:11px;color:var(--warn-ink);font-weight:600}
 .tb-streak svg{width:13px;height:13px;fill:var(--warn);stroke:var(--warn-ink);stroke-width:1.5}
 .tb-streak b{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
 
-/* Progress bar in topbar (module mode) */
 .tb-progress{flex:1;max-width:420px;display:none;align-items:center;gap:10px;padding:0 6px}
 .tb-progress.show{display:flex}
 .tb-progress-close{width:28px;height:28px;border-radius:50%;background:var(--s1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
@@ -148,7 +140,7 @@ a{color:inherit;text-decoration:none}
 .wrap-wide{max-width:1120px;margin:0 auto;padding:32px 24px 80px}
 .wrap-narrow{max-width:680px;margin:0 auto;padding:32px 24px 80px}
 
-/* ══ HOME VIEW — carte de parcours complète ══ */
+/* ══ HOME VIEW ══ */
 .home-hero{margin-bottom:36px}
 .home-kicker{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-weight:500}
 .home-kicker::before{content:'';width:18px;height:1px;background:var(--mu2)}
@@ -156,7 +148,6 @@ a{color:inherit;text-decoration:none}
 .home-hero h1 .accent{color:var(--pri-ink)}
 .home-hero-sub{font-size:15px;color:var(--tx2);line-height:1.65;max-width:560px}
 
-/* Promise band */
 .promise{
   display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;
   padding:26px 30px;margin-bottom:40px;
@@ -172,7 +163,6 @@ a{color:inherit;text-decoration:none}
 .promise-stat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:40px;line-height:1;color:var(--pri-ink);letter-spacing:-1.5px}
 .promise-stat-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);margin-top:4px;font-weight:600}
 
-/* Path — chemin visuel des chapitres */
 .path{position:relative;padding:20px 0 10px}
 .path-intro{display:flex;align-items:center;gap:12px;margin-bottom:24px}
 .path-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);font-weight:600}
@@ -220,7 +210,6 @@ a{color:inherit;text-decoration:none}
 .chap-lock{width:36px;height:36px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center}
 .chap-lock svg{width:14px;height:14px;stroke:var(--mu);fill:none;stroke-width:2}
 
-/* Continue card — bouton énorme pour reprendre */
 .continue-card{
   background:linear-gradient(135deg,var(--pri-bg) 0%,#fafcec 100%);
   border:1px solid var(--pri-br);border-radius:var(--r-xl);
@@ -241,7 +230,7 @@ a{color:inherit;text-decoration:none}
 .continue-btn:hover{background:#000;transform:translateX(2px)}
 .continue-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4}
 
-/* ══ CHAPTER VIEW — liste des modules ══ */
+/* ══ CHAPTER VIEW ══ */
 .chapter-hero{margin-bottom:36px;padding-top:8px}
 .chapter-crumb{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-family:'DM Mono',monospace;font-size:10px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase;font-weight:500}
 .chapter-crumb a{color:var(--mu);cursor:pointer}
@@ -254,7 +243,6 @@ a{color:inherit;text-decoration:none}
 .chapter-subtitle{font-family:'Syne',sans-serif;font-weight:500;font-size:17px;color:var(--mu);font-style:italic;letter-spacing:-.2px}
 .chapter-desc{font-size:14px;color:var(--tx2);line-height:1.65;max-width:620px;margin-bottom:22px}
 
-/* Chapter promise */
 .chapter-promise{
   padding:18px 22px;margin-bottom:32px;
   background:var(--s0);border:1px solid var(--bd);
@@ -264,7 +252,6 @@ a{color:inherit;text-decoration:none}
 .chapter-promise-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pri-ink);margin-bottom:6px;font-weight:700}
 .chapter-promise-txt{font-size:14px;color:var(--tx);line-height:1.55}
 
-/* Module list */
 .modules-section{margin-bottom:32px}
 .modules-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
 .modules-section-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);font-weight:600}
@@ -306,12 +293,9 @@ a{color:inherit;text-decoration:none}
 .mod-item:hover:not(.locked) .mod-go svg{stroke:var(--s0);transform:translateX(1px)}
 .mod-go svg{width:13px;height:13px;stroke:var(--mu);fill:none;stroke-width:2.2;transition:.15s}
 
-/* ══════════════════════════════════════════════════════════════
-   MODULE RUNNER — learning experience
-   ══════════════════════════════════════════════════════════════ */
+/* ══ MODULE RUNNER ══ */
 .module-runner{max-width:720px;margin:0 auto;padding:24px 20px 120px;min-height:calc(100vh - 56px);display:flex;flex-direction:column}
 
-/* Lesson card (lecture intro) */
 .lesson{
   background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-xl);
   padding:36px 40px;margin-bottom:24px;box-shadow:var(--sh1);
@@ -354,7 +338,6 @@ a{color:inherit;text-decoration:none}
 .btn-secondary:hover{background:var(--s2);color:var(--tx);border-color:var(--bd2)}
 .btn-secondary svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
 
-/* Exercise card — shared shell */
 .ex-card{
   background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-xl);
   padding:32px 36px;margin-bottom:20px;box-shadow:var(--sh1);
@@ -367,7 +350,6 @@ a{color:inherit;text-decoration:none}
 .ex-prompt{font-family:'Syne',sans-serif;font-weight:700;font-size:22px;line-height:1.35;color:var(--tx);letter-spacing:-.5px;margin-bottom:22px}
 .ex-prompt-sub{font-size:13px;color:var(--mu);margin-top:-14px;margin-bottom:22px;line-height:1.5}
 
-/* QCM / Multi-select */
 .ex-options{display:flex;flex-direction:column;gap:10px}
 .ex-opt{
   display:flex;align-items:center;gap:14px;
@@ -398,7 +380,6 @@ a{color:inherit;text-decoration:none}
 .ex-opt.correct .ex-opt-check,.ex-opt.wrong .ex-opt-check{opacity:1}
 .ex-opt-check svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 
-/* True/False */
 .ex-tf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
 .ex-tf-btn{
   padding:28px 20px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-lg);
@@ -412,7 +393,6 @@ a{color:inherit;text-decoration:none}
 .ex-tf-btn.disabled{pointer-events:none}
 .ex-tf-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.4}
 
-/* Ordering */
 .ex-order-list{display:flex;flex-direction:column;gap:8px}
 .ex-order-item{
   display:flex;align-items:center;gap:12px;
@@ -433,7 +413,6 @@ a{color:inherit;text-decoration:none}
 .ex-order-btn svg{width:12px;height:12px;stroke:var(--tx2);fill:none;stroke-width:2.4}
 .ex-order-btn:disabled{opacity:.3;cursor:not-allowed}
 
-/* Classification */
 .ex-classify{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .ex-cat{background:var(--s1);border:2px dashed var(--bd2);border-radius:var(--r-lg);padding:16px;min-height:120px;transition:.15s}
 .ex-cat-title{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);margin-bottom:10px;font-weight:700;text-align:center}
@@ -448,7 +427,6 @@ a{color:inherit;text-decoration:none}
 .ex-classify-chip{padding:10px 14px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-md);font-size:13px;color:var(--tx);cursor:pointer;transition:.15s;font-family:inherit}
 .ex-classify-chip:hover{border-color:var(--bd3);background:var(--s2);transform:translateY(-1px)}
 
-/* Matching */
 .ex-match{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .ex-match-col{display:flex;flex-direction:column;gap:8px}
 .ex-match-item{
@@ -461,7 +439,6 @@ a{color:inherit;text-decoration:none}
 .ex-match-item.matched-ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok-ink)}
 .ex-match-item.matched-ko{border-color:var(--ko);background:var(--ko-bg);color:var(--ko-ink);animation:shake .35s}
 
-/* Fill-in */
 .ex-fill-text{font-family:'Syne',sans-serif;font-weight:500;font-size:20px;line-height:1.7;color:var(--tx);margin-bottom:24px;letter-spacing:-.3px}
 .ex-fill-blank{display:inline-block;min-width:100px;padding:2px 12px;background:var(--pri-bg);border:2px dashed var(--pri-br);border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:16px;color:var(--pri-ink);font-weight:700;text-align:center;margin:0 4px}
 .ex-fill-blank.filled{background:var(--pri);color:#1a2000;border-style:solid;border-color:var(--pri-dark)}
@@ -472,7 +449,6 @@ a{color:inherit;text-decoration:none}
 .ex-fill-choice:hover:not(.used){border-color:var(--bd3);background:var(--s1);transform:translateY(-1px)}
 .ex-fill-choice.used{opacity:.35;cursor:default}
 
-/* Scenario */
 .ex-scenario-ctx{
   padding:18px 22px;margin-bottom:22px;
   background:var(--info-bg);border:1px solid var(--info-br);border-left:3px solid var(--info);
@@ -480,7 +456,6 @@ a{color:inherit;text-decoration:none}
 }
 .ex-scenario-ctx b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--info-ink);margin-bottom:6px;font-weight:700}
 
-/* Explanation panel */
 .ex-explain{
   margin-top:20px;padding:18px 20px;border-radius:var(--r-md);
   display:none;animation:slideIn .35s ease;
@@ -500,7 +475,6 @@ a{color:inherit;text-decoration:none}
 .ex-explain-bonus{margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd2);font-size:12px;color:var(--mu);line-height:1.5;font-style:italic}
 .ex-explain-bonus b{color:var(--tx);font-style:normal;font-weight:600;margin-right:6px}
 
-/* Bottom action bar — sticky */
 .ex-bar{
   position:sticky;bottom:0;z-index:50;
   background:linear-gradient(180deg,transparent 0%,var(--bg) 40%);
@@ -510,9 +484,7 @@ a{color:inherit;text-decoration:none}
 .ex-bar-left{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);font-weight:500}
 .ex-bar-right{display:flex;gap:10px}
 
-/* ══════════════════════════════════════════════════════════════
-   CLIFFHANGER — end-of-module screen
-   ══════════════════════════════════════════════════════════════ */
+/* ══ CLIFFHANGER ══ */
 .cliff{max-width:680px;margin:0 auto;padding:64px 24px 48px;text-align:center;animation:slideIn .5s cubic-bezier(.22,.68,0,1.2)}
 .cliff-badge{
   display:inline-flex;align-items:center;gap:8px;padding:7px 16px;
@@ -539,7 +511,6 @@ a{color:inherit;text-decoration:none}
 .cliff-reward-val{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.6px;color:var(--tx);line-height:1}
 .cliff-reward-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);margin-top:4px;font-weight:600}
 
-/* Teaser next module — the Netflix pull */
 .cliff-next{
   max-width:520px;margin:0 auto 28px;
   padding:24px 28px;background:linear-gradient(135deg,var(--tx) 0%,#1e2024 100%);
@@ -556,9 +527,7 @@ a{color:inherit;text-decoration:none}
 
 .cliff-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 
-/* ══════════════════════════════════════════════════════════════
-   OVERLAY — perfect answer celebration
-   ══════════════════════════════════════════════════════════════ */
+/* ══ PERFECT OVERLAY ══ */
 .overlay-perfect{
   position:fixed;inset:0;z-index:1000;
   background:rgba(15,16,18,.3);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
@@ -581,7 +550,6 @@ a{color:inherit;text-decoration:none}
 .overlay-perfect-btn{margin-top:22px;width:100%;padding:13px;background:var(--tx);color:var(--s0);border-radius:var(--r-md);font-weight:700;font-size:14px;cursor:pointer;border:none;font-family:inherit;transition:.15s}
 .overlay-perfect-btn:hover{background:#000}
 
-/* Confetti particles */
 .confetti{position:absolute;width:8px;height:12px;pointer-events:none;animation:confettiFall 1.4s cubic-bezier(.22,.68,0,1.2) forwards;border-radius:2px}
 @keyframes confettiFall{
   0%{opacity:0;transform:translateY(-20px) rotate(0)}
@@ -589,7 +557,7 @@ a{color:inherit;text-decoration:none}
   100%{opacity:0;transform:translateY(180px) rotate(720deg)}
 }
 
-/* ══ TOAST system ══ */
+/* ══ TOAST ══ */
 #toasts{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:380px}
 .toast{
   padding:13px 16px;background:var(--s0);border:1px solid var(--bd2);border-radius:var(--r-md);
@@ -655,7 +623,7 @@ a{color:inherit;text-decoration:none}
 
   <div class="tb-spacer"></div>
 
-  <div class="tb-lives" id="tb-lives" title="Ta confiance — elle baisse si tu enchaînes les erreurs, jamais bloquante">
+  <div class="tb-lives" id="tb-lives" title="Ta confiance">
     <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linejoin="round"/></svg>
     <b id="tb-lives-val">5</b>
   </div>
@@ -693,7 +661,19 @@ a{color:inherit;text-decoration:none}
 <div id="toasts"></div>
 
 <script>
-/* script starts here — rest of file is engine + content */
+// ═══════════════════════════════════════════════════════════════
+// ── PATCH SESSION (demo standalone) ──
+// Injecte un utilisateur fictif si aucune session n'existe.
+// En production, ton système de login doit écrire dans
+// sessionStorage avant d'arriver sur cette page.
+// ═══════════════════════════════════════════════════════════════
+if (!sessionStorage.getItem('novalem_user')) {
+  sessionStorage.setItem('novalem_user', JSON.stringify({
+    id: 'demo',
+    name: 'Scout',
+    ts: Date.now()
+  }));
+}
 
 // ═══════════════════════════════════════════════════════════════
 // NOVALEM ACADÉMIE — Engine pédagogique v3
@@ -715,14 +695,14 @@ const STORE_KEY = `novalem_acad_${UID}`;
 // ═ STATE ═
 const DEFAULT_STATE = {
   xp:0,
-  completed:[],          // module IDs
-  moduleScores:{},       // moduleId -> { correct, total, firstTryCorrect, ts }
-  lives:5,               // confidence bar, caps at 5, regens on correct answers
+  completed:[],
+  moduleScores:{},
+  lives:5,
   streak:0,
   lastActive:null,
-  masteredQuestions:{},  // exerciseId -> { lastSeenTs, level } (SR)
-  retryBank:{},          // moduleId -> [exerciseIds currently queued for retry]
-  globalRetryBank:[],    // cross-module questions to resurface next session
+  masteredQuestions:{},
+  retryBank:{},
+  globalRetryBank:[],
 };
 let STATE = (function(){
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return Object.assign({}, DEFAULT_STATE, JSON.parse(raw)); } catch(e){}
@@ -755,8 +735,7 @@ function updateTopbar(){
   livesEl.classList.toggle('low', lv <= 2);
 }
 
-// ═ LIVES (confidence) ═
-// Behaviour: starts at 5, -1 on wrong answer, +1 on 3 correct answers in a row, never blocks
+// ═ LIVES ═
 let _streakCorrect = 0;
 function loseLife(){
   STATE.lives = Math.max(0, STATE.lives - 1);
@@ -773,7 +752,6 @@ function gainLife(){
     showToast({ type:'success', title:'Confiance', text:'Remontée — continue.' });
   }
 }
-// Reset lives to 5 each new day
 function resetLivesIfNewDay(){
   const today = new Date().toISOString().slice(0,10);
   const key = 'novalem_acad_lives_reset_' + UID;
@@ -793,7 +771,6 @@ function addXP(n, reason){
 }
 
 // ═ SPACED REPETITION ═
-// Levels: 0 = new, 1 = +1d, 2 = +3d, 3 = +7d, 4 = +14d, 5 = mastered
 const SR_INTERVALS_MS = [0, 86400000, 3*86400000, 7*86400000, 14*86400000, Infinity];
 function markMastered(exId, success){
   const q = STATE.masteredQuestions[exId] || { level:0, lastSeenTs:0 };
@@ -811,7 +788,6 @@ function shouldResurface(exId){
   return (Date.now() - q.lastSeenTs) > interval;
 }
 function pickResurfaceQuestions(chapterId, n=2){
-  // Pick up to n questions from other completed modules of same chapter
   const candidates = [];
   for (const modId of STATE.completed){
     if (!modId.startsWith(chapterId+'.')) continue;
@@ -823,7 +799,6 @@ function pickResurfaceQuestions(chapterId, n=2){
       if (shouldResurface(exId)){ candidates.push({modId, exId, ex}); }
     }
   }
-  // Shuffle and take n
   for (let i=candidates.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [candidates[i],candidates[j]]=[candidates[j],candidates[i]]; }
   return candidates.slice(0, n);
 }
@@ -842,7 +817,7 @@ function showToast({ type='info', title='', text='' }){
   setTimeout(()=>{ t.style.animation='toastOut .28s ease forwards'; setTimeout(()=>t.remove(),300); }, 3000);
 }
 
-// ═ CONFETTI (celebration) ═
+// ═ CONFETTI ═
 function confetti(x, y, count=16){
   const colors = ['#a8c030', '#16a34a', '#2563eb', '#c89618', '#9333ea'];
   for (let i=0;i<count;i++){
@@ -868,7 +843,6 @@ function showPerfect({ big='Exact', sub='Réponse juste du premier coup', insigh
     document.getElementById('op-insight-text').textContent = insight;
   } else insEl.style.display = 'none';
   document.getElementById('overlay-perfect').classList.add('show');
-  // Confetti burst around card
   const card = document.querySelector('.overlay-perfect-card');
   if (card){ const r = card.getBoundingClientRect(); confetti(r.left+r.width/2, r.top+10, 26); }
 }
@@ -883,23 +857,16 @@ function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const 
 function firstName(){ return (CURRENT_USER && CURRENT_USER.name ? CURRENT_USER.name.split(' ')[0] : 'Scout'); }
 
 // ═══════════════════════════════════════════════════════════════
-// EXERCISE RENDERERS — 8 interactive types
+// EXERCISE RENDERERS
 // ═══════════════════════════════════════════════════════════════
 
 const EX_LABELS = {
-  qcm:'Question',
-  tf:'Vrai ou Faux',
-  multi:'Sélection multiple',
-  order:'Ordonne',
-  classify:'Classe',
-  match:'Associe',
-  fill:'Complète',
-  scenario:'Cas pratique',
-  lesson:'Lecture',
+  qcm:'Question', tf:'Vrai ou Faux', multi:'Sélection multiple',
+  order:'Ordonne', classify:'Classe', match:'Associe', fill:'Complète',
+  scenario:'Cas pratique', lesson:'Lecture',
 };
 
-// Global per-run state
-let RUN = null; // { modId, exercises[], idx, firstTryMap, wrongOnce, onComplete }
+let RUN = null;
 
 function renderExercise(ex, isRetry=false){
   const box = document.createElement('div');
@@ -964,7 +931,7 @@ function answerTF(val){
   processAnswer(correct, ex);
 }
 
-// ── Multi-select (cocher toutes les bonnes) ──
+// ── Multi-select ──
 function renderMulti(ex){
   const opts = ex.options.map((o,i)=>`<button class="ex-opt" data-i="${i}" onclick="toggleMulti(${i})">
     <span class="ex-opt-key">${String.fromCharCode(65+i)}</span>
@@ -1035,8 +1002,7 @@ function moveOrder(pos, dir){
 }
 function submitOrder(){
   const ex = currentExercise();
-  const userOrder = _orderState.map(it => it.origIdx);
-  const correct = userOrder.every((v,i) => v === i);
+  const correct = _orderState.every((it,i) => it.origIdx === i);
   document.querySelectorAll('.ex-order-item').forEach((el,i)=>{
     const isRight = _orderState[i].origIdx === i;
     el.style.borderColor = isRight ? 'var(--ok)' : 'var(--ko)';
@@ -1057,7 +1023,7 @@ function renderClassify(ex){
     <div class="ex-cat-title">${cat}</div>
     <div class="ex-cat-items" id="cat-items-${ci}"></div>
   </div>`).join('');
-  const pool = _classifyState.remaining.map((it,i)=>`<button class="ex-classify-chip" onclick="classifyPick(${it._i})">${it.text}</button>`).join('');
+  const pool = _classifyState.remaining.map((it)=>`<button class="ex-classify-chip" onclick="classifyPick(${it._i})">${it.text}</button>`).join('');
   return `<div class="ex-classify">${catsHTML}</div>
     <div class="ex-classify-pool" id="classify-pool">${pool}</div>
     <div class="ex-bar">
@@ -1069,9 +1035,9 @@ let _classifyPending = null;
 function classifyPick(i){
   _classifyPending = i;
   document.querySelectorAll('.ex-classify-chip').forEach(c=>c.style.opacity='.4');
-  const all = document.querySelectorAll('.ex-classify-chip');
-  all.forEach(c => { if (c.onclick.toString().includes(`(${i})`)) c.style.opacity='1'; });
-  // Highlight categories as droppable
+  document.querySelectorAll('.ex-classify-chip').forEach(c => {
+    if (c.onclick && c.onclick.toString().includes(`(${i})`)) c.style.opacity='1';
+  });
   document.querySelectorAll('.ex-cat').forEach(cat=>{
     cat.style.cursor = 'pointer';
     cat.onclick = () => classifyDrop(parseInt(cat.dataset.cat,10));
@@ -1081,10 +1047,8 @@ function classifyDrop(cat){
   if (_classifyPending === null) return;
   const ex = currentExercise();
   _classifyState.placed[_classifyPending] = cat;
-  // Remove from pool
-  const chip = [...document.querySelectorAll('.ex-classify-chip')].find(c => c.onclick.toString().includes(`(${_classifyPending})`));
+  const chip = [...document.querySelectorAll('.ex-classify-chip')].find(c => c.onclick && c.onclick.toString().includes(`(${_classifyPending})`));
   if (chip) chip.remove();
-  // Add to category
   const item = ex.items[_classifyPending];
   const div = document.createElement('div');
   div.className = 'ex-cat-drop';
@@ -1098,12 +1062,10 @@ function classifyDrop(cat){
 function submitClassify(){
   const ex = currentExercise();
   let allRight = true;
-  // Unplaced = wrong
   for (let i=0;i<ex.items.length;i++){
     if (_classifyState.placed[i] === undefined){ allRight = false; break; }
     if (_classifyState.placed[i] !== ex.items[i].cat){ allRight = false; }
   }
-  // Visual feedback
   document.querySelectorAll('.ex-cat-drop').forEach(el=>{
     const i = parseInt(el.dataset.i,10);
     const isRight = _classifyState.placed[i] === ex.items[i].cat;
@@ -1134,16 +1096,12 @@ function matchPickL(i){
 }
 function matchPickR(i){
   if (_matchState.selectedL === null) return;
-  // Accept matching: we tentatively pair L with i
   const lIdx = _matchState.selectedL;
-  // If R was already used as a match target, remove old pairing
   for (const k of Object.keys(_matchState.matched)) if (_matchState.matched[k] === i) delete _matchState.matched[k];
   _matchState.matched[lIdx] = i;
   _matchState.selectedL = null;
-  // Visual
   document.querySelectorAll('.ex-match-item').forEach(el=>el.classList.remove('selected'));
   refreshMatchVisuals();
-  // Enable validate if all paired
   const ex = currentExercise();
   const allPaired = Object.keys(_matchState.matched).length === ex.pairs.length;
   const vBtn = document.getElementById('match-valid');
@@ -1175,12 +1133,10 @@ function submitMatch(){
     const side = el.dataset.side, i = parseInt(el.dataset.i,10);
     if (side === 'L'){
       const m = _matchState.matched[i];
-      const right = (m === i);
-      el.classList.add(right ? 'matched-ok':'matched-ko');
+      el.classList.add((m === i) ? 'matched-ok':'matched-ko');
     } else {
       const userL = Object.keys(_matchState.matched).find(k => _matchState.matched[k]==i);
-      const right = (userL == i);
-      el.classList.add(right ? 'matched-ok':'matched-ko');
+      el.classList.add((userL == i) ? 'matched-ok':'matched-ko');
     }
   });
   processAnswer(allRight, ex);
@@ -1221,7 +1177,7 @@ function submitFill(){
   processAnswer(correct, ex);
 }
 
-// ── Scenario (like QCM but more narrative) ──
+// ── Scenario ──
 function renderScenario(ex){
   const ctx = ex.context ? `<div class="ex-scenario-ctx"><b>Situation</b>${ex.context}</div>` : '';
   const opts = ex.options.map((o,i)=>`<button class="ex-opt" data-i="${i}" onclick="answerScenario(${i})">
@@ -1242,7 +1198,7 @@ function answerScenario(i){
   processAnswer(correct, ex);
 }
 
-// ═ EXPLANATION DISPLAY ═
+// ═ EXPLANATION ═
 function showExplanation(ok, ex){
   const el = document.getElementById('ex-explain');
   if (!el) return;
@@ -1260,7 +1216,7 @@ function showExplanation(ok, ex){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MODULE RUNNER — the learning experience state machine
+// MODULE RUNNER
 // ═══════════════════════════════════════════════════════════════
 
 function currentExercise(){ return RUN ? RUN.queue[RUN.pos] : null; }
@@ -1268,27 +1224,12 @@ function currentExercise(){ return RUN ? RUN.queue[RUN.pos] : null; }
 function startModule(modId){
   const mod = MODULES[modId];
   if (!mod){ showToast({type:'info',title:'Bientôt',text:'Module pas encore disponible.'}); return; }
-  // Build queue: resurface questions at start + lesson + exercises
   const chapterId = modId.split('.')[0];
   const resurfaced = pickResurfaceQuestions(chapterId, 2);
   const queue = [];
-  // Inject resurfaced as retry items at START
-  for (const r of resurfaced){
-    queue.push({ ...r.ex, _isRetry:true, _sourceMod:r.modId });
-  }
-  for (const ex of mod.exercises){
-    queue.push({...ex});
-  }
-  RUN = {
-    modId, mod,
-    queue,
-    pos: 0,
-    firstTryMap: {}, // exerciseId -> firstTry correct bool
-    wrongOnce: new Set(), // exercises that were wrong at least once this run
-    answered: 0,
-    correct: 0,
-    startTs: Date.now(),
-  };
+  for (const r of resurfaced){ queue.push({ ...r.ex, _isRetry:true, _sourceMod:r.modId }); }
+  for (const ex of mod.exercises){ queue.push({...ex}); }
+  RUN = { modId, mod, queue, pos:0, firstTryMap:{}, wrongOnce:new Set(), answered:0, correct:0, startTs:Date.now() };
   document.getElementById('tb-progress').classList.add('show');
   document.getElementById('tb-crumb').textContent = mod.title;
   showView('module');
@@ -1299,7 +1240,6 @@ function renderCurrentStep(){
   const ex = currentExercise();
   const view = document.getElementById('view-module');
   if (!ex){ return endModule(); }
-  // Update progress bar
   const pct = Math.round((RUN.pos / RUN.queue.length) * 100);
   document.getElementById('tb-progress-fill').style.width = pct + '%';
   view.innerHTML = '';
@@ -1344,7 +1284,6 @@ function renderContinueBar(){
   return bar;
 }
 
-// Process answer result → lives, XP, retry queue, UI
 function processAnswer(correct, ex){
   const exKey = `${RUN.modId}:${ex.id}`;
   RUN.answered++;
@@ -1354,11 +1293,9 @@ function processAnswer(correct, ex){
     RUN.correct++;
     if (isFirstAnswer){
       RUN.firstTryMap[ex.id] = true;
-      // First-try success → celebration !
       if (!ex._isRetry && !RUN.wrongOnce.has(ex.id)){
         markMastered(exKey, true);
         gainLife();
-        // ~50% chance to show big overlay to avoid fatigue (variable reward)
         if (Math.random() < 0.45 && ex.bonus){
           onPerfectContinue = () => { showExplanation(true, ex); revealContinue(); };
           showPerfect({ big:'Exact', sub:'Du premier coup.', insight:ex.bonus });
@@ -1367,13 +1304,11 @@ function processAnswer(correct, ex){
           revealContinue();
         }
       } else {
-        // Was in retry: show success, remove from retry pool
         showExplanation(true, ex);
         revealContinue();
         markMastered(exKey, true);
       }
     } else {
-      // Got it right after retry
       showExplanation(true, ex);
       revealContinue();
       markMastered(exKey, true);
@@ -1384,7 +1319,6 @@ function processAnswer(correct, ex){
     loseLife();
     markMastered(exKey, false);
     showExplanation(false, ex);
-    // Queue to end of run
     const retryItem = { ...ex, _isRetry:true };
     RUN.queue.push(retryItem);
     revealContinue('Cette question reviendra à la fin — on va la rejouer.');
@@ -1414,7 +1348,6 @@ function endModule(){
   const bonusXP = Math.round(baseXP * (accuracy/100) * 0.5);
   const totalXP = baseXP + bonusXP;
 
-  // Mark complete
   if (!STATE.completed.includes(RUN.modId)) STATE.completed.push(RUN.modId);
   STATE.moduleScores[RUN.modId] = { correct: firstTryGood, total, accuracy, xp: totalXP, ts: Date.now() };
   addXP(totalXP);
@@ -1427,14 +1360,11 @@ function endModule(){
 function showCliffhanger(xp, accuracy){
   const mod = RUN.mod;
   const chapterId = RUN.modId.split('.')[0];
-  const chapter = CHAPTERS[chapterId];
-  // Find next module
   const modList = Object.keys(MODULES).filter(k=>k.startsWith(chapterId+'.')).sort((a,b)=>parseInt(a.split('.')[1])-parseInt(b.split('.')[1]));
   const curIdx = modList.indexOf(RUN.modId);
   const nextModId = curIdx >= 0 && curIdx < modList.length-1 ? modList[curIdx+1] : null;
   const nextMod = nextModId ? MODULES[nextModId] : null;
 
-  // Find next chapter if needed
   let nextChapter = null;
   if (!nextMod){
     const chapList = Object.keys(CHAPTERS);
@@ -1490,7 +1420,7 @@ function showCliffhanger(xp, accuracy){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// VIEWS — home, chapter
+// VIEWS
 // ═══════════════════════════════════════════════════════════════
 
 function showView(name, arg){
@@ -1527,7 +1457,6 @@ function isChapterUnlocked(chapId){
   const chapList = Object.keys(CHAPTERS);
   const idx = chapList.indexOf(chapId);
   if (idx === 0) return true;
-  // Previous chapter must be at least 50% done
   const prev = chapList[idx-1];
   const p = chapterProgress(prev);
   return p.pct >= 50;
@@ -1539,7 +1468,6 @@ function renderHome(){
   const doneMods = STATE.completed.length;
   const completionPct = totalMods ? Math.round((doneMods/totalMods)*100) : 0;
 
-  // Find next module to continue
   let nextMod = null;
   for (const chapId of Object.keys(CHAPTERS)){
     const mods = Object.keys(MODULES).filter(k=>k.startsWith(chapId+'.')).sort();
@@ -1580,7 +1508,7 @@ function renderHome(){
   const continueCard = nextMod ? `
     <div class="continue-card">
       <div class="continue-body">
-        <div class="continue-kicker">${doneMods === 0 ? 'Commence ici' : 'Continue où tu t\\'es arrêté'}</div>
+        <div class="continue-kicker">${doneMods === 0 ? 'Commence ici' : 'Continue où tu t\'es arrêté'}</div>
         <div class="continue-title">${nextMod.mod.title}</div>
         <div class="continue-sub">${nextMod.mod.lead}</div>
         <div class="continue-meta">
@@ -1592,14 +1520,13 @@ function renderHome(){
       <button class="continue-btn" onclick="startModule('${nextMod.id}')">${doneMods === 0 ? 'Commencer' : 'Reprendre'}<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
     </div>` : '';
 
-  const html = `
+  document.getElementById('view-home').innerHTML = `
     <div class="wrap">
       <div class="home-hero">
         <div class="home-kicker">Académie Novalem</div>
         <h1>Bonjour <span class="accent">${first}</span>, prêt pour la suite ?</h1>
         <p class="home-hero-sub">Apprends le recrutement depuis ses fondations jusqu'aux spécialités. Chaque module est court, actif, et ancre ce que tu apprends — pour de bon.</p>
       </div>
-
       <div class="promise">
         <div class="promise-body">
           <div class="promise-label">Pourquoi cette académie existe</div>
@@ -1610,16 +1537,13 @@ function renderHome(){
           <div class="promise-stat-lab">de ton parcours</div>
         </div>
       </div>
-
       ${continueCard}
-
       <div class="path">
         <div class="path-intro"><div class="path-label">Parcours</div><div class="path-line"></div></div>
         <div class="path-nodes">${chapterCards}</div>
       </div>
     </div>
   `;
-  document.getElementById('view-home').innerHTML = html;
 }
 
 function renderChapter(chapId){
@@ -1632,7 +1556,6 @@ function renderChapter(chapId){
   const modsHTML = mods.map((mid, idx)=>{
     const m = MODULES[mid];
     const done = STATE.completed.includes(mid);
-    // Unlock if prev module done OR first module
     const prevDone = idx === 0 || STATE.completed.includes(mods[idx-1]);
     const inProgress = !done && prevDone;
     const isBoss = m.isBoss;
@@ -1654,7 +1577,7 @@ function renderChapter(chapId){
     </a>`;
   }).join('');
 
-  const html = `
+  document.getElementById('view-chapter').innerHTML = `
     <div class="wrap">
       <div class="chapter-hero">
         <div class="chapter-crumb"><a onclick="goHome()">Académie</a><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>Chapitre ${c.num}</div>
@@ -1671,7 +1594,6 @@ function renderChapter(chapId){
           <div class="chapter-promise-txt">${c.promise}</div>
         </div>` : ''}
       </div>
-
       <div class="modules-section">
         <div class="modules-section-head">
           <div class="modules-section-title">Modules</div>
@@ -1681,13 +1603,11 @@ function renderChapter(chapId){
       </div>
     </div>
   `;
-  document.getElementById('view-chapter').innerHTML = html;
 }
 
 // ═ KEYBOARD SHORTCUTS ═
 document.addEventListener('keydown', e=>{
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  // Numbers 1-4 to answer QCM
   const isModule = document.getElementById('view-module').classList.contains('active');
   if (isModule && ['1','2','3','4'].includes(e.key)){
     const idx = parseInt(e.key,10) - 1;
@@ -1697,15 +1617,14 @@ document.addEventListener('keydown', e=>{
     if (tfBtns.length && idx < 2) tfBtns[idx].click();
   }
   if (e.key === 'Enter' && isModule){
-    const cont = document.querySelector('#continue-bar:not([style*="display: none"]) .btn-primary');
-    if (cont) cont.click();
+    const cont = document.querySelector('#continue-bar .btn-primary');
+    if (cont && document.getElementById('continue-bar').style.display !== 'none') cont.click();
   }
   if (e.key === 'Escape'){ closePerfect(); }
 });
 
 // ═══════════════════════════════════════════════════════════════
-// CONTENT — 6 chapitres + Chapitre 1 complet (5 modules)
-// Ton adulte, posé, pédagogique. Pas de "bro", pas d'emoji, pas d'exclamatif forcé.
+// CONTENT
 // ═══════════════════════════════════════════════════════════════
 
 const CHAPTERS = {
@@ -1808,12 +1727,7 @@ MODULES['1.2'] = {
     {
       id:'e1', type:'qcm',
       prompt:"Quand une entreprise fait appel à un cabinet de recrutement, qu'est-ce qu'elle achète en priorité ?",
-      options:[
-        "Un candidat",
-        "Du temps, de la précision et de l'anti-risque",
-        "Un CV validé",
-        "Un réseau"
-      ],
+      options:["Un candidat","Du temps, de la précision et de l'anti-risque","Un CV validé","Un réseau"],
       correct:1,
       explain:"Le candidat est le livrable. Ce que le client paie vraiment, c'est <strong>le temps qu'il ne va pas perdre</strong>, la précision du ciblage, et le fait qu'un mauvais recrutement coûte très cher — donc on réduit ce risque.",
       bonus:"Un directeur RH te dira rarement « j'achète du temps ». Il dira « je n'ai pas la bande passante ». C'est la même chose — formulée différemment."
@@ -1880,12 +1794,7 @@ MODULES['1.2'] = {
     {
       id:'e7', type:'qcm',
       prompt:"Combien coûte en moyenne un mauvais recrutement (estimation conservatrice) ?",
-      options:[
-        "Quelques centaines d'euros",
-        "Environ un mois de salaire",
-        "Entre 30% et 200% du salaire annuel",
-        "Toujours plus de 100 000 €"
-      ],
+      options:["Quelques centaines d'euros","Environ un mois de salaire","Entre 30% et 200% du salaire annuel","Toujours plus de 100 000 €"],
       correct:2,
       explain:"Entre 30% et 200% du salaire brut annuel, selon le poste. Pour un conducteur de travaux à 50K€, une erreur peut coûter 15K€ à 100K€ — entre salaires versés, temps RH, perte de productivité de l'équipe, onboarding perdu. C'est l'argument qui rend tes honoraires raisonnables.",
       bonus:"Étude Harvard Business Review : 80% des turnovers sont dus à des erreurs de recrutement initiales. Le coût caché le plus souvent sous-estimé : l'impact moral sur l'équipe autour."
@@ -1913,12 +1822,7 @@ MODULES['1.2'] = {
     {
       id:'e10', type:'qcm',
       prompt:"Quelle phrase résume le mieux ta future posture face à un client ?",
-      options:[
-        "Je vends des CV",
-        "Je résous une pénurie précise contre des honoraires",
-        "Je propose des candidats au meilleur prix",
-        "Je fais de la pub pour votre offre"
-      ],
+      options:["Je vends des CV","Je résous une pénurie précise contre des honoraires","Je propose des candidats au meilleur prix","Je fais de la pub pour votre offre"],
       correct:1,
       explain:"« Je résous une pénurie précise contre des honoraires. » Précise, parce que tu ne traites pas n'importe quel poste. Contre des honoraires, parce que tu n'es pas une œuvre caritative. Cette phrase te protège de toutes les dérives : briefs flous, honoraires négociés à la baisse, demandes en-dehors de ta spécialité.",
       bonus:"Un scout mature apprend à dire non. Refuser un dossier mal cadré est souvent plus rentable que le prendre. <em>Tout dossier pris est un dossier dû.</em>"
@@ -1961,12 +1865,7 @@ MODULES['1.3'] = {
     {
       id:'e12', type:'qcm',
       prompt:"Qu'est-ce qui motive le plus souvent un candidat à quitter un poste qu'il occupe déjà ?",
-      options:[
-        "Le salaire, uniquement",
-        "Un projet ou une perspective qui donne envie, plus qu'un simple salaire",
-        "Un titre plus prestigieux",
-        "La proximité géographique"
-      ],
+      options:["Le salaire, uniquement","Un projet ou une perspective qui donne envie, plus qu'un simple salaire","Un titre plus prestigieux","La proximité géographique"],
       correct:1,
       explain:"Études Gallup & LinkedIn répétées : le salaire est rarement le <em>vrai</em> déclencheur — même s'il est souvent celui qu'on évoque publiquement. Ce qui fait bouger un candidat, c'est un <strong>projet, une évolution, une équipe, un sens</strong>. Le salaire est une condition, pas un moteur.",
       bonus:"Un scout qui argumente uniquement sur le salaire perd systématiquement face à un scout qui construit un récit sur le projet. Même avec une offre financière inférieure."
@@ -2010,12 +1909,7 @@ MODULES['1.3'] = {
     {
       id:'e16', type:'qcm',
       prompt:"Qu'est-ce que l'entreprise achète vraiment quand elle te signe un mandat ?",
-      options:[
-        "Ton temps à chercher",
-        "Un CV acceptable à moindre coût",
-        "La certitude qu'elle ne fera pas d'erreur sur un poste qu'elle ne maîtrise pas",
-        "Ton réseau social"
-      ],
+      options:["Ton temps à chercher","Un CV acceptable à moindre coût","La certitude qu'elle ne fera pas d'erreur sur un poste qu'elle ne maîtrise pas","Ton réseau social"],
       correct:2,
       explain:"La certitude. C'est ce qu'on vend, ce qu'on facture, et ce qui justifie les honoraires. Un directeur paie pour <strong>arrêter de s'inquiéter</strong> d'un poste qu'il n'arrive pas à pourvoir seul. Tout le reste (ton temps, ton réseau) est un moyen — pas le produit fini.",
       bonus:"La phrase commerciale qui marche : « Je ne peux pas vous garantir un placement, mais je peux vous garantir de ne plus perdre une minute là-dessus tant qu'on cherche ensemble. »"
@@ -2059,12 +1953,7 @@ MODULES['1.3'] = {
     {
       id:'e20', type:'qcm',
       prompt:"Sur quelle métrique un bon scout est-il évalué long terme ?",
-      options:[
-        "Le nombre de candidats dans son CRM",
-        "Le nombre d'appels par jour",
-        "Le taux de candidats qui restent en poste après 12 mois",
-        "Le prix moyen de ses honoraires"
-      ],
+      options:["Le nombre de candidats dans son CRM","Le nombre d'appels par jour","Le taux de candidats qui restent en poste après 12 mois","Le prix moyen de ses honoraires"],
       correct:2,
       explain:"Le taux de rétention à 12 mois. Un placement qui tient, c'est un client qui revient et qui recommande. Les autres métriques (CRM, appels, honoraires) sont des moyens pour y arriver — pas le résultat final. C'est la différence entre un scout transactionnel et un scout de carrière.",
       bonus:"Les meilleurs cabinets suivent ce chiffre publiquement. Taux de rétention à 12 mois au-dessus de 85% = référence reconnue du marché."
@@ -2119,7 +2008,7 @@ MODULES['1.4'] = {
       id:'e24', type:'tf',
       prompt:"Un candidat peut être facturé pour des prestations annexes (conseil carrière, relecture CV) par le cabinet qui le place.",
       answer:false,
-      explain:"Faux, strictement interdit. Article L5324-1 du Code du travail : aucun frais ne peut être facturé à un candidat, quelle que soit la forme. Cette règle est absolue et engage la responsabilité pénale du cabinet. Chez NOVALEM c'est aussi une ligne rouge morale — on ne facture que les entreprises.",
+      explain:"Faux, strictement interdit. Article L5324-1 du Code du travail : aucun frais ne peut être facturé à un candidat, quelle que soit la forme. Cette règle est absolue et engage la responsabilité pénale du cabinet.",
       bonus:"Certains cabinets peu scrupuleux contournent en créant une filiale « coaching ». C'est juridiquement fragile et moralement inacceptable. Ne joue jamais à ça."
     },
     {
@@ -2276,12 +2165,7 @@ MODULES['1.5'] = {
     {
       id:'e36', type:'qcm',
       prompt:"Quelle est la peur numéro 1 d'un candidat au moment de signer une offre ?",
-      options:[
-        "Ne pas assez gagner",
-        "Se tromper et regretter dans 6 mois",
-        "Être mal accueilli par la nouvelle équipe",
-        "Que le manager soit désagréable"
-      ],
+      options:["Ne pas assez gagner","Se tromper et regretter dans 6 mois","Être mal accueilli par la nouvelle équipe","Que le manager soit désagréable"],
       correct:1,
       explain:"La peur du regret. Un candidat qui bouge sacrifie <strong>ce qu'il connaît</strong> (stabilité, habitudes, collègues) pour <strong>ce qu'il imagine</strong>. Si le « ce qu'il imagine » n'est pas solide dans sa tête, il recule. Ton job de closer : lui donner assez d'éléments pour qu'il se projette concrètement.",
       bonus:"Astuce de closing : organise un déjeuner ou un café avec son futur manager <em>avant</em> la signature. Le concret bat l'abstrait. Un candidat qui a rencontré son futur N+1 ne recule presque jamais."
@@ -2339,11 +2223,10 @@ MODULES['1.5'] = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// INIT — boot the academy
+// INIT
 // ═══════════════════════════════════════════════════════════════
 updateTopbar();
 showView('home');
-
 </script>
 </body>
 </html>
