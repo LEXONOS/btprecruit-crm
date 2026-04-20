@@ -2,16 +2,16 @@
   "version": 2,
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/hub", "dest": "/hub.html" },
-    { "src": "/crm", "dest": "/crm.html" },
-    { "src": "/formation", "dest": "/formation.html" },
-    { "src": "/annuaire", "dest": "/annuaire.html" },
-    { "src": "/documents", "dest": "/documents.html" },
-    { "src": "/statistiques", "dest": "/statistiques.html" },
-    { "src": "/sign", "dest": "/sign.html" },
-    { "src": "/dossier", "dest": "/dossier.html" },
-    { "src": "/rejoindre", "dest": "/rejoindre.html" },
-    { "src": "/", "dest": "/index.html" }
+    { "src": "/hub", "dest": "/public/hub.html" },
+    { "src": "/crm", "dest": "/public/crm.html" },
+    { "src": "/formation", "dest": "/public/formation.html" },
+    { "src": "/annuaire", "dest": "/public/annuaire.html" },
+    { "src": "/documents", "dest": "/public/documents.html" },
+    { "src": "/statistiques", "dest": "/public/statistiques.html" },
+    { "src": "/sign", "dest": "/public/sign.html" },
+    { "src": "/dossier", "dest": "/public/dossier.html" },
+    { "src": "/rejoindre", "dest": "/public/rejoindre.html" },
+    { "src": "/", "dest": "/public/index.html" }
   ],
   "headers": [
     {
