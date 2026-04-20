@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Novalem — Hub</title>
+<title>Novalem — Hub Scout</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
+/* NOVALEM HUB v3 LIGHT — fond crème, accents conservés */
 :root{
   --bg:#faf9f5;--s1:#ffffff;--s2:#f4f2ec;--s3:#ebe9e1;--s4:#dcd9cf;
   --bd:rgba(0,0,0,.06);--bd2:rgba(0,0,0,.09);--bd3:rgba(0,0,0,.14);
@@ -24,7 +25,7 @@
   --sh3:0 12px 32px rgba(0,0,0,.10),0 4px 12px rgba(0,0,0,.06);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{font-size:13px;-webkit-font-smoothing:antialiased}
+html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body{font-family:'Instrument Sans','DM Mono',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden;position:relative}
 ::selection{background:rgba(200,224,64,.35);color:var(--tx)}
 button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer}
@@ -40,24 +41,22 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 .tb-logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.5px}
 .tb-logo-text span{color:var(--ac-ink)}
 .tb-divider{width:1px;height:20px;background:var(--bd2);margin:0 4px}
-.tb-env{font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:99px;font-weight:600;border:1px solid}
-.tb-env.scout{background:var(--ac2);color:var(--ac-ink);border-color:var(--ac3)}
-.tb-env.superviseur{background:var(--rd2);color:var(--rd-ink);border-color:var(--rd3)}
+.tb-env{font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:99px;background:var(--ac2);color:var(--ac-ink);border:1px solid var(--ac3);font-weight:600}
 .tb-spacer{flex:1}
 .tb-cmd{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer;transition:all .15s;font-size:11px;color:var(--mu)}
 .tb-cmd:hover{border-color:var(--bd2);background:var(--s3);color:var(--tx2)}
 .tb-cmd kbd{font-size:9px;padding:1px 5px;background:var(--s1);border:1px solid var(--bd2);border-radius:3px;font-family:'DM Mono',monospace;color:var(--mu)}
 .tb-cmd svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;opacity:.5}
-.tb-clock{font-family:'DM Mono',monospace;font-size:12px;color:var(--mu);letter-spacing:.04em}
+.tb-clock{font-family:'DM Mono',monospace;font-size:12px;color:var(--mu);letter-spacing:.04em;font-weight:500}
 .tb-user{display:flex;align-items:center;gap:9px;padding:5px 10px 5px 5px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;cursor:pointer;transition:.15s}
 .tb-user:hover{border-color:var(--bd2);background:var(--s3)}
 .tb-avatar{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;flex-shrink:0;position:relative}
 .tb-avatar::after{content:'';position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--gn);border:2px solid var(--s2)}
 .tb-uinfo{line-height:1.3}
 .tb-uname{font-size:11px;font-weight:600;color:var(--tx)}
-.tb-urole{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
+.tb-urole{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
 .tb-logout{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--bd);cursor:pointer;transition:.15s}
-.tb-logout svg{width:15px;height:15px;stroke:var(--mu);fill:none;stroke-width:1.8}
+.tb-logout svg{width:15px;height:15px;stroke:var(--mu);fill:none;stroke-width:1.8;transition:.15s}
 .tb-logout:hover{border-color:rgba(224,82,82,.3);background:var(--rd2)}
 .tb-logout:hover svg{stroke:var(--rd-ink)}
 
@@ -66,11 +65,729 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 .hero{margin-bottom:28px}
 .hero-date{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .hero-date::before{content:'';width:18px;height:1px;background:var(--mu2)}
-.hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:44px;letter-spacing:-1.8px;line-height:1.05;margin-bottom:12px}
+.hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:44px;letter-spacing:-1.8px;line-height:1.05;margin-bottom:12px;color:var(--tx)}
 .hero-title .accent{color:var(--ac-ink)}
-.hero-sub{font-size:14px;color:var(--tx2);line-height:1.65;max-width:640px}
+.hero-sub{font-size:14px;color:var(--tx2);line-height:1.65;max-width:640px;font-weight:400}
 
-.scout-card{display:grid;grid-template-columns:180px 1fr auto;gap:28px;align-items:center;padding:28px 32px;margin-bottom:20px;background:linear-gradient(135deg,#fff 0%,#fafaf5 100%);border:1px solid var(--bd2);border-radius:16px;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:.3s cubic-bezier(.22,.68,0,1.2);box-shadow:var(--sh1)}
+.scout-card{display:grid;grid-template-columns:180px 1fr auto;gap:28px;align-items:center;padding:28px 32px;margin-bottom:20px;background:linear-gradient(135deg,#ffffff 0%,#fafaf5 100%);border:1px solid var(--bd2);border-radius:16px;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:.3s cubic-bezier(.22,.68,0,1.2);box-shadow:var(--sh1)}
 .scout-card:hover{border-color:var(--bd3);transform:translateY(-2px);box-shadow:var(--sh2)}
 .scout-card::before{content:'';position:absolute;top:0;right:0;width:420px;height:100%;background:radial-gradient(circle at 80% 50%,var(--ac2),transparent 60%);pointer-events:none}
-.sc-shield{position:relative;width:150px;height:170px;margin
+.sc-shield{position:relative;width:150px;height:170px;margin:0 auto}
+.sc-shield svg{width:100%;height:100%;filter:drop-shadow(0 8px 18px rgba(0,0,0,.12))}
+.sc-body{position:relative;z-index:1;min-width:0}
+.sc-kicker{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ac-ink);margin-bottom:8px;display:flex;align-items:center;gap:7px;font-weight:700}
+.sc-kicker::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--ac);box-shadow:0 0 10px var(--ac4)}
+.sc-rank{font-family:'Syne',sans-serif;font-weight:800;font-size:34px;letter-spacing:-1px;line-height:1;margin-bottom:8px;color:var(--tx)}
+.sc-next{font-size:13px;color:var(--tx2);line-height:1.55;margin-bottom:16px;max-width:440px}
+.sc-next b{color:var(--tx);font-weight:600}
+.sc-progress-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.sc-progress{flex:1;max-width:340px;height:8px;background:var(--s3);border-radius:99px;overflow:hidden;border:1px solid var(--bd)}
+.sc-progress-fill{height:100%;background:linear-gradient(90deg,var(--ac),#a8c030);border-radius:99px;transition:width .8s cubic-bezier(.22,.68,0,1.2);box-shadow:0 0 12px var(--ac4)}
+.sc-progress-text{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);white-space:nowrap}
+.sc-progress-text b{color:var(--ac-ink);font-weight:700}
+.sc-chips{display:flex;gap:8px;flex-wrap:wrap}
+.sc-chip{display:flex;align-items:center;gap:6px;padding:5px 11px;background:var(--s2);border:1px solid var(--bd);border-radius:99px;font-family:'DM Mono',monospace;font-size:10px;color:var(--mu)}
+.sc-chip svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2}
+.sc-chip.xp{color:var(--ac-ink);border-color:var(--ac3);background:var(--ac2)}
+.sc-chip.streak{color:var(--or-ink);border-color:var(--or3);background:var(--or2)}
+.sc-chip.badges{color:var(--gd-ink);border-color:var(--gd3);background:var(--gd2)}
+.sc-chip.xp svg{fill:var(--ac);stroke:var(--ac-ink)}
+.sc-chip.streak svg{fill:var(--or2);stroke:var(--or-ink)}
+.sc-chip b{font-family:'Syne',sans-serif;font-weight:700;font-size:11px}
+.sc-cta{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--ac);flex-shrink:0;transition:.2s;box-shadow:0 4px 14px var(--ac4)}
+.scout-card:hover .sc-cta{transform:translateX(4px);box-shadow:0 8px 24px var(--ac4)}
+.sc-cta svg{width:22px;height:22px;stroke:#1a2000;fill:none;stroke-width:2.4}
+
+.founder{margin-bottom:32px;padding:20px 28px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;display:flex;align-items:center;gap:18px;position:relative;overflow:hidden;box-shadow:var(--sh1)}
+.founder::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--ac),var(--gn))}
+.founder-ic{width:36px;height:36px;border-radius:9px;background:var(--ac2);border:1px solid var(--ac3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.founder-ic svg{width:18px;height:18px;stroke:var(--ac-ink);fill:none;stroke-width:1.8}
+.founder-text{font-family:'Syne',sans-serif;font-weight:500;font-size:15px;letter-spacing:-.3px;line-height:1.5;color:var(--tx);font-style:italic;flex:1}
+.founder-text em{color:var(--ac-ink);font-style:normal;font-weight:600}
+.founder-sig{font-family:'DM Mono',monospace;font-size:10px;color:var(--mu);letter-spacing:.08em;white-space:nowrap;padding-left:18px;border-left:1px solid var(--bd);flex-shrink:0}
+.founder-sig b{color:var(--tx);font-weight:600;display:block}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:36px}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:20px 18px 18px;position:relative;overflow:hidden;transition:all .25s cubic-bezier(.22,.68,0,1.2);box-shadow:var(--sh1)}
+.stat::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:.25s}
+.stat:hover{border-color:var(--bd2);transform:translateY(-3px);box-shadow:var(--sh2)}
+.stat:hover::after{opacity:1}
+.stat:nth-child(1)::after{background:var(--ac)}
+.stat:nth-child(2)::after{background:var(--gn)}
+.stat:nth-child(3)::after{background:var(--bl)}
+.stat:nth-child(4)::after{background:var(--or)}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stat-label{font-size:11px;color:var(--mu);font-weight:500}
+.stat-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.stat-icon svg{width:16px;height:16px;stroke-width:1.8;fill:none}
+.stat:nth-child(1) .stat-icon{background:var(--ac2);border:1px solid var(--ac3)}
+.stat:nth-child(1) .stat-icon svg{stroke:var(--ac-ink)}
+.stat:nth-child(2) .stat-icon{background:var(--gn2);border:1px solid var(--gn3)}
+.stat:nth-child(2) .stat-icon svg{stroke:var(--gn-ink)}
+.stat:nth-child(3) .stat-icon{background:var(--bl2);border:1px solid var(--bl3)}
+.stat:nth-child(3) .stat-icon svg{stroke:var(--bl-ink)}
+.stat:nth-child(4) .stat-icon{background:var(--or2);border:1px solid var(--or3)}
+.stat:nth-child(4) .stat-icon svg{stroke:var(--or-ink)}
+.stat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.5px;line-height:1}
+.stat:nth-child(1) .stat-val{color:var(--ac-ink)}
+.stat:nth-child(2) .stat-val{color:var(--gn-ink)}
+.stat:nth-child(3) .stat-val{color:var(--bl-ink)}
+.stat:nth-child(4) .stat-val{color:var(--or-ink)}
+.stat-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--mu);margin-top:6px}
+
+.sec{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--mu);white-space:nowrap;font-weight:500}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--bd2),transparent)}
+
+.modules{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:36px}
+.mod{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:22px;cursor:pointer;transition:.25s cubic-bezier(.22,.68,0,1.2);position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;box-shadow:var(--sh1)}
+.mod::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:.25s}
+.mod:hover{border-color:var(--bd2);transform:translateY(-4px);box-shadow:var(--sh2)}
+.mod:hover::before{opacity:1}
+.mod-crm::before{background:var(--ac)}
+.mod-formation::before{background:var(--gn)}
+.mod-annuaire::before{background:var(--bl)}
+.mod-docs::before{background:var(--or)}
+.mod-site::before{background:var(--pr)}
+.mod-stats::before{background:var(--bl)}
+.mod-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.mod-icon svg{width:18px;height:18px;stroke-width:1.8;fill:none}
+.mod-crm .mod-icon{background:var(--ac2);border:1px solid var(--ac3)}.mod-crm .mod-icon svg{stroke:var(--ac-ink)}
+.mod-formation .mod-icon{background:var(--gn2);border:1px solid var(--gn3)}.mod-formation .mod-icon svg{stroke:var(--gn-ink)}
+.mod-annuaire .mod-icon{background:var(--bl2);border:1px solid var(--bl3)}.mod-annuaire .mod-icon svg{stroke:var(--bl-ink)}
+.mod-docs .mod-icon{background:var(--or2);border:1px solid var(--or3)}.mod-docs .mod-icon svg{stroke:var(--or-ink)}
+.mod-site .mod-icon{background:var(--pr2);border:1px solid var(--pr3)}.mod-site .mod-icon svg{stroke:var(--pr-ink)}
+.mod-stats .mod-icon{background:var(--bl2);border:1px solid var(--bl3)}.mod-stats .mod-icon svg{stroke:var(--bl-ink)}
+.mod-superviseur::before{background:var(--rd)}
+.mod-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-.3px;margin-bottom:6px;color:var(--tx)}
+.mod-desc{font-size:12px;color:var(--mu);line-height:1.55;margin-bottom:16px;min-height:38px}
+.mod-foot{display:flex;align-items:center;justify-content:space-between}
+.mod-tag{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);padding:3px 10px;background:var(--s2);border-radius:999px;border:1px solid var(--bd);font-weight:500}
+.mod-tag.active{color:var(--gn-ink);border-color:var(--gn3);background:var(--gn2)}
+.mod-tag.active::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gn);display:inline-block;margin-right:5px}
+.mod-arrow{width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;transition:.2s}
+.mod:hover .mod-arrow{background:var(--tx);border-color:var(--tx);transform:translateX(3px)}
+.mod:hover .mod-arrow svg{stroke:#fff}
+.mod-arrow svg{width:13px;height:13px;stroke:var(--mu);fill:none;stroke-width:2;transition:.2s}
+
+.bottom{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-bottom:28px}
+.feed{background:var(--s1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--sh1)}
+.feed-head{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--bd);font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);font-weight:600}
+.feed-live{width:7px;height:7px;border-radius:50%;background:var(--gn);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.feed-list{padding:6px 0;max-height:340px;overflow-y:auto}
+.fi{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;transition:.15s}
+.fi:hover{background:var(--s2)}
+.fi-dot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.fi-dot.ac{background:var(--ac)}.fi-dot.gn{background:var(--gn)}.fi-dot.bl{background:var(--bl)}.fi-dot.or{background:var(--or)}.fi-dot.mu{background:var(--mu2)}
+.fi-body{flex:1;min-width:0}
+.fi-text{font-size:12px;color:var(--tx2);line-height:1.45}
+.fi-text strong{color:var(--tx);font-weight:600}
+.fi-time{font-family:'DM Mono',monospace;font-size:10px;color:var(--mu);margin-top:3px}
+
+.side{display:flex;flex-direction:column;gap:12px}
+.sp{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;box-shadow:var(--sh1)}
+.sp-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:7px;font-weight:600}
+.sp-title svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.tm{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}
+.tm:first-of-type{border-top:none}
+.tm-av{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;position:relative;flex-shrink:0}
+.tm-online{position:absolute;bottom:-2px;right:-2px;width:9px;height:9px;border-radius:50%;border:2px solid var(--s1)}
+.tm-online.on{background:var(--gn)}
+.tm-info{line-height:1.3;min-width:0}
+.tm-name{font-size:12px;font-weight:600;color:var(--tx)}
+.tm-role{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
+
+.sc{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:7px;cursor:pointer;transition:.15s;color:var(--tx2);font-size:12px;margin-bottom:2px}
+.sc:hover{background:var(--s2);color:var(--tx)}
+.sc svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.sc-key{margin-left:auto;font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;background:var(--s2);border:1px solid var(--bd);border-radius:4px;color:var(--mu)}
+
+.version{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-family:'DM Mono',monospace;font-size:10px;color:var(--mu);background:var(--s1);border:1px solid var(--bd);border-radius:10px;letter-spacing:.04em;box-shadow:var(--sh1)}
+.version-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gn);margin-right:6px;animation:pulse 1.5s ease-in-out infinite}
+
+.hub-foot{margin-top:30px;padding-top:24px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;color:var(--mu);font-size:11px;font-family:'DM Mono',monospace;letter-spacing:.05em}
+.hub-foot a{color:var(--mu);text-decoration:none;transition:.15s}
+.hub-foot a:hover{color:var(--ac-ink)}
+
+/* Superviseur — alertes demandes d'accès */
+.sv-banner{margin-bottom:20px}
+.sv-banner-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--rd-ink);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sv-banner-title::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--rd);flex-shrink:0}
+.sv-alert{display:flex;align-items:center;gap:12px;padding:12px 18px;background:rgba(224,82,82,.07);border:1px solid rgba(224,82,82,.22);border-radius:10px;margin-bottom:8px;transition:.2s}
+.sv-alert-name{flex:1;font-size:12px;color:var(--tx2)}
+.sv-alert-name strong{color:var(--tx);font-weight:600}
+.sv-btn{padding:5px 14px;border-radius:6px;font-family:'DM Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.04em;margin-left:6px}
+.sv-btn.ok{background:var(--gn2);color:var(--gn-ink);border:1px solid var(--gn3)}
+.sv-btn.ok:hover:not(:disabled){background:var(--gn3)}
+.sv-btn.no{background:var(--rd2);color:var(--rd-ink);border:1px solid var(--rd3)}
+.sv-btn.no:hover:not(:disabled){background:var(--rd3)}
+.sv-btn:disabled{opacity:.5;cursor:not-allowed}
+.sv-done{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:11px;color:var(--mu);border-radius:10px;background:var(--s2);border:1px solid var(--bd)}
+
+.cmd-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding-top:18vh;opacity:0;visibility:hidden;transition:.15s}
+.cmd-overlay.open{opacity:1;visibility:visible}
+.cmd-box{width:100%;max-width:560px;background:var(--s1);border:1px solid var(--bd3);border-radius:14px;box-shadow:var(--sh3);overflow:hidden;transform:scale(.96);transition:.2s}
+.cmd-overlay.open .cmd-box{transform:scale(1)}
+.cmd-input-wrap{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--bd)}
+.cmd-input-wrap svg{width:18px;height:18px;stroke:var(--mu);fill:none;stroke-width:2}
+.cmd-input-wrap input{flex:1;background:transparent;border:none;outline:none;color:var(--tx);font-size:15px;font-family:inherit}
+.cmd-input-wrap kbd{font-size:9px;padding:2px 7px;background:var(--s2);border:1px solid var(--bd2);border-radius:4px;font-family:'DM Mono',monospace;color:var(--mu)}
+.cmd-results{max-height:400px;overflow-y:auto;padding:8px}
+.cmd-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:.1s}
+.cmd-item:hover,.cmd-item.sel{background:var(--s2)}
+.cmd-item-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cmd-item-icon svg{width:14px;height:14px;fill:none;stroke-width:2}
+.cmd-item-text{flex:1;min-width:0}
+.cmd-item-name{font-size:13px;color:var(--tx);font-weight:500}
+.cmd-item-desc{font-size:11px;color:var(--mu)}
+
+.anim{opacity:0;animation:up .6s cubic-bezier(.22,.68,0,1.2) forwards}
+.anim-d1{animation-delay:.05s}.anim-d2{animation-delay:.1s}.anim-d3{animation-delay:.15s}.anim-d4{animation-delay:.2s}.anim-d5{animation-delay:.25s}.anim-d6{animation-delay:.3s}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+@media (max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .modules{grid-template-columns:1fr}
+  .bottom{grid-template-columns:1fr}
+  .hero-title{font-size:32px}
+  .scout-card{grid-template-columns:1fr;gap:18px;padding:22px}
+  .sc-shield{width:110px;height:130px}
+  .sc-rank{font-size:26px}
+  .sc-cta{align-self:flex-end}
+  .founder{flex-direction:column;align-items:flex-start;gap:12px}
+  .founder-sig{border-left:none;padding-left:0;padding-top:10px;border-top:1px solid var(--bd);width:100%}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="bg-grad-1"></div>
+<div class="bg-grad-2"></div>
+
+<header class="topbar">
+  <a href="/hub" class="tb-logo">
+    <div class="tb-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#1a2000" stroke-width="2.5"><path d="M12 3v10M6 9l6 6 6-6"/></svg></div>
+    <div class="tb-logo-text">NOVAL<span>EM</span></div>
+  </a>
+  <div class="tb-divider"></div>
+  <div class="tb-env">Hub Scout</div>
+  <div class="tb-spacer"></div>
+  <div class="tb-cmd" onclick="openCmd()">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Rechercher...
+    <kbd>⌘K</kbd>
+  </div>
+  <div class="tb-clock" id="clock"></div>
+  <div class="tb-divider"></div>
+  <div class="tb-user" id="tb-user">
+    <div class="tb-avatar" id="tb-avatar" style="background:var(--ac2);color:var(--ac-ink)">—</div>
+    <div class="tb-uinfo">
+      <div class="tb-uname" id="tb-uname">—</div>
+      <div class="tb-urole" id="tb-urole">—</div>
+    </div>
+  </div>
+  <button class="tb-logout" onclick="logout()" title="Déconnexion">
+    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </button>
+</header>
+
+<main class="main">
+
+  <!-- Superviseur : demandes d'accès en attente -->
+  <div id="sv-banner" class="sv-banner" style="display:none">
+    <div class="sv-banner-title">Demandes d'accès en attente</div>
+    <div id="sv-alerts-inner"></div>
+  </div>
+
+  <section class="hero anim anim-d1">
+    <div class="hero-date" id="hero-date"></div>
+    <h1 class="hero-title">Bonjour, <span class="accent" id="hero-name">Scout</span></h1>
+    <p class="hero-sub">Ton espace de travail. Ton parcours. Tes outils. Tout ce dont tu as besoin pour avancer — et devenir celui que tu veux être dans ce cabinet.</p>
+  </section>
+
+  <a href="/formation" class="scout-card anim anim-d2" id="scout-card">
+    <div class="sc-shield" id="sc-shield"></div>
+    <div class="sc-body">
+      <div class="sc-kicker">Ton parcours · Académie Scout</div>
+      <div class="sc-rank" id="sc-rank">Aspirant</div>
+      <div class="sc-next" id="sc-next">Tu viens d'ouvrir la porte. <b>Ton premier module t'attend</b> — 12 minutes pour comprendre dans quoi tu t'engages.</div>
+      <div class="sc-progress-row">
+        <div class="sc-progress"><div class="sc-progress-fill" id="sc-progress-fill" style="width:0%"></div></div>
+        <div class="sc-progress-text"><b id="sc-progress-text">0 / 30</b> modules</div>
+      </div>
+      <div class="sc-chips">
+        <div class="sc-chip xp"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><b id="sc-xp">0</b> XP</div>
+        <div class="sc-chip streak"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><b id="sc-streak">0</b> jours</div>
+        <div class="sc-chip badges"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg><b id="sc-badges">0</b> badges</div>
+      </div>
+    </div>
+    <div class="sc-cta">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
+  </a>
+
+  <div class="founder anim anim-d3">
+    <div class="founder-ic"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg></div>
+    <div class="founder-text" id="founder-quote">« Chaque placement est une conséquence. De ta discipline, de ton écoute, de ta capacité à tenir quand personne ne te regarde. »</div>
+    <div class="founder-sig"><b>Louis Renault</b>Fondateur · NOVALEM</div>
+  </div>
+
+  <div class="stats anim anim-d4">
+    <div class="stat">
+      <div class="stat-top"><div class="stat-label">Candidats actifs</div>
+      <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div></div>
+      <div class="stat-val" id="st-cand">0</div>
+      <div class="stat-sub" id="st-cand-d">dans la base</div>
+    </div>
+    <div class="stat">
+      <div class="stat-top"><div class="stat-label">Placements ce mois</div>
+      <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div></div>
+      <div class="stat-val" id="st-place">0</div>
+      <div class="stat-sub" id="st-place-d">ce mois</div>
+    </div>
+    <div class="stat">
+      <div class="stat-top"><div class="stat-label">Offres en cours</div>
+      <div class="stat-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div></div>
+      <div class="stat-val" id="st-offer">0</div>
+      <div class="stat-sub" id="st-offer-d">actives</div>
+    </div>
+    <div class="stat">
+      <div class="stat-top"><div class="stat-label">Taux conversion</div>
+      <div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div></div>
+      <div class="stat-val" id="st-rate">0%</div>
+      <div class="stat-sub" id="st-rate-d">conversion</div>
+    </div>
+  </div>
+
+  <div class="sec anim anim-d5"><div class="sec-label">Outils</div><div class="sec-line"></div></div>
+  <div class="modules anim anim-d5">
+
+    <a href="/crm" class="mod mod-crm">
+      <div class="mod-icon"><svg viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div>
+      <div class="mod-title">CRM Recrutement</div>
+      <div class="mod-desc">Pipeline, candidats, entreprises, offres, emails, IA. Ta cabine de pilotage.</div>
+      <div class="mod-foot"><span class="mod-tag active">Production</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <a href="/formation" class="mod mod-formation">
+      <div class="mod-icon"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div>
+      <div class="mod-title">Académie Scout</div>
+      <div class="mod-desc">5 niveaux · 30 modules · Arsenal · Codex · Défis. Ton parcours vers Capitaine.</div>
+      <div class="mod-foot"><span class="mod-tag active">Ouvert</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <a href="/annuaire" class="mod mod-annuaire">
+      <div class="mod-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="mod-title">Annuaire</div>
+      <div class="mod-desc">Équipe, partenaires, contacts clés BTP par zone géographique.</div>
+      <div class="mod-foot"><span class="mod-tag">Actif</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <a href="/documents" class="mod mod-docs">
+      <div class="mod-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+      <div class="mod-title">Documents</div>
+      <div class="mod-desc">Contrats, grilles tarifaires, procédures internes, modèles administratifs.</div>
+      <div class="mod-foot"><span class="mod-tag">Actif</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <a href="/statistiques" class="mod mod-stats">
+      <div class="mod-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <div class="mod-title">Statistiques</div>
+      <div class="mod-desc">KPIs, performances, tendances, rapports d'activité temps réel.</div>
+      <div class="mod-foot"><span class="mod-tag">Analytics</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <!-- Superviseur uniquement -->
+    <a href="#" id="mod-superviseur" class="mod mod-superviseur" style="display:none">
+      <div class="mod-icon" style="background:var(--rd2);border:1px solid var(--rd3)"><svg viewBox="0 0 24 24" style="stroke:var(--rd-ink)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div class="mod-title">Superviseur</div>
+      <div class="mod-desc">Demandes d'accès, gestion de l'équipe, tableaux de bord consolidés.</div>
+      <div class="mod-foot"><span class="mod-tag" style="color:var(--rd-ink);border-color:var(--rd3);background:var(--rd2)" id="mod-sv-badge">—</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <a href="https://www.novalem-recrutement.fr/" target="_blank" rel="noopener" class="mod mod-site">
+      <div class="mod-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+      <div class="mod-title">Site public</div>
+      <div class="mod-desc">Vitrine, offres publiques, candidatures spontanées qui arrivent dans le CRM.</div>
+      <div class="mod-foot"><span class="mod-tag">Externe</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div>
+    </a>
+
+  </div>
+
+  <div class="sec anim anim-d6"><div class="sec-label">Activité & équipe</div><div class="sec-line"></div></div>
+  <div class="bottom anim anim-d6">
+
+    <div class="feed">
+      <div class="feed-head"><div class="feed-live"></div>Activité récente</div>
+      <div class="feed-list" id="feed-list">
+        <div class="fi"><div class="fi-dot mu"></div><div class="fi-body"><div class="fi-text" style="color:var(--mu)">Chargement de l'activité...</div></div></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="sp">
+        <div class="sp-title"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Équipe</div>
+        <div class="tm">
+          <div class="tm-av" style="background:var(--ac2);color:var(--ac-ink)">LR<div class="tm-online on"></div></div>
+          <div class="tm-info"><div class="tm-name">Louis Renault</div><div class="tm-role">Fondateur</div></div>
+        </div>
+        <div class="tm">
+          <div class="tm-av" style="background:var(--gn2);color:var(--gn-ink)">C<div class="tm-online on"></div></div>
+          <div class="tm-info"><div class="tm-name">Corentin</div><div class="tm-role">Commercial</div></div>
+        </div>
+      </div>
+
+      <div class="sp">
+        <div class="sp-title"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Raccourcis</div>
+        <div class="sc" onclick="location='/crm'"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>CRM<span class="sc-key">C</span></div>
+        <div class="sc" onclick="location='/formation'"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Académie<span class="sc-key">F</span></div>
+        <div class="sc" onclick="location='/annuaire'"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Annuaire<span class="sc-key">A</span></div>
+        <div class="sc" onclick="location='/documents'"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Documents<span class="sc-key">D</span></div>
+      </div>
+
+      <div class="version">
+        <span>Novalem Platform v3.0</span>
+        <span><span class="version-dot"></span>Opérationnel</span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="hub-foot">
+    <span>Novalem © 2026 — Cabinet de recrutement BTP</span>
+    <a href="https://www.novalem-recrutement.fr/" target="_blank">novalem-recrutement.fr</a>
+  </footer>
+</main>
+
+<div class="cmd-overlay" id="cmd-overlay" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="cmd-input" placeholder="Rechercher une page, un module..." oninput="filterCmd()">
+      <kbd>ESC</kbd>
+    </div>
+    <div class="cmd-results" id="cmd-results"></div>
+  </div>
+</div>
+
+<script>
+const raw = sessionStorage.getItem('novalem_user');
+if (!raw) { window.location.href = '/'; }
+let U = null;
+try {
+  U = JSON.parse(raw);
+  if (!U || !U.ts || (Date.now() - U.ts) > 8*3600000) { sessionStorage.removeItem('novalem_user'); window.location.href='/'; }
+} catch(e) { window.location.href='/'; }
+
+function updateUser() {
+  if (!U) return;
+  const first = (U.name||'Scout').split(' ')[0];
+  document.getElementById('hero-name').textContent = first;
+  const initials = (U.name||'SC').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('tb-avatar').textContent = initials;
+  document.getElementById('tb-uname').textContent = U.name || 'Scout';
+  document.getElementById('tb-urole').textContent = U.role || 'Scout';
+}
+updateUser();
+
+function updateDate() {
+  const d = new Date();
+  const days=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const months=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  document.getElementById('hero-date').textContent = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`.toUpperCase();
+}
+updateDate();
+
+function updateClock() {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2,'0');
+  const m = String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+const RANKS = [
+  { id:0, name:'Aspirant',       minMod:0,  nextDesc:"Tu viens d'ouvrir la porte. <b>Ton premier module t'attend</b> — 12 minutes pour comprendre dans quoi tu t'engages." },
+  { id:1, name:'Scout',          minMod:6,  nextDesc:"Tu connais l'ADN NOVALEM. <b>Il est temps d'apprendre à chasser.</b>" },
+  { id:2, name:'Scout Confirmé', minMod:12, nextDesc:"Tu sources et tu qualifies. <b>Travaille ta voix — chaque mot est un levier.</b>" },
+  { id:3, name:"Scout d'Élite",  minMod:18, nextDesc:"Tu convertis par téléphone. <b>Plonge dans le métier BTP.</b>" },
+  { id:4, name:'Lieutenant',     minMod:24, nextDesc:"Tu maîtrises le métier. <b>Dernière marche : la forge mentale.</b>" },
+  { id:5, name:'Capitaine',      minMod:30, nextDesc:"Tu as tout complété. <b>Reviens pour te maintenir au sommet.</b>" },
+];
+function rankShieldSVG(rankId) {
+  const colors = ['#58584f', '#6b8a18', '#2a5cc4', '#b06a10', '#6e3ac0', '#0e8a60'];
+  const c = colors[rankId] || colors[0];
+  const romans = ['·','I','II','III','IV','V'];
+  const roman = romans[rankId] || '·';
+  return `<svg viewBox="0 0 140 160">
+    <defs>
+      <linearGradient id="sg${rankId}" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="${c}" stop-opacity="0.92"/>
+        <stop offset="60%" stop-color="${c}" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="${c}" stop-opacity="0.30"/>
+      </linearGradient>
+      <radialGradient id="sggl${rankId}" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="${c}" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="70" cy="80" r="65" fill="url(#sggl${rankId})"/>
+    <path d="M70 10 L125 34 L125 98 Q125 118 70 148 Q15 118 15 98 L15 34 Z" fill="url(#sg${rankId})" stroke="${c}" stroke-width="2"/>
+    <path d="M70 20 L115 40 L115 96 Q115 112 70 136 Q25 112 25 96 L25 40 Z" fill="none" stroke="${c}" stroke-width="1" opacity="0.55"/>
+    <text x="70" y="92" text-anchor="middle" font-family="Syne,sans-serif" font-weight="800" font-size="54" fill="${c}">${roman}</text>
+    <text x="70" y="112" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" letter-spacing="3" fill="${c}" opacity="0.85">NOVALEM</text>
+  </svg>`;
+}
+
+function loadScoutProgress() {
+  const uid = U && U.id ? U.id : 'anon';
+  const key = `novalem_acad_${uid}`;
+  let state = { completed:[], xp:0, badges:[], streak:0 };
+  try { const raw = localStorage.getItem(key); if (raw) Object.assign(state, JSON.parse(raw)); } catch(e){}
+  const done = state.completed.length;
+  const rank = RANKS.slice().reverse().find(r => done >= r.minMod) || RANKS[0];
+  document.getElementById('sc-shield').innerHTML = rankShieldSVG(rank.id);
+  document.getElementById('sc-rank').textContent = rank.name;
+  document.getElementById('sc-next').innerHTML = rank.nextDesc;
+  const pct = Math.round((done/30)*100);
+  document.getElementById('sc-progress-fill').style.width = pct + '%';
+  document.getElementById('sc-progress-text').textContent = `${done} / 30`;
+  document.getElementById('sc-xp').textContent = state.xp || 0;
+  document.getElementById('sc-streak').textContent = state.streak || 0;
+  document.getElementById('sc-badges').textContent = (state.badges && state.badges.length) || 0;
+}
+loadScoutProgress();
+
+const QUOTES = [
+  "Chaque placement est une conséquence. De ta discipline, de ton écoute, de ta capacité à tenir quand personne ne te regarde.",
+  "L'argent ne court pas après toi. Cours après ce que tu deviens — l'argent suit, toujours.",
+  "Un scout qui connaît son métier parle. Un scout qui ne le connaît pas bluffe. Les candidats BTP sentent la différence en 30 secondes.",
+  "Le jeu appartient à ceux qui restent. Pas aux plus brillants. Pas aux plus chanceux. À ceux qui tiennent.",
+  "Tu ne vends pas un candidat. Tu résous une pénurie. La nuance change tout dans ta voix.",
+  "Les meilleurs candidats ne sont jamais actifs sur le marché. C'est justement pour ça qu'on les cherche.",
+  "Un CRM pas à jour, c'est du temps volé à l'équipe. Entre tes données. Toujours.",
+  "La discipline bat le talent qui n'est pas discipliné. Tous les jours. Sans exception.",
+  "Ta parole engage NOVALEM. Quand tu dis 'je rappelle demain à 14h', tu rappelles. Sinon tu ne le dis pas.",
+  "On n'anticipe pas une tendance. On anticipe une loi de marché. Le marché FR va converger vers le modèle US — sois prêt.",
+];
+function setQuote() {
+  const day = Math.floor(Date.now() / 86400000);
+  const q = QUOTES[day % QUOTES.length];
+  document.getElementById('founder-quote').textContent = '« ' + q + ' »';
+}
+setQuote();
+
+const SUPABASE_URL = 'https://ygphaqvwbtjhcypaixim.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlncGhhcXZ3YnRqaGN5cGFpeGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNDM3MTcsImV4cCI6MjA3NDgxOTcxN30.Xu8QXcJOStVsFT4rEgUYhEPtXW2IVKijR9SZb-cTgyc';
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e){}
+
+function animateCounter(el, target, suffix='') {
+  const duration = 800;
+  const startTime = performance.now();
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const val = Math.round(target * eased);
+    el.textContent = val + suffix;
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+async function loadData() {
+  if (!sb) return;
+  try {
+    const {count:cand} = await sb.from('candidates').select('*',{count:'exact',head:true});
+    animateCounter(document.getElementById('st-cand'), cand||0);
+    const ms = new Date(); ms.setDate(1); ms.setHours(0,0,0,0);
+    const {count:placed} = await sb.from('candidates').select('*',{count:'exact',head:true}).eq('status','place').gte('updated_at',ms.toISOString());
+    animateCounter(document.getElementById('st-place'), placed||0);
+    const {count:offers} = await sb.from('jobs').select('*',{count:'exact',head:true}).eq('status','active');
+    animateCounter(document.getElementById('st-offer'), offers||0);
+    const rate = cand > 0 ? Math.round((placed/cand)*100) : 0;
+    animateCounter(document.getElementById('st-rate'), rate, '%');
+    const {data:recent} = await sb.from('candidates').select('name,status,updated_at').order('updated_at',{ascending:false}).limit(10);
+    if (recent && recent.length) {
+      const stMap = {nouveau:'Nouveau candidat',contacte:'Contact initié',entretien:'En entretien',propose:'Proposé',place:'Placé',archive:'Archivé'};
+      const dotMap = {nouveau:'bl',contacte:'or',entretien:'ac',propose:'or',place:'gn',archive:'mu'};
+      document.getElementById('feed-list').innerHTML = recent.map(c => {
+        const ago = timeAgo(new Date(c.updated_at));
+        return `<div class="fi"><div class="fi-dot ${dotMap[c.status]||'mu'}"></div><div class="fi-body"><div class="fi-text"><strong>${c.name||'Candidat'}</strong> — ${stMap[c.status]||c.status}</div><div class="fi-time">${ago}</div></div></div>`;
+      }).join('');
+    }
+  } catch(e) { console.log('Data load:', e.message); }
+}
+function timeAgo(d){
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 60) return "À l'instant";
+  if (s < 3600) return Math.floor(s/60) + ' min';
+  if (s < 86400) return Math.floor(s/3600) + ' h';
+  return Math.floor(s/86400) + ' j';
+}
+loadData();
+loadSuperviseurData();
+
+// ── Superviseur : demandes d'accès ──────────────────────────────────────
+async function loadSuperviseurData() {
+  if (!sb || !U || U.role !== 'superviseur') return;
+
+  document.getElementById('mod-superviseur').style.display = 'block';
+
+  try {
+    const { data: demandes, error } = await sb
+      .from('demandes_acces')
+      .select('id, prenom, nom, created_at')
+      .eq('statut', 'en_attente')
+      .order('created_at', { ascending: true });
+
+    if (error || !demandes || !demandes.length) {
+      document.getElementById('mod-sv-badge').textContent = 'Aucune demande';
+      return;
+    }
+
+    document.getElementById('mod-sv-badge').textContent = demandes.length + ' en attente';
+
+    const inner = document.getElementById('sv-alerts-inner');
+    inner.innerHTML = demandes.map(d => `
+      <div class="sv-alert" id="sv-${d.id}">
+        <div class="sv-alert-name"><strong>${d.prenom} ${d.nom}</strong> demande l'accès</div>
+        <button class="sv-btn ok" onclick="approveAccess('${d.id}','valider',this)">Valider</button>
+        <button class="sv-btn no" onclick="approveAccess('${d.id}','refuser',this)">Refuser</button>
+      </div>
+    `).join('');
+    document.getElementById('sv-banner').style.display = 'block';
+  } catch(e) { console.log('Superviseur:', e.message); }
+}
+
+async function approveAccess(id, action, triggerBtn) {
+  const row  = document.getElementById('sv-' + id);
+  const name = row?.querySelector('.sv-alert-name strong')?.textContent || '';
+  const btns = row?.querySelectorAll('.sv-btn');
+  btns?.forEach(b => b.disabled = true);
+
+  try {
+    const res  = await fetch('/api/approve-access', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id, action }),
+    });
+    const json = await res.json();
+
+    if (json.ok) {
+      if (row) {
+        const color = action === 'valider' ? 'var(--gn-ink)' : 'var(--mu)';
+        const label = action === 'valider' ? '✓ Compte créé' : '× Refusé';
+        row.outerHTML = `<div class="sv-done" style="color:${color}"><strong>${name}</strong> — ${label}</div>`;
+        setTimeout(() => {
+          const done = document.querySelectorAll('.sv-done');
+          done.forEach(el => el.remove());
+          const remaining = document.querySelectorAll('.sv-alert').length;
+          if (!remaining) document.getElementById('sv-banner').style.display = 'none';
+        }, 3000);
+      }
+    } else {
+      alert('Erreur : ' + (json.error || 'Inconnue'));
+      btns?.forEach(b => b.disabled = false);
+    }
+  } catch(e) {
+    alert('Erreur réseau');
+    btns?.forEach(b => b.disabled = false);
+  }
+}
+
+const CMD_ITEMS = [
+  {name:'CRM Recrutement', desc:'Pipeline, candidats, entreprises', href:'/crm', icon:'crm', color:'ac'},
+  {name:'Académie Scout', desc:'Formation complète · 30 modules', href:'/formation', icon:'book', color:'gn'},
+  {name:'Annuaire', desc:'Équipe et contacts', href:'/annuaire', icon:'users', color:'bl'},
+  {name:'Documents', desc:'Templates et ressources', href:'/documents', icon:'file', color:'or'},
+  {name:'Site Novalem', desc:'novalem-recrutement.fr', href:'https://www.novalem-recrutement.fr/', icon:'globe', color:'pr', ext:true},
+  {name:'Statistiques', desc:'KPIs et analytics', href:'/statistiques', icon:'chart', color:'bl'},
+  {name:'Déconnexion', desc:'Fermer la session', href:'#logout', icon:'logout', color:'rd'},
+];
+const ICONS = {
+  crm:'<path d="M12 20V10M18 20V4M6 20v-4"/>',
+  book:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/>',
+  chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+};
+let cmdSel = 0;
+function openCmd(){ document.getElementById('cmd-overlay').classList.add('open'); document.getElementById('cmd-input').value=''; cmdSel=0; renderCmd(CMD_ITEMS); setTimeout(()=>document.getElementById('cmd-input').focus(),50); }
+function closeCmd(){ document.getElementById('cmd-overlay').classList.remove('open'); }
+function renderCmd(items){
+  document.getElementById('cmd-results').innerHTML = items.map((it,i) => {
+    const inkColors = { ac:'var(--ac-ink)', gn:'var(--gn-ink)', bl:'var(--bl-ink)', or:'var(--or-ink)', pr:'var(--pr-ink)', rd:'var(--rd-ink)' };
+    const c = inkColors[it.color] || 'var(--tx)';
+    const bg = `var(--${it.color}2)`, bd = `var(--${it.color}3)`;
+    return `<div class="cmd-item${i===cmdSel?' sel':''}" onclick="goCmd(${i})" data-i="${i}"><div class="cmd-item-icon" style="background:${bg};border:1px solid ${bd}"><svg viewBox="0 0 24 24" style="stroke:${c}">${ICONS[it.icon]}</svg></div><div class="cmd-item-text"><div class="cmd-item-name">${it.name}</div><div class="cmd-item-desc">${it.desc}</div></div></div>`;
+  }).join('');
+}
+function filterCmd(){
+  const q = document.getElementById('cmd-input').value.toLowerCase();
+  const filtered = CMD_ITEMS.filter(it=>it.name.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
+  cmdSel = 0; renderCmd(filtered);
+}
+function goCmd(i){
+  const q = document.getElementById('cmd-input').value.toLowerCase();
+  const filtered = CMD_ITEMS.filter(it=>it.name.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
+  const it = filtered[i]; if(!it) return;
+  closeCmd();
+  if (it.href==='#logout'){ logout(); return; }
+  if (it.ext) window.open(it.href,'_blank');
+  else window.location.href = it.href;
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); openCmd(); return; }
+  if (e.key === 'Escape') { closeCmd(); return; }
+  if (document.getElementById('cmd-overlay').classList.contains('open')) {
+    const items = document.querySelectorAll('.cmd-item');
+    if (e.key === 'ArrowDown') { e.preventDefault(); cmdSel = Math.min(cmdSel+1, items.length-1); items.forEach((el,i)=>el.classList.toggle('sel',i===cmdSel)); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); cmdSel = Math.max(cmdSel-1, 0); items.forEach((el,i)=>el.classList.toggle('sel',i===cmdSel)); }
+    if (e.key === 'Enter') { e.preventDefault(); goCmd(cmdSel); }
+    return;
+  }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const map = { c:'/crm', f:'/formation', a:'/annuaire', d:'/documents', s:'/statistiques' };
+  if (map[e.key]) window.location.href = map[e.key];
+});
+
+function logout() {
+  sessionStorage.removeItem('novalem_user');
+  if (sb) sb.auth.signOut().catch(() => {});
+  window.location.href = '/';
+}
+
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles = [];
+  const COUNT = 36;
+  function resize(){ w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  for (let i = 0; i < COUNT; i++) particles.push({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.3, dx:(Math.random()-0.5)*0.12, dy:(Math.random()-0.5)*0.12, o:Math.random()*0.15+0.05 });
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    for (const p of particles) {
+      p.x += p.dx; p.y += p.dy;
+      if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(107,138,24,${p.o})`; ctx.fill();
+    }
+    for (let i = 0; i < particles.length; i++) for (let j = i+1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (dist < 140) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = `rgba(107,138,24,${0.04*(1-dist/140)})`; ctx.lineWidth = 0.5; ctx.stroke(); }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
