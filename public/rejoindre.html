@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Novalem — Demander l'accès</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#09090a;--s1:#111112;--s2:#18181a;--s3:#202022;
+  --bd:#2a2a2e;--bd2:#38383d;
+  --tx:#f0f0ec;--mu:#8c8c84;--mu2:#4a4a44;
+  --ac:#c8e040;--green:#2dd4a0;--red:#f04b4b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px;-webkit-font-smoothing:antialiased}
+body{
+  font-family:'DM Mono',monospace;
+  background:var(--bg);color:var(--tx);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+
+.bg-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(200,224,64,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,224,64,.025) 1px, transparent 1px);
+  background-size:48px 48px;pointer-events:none;
+}
+.bg-glow{
+  position:absolute;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle, rgba(45,212,160,.05) 0%, transparent 65%);
+  top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;
+}
+
+.card{
+  position:relative;z-index:1;width:100%;max-width:360px;padding:0 20px;
+  animation:fadeUp .4s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.logo{text-align:center;margin-bottom:36px}
+.logo-mark{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.5px;color:var(--tx)}
+.logo-mark span{color:var(--ac)}
+.logo-sub{font-size:10px;color:var(--mu2);letter-spacing:.22em;text-transform:uppercase;margin-top:5px}
+
+.box{
+  background:var(--s1);border:1px solid var(--bd2);border-radius:12px;
+  padding:28px 24px 24px;
+  box-shadow:0 8px 40px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3);
+}
+.box-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:4px}
+.box-sub{font-size:10px;color:var(--mu);margin-bottom:22px;line-height:1.6}
+
+.field{margin-bottom:14px}
+.field-label{
+  display:block;font-size:10px;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--mu);margin-bottom:7px;
+}
+.field-input{
+  width:100%;background:var(--s2);border:1px solid var(--bd2);
+  border-radius:8px;padding:11px 14px;color:var(--tx);
+  font-family:'DM Mono',monospace;font-size:13px;
+  outline:none;transition:border-color .15s;
+}
+.field-input::placeholder{color:var(--mu2)}
+.field-input:focus{border-color:rgba(200,224,64,.4)}
+.field-hint{font-size:10px;color:var(--mu2);margin-top:5px}
+
+.btn-submit{
+  width:100%;padding:13px;margin-top:6px;
+  background:var(--ac);color:#1a2000;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
+  border:none;border-radius:8px;cursor:pointer;
+  transition:all .15s;letter-spacing:.02em;
+}
+.btn-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn-submit:active{transform:scale(.98)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+
+.msg{
+  text-align:center;font-size:11px;margin:10px 0 0;
+  min-height:16px;transition:all .2s;color:transparent;
+}
+.msg.err{color:var(--red)}
+.msg.ok_{color:var(--green)}
+
+/* Écran succès */
+.success{text-align:center;padding:12px 0}
+.success-icon{
+  width:52px;height:52px;border-radius:50%;
+  background:rgba(45,212,160,.12);border:1px solid rgba(45,212,160,.3);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;
+}
+.success-icon svg{width:24px;height:24px;stroke:var(--green);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.success-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;color:var(--tx)}
+.success-txt{font-size:11px;color:var(--mu);line-height:1.65}
+
+.link-back{
+  display:block;text-align:center;margin-top:16px;
+  font-size:11px;color:var(--mu);text-decoration:none;transition:color .15s;
+}
+.link-back:hover{color:var(--ac)}
+
+.footer{
+  text-align:center;margin-top:20px;font-size:9px;color:var(--mu2);
+  letter-spacing:.1em;text-transform:uppercase;
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-mark">Nova<span>lem</span></div>
+    <div class="logo-sub">Cabinet de recrutement · BTP</div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">Demander l'accès</div>
+    <div class="box-sub">Votre demande sera examinée par un superviseur. Vous recevrez une confirmation une fois validé.</div>
+
+    <!-- Formulaire -->
+    <div id="form-wrap">
+      <form id="join-form" onsubmit="submitRequest(event)" autocomplete="on">
+        <div class="field">
+          <label class="field-label" for="prenom">Prénom</label>
+          <input class="field-input" id="prenom" type="text" placeholder="Corentin"
+            autocomplete="given-name" required>
+        </div>
+        <div class="field">
+          <label class="field-label" for="nom">Nom</label>
+          <input class="field-input" id="nom" type="text" placeholder="Dupont"
+            autocomplete="family-name" required>
+        </div>
+        <div class="field">
+          <label class="field-label" for="password">Mot de passe</label>
+          <input class="field-input" id="password" type="password" placeholder="••••••••"
+            autocomplete="new-password" required minlength="8">
+          <div class="field-hint">8 caractères minimum</div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="password2">Confirmer le mot de passe</label>
+          <input class="field-input" id="password2" type="password" placeholder="••••••••"
+            autocomplete="new-password" required>
+        </div>
+        <div class="msg" id="msg"></div>
+        <button type="submit" class="btn-submit" id="btn-submit">Demander l'accès</button>
+      </form>
+    </div>
+
+    <!-- Succès -->
+    <div id="success-wrap" style="display:none" class="success">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="success-title">Demande envoyée !</div>
+      <div class="success-txt">Un superviseur va examiner votre demande et créer votre compte. Vous pourrez ensuite vous connecter depuis la page d'accueil.</div>
+    </div>
+  </div>
+
+  <a href="/" class="link-back">← Retour à la connexion</a>
+  <div class="footer">Novalem &copy; 2026 &middot; Accès privé</div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://ygphaqvwbtjhcypaixim.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlncGhhcXZ3YnRqaGN5cGFpeGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNDM3MTcsImV4cCI6MjA3NDgxOTcxN30.Xu8QXcJOStVsFT4rEgUYhEPtXW2IVKijR9SZb-cTgyc';
+
+let sb;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) {}
+
+function setMsg(txt, cls) {
+  const el = document.getElementById('msg');
+  el.textContent = txt;
+  el.className = 'msg ' + (cls || '');
+}
+
+async function submitRequest(e) {
+  e.preventDefault();
+  if (!sb) { setMsg('Client non disponible', 'err'); return; }
+
+  const prenom = document.getElementById('prenom').value.trim();
+  const nom    = document.getElementById('nom').value.trim();
+  const pw     = document.getElementById('password').value;
+  const pw2    = document.getElementById('password2').value;
+
+  if (pw !== pw2) { setMsg('Les mots de passe ne correspondent pas', 'err'); return; }
+  if (pw.length < 8) { setMsg('Minimum 8 caractères requis', 'err'); return; }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+  setMsg('', '');
+
+  const { error } = await sb.from('demandes_acces').insert({
+    prenom,
+    nom,
+    password_hash: pw,
+    statut: 'en_attente',
+  });
+
+  if (error) {
+    setMsg('Erreur : ' + error.message, 'err');
+    btn.disabled = false;
+    btn.textContent = "Demander l'accès";
+    return;
+  }
+
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('success-wrap').style.display = 'block';
+}
+</script>
+</body>
+</html>

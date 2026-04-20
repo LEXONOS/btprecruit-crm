@@ -10,6 +10,7 @@
     { "src": "/statistiques", "dest": "/statistiques.html" },
     { "src": "/sign", "dest": "/sign.html" },
     { "src": "/dossier", "dest": "/dossier.html" },
+    { "src": "/rejoindre", "dest": "/rejoindre.html" },
     { "src": "/", "dest": "/index.html" }
   ],
   "headers": [

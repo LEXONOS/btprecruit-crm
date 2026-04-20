@@ -158,6 +158,7 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 .mod-docs .mod-icon{background:var(--or2);border:1px solid var(--or3)}.mod-docs .mod-icon svg{stroke:var(--or-ink)}
 .mod-site .mod-icon{background:var(--pr2);border:1px solid var(--pr3)}.mod-site .mod-icon svg{stroke:var(--pr-ink)}
 .mod-stats .mod-icon{background:var(--bl2);border:1px solid var(--bl3)}.mod-stats .mod-icon svg{stroke:var(--bl-ink)}
+.mod-superviseur::before{background:var(--rd)}
 .mod-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-.3px;margin-bottom:6px;color:var(--tx)}
 .mod-desc{font-size:12px;color:var(--mu);line-height:1.55;margin-bottom:16px;min-height:38px}
 .mod-foot{display:flex;align-items:center;justify-content:space-between}
@@ -208,6 +209,21 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 .hub-foot{margin-top:30px;padding-top:24px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;color:var(--mu);font-size:11px;font-family:'DM Mono',monospace;letter-spacing:.05em}
 .hub-foot a{color:var(--mu);text-decoration:none;transition:.15s}
 .hub-foot a:hover{color:var(--ac-ink)}
+
+/* Superviseur — alertes demandes d'accès */
+.sv-banner{margin-bottom:20px}
+.sv-banner-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--rd-ink);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sv-banner-title::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--rd);flex-shrink:0}
+.sv-alert{display:flex;align-items:center;gap:12px;padding:12px 18px;background:rgba(224,82,82,.07);border:1px solid rgba(224,82,82,.22);border-radius:10px;margin-bottom:8px;transition:.2s}
+.sv-alert-name{flex:1;font-size:12px;color:var(--tx2)}
+.sv-alert-name strong{color:var(--tx);font-weight:600}
+.sv-btn{padding:5px 14px;border-radius:6px;font-family:'DM Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.04em;margin-left:6px}
+.sv-btn.ok{background:var(--gn2);color:var(--gn-ink);border:1px solid var(--gn3)}
+.sv-btn.ok:hover:not(:disabled){background:var(--gn3)}
+.sv-btn.no{background:var(--rd2);color:var(--rd-ink);border:1px solid var(--rd3)}
+.sv-btn.no:hover:not(:disabled){background:var(--rd3)}
+.sv-btn:disabled{opacity:.5;cursor:not-allowed}
+.sv-done{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:11px;color:var(--mu);border-radius:10px;background:var(--s2);border:1px solid var(--bd)}
 
 .cmd-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding-top:18vh;opacity:0;visibility:hidden;transition:.15s}
 .cmd-overlay.open{opacity:1;visibility:visible}
@@ -277,6 +293,12 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 </header>
 
 <main class="main">
+
+  <!-- Superviseur : demandes d'accès en attente -->
+  <div id="sv-banner" class="sv-banner" style="display:none">
+    <div class="sv-banner-title">Demandes d'accès en attente</div>
+    <div id="sv-alerts-inner"></div>
+  </div>
 
   <section class="hero anim anim-d1">
     <div class="hero-date" id="hero-date"></div>
@@ -374,6 +396,14 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
       <div class="mod-title">Statistiques</div>
       <div class="mod-desc">KPIs, performances, tendances, rapports d'activité temps réel.</div>
       <div class="mod-foot"><span class="mod-tag">Analytics</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+    </a>
+
+    <!-- Superviseur uniquement -->
+    <a href="#" id="mod-superviseur" class="mod mod-superviseur" style="display:none">
+      <div class="mod-icon" style="background:var(--rd2);border:1px solid var(--rd3)"><svg viewBox="0 0 24 24" style="stroke:var(--rd-ink)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div class="mod-title">Superviseur</div>
+      <div class="mod-desc">Demandes d'accès, gestion de l'équipe, tableaux de bord consolidés.</div>
+      <div class="mod-foot"><span class="mod-tag" style="color:var(--rd-ink);border-color:var(--rd3);background:var(--rd2)" id="mod-sv-badge">—</span><span class="mod-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
     </a>
 
     <a href="https://www.novalem-recrutement.fr/" target="_blank" rel="noopener" class="mod mod-site">
@@ -597,6 +627,75 @@ function timeAgo(d){
   return Math.floor(s/86400) + ' j';
 }
 loadData();
+loadSuperviseurData();
+
+// ── Superviseur : demandes d'accès ──────────────────────────────────────
+async function loadSuperviseurData() {
+  if (!sb || !U || U.role !== 'superviseur') return;
+
+  document.getElementById('mod-superviseur').style.display = 'block';
+
+  try {
+    const { data: demandes, error } = await sb
+      .from('demandes_acces')
+      .select('id, prenom, nom, created_at')
+      .eq('statut', 'en_attente')
+      .order('created_at', { ascending: true });
+
+    if (error || !demandes || !demandes.length) {
+      document.getElementById('mod-sv-badge').textContent = 'Aucune demande';
+      return;
+    }
+
+    document.getElementById('mod-sv-badge').textContent = demandes.length + ' en attente';
+
+    const inner = document.getElementById('sv-alerts-inner');
+    inner.innerHTML = demandes.map(d => `
+      <div class="sv-alert" id="sv-${d.id}">
+        <div class="sv-alert-name"><strong>${d.prenom} ${d.nom}</strong> demande l'accès</div>
+        <button class="sv-btn ok" onclick="approveAccess('${d.id}','valider',this)">Valider</button>
+        <button class="sv-btn no" onclick="approveAccess('${d.id}','refuser',this)">Refuser</button>
+      </div>
+    `).join('');
+    document.getElementById('sv-banner').style.display = 'block';
+  } catch(e) { console.log('Superviseur:', e.message); }
+}
+
+async function approveAccess(id, action, triggerBtn) {
+  const row  = document.getElementById('sv-' + id);
+  const name = row?.querySelector('.sv-alert-name strong')?.textContent || '';
+  const btns = row?.querySelectorAll('.sv-btn');
+  btns?.forEach(b => b.disabled = true);
+
+  try {
+    const res  = await fetch('/api/approve-access', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id, action }),
+    });
+    const json = await res.json();
+
+    if (json.ok) {
+      if (row) {
+        const color = action === 'valider' ? 'var(--gn-ink)' : 'var(--mu)';
+        const label = action === 'valider' ? '✓ Compte créé' : '× Refusé';
+        row.outerHTML = `<div class="sv-done" style="color:${color}"><strong>${name}</strong> — ${label}</div>`;
+        setTimeout(() => {
+          const done = document.querySelectorAll('.sv-done');
+          done.forEach(el => el.remove());
+          const remaining = document.querySelectorAll('.sv-alert').length;
+          if (!remaining) document.getElementById('sv-banner').style.display = 'none';
+        }, 3000);
+      }
+    } else {
+      alert('Erreur : ' + (json.error || 'Inconnue'));
+      btns?.forEach(b => b.disabled = false);
+    }
+  } catch(e) {
+    alert('Erreur réseau');
+    btns?.forEach(b => b.disabled = false);
+  }
+}
 
 const CMD_ITEMS = [
   {name:'CRM Recrutement', desc:'Pipeline, candidats, entreprises', href:'/crm', icon:'crm', color:'ac'},
@@ -657,7 +756,11 @@ document.addEventListener('keydown', e => {
   if (map[e.key]) window.location.href = map[e.key];
 });
 
-function logout() { sessionStorage.removeItem('novalem_user'); window.location.href = '/'; }
+function logout() {
+  sessionStorage.removeItem('novalem_user');
+  if (sb) sb.auth.signOut().catch(() => {});
+  window.location.href = '/';
+}
 
 (function(){
   const canvas = document.getElementById('bg-canvas');
