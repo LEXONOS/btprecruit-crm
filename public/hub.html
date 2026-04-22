@@ -258,6 +258,106 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
   .founder{flex-direction:column;align-items:flex-start;gap:12px}
   .founder-sig{border-left:none;padding-left:0;padding-top:10px;border-top:1px solid var(--bd);width:100%}
 }
+
+/* ═══ HUB — PREMIUM ANIMATIONS ═══ */
+
+/* Topbar slide-in */
+.topbar{animation:topbarIn .45s cubic-bezier(.16,1,.3,1)}
+@keyframes topbarIn{from{transform:translateY(-56px);opacity:0}to{transform:none;opacity:1}}
+
+/* Hero gradient text */
+.hero-title{background:linear-gradient(115deg,var(--tx) 0%,var(--ac-ink) 38%,var(--gn-ink) 68%,var(--tx) 100%);background-size:300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:heroGrad 10s ease-in-out infinite}
+@keyframes heroGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* Module cards — staggered entrance + 3D tilt */
+.modules .mod{opacity:0;animation:modEntrance .55s cubic-bezier(.16,1,.3,1) both}
+.modules .mod:nth-child(1){animation-delay:.05s}
+.modules .mod:nth-child(2){animation-delay:.11s}
+.modules .mod:nth-child(3){animation-delay:.17s}
+.modules .mod:nth-child(4){animation-delay:.23s}
+.modules .mod:nth-child(5){animation-delay:.29s}
+.modules .mod:nth-child(6){animation-delay:.35s}
+.modules .mod:nth-child(7){animation-delay:.41s}
+@keyframes modEntrance{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
+
+/* Module card hover — enhanced */
+.mod{will-change:transform}
+.mod::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.06) 50%,rgba(255,255,255,0) 70%);border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s}
+.mod:hover::after{opacity:1}
+
+/* Stats — staggered entrance */
+.stats .stat{opacity:0;animation:statIn .5s cubic-bezier(.16,1,.3,1) both}
+.stats .stat:nth-child(1){animation-delay:.12s}
+.stats .stat:nth-child(2){animation-delay:.18s}
+.stats .stat:nth-child(3){animation-delay:.24s}
+.stats .stat:nth-child(4){animation-delay:.3s}
+@keyframes statIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* Stat value glow on hover */
+.stat-val{transition:filter .22s,text-shadow .22s}
+.stat:hover .stat-val{filter:brightness(1.18);text-shadow:0 0 24px currentColor}
+
+/* Progress bar shimmer pulse */
+@keyframes progPulse{0%,100%{box-shadow:0 0 8px var(--ac4)}50%{box-shadow:0 0 22px var(--ac4),0 0 40px rgba(200,224,64,.14)}}
+.sc-progress-fill{animation:progPulse 2.8s ease-in-out infinite}
+
+/* Scout CTA glow on hover */
+.scout-card:hover .sc-cta{box-shadow:0 8px 32px rgba(200,224,64,.6),0 0 55px rgba(200,224,64,.18)}
+
+/* Scout kicker dot pulse */
+.sc-kicker::before{animation:kickPulse 2.2s ease-in-out infinite}
+@keyframes kickPulse{0%,100%{box-shadow:0 0 0 0 var(--ac4)}50%{box-shadow:0 0 0 9px rgba(200,224,64,0),0 0 18px rgba(200,224,64,.2)}}
+
+/* Feed items entrance */
+.fi{opacity:0;transform:translateX(-12px);animation:feedSlide .4s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes feedSlide{to{opacity:1;transform:none}}
+
+/* Feed live dot enhanced */
+@keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(45,212,160,.55)}60%{box-shadow:0 0 0 9px rgba(45,212,160,0)}}
+.feed-live{animation:livePulse 2.2s ease-out infinite,pulse 1.5s ease-in-out infinite}
+
+/* Version dot */
+@keyframes verPulse{0%,100%{box-shadow:0 0 0 0 rgba(45,212,160,.6)}60%{box-shadow:0 0 0 9px rgba(45,212,160,0)}}
+.version-dot{animation:verPulse 2.5s ease-out infinite}
+
+/* Founder bar gradient shift */
+.founder::before{background:linear-gradient(180deg,var(--ac),var(--gn),var(--ac));background-size:100% 300%;animation:founderShift 4s ease-in-out infinite alternate}
+@keyframes founderShift{from{background-position:0 0}to{background-position:0 100%}}
+
+/* Section line grow */
+.sec-line{transform-origin:left;animation:lineGrow .8s cubic-bezier(.16,1,.3,1) .3s both}
+@keyframes lineGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* Sidebar team avatar */
+.tm-av{transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s}
+.tm:hover .tm-av{transform:scale(1.08);box-shadow:0 4px 14px rgba(0,0,0,.15)}
+
+/* Shortcut rows */
+.sc{position:relative;overflow:hidden}
+.sc::after{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ac-ink);transform:scaleY(0);transition:transform .2s cubic-bezier(.34,1.56,.64,1);transform-origin:bottom}
+.sc:hover::after{transform:scaleY(1)}
+
+/* Ripple element */
+.ripple-hub{position:absolute;border-radius:50%;background:rgba(200,224,64,.12);transform:scale(0);animation:rippleAnim .65s ease-out forwards;pointer-events:none}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
+
+/* Cursor spotlight overlay */
+.cursor-hub-glow{position:fixed;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(200,224,64,.025) 0%,transparent 55%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .2s linear,top .2s linear;will-change:left,top}
+
+/* Scout card shimmer */
+.scout-card{position:relative;overflow:hidden}
+.scout-card::after{content:'';position:absolute;top:0;left:-200%;width:80%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.06),transparent);pointer-events:none;transform:skewX(-20deg)}
+.scout-card:hover::after{left:220%;transition:left .65s ease}
+
+/* Module arrow spring */
+.mod-arrow{transition:.25s cubic-bezier(.34,1.56,.64,1)}
+.mod:hover .mod-arrow{transform:translateX(5px) scale(1.12)}
+
+/* Background gradients pulse */
+.bg-grad-1{animation:bgGrad1 12s ease-in-out infinite}
+.bg-grad-2{animation:bgGrad2 16s ease-in-out infinite}
+@keyframes bgGrad1{0%,100%{opacity:.8;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes bgGrad2{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:.95;transform:scale(1.06)}}
 </style>
 </head>
 <body>
@@ -762,31 +862,170 @@ function logout() {
   window.location.href = '/';
 }
 
+/* Enhanced particle system with mouse interaction */
 (function(){
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
   let w, h, particles = [];
-  const COUNT = 36;
+  let mouseX = -2000, mouseY = -2000;
+  const COUNT = 48;
+
+  document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
   function resize(){ w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
   resize(); window.addEventListener('resize', resize);
-  for (let i = 0; i < COUNT; i++) particles.push({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.3, dx:(Math.random()-0.5)*0.12, dy:(Math.random()-0.5)*0.12, o:Math.random()*0.15+0.05 });
+
+  for (let i = 0; i < COUNT; i++) particles.push({
+    x: Math.random() * (w || window.innerWidth),
+    y: Math.random() * (h || window.innerHeight),
+    r: Math.random() * 1.4 + 0.4,
+    dx: (Math.random() - 0.5) * 0.14,
+    dy: (Math.random() - 0.5) * 0.14,
+    o: Math.random() * 0.18 + 0.05,
+    pulse: Math.random() * Math.PI * 2
+  });
+
   function draw(){
-    ctx.clearRect(0,0,w,h);
+    ctx.clearRect(0, 0, w, h);
+
+    /* Mouse glow */
+    const grd = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 220);
+    grd.addColorStop(0, 'rgba(200,224,64,0.04)');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, w, h);
+
     for (const p of particles) {
+      /* Mouse repulsion */
+      const mdx = p.x - mouseX, mdy = p.y - mouseY;
+      const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+      if (mdist < 120) {
+        const force = (120 - mdist) / 120 * 0.3;
+        p.dx += (mdx / mdist) * force;
+        p.dy += (mdy / mdist) * force;
+      }
+
+      /* Damping */
+      p.dx *= 0.99; p.dy *= 0.99;
+
+      /* Speed cap */
+      const spd = Math.sqrt(p.dx*p.dx + p.dy*p.dy);
+      if (spd > 0.6) { p.dx = (p.dx/spd)*0.6; p.dy = (p.dy/spd)*0.6; }
+
       p.x += p.dx; p.y += p.dy;
+      p.pulse += 0.015;
       if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
       if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(107,138,24,${p.o})`; ctx.fill();
+
+      const osc = p.o * (0.8 + 0.2 * Math.sin(p.pulse));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r + Math.sin(p.pulse) * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(107,138,24,${osc})`;
+      ctx.fill();
     }
-    for (let i = 0; i < particles.length; i++) for (let j = i+1; j < particles.length; j++) {
-      const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
-      const dist = Math.sqrt(dx*dx+dy*dy);
-      if (dist < 140) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = `rgba(107,138,24,${0.04*(1-dist/140)})`; ctx.lineWidth = 0.5; ctx.stroke(); }
+
+    /* Connection lines */
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(107,138,24,${0.055 * (1 - dist / 150)})`;
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        }
+      }
     }
     requestAnimationFrame(draw);
   }
   draw();
+})();
+
+/* === HUB PREMIUM ANIMATIONS JS === */
+(function(){
+  /* Cursor spotlight */
+  const spotlight = document.createElement('div');
+  spotlight.className = 'cursor-hub-glow';
+  document.body.appendChild(spotlight);
+  document.addEventListener('mousemove', e => {
+    spotlight.style.left = e.clientX + 'px';
+    spotlight.style.top = e.clientY + 'px';
+  });
+
+  /* 3D Tilt — module cards */
+  document.querySelectorAll('.mod').forEach(card => {
+    card.addEventListener('mousemove', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - .5;
+      const y = (e.clientY - rect.top) / rect.height - .5;
+      this.style.transform = `perspective(640px) rotateX(${-y*5.5}deg) rotateY(${x*5.5}deg) translateY(-4px) scale(1.01)`;
+    });
+    card.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  });
+
+  /* 3D Tilt — stat cards */
+  document.querySelectorAll('.stat').forEach(card => {
+    card.addEventListener('mousemove', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - .5;
+      const y = (e.clientY - rect.top) / rect.height - .5;
+      this.style.transform = `perspective(360px) rotateX(${-y*4}deg) rotateY(${x*4}deg) translateY(-3px)`;
+    });
+    card.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  });
+
+  /* 3D Tilt — scout card */
+  const sc = document.querySelector('.scout-card');
+  if (sc) {
+    sc.addEventListener('mousemove', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - .5;
+      const y = (e.clientY - rect.top) / rect.height - .5;
+      this.style.transform = `perspective(900px) rotateX(${-y*2.8}deg) rotateY(${x*2.8}deg) translateY(-2px)`;
+    });
+    sc.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  }
+
+  /* Stagger activity feed */
+  function staggerFeed() {
+    document.querySelectorAll('.fi').forEach((item, i) => {
+      item.style.animationDelay = `${i * 65}ms`;
+    });
+  }
+  new MutationObserver(staggerFeed).observe(document.getElementById('feed-list'), { childList: true });
+  staggerFeed();
+
+  /* Ripple on shortcut rows */
+  document.querySelectorAll('.sc').forEach(item => {
+    item.addEventListener('pointerdown', function(e) {
+      const rect = this.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple-hub';
+      const size = Math.max(rect.width, rect.height);
+      Object.assign(ripple.style, {
+        position:'absolute', width:size+'px', height:size+'px',
+        left:(e.clientX-rect.left-size/2)+'px', top:(e.clientY-rect.top-size/2)+'px',
+      });
+      this.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 700);
+    });
+  });
+
+  /* Magnetic logout button */
+  const logoutBtn = document.querySelector('.tb-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('mousemove', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = (e.clientX - rect.left - rect.width/2) * .15;
+      const y = (e.clientY - rect.top - rect.height/2) * .15;
+      this.style.transform = `translate(${x}px,${y}px)`;
+    });
+    logoutBtn.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  }
 })();
 </script>
 </body>

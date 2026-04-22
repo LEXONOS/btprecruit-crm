@@ -112,11 +112,40 @@ body{
   text-align:center;margin-top:20px;font-size:9px;color:var(--mu2);
   letter-spacing:.1em;text-transform:uppercase;
 }
+
+/* ═══ REJOINDRE — PREMIUM ANIMATIONS ═══ */
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;will-change:transform}
+.orb-1{width:650px;height:650px;background:radial-gradient(circle,rgba(200,224,64,.07),transparent 65%);filter:blur(90px);top:-200px;left:-170px;animation:orbFloat1 22s ease-in-out infinite}
+.orb-2{width:550px;height:550px;background:radial-gradient(circle,rgba(45,212,160,.06),transparent 65%);filter:blur(110px);bottom:-160px;right:-100px;animation:orbFloat2 26s ease-in-out infinite}
+@keyframes orbFloat1{0%,100%{transform:translate(0,0)}33%{transform:translate(80px,-50px)}66%{transform:translate(-40px,65px)}}
+@keyframes orbFloat2{0%,100%{transform:translate(0,0)}50%{transform:translate(-70px,50px)}}
+.bg-grid{animation:gridDrift 55s linear infinite}
+@keyframes gridDrift{to{background-position:48px 48px,48px 48px}}
+.bg-glow{animation:glowPulse 6s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{opacity:.6;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}}
+.card{animation:cardIn .65s cubic-bezier(.16,1,.3,1) .05s both}
+@keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.965)}to{opacity:1;transform:none}}
+.field-input{transition:border-color .2s,box-shadow .25s,background .15s}
+.field-input:focus{border-color:rgba(200,224,64,.6);box-shadow:0 0 0 3px rgba(200,224,64,.07);background:var(--s3)}
+.btn-submit{position:relative;overflow:hidden;transition:all .25s cubic-bezier(.16,1,.3,1)}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(200,224,64,.38)}
+.btn-submit::before{content:'';position:absolute;top:0;left:-115%;width:80%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),transparent);transform:skewX(-25deg)}
+.btn-submit:hover::before{left:130%;transition:left .55s ease}
+.ripple-el{position:absolute;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);animation:rippleAnim .7s ease-out forwards;pointer-events:none}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
+@keyframes shakeErr{0%,100%{transform:translateX(0)}14%{transform:translateX(-10px)}28%{transform:translateX(10px)}42%{transform:translateX(-8px)}56%{transform:translateX(8px)}70%{transform:translateX(-4px)}84%{transform:translateX(4px)}}
+.shake{animation:shakeErr .52s cubic-bezier(.36,.07,.19,.97)}
+.success-icon{animation:successPop .5s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes successPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.cursor-spotlight{position:fixed;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(200,224,64,.032),transparent 60%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .18s linear,top .18s linear}
 </style>
 </head>
 <body>
 <div class="bg-grid"></div>
 <div class="bg-glow"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="cursor-spotlight" id="cursor-spotlight"></div>
 
 <div class="card">
   <div class="logo">
@@ -218,6 +247,42 @@ async function submitRequest(e) {
   document.getElementById('form-wrap').style.display = 'none';
   document.getElementById('success-wrap').style.display = 'block';
 }
+
+/* === REJOINDRE PREMIUM ANIMATIONS JS === */
+(function(){
+  const spotlight = document.getElementById('cursor-spotlight');
+  document.addEventListener('mousemove', e => {
+    spotlight.style.left = e.clientX + 'px';
+    spotlight.style.top = e.clientY + 'px';
+  });
+
+  const btn = document.getElementById('btn-submit');
+  btn.addEventListener('pointerdown', function(e) {
+    const rect = this.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple-el';
+    const size = Math.max(rect.width, rect.height);
+    Object.assign(ripple.style, { width:size+'px', height:size+'px', left:(e.clientX-rect.left-size/2)+'px', top:(e.clientY-rect.top-size/2)+'px' });
+    this.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 750);
+  });
+  btn.addEventListener('mousemove', function(e) {
+    const rect = this.getBoundingClientRect();
+    const x = (e.clientX-rect.left-rect.width/2)*.09;
+    const y = (e.clientY-rect.top-rect.height/2)*.09;
+    this.style.transform = `translateY(-2px) translate(${x}px,${y}px)`;
+  });
+  btn.addEventListener('mouseleave', function() { this.style.transform = ''; });
+
+  const msgEl = document.getElementById('msg');
+  new MutationObserver(() => {
+    if (msgEl.classList.contains('err') && msgEl.textContent.trim()) {
+      document.querySelectorAll('.field-input').forEach(inp => {
+        inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake');
+      });
+    }
+  }).observe(msgEl, { attributes:true, characterData:true, childList:true });
+})();
 </script>
 </body>
 </html>

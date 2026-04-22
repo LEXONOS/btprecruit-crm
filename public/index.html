@@ -128,11 +128,79 @@ body{
   font-size:9px;color:var(--mu2);
   letter-spacing:.1em;text-transform:uppercase;
 }
+
+/* ═══ NOVALEM LOGIN — PREMIUM ANIMATIONS ═══ */
+
+/* Floating ambient orbs */
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;will-change:transform}
+.orb-1{width:700px;height:700px;background:radial-gradient(circle,rgba(200,224,64,.07) 0%,transparent 65%);filter:blur(90px);top:-220px;left:-180px;animation:orbFloat1 22s ease-in-out infinite}
+.orb-2{width:600px;height:600px;background:radial-gradient(circle,rgba(45,212,160,.06) 0%,transparent 65%);filter:blur(110px);bottom:-180px;right:-120px;animation:orbFloat2 28s ease-in-out infinite}
+.orb-3{width:420px;height:420px;background:radial-gradient(circle,rgba(91,141,239,.045) 0%,transparent 65%);filter:blur(75px);top:38%;left:52%;animation:orbFloat3 19s ease-in-out infinite}
+@keyframes orbFloat1{0%,100%{transform:translate(0,0)}33%{transform:translate(80px,-50px)}66%{transform:translate(-40px,65px)}}
+@keyframes orbFloat2{0%,100%{transform:translate(0,0)}40%{transform:translate(-70px,40px)}80%{transform:translate(55px,-65px)}}
+@keyframes orbFloat3{0%,100%{transform:translate(0,0)}50%{transform:translate(-90px,55px)}}
+
+/* Grid slow drift */
+.bg-grid{animation:gridDrift 55s linear infinite}
+@keyframes gridDrift{from{background-position:0 0,0 0}to{background-position:48px 48px,48px 48px}}
+
+/* Central glow pulse */
+.bg-glow{animation:glowPulse 6s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{opacity:.6;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}}
+
+/* Cursor spotlight */
+.cursor-spotlight{position:fixed;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(200,224,64,.032) 0%,transparent 60%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .18s linear,top .18s linear;will-change:left,top}
+
+/* Card entrance — 3D from top */
+.card{animation:cardEntrance .7s cubic-bezier(.16,1,.3,1) .05s both}
+@keyframes cardEntrance{from{opacity:0;transform:translateY(30px) scale(.965)}to{opacity:1;transform:none}}
+.logo{animation:fadeSlide .55s cubic-bezier(.16,1,.3,1) both}
+.box{animation:fadeSlide .55s cubic-bezier(.16,1,.3,1) .08s both}
+.link-join{animation:fadeSlide .45s cubic-bezier(.16,1,.3,1) .18s both}
+.footer{animation:fadeSlide .45s cubic-bezier(.16,1,.3,1) .24s both}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* Logo mark pulsing glow */
+.logo-mark{animation:logoGlow 5s ease-in-out infinite}
+@keyframes logoGlow{0%,100%{text-shadow:none}50%{text-shadow:0 0 40px rgba(200,224,64,.14)}}
+
+/* Input enhanced focus */
+.field-input{transition:border-color .2s,box-shadow .25s,background .15s}
+.field-input:focus{border-color:rgba(200,224,64,.6);box-shadow:0 0 0 3px rgba(200,224,64,.07),0 2px 16px rgba(0,0,0,.25);background:var(--s3)}
+.field{transition:transform .15s}
+.field:has(.field-input:focus){transform:translateX(2px)}
+.field:has(.field-input:focus) .field-label{color:rgba(200,224,64,.85);transition:color .2s}
+
+/* Button premium */
+.btn-submit{position:relative;overflow:hidden;transition:all .25s cubic-bezier(.16,1,.3,1)}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(200,224,64,.38),0 4px 14px rgba(200,224,64,.18)}
+.btn-submit::before{content:'';position:absolute;top:0;left:-115%;width:80%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),transparent);transform:skewX(-25deg)}
+.btn-submit:hover::before{left:130%;transition:left .55s ease}
+
+/* Ripple */
+.ripple-el{position:absolute;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);animation:rippleAnim .7s ease-out forwards;pointer-events:none}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
+
+/* Error shake */
+@keyframes shakeErr{0%,100%{transform:translateX(0)}14%{transform:translateX(-10px)}28%{transform:translateX(10px)}42%{transform:translateX(-8px)}56%{transform:translateX(8px)}70%{transform:translateX(-4px)}84%{transform:translateX(4px)}}
+.shake{animation:shakeErr .52s cubic-bezier(.36,.07,.19,.97)}
+
+/* Loader ring glow */
+.loader-ring{border-color:rgba(45,212,160,.14);border-top-color:var(--green);box-shadow:0 0 14px rgba(45,212,160,.2)}
+
+/* Box shine edge */
+.box{position:relative;overflow:hidden}
+.box::after{content:'';position:absolute;top:0;left:-200%;width:100%;height:100%;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.025) 50%,transparent 60%);pointer-events:none;animation:boxShine 8s ease-in-out infinite 2s}
+@keyframes boxShine{0%{left:-200%}40%,100%{left:200%}}
 </style>
 </head>
 <body>
 <div class="bg-grid"></div>
 <div class="bg-glow"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="cursor-spotlight" id="cursor-spotlight"></div>
 
 <div class="card">
   <div class="logo">
@@ -256,6 +324,64 @@ async function login(e) {
 
   window.location.href = HUB_URL;
 }
+
+/* === NOVALEM LOGIN — PREMIUM ANIMATIONS JS === */
+(function(){
+  // Cursor spotlight
+  const spotlight = document.getElementById('cursor-spotlight');
+  document.addEventListener('mousemove', e => {
+    spotlight.style.left = e.clientX + 'px';
+    spotlight.style.top = e.clientY + 'px';
+  });
+
+  // Ripple + magnetic on submit button
+  const btn = document.getElementById('btn-submit');
+  btn.addEventListener('pointerdown', function(e) {
+    const rect = this.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple-el';
+    const size = Math.max(rect.width, rect.height);
+    Object.assign(ripple.style, {
+      width: size + 'px', height: size + 'px',
+      left: (e.clientX - rect.left - size / 2) + 'px',
+      top: (e.clientY - rect.top - size / 2) + 'px',
+    });
+    this.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 750);
+  });
+
+  btn.addEventListener('mousemove', function(e) {
+    const rect = this.getBoundingClientRect();
+    const x = (e.clientX - rect.left - rect.width / 2) * .09;
+    const y = (e.clientY - rect.top - rect.height / 2) * .09;
+    this.style.transform = `translateY(-2px) translate(${x}px,${y}px)`;
+  });
+  btn.addEventListener('mouseleave', function() { this.style.transform = ''; });
+
+  // Shake inputs on error
+  const msgEl = document.getElementById('msg');
+  new MutationObserver(() => {
+    if (msgEl.classList.contains('err') && msgEl.textContent.trim()) {
+      document.querySelectorAll('.field-input').forEach(inp => {
+        inp.classList.remove('shake');
+        void inp.offsetWidth;
+        inp.classList.add('shake');
+      });
+    }
+  }).observe(msgEl, { attributes: true, characterData: true, childList: true });
+
+  // Magnetic link-join
+  const linkJoin = document.querySelector('.link-join');
+  if (linkJoin) {
+    linkJoin.addEventListener('mousemove', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = (e.clientX - rect.left - rect.width / 2) * .12;
+      const y = (e.clientY - rect.top - rect.height / 2) * .12;
+      this.style.transform = `translate(${x}px,${y}px)`;
+    });
+    linkJoin.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  }
+})();
 
 // Session existante → redirect
 (async function checkSession() {

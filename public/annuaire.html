@@ -72,7 +72,7 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
 .empty-text{font-size:12px}
 
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.contacts-grid{animation:fadeIn .4s ease both}
+.contacts-grid{animation:none}
 
 @media(max-width:700px){
   .contacts-grid{grid-template-columns:1fr}
@@ -84,6 +84,55 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:99px}
+
+/* ═══ ANNUAIRE — PREMIUM ANIMATIONS ═══ */
+
+.topbar{animation:topIn .4s cubic-bezier(.16,1,.3,1)}
+@keyframes topIn{from{transform:translateY(-52px);opacity:0}to{transform:none;opacity:1}}
+
+.page-header{animation:fadeUp .5s cubic-bezier(.16,1,.3,1) .05s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* Grid drift */
+.bg-grid{animation:gridDrift 60s linear infinite}
+@keyframes gridDrift{to{background-position:60px 60px,60px 60px}}
+
+/* Contact cards stagger entrance */
+.contact-card{opacity:0;transform:translateY(16px) scale(.97);transition:opacity .45s cubic-bezier(.16,1,.3,1),transform .45s cubic-bezier(.16,1,.3,1),border-color .2s,box-shadow .2s}
+.contact-card.visible{opacity:1;transform:none}
+
+/* Contact card hover — 3D tilt */
+.contact-card:hover{transform:translateY(-3px) perspective(400px) rotateX(1deg);box-shadow:0 12px 36px rgba(0,0,0,.45),0 0 0 1px var(--bd2)}
+
+/* Avatar glow on hover */
+.cc-avatar{transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s}
+.contact-card:hover .cc-avatar{transform:scale(1.1);box-shadow:0 0 18px currentColor}
+
+/* Badge pulse */
+.cc-badge{transition:opacity .15s}
+.contact-card:hover .cc-badge{filter:brightness(1.2)}
+
+/* Button hover */
+.cc-btn{transition:all .15s cubic-bezier(.16,1,.3,1)}
+.cc-btn:hover{transform:translateY(-1px)}
+.cc-btn.primary:hover{box-shadow:0 4px 16px rgba(74,132,226,.25)}
+
+/* Tab active indicator slide */
+.tabs{position:relative}
+.tab{transition:color .18s;position:relative}
+.tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--blue);transform:scaleX(0);transition:transform .2s cubic-bezier(.34,1.56,.64,1);transform-origin:center}
+.tab.active::after{transform:scaleX(1)}
+.tab.active{border-bottom-color:transparent !important}
+
+/* Search focus glow */
+.tb-search{transition:border-color .2s,box-shadow .2s,width .25s}
+.tb-search:focus{box-shadow:0 0 0 3px rgba(74,132,226,.1),0 2px 12px rgba(0,0,0,.2);width:300px}
+
+/* Cursor glow */
+.cursor-ann{position:fixed;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(74,132,226,.025) 0%,transparent 60%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .2s linear,top .2s linear}
+
+/* Ripple keyframe (used by JS) */
+@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
 </style>
 </head>
 <body>
@@ -185,6 +234,64 @@ function renderContacts() {
 
 function filterContacts() { renderContacts(); }
 renderContacts();
+
+/* === ANNUAIRE PREMIUM ANIMATIONS JS === */
+(function(){
+  /* Cursor glow */
+  const cg = document.createElement('div');
+  cg.className = 'cursor-ann';
+  document.body.appendChild(cg);
+  document.addEventListener('mousemove', e => {
+    cg.style.left = e.clientX + 'px';
+    cg.style.top = e.clientY + 'px';
+  });
+
+  /* Stagger contact cards on render */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.05 });
+
+  function observeCards() {
+    document.querySelectorAll('.contact-card').forEach((card, i) => {
+      card.style.transitionDelay = `${i * 60}ms`;
+      io.observe(card);
+    });
+  }
+
+  /* Watch for DOM updates when switching tabs */
+  new MutationObserver(observeCards).observe(
+    document.getElementById('contacts-grid'), { childList: true }
+  );
+  observeCards();
+
+  /* Tab click ripple */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('pointerdown', function(e) {
+      const ripple = document.createElement('span');
+      const rect = this.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      Object.assign(ripple.style, {
+        position:'absolute', borderRadius:'50%',
+        width: size + 'px', height: size + 'px',
+        left: (e.clientX - rect.left - size/2) + 'px',
+        top: (e.clientY - rect.top - size/2) + 'px',
+        background: 'rgba(74,132,226,.12)',
+        transform: 'scale(0)',
+        animation: 'rippleAnim .6s ease-out forwards',
+        pointerEvents: 'none',
+      });
+      this.style.position = 'relative';
+      this.style.overflow = 'hidden';
+      this.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 650);
+    });
+  });
+})();
 </script>
 </body>
 </html>

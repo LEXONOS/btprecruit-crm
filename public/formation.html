@@ -598,6 +598,83 @@ a{color:inherit;text-decoration:none}
   .promise{grid-template-columns:1fr;gap:16px;padding:22px}
   .promise-stat{text-align:left}
 }
+
+/* ═══ ACADÉMIE — PREMIUM ANIMATIONS ═══ */
+
+/* Topbar entrance */
+.topbar{animation:topIn .4s cubic-bezier(.16,1,.3,1)}
+@keyframes topIn{from{transform:translateY(-56px);opacity:0}to{transform:none;opacity:1}}
+
+/* View transition enhanced */
+.view.active{animation:viewSlide .45s cubic-bezier(.16,1,.3,1)}
+@keyframes viewSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* Hero title gradient */
+.home-hero h1{background:linear-gradient(120deg,var(--tx) 0%,var(--pri-ink) 45%,var(--ok-ink) 80%,var(--tx) 100%);background-size:280%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:heroGrad 9s ease-in-out infinite}
+@keyframes heroGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* Chapter cards — staggered entrance */
+.chap-card{opacity:0;transform:translateY(16px) scale(.97);transition:opacity .45s cubic-bezier(.16,1,.3,1),transform .45s cubic-bezier(.16,1,.3,1),border-color .2s,box-shadow .2s}
+.chap-card.visible{opacity:1;transform:none}
+.chap-card:not(.locked):hover{transform:translateY(-3px) scale(1.005);box-shadow:var(--sh3)}
+
+/* Chapter num bounce on hover */
+.chap-num{transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .2s,box-shadow .2s}
+.chap-card:not(.locked):hover .chap-num{transform:scale(1.1) rotate(-3deg)}
+
+/* Chapter arrow spring */
+.chap-arrow{transition:.25s cubic-bezier(.34,1.56,.64,1)}
+.chap-card:not(.locked):hover .chap-arrow{transform:translateX(4px) scale(1.1)}
+
+/* Module items stagger */
+.mod-item{opacity:0;transform:translateX(-12px);transition:opacity .4s cubic-bezier(.16,1,.3,1),transform .4s cubic-bezier(.16,1,.3,1)}
+.mod-item.visible{opacity:1;transform:none}
+.mod-item:not(.locked):hover{transform:translateX(6px) !important;box-shadow:var(--sh2)}
+
+/* Module num bounce */
+.mod-num{transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .2s}
+.mod-item:not(.locked):hover .mod-num{transform:scale(1.08)}
+
+/* Progress fill shimmer */
+@keyframes progShimmer{0%,100%{box-shadow:0 0 0 0 var(--pri-br)}50%{box-shadow:0 0 12px 2px var(--pri-br)}}
+.chap-prog-fill{animation:progShimmer 2.5s ease-in-out infinite}
+.tb-progress-fill{animation:progShimmer 2.5s ease-in-out infinite}
+
+/* Continue card shine */
+.continue-card{position:relative;overflow:hidden}
+.continue-card::after{content:'';position:absolute;top:0;left:-150%;width:80%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.1),transparent);transform:skewX(-20deg);pointer-events:none}
+.continue-card:hover::after{left:180%;transition:left .6s ease}
+.continue-btn{transition:.2s cubic-bezier(.16,1,.3,1)}
+.continue-btn:hover{transform:translateX(4px) scale(1.02);box-shadow:0 6px 20px rgba(0,0,0,.2)}
+
+/* Lesson slide-in */
+.lesson{animation:lessonIn .45s cubic-bezier(.16,1,.3,1)}
+@keyframes lessonIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* Ex card animation */
+.ex-card{animation:lessonIn .45s cubic-bezier(.16,1,.3,1)}
+
+/* XP chips topbar pop */
+.tb-xp,.tb-lives,.tb-streak{transition:transform .15s cubic-bezier(.34,1.56,.64,1)}
+.tb-xp:hover,.tb-lives:hover,.tb-streak:hover{transform:scale(1.05)}
+
+/* Promise card accent bar gradient shift */
+.promise::before,.chapter-promise{border-color:transparent;border-left-color:var(--pri)}
+.promise::before{background:linear-gradient(180deg,var(--pri),var(--ok));background-size:100% 200%;animation:barShift 3s ease-in-out infinite alternate}
+@keyframes barShift{from{background-position:0 0}to{background-position:0 100%}}
+
+/* Kicker dot pulse */
+.continue-kicker::before{animation:kickPulse 2s ease-in-out infinite}
+@keyframes kickPulse{0%,100%{box-shadow:0 0 0 0 var(--pri-br)}50%{box-shadow:0 0 0 8px rgba(168,192,48,0),0 0 14px var(--pri-br)}}
+
+/* Button premium */
+.btn-primary{position:relative;overflow:hidden}
+.btn-primary::before{content:'';position:absolute;top:0;left:-115%;width:80%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-25deg)}
+.btn-primary:hover::before{left:130%;transition:left .5s ease}
+.btn-primary:hover{transform:translateY(-2px) !important;box-shadow:var(--sh2) !important}
+
+/* Cursor glow */
+.cursor-acad{position:fixed;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(168,192,48,.03) 0%,transparent 60%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .2s linear,top .2s linear}
 </style>
 </head>
 <body>
@@ -2227,6 +2304,63 @@ MODULES['1.5'] = {
 // ═══════════════════════════════════════════════════════════════
 updateTopbar();
 showView('home');
+
+/* === ACADÉMIE PREMIUM ANIMATIONS JS === */
+(function(){
+  /* Cursor glow */
+  const cg = document.createElement('div');
+  cg.className = 'cursor-acad';
+  document.body.appendChild(cg);
+  document.addEventListener('mousemove', e => {
+    cg.style.left = e.clientX + 'px';
+    cg.style.top = e.clientY + 'px';
+  });
+
+  /* Intersection Observer — trigger when elements enter viewport */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.04, rootMargin: '0px 0px -20px 0px' });
+
+  /* Observe function — called each time a view is rendered */
+  function observeAll() {
+    /* Chapter cards */
+    document.querySelectorAll('.chap-card:not(.visible)').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 55}ms`;
+      io.observe(el);
+    });
+    /* Module items */
+    document.querySelectorAll('.mod-item:not(.visible)').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 40}ms`;
+      io.observe(el);
+    });
+  }
+
+  /* Watch DOM changes (view switches) */
+  new MutationObserver(observeAll).observe(document.querySelector('.main'), { childList: true, subtree: true });
+  observeAll();
+
+  /* 3D Tilt on chapter cards */
+  document.addEventListener('mousemove', function(e) {
+    const card = e.target.closest('.chap-card:not(.locked)');
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - .5;
+    const y = (e.clientY - rect.top) / rect.height - .5;
+    card.style.transform = `perspective(700px) rotateX(${-y*3}deg) rotateY(${x*3}deg) translateY(-3px)`;
+  });
+  document.addEventListener('mouseleave', function(e) {
+    const card = e.target.closest && e.target.closest('.chap-card');
+    if (card) card.style.transform = '';
+  }, true);
+  document.querySelectorAll('.chap-card').forEach(card => {
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+  });
+})();
 </script>
 </body>
 </html>
