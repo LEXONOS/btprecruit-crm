@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Novalem — Académie</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   NOVALEM ACADÉMIE — Learning-platform grade
+   ═══════════════════════════════════════════════════════════════ */
+
+:root{
+  --bg:#fafbfc;
+  --s0:#ffffff;
+  --s1:#f5f6f8;
+  --s2:#eef0f3;
+  --s3:#e2e5ea;
+
+  --bd:rgba(0,0,0,.07);
+  --bd2:rgba(0,0,0,.11);
+  --bd3:rgba(0,0,0,.16);
+  --bd4:rgba(0,0,0,.22);
+
+  --tx:#0f1012;
+  --tx2:#3a3d44;
+  --mu:#6e727a;
+  --mu2:#9aa0a7;
+  --mu3:#c3c7cd;
+
+  --pri:#a8c030;
+  --pri-dark:#7d9020;
+  --pri-ink:#4a5812;
+  --pri-bg:#f0f5d8;
+  --pri-br:rgba(168,192,48,.40);
+
+  --ok:#16a34a;
+  --ok-ink:#0f7a38;
+  --ok-bg:#e8f5ee;
+  --ok-br:rgba(22,163,74,.35);
+
+  --ko:#dc2626;
+  --ko-ink:#b01c1c;
+  --ko-bg:#fdeaea;
+  --ko-br:rgba(220,38,38,.32);
+
+  --warn:#ea580c;
+  --warn-ink:#b44309;
+  --warn-bg:#fdece0;
+  --warn-br:rgba(234,88,12,.32);
+
+  --info:#2563eb;
+  --info-ink:#1b4ec1;
+  --info-bg:#e7efff;
+  --info-br:rgba(37,99,235,.32);
+
+  --pur:#9333ea;
+  --pur-ink:#6b21a8;
+  --pur-bg:#f2e8ff;
+  --pur-br:rgba(147,51,234,.32);
+
+  --gold:#c89618;
+  --gold-ink:#9a7010;
+  --gold-bg:#fbf4dd;
+
+  --glass:rgba(255,255,255,.90);
+  --sh1:0 1px 2px rgba(18,20,25,.04);
+  --sh2:0 4px 14px rgba(18,20,25,.06),0 1px 3px rgba(18,20,25,.04);
+  --sh3:0 12px 34px rgba(18,20,25,.10),0 4px 12px rgba(18,20,25,.06);
+  --sh-glow-pri:0 0 0 4px var(--pri-br);
+
+  --r-sm:6px;
+  --r-md:10px;
+  --r-lg:14px;
+  --r-xl:18px;
+  --r-2xl:24px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+::selection{background:rgba(168,192,48,.35);color:var(--tx)}
+button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;padding:0}
+input,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+
+.hidden{display:none !important}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ── TOPBAR ─────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:var(--glass);
+  backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);
+  border-bottom:1px solid var(--bd);
+  padding:0 24px;height:56px;
+  display:flex;align-items:center;gap:14px;
+}
+.tb-back{display:flex;align-items:center;gap:6px;padding:7px 12px;font-size:12px;background:var(--s1);border:1px solid var(--bd);color:var(--mu);border-radius:var(--r-md);cursor:pointer;transition:.15s;text-decoration:none;font-weight:500}
+.tb-back:hover{border-color:var(--bd2);color:var(--tx);background:var(--s2)}
+.tb-back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.tb-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx)}
+.tb-brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--pri),#8fa625);display:flex;align-items:center;justify-content:center}
+.tb-brand-icon svg{width:16px;height:16px;stroke:#1a2000;fill:none;stroke-width:2.5}
+.tb-brand-text{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.4px}
+.tb-brand-text span{color:var(--pri-ink)}
+.tb-sep{width:1px;height:20px;background:var(--bd2)}
+.tb-crumb{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
+.tb-spacer{flex:1}
+
+.tb-lives{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--s1);border:1px solid var(--bd);border-radius:999px;font-family:'DM Mono',monospace;font-size:11px;color:var(--tx2);font-weight:600;transition:.2s}
+.tb-lives.low{background:var(--ko-bg);border-color:var(--ko-br);color:var(--ko-ink)}
+.tb-lives svg{width:14px;height:14px;fill:var(--pri);stroke:var(--pri-ink);stroke-width:1.5;transition:.2s}
+.tb-lives.low svg{fill:var(--ko);stroke:var(--ko-ink)}
+.tb-lives b{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
+
+.tb-xp{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--pri-bg);border:1px solid var(--pri-br);border-radius:999px;font-family:'DM Mono',monospace;font-size:11px;color:var(--pri-ink);font-weight:600}
+.tb-xp svg{width:13px;height:13px;fill:var(--pri-ink);stroke:none}
+.tb-xp b{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
+
+.tb-streak{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--warn-bg);border:1px solid var(--warn-br);border-radius:999px;font-family:'DM Mono',monospace;font-size:11px;color:var(--warn-ink);font-weight:600}
+.tb-streak svg{width:13px;height:13px;fill:var(--warn);stroke:var(--warn-ink);stroke-width:1.5}
+.tb-streak b{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
+
+.tb-progress{flex:1;max-width:420px;display:none;align-items:center;gap:10px;padding:0 6px}
+.tb-progress.show{display:flex}
+.tb-progress-close{width:28px;height:28px;border-radius:50%;background:var(--s1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
+.tb-progress-close:hover{background:var(--s2);border-color:var(--bd2)}
+.tb-progress-close svg{width:12px;height:12px;stroke:var(--mu);fill:none;stroke-width:2.2}
+.tb-progress-bar{flex:1;height:10px;background:var(--s2);border-radius:99px;overflow:hidden;border:1px solid var(--bd)}
+.tb-progress-fill{height:100%;background:linear-gradient(90deg,var(--pri),#90a825);border-radius:99px;transition:width .45s cubic-bezier(.22,.68,0,1.2);box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+
+/* ── MAIN ─────────────────────────────────────── */
+.main{position:relative;min-height:calc(100vh - 56px)}
+.view{display:none;animation:viewIn .45s cubic-bezier(.22,.68,0,1.2)}
+.view.active{display:block}
+@keyframes viewIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.wrap{max-width:960px;margin:0 auto;padding:32px 24px 80px}
+.wrap-wide{max-width:1120px;margin:0 auto;padding:32px 24px 80px}
+.wrap-narrow{max-width:680px;margin:0 auto;padding:32px 24px 80px}
+
+/* ══ HOME VIEW ══ */
+.home-hero{margin-bottom:36px}
+.home-kicker{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-weight:500}
+.home-kicker::before{content:'';width:18px;height:1px;background:var(--mu2)}
+.home-hero h1{font-family:'Syne',sans-serif;font-weight:800;font-size:42px;letter-spacing:-1.8px;line-height:1.05;margin-bottom:14px;color:var(--tx)}
+.home-hero h1 .accent{color:var(--pri-ink)}
+.home-hero-sub{font-size:15px;color:var(--tx2);line-height:1.65;max-width:560px}
+
+.promise{
+  display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;
+  padding:26px 30px;margin-bottom:40px;
+  background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-xl);
+  box-shadow:var(--sh1);position:relative;overflow:hidden;
+}
+.promise::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:linear-gradient(180deg,var(--pri),var(--ok))}
+.promise-body{max-width:560px}
+.promise-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pri-ink);margin-bottom:8px;font-weight:700}
+.promise-text{font-family:'Syne',sans-serif;font-weight:500;font-size:19px;line-height:1.45;color:var(--tx);letter-spacing:-.3px}
+.promise-text em{color:var(--pri-ink);font-style:normal;font-weight:700}
+.promise-stat{text-align:right}
+.promise-stat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:40px;line-height:1;color:var(--pri-ink);letter-spacing:-1.5px}
+.promise-stat-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);margin-top:4px;font-weight:600}
+
+.path{position:relative;padding:20px 0 10px}
+.path-intro{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.path-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);font-weight:600}
+.path-line{flex:1;height:1px;background:linear-gradient(90deg,var(--bd2),transparent)}
+.path-nodes{display:flex;flex-direction:column;gap:14px;position:relative}
+
+.chap-card{
+  background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-xl);
+  padding:0;cursor:pointer;transition:.25s cubic-bezier(.22,.68,0,1.2);
+  position:relative;overflow:hidden;box-shadow:var(--sh1);
+  display:block;text-decoration:none;color:inherit;
+}
+.chap-card:hover{border-color:var(--bd2);transform:translateY(-2px);box-shadow:var(--sh2)}
+.chap-card.locked{opacity:.6;cursor:not-allowed}
+.chap-card.locked:hover{transform:none;box-shadow:var(--sh1);border-color:var(--bd)}
+.chap-card-inner{display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center;padding:22px 26px}
+.chap-num{
+  width:58px;height:58px;border-radius:16px;
+  background:var(--s1);border:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:24px;
+  letter-spacing:-.5px;color:var(--mu);flex-shrink:0;transition:.2s;
+}
+.chap-card.completed .chap-num{background:var(--pri-bg);border-color:var(--pri-br);color:var(--pri-ink)}
+.chap-card.in-progress .chap-num{background:var(--info-bg);border-color:var(--info-br);color:var(--info-ink)}
+.chap-body{min-width:0;padding-right:20px}
+.chap-kicker{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap}
+.chap-tag{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);font-weight:600}
+.chap-pill{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.12em;padding:3px 8px;border-radius:999px;font-weight:700;background:var(--s2);color:var(--mu);border:1px solid var(--bd)}
+.chap-pill.new{background:var(--pri-bg);color:var(--pri-ink);border-color:var(--pri-br)}
+.chap-pill.done{background:var(--ok-bg);color:var(--ok-ink);border-color:var(--ok-br)}
+.chap-pill.locked{background:var(--s2);color:var(--mu)}
+.chap-title{font-family:'Syne',sans-serif;font-weight:700;font-size:20px;letter-spacing:-.4px;color:var(--tx);margin-bottom:6px;line-height:1.15}
+.chap-desc{font-size:13px;color:var(--mu);line-height:1.55;max-width:540px}
+.chap-meta{display:flex;align-items:center;gap:16px;flex-shrink:0}
+.chap-prog{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:100px}
+.chap-prog-bar{width:100px;height:6px;background:var(--s2);border-radius:99px;overflow:hidden;border:1px solid var(--bd)}
+.chap-prog-fill{height:100%;background:var(--pri);border-radius:99px;transition:width .5s cubic-bezier(.22,.68,0,1.2)}
+.chap-prog-text{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);font-weight:600}
+.chap-prog-text b{color:var(--tx);font-weight:700}
+.chap-arrow{width:36px;height:36px;border-radius:50%;background:var(--s1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;transition:.2s}
+.chap-card:hover:not(.locked) .chap-arrow{background:var(--tx);border-color:var(--tx)}
+.chap-card:hover:not(.locked) .chap-arrow svg{stroke:var(--s0)}
+.chap-arrow svg{width:14px;height:14px;stroke:var(--mu);fill:none;stroke-width:2;transition:.2s}
+.chap-lock{width:36px;height:36px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center}
+.chap-lock svg{width:14px;height:14px;stroke:var(--mu);fill:none;stroke-width:2}
+
+.continue-card{
+  background:linear-gradient(135deg,var(--pri-bg) 0%,#fafcec 100%);
+  border:1px solid var(--pri-br);border-radius:var(--r-xl);
+  padding:28px 32px;margin-bottom:24px;
+  display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;
+  position:relative;overflow:hidden;box-shadow:var(--sh2);
+}
+.continue-card::before{content:'';position:absolute;top:0;right:0;width:240px;height:100%;background:radial-gradient(circle at 70% 50%,rgba(168,192,48,.20),transparent 60%);pointer-events:none}
+.continue-body{position:relative;z-index:1}
+.continue-kicker{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pri-ink);margin-bottom:6px;font-weight:700;display:flex;align-items:center;gap:7px}
+.continue-kicker::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--pri);box-shadow:0 0 10px var(--pri-br)}
+.continue-title{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.8px;line-height:1.1;color:var(--tx);margin-bottom:6px}
+.continue-sub{font-size:13px;color:var(--tx2);line-height:1.5;max-width:440px}
+.continue-meta{display:flex;gap:14px;margin-top:14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);font-weight:500}
+.continue-meta-item{display:flex;align-items:center;gap:5px}
+.continue-meta-item svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.continue-btn{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px;padding:13px 24px;background:var(--tx);color:var(--s0);border-radius:var(--r-md);font-weight:700;font-size:14px;transition:.2s;border:none;cursor:pointer;font-family:inherit;letter-spacing:-.2px;white-space:nowrap}
+.continue-btn:hover{background:#000;transform:translateX(2px)}
+.continue-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4}
+
+/* ══ CHAPTER VIEW ══ */
+.chapter-hero{margin-bottom:36px;padding-top:8px}
+.chapter-crumb{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-family:'DM Mono',monospace;font-size:10px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+.chapter-crumb a{color:var(--mu);cursor:pointer}
+.chapter-crumb a:hover{color:var(--tx)}
+.chapter-crumb svg{width:10px;height:10px;stroke:var(--mu2);fill:none;stroke-width:2}
+.chapter-numrow{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.chapter-big-num{font-family:'Syne',sans-serif;font-weight:800;font-size:72px;letter-spacing:-3px;line-height:1;color:var(--pri-ink);opacity:.25}
+.chapter-title-box{flex:1;min-width:0}
+.chapter-title{font-family:'Syne',sans-serif;font-weight:800;font-size:36px;letter-spacing:-1.4px;line-height:1.05;color:var(--tx);margin-bottom:6px}
+.chapter-subtitle{font-family:'Syne',sans-serif;font-weight:500;font-size:17px;color:var(--mu);font-style:italic;letter-spacing:-.2px}
+.chapter-desc{font-size:14px;color:var(--tx2);line-height:1.65;max-width:620px;margin-bottom:22px}
+
+.chapter-promise{
+  padding:18px 22px;margin-bottom:32px;
+  background:var(--s0);border:1px solid var(--bd);
+  border-left:3px solid var(--pri);border-radius:0 var(--r-md) var(--r-md) 0;
+  max-width:620px;
+}
+.chapter-promise-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pri-ink);margin-bottom:6px;font-weight:700}
+.chapter-promise-txt{font-size:14px;color:var(--tx);line-height:1.55}
+
+.modules-section{margin-bottom:32px}
+.modules-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.modules-section-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);font-weight:600}
+.modules-section-stats{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu)}
+
+.mod-item{
+  display:grid;grid-template-columns:56px 1fr auto;gap:20px;align-items:center;
+  padding:18px 22px;background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-lg);
+  cursor:pointer;transition:.2s cubic-bezier(.22,.68,0,1.2);text-decoration:none;color:inherit;
+  margin-bottom:10px;box-shadow:var(--sh1);position:relative;overflow:hidden;
+}
+.mod-item:hover:not(.locked){border-color:var(--bd2);transform:translateX(4px);box-shadow:var(--sh2)}
+.mod-item.completed{background:linear-gradient(90deg,var(--ok-bg),var(--s0) 40%)}
+.mod-item.locked{opacity:.5;cursor:not-allowed}
+.mod-num{
+  width:48px;height:48px;border-radius:14px;
+  background:var(--s1);border:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:17px;
+  color:var(--mu);flex-shrink:0;transition:.2s;position:relative;
+}
+.mod-item.completed .mod-num{background:var(--ok-bg);border-color:var(--ok-br);color:var(--ok-ink)}
+.mod-item.completed .mod-num svg{width:22px;height:22px;stroke:var(--ok-ink);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.mod-item.in-progress .mod-num{background:var(--info-bg);border-color:var(--info-br);color:var(--info-ink)}
+.mod-body{min-width:0}
+.mod-tags{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.mod-tag{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.14em;padding:2px 8px;border-radius:999px;background:var(--s2);color:var(--mu);border:1px solid var(--bd);font-weight:600}
+.mod-tag.type{background:var(--info-bg);color:var(--info-ink);border-color:var(--info-br)}
+.mod-tag.boss{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--warn-br)}
+.mod-title-text{font-family:'Syne',sans-serif;font-weight:700;font-size:17px;letter-spacing:-.3px;color:var(--tx);margin-bottom:4px;line-height:1.25}
+.mod-lead{font-size:13px;color:var(--mu);line-height:1.5;max-width:560px}
+.mod-meta{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.mod-dur{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);display:flex;align-items:center;gap:5px;font-weight:500}
+.mod-dur svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.mod-xp{font-family:'DM Mono',monospace;font-size:11px;color:var(--pri-ink);display:flex;align-items:center;gap:4px;font-weight:700}
+.mod-xp svg{width:12px;height:12px;fill:var(--pri-ink)}
+.mod-go{width:32px;height:32px;border-radius:50%;background:var(--s1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;transition:.2s}
+.mod-item:hover:not(.locked) .mod-go{background:var(--tx);border-color:var(--tx)}
+.mod-item:hover:not(.locked) .mod-go svg{stroke:var(--s0);transform:translateX(1px)}
+.mod-go svg{width:13px;height:13px;stroke:var(--mu);fill:none;stroke-width:2.2;transition:.15s}
+
+/* ══ MODULE RUNNER ══ */
+.module-runner{max-width:720px;margin:0 auto;padding:24px 20px 120px;min-height:calc(100vh - 56px);display:flex;flex-direction:column}
+
+.lesson{
+  background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-xl);
+  padding:36px 40px;margin-bottom:24px;box-shadow:var(--sh1);
+  animation:slideIn .4s cubic-bezier(.22,.68,0,1.2);
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.lesson-kicker{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu);margin-bottom:12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.lesson-kicker::before{content:'';width:20px;height:1px;background:var(--mu2)}
+.lesson h2{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.9px;line-height:1.15;color:var(--tx);margin-bottom:14px}
+.lesson-body{font-size:15px;line-height:1.7;color:var(--tx2)}
+.lesson-body p{margin-bottom:14px}
+.lesson-body p:last-child{margin-bottom:0}
+.lesson-body strong{color:var(--tx);font-weight:600}
+.lesson-body em{color:var(--pri-ink);font-style:normal;font-weight:600}
+.lesson-highlight{
+  margin:20px 0;padding:16px 20px;background:var(--pri-bg);border:1px solid var(--pri-br);
+  border-radius:var(--r-md);font-size:14px;line-height:1.6;color:var(--pri-ink);
+  display:flex;gap:12px;align-items:flex-start;
+}
+.lesson-highlight svg{width:18px;height:18px;stroke:var(--pri-ink);fill:none;stroke-width:2;flex-shrink:0;margin-top:2px}
+.lesson-highlight b{display:block;color:var(--pri-ink);font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;font-weight:700}
+
+.lesson-cta{margin-top:28px;display:flex;justify-content:flex-end}
+.btn-primary{
+  padding:13px 28px;background:var(--tx);color:var(--s0);border-radius:var(--r-md);
+  font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;border:none;
+  transition:.15s;display:inline-flex;align-items:center;gap:10px;letter-spacing:-.2px;
+}
+.btn-primary:hover{background:#000;transform:translateY(-1px);box-shadow:var(--sh2)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4}
+.btn-primary.pri{background:var(--pri);color:#1a2000}
+.btn-primary.pri:hover{background:var(--pri-dark)}
+
+.btn-secondary{
+  padding:12px 22px;background:var(--s1);color:var(--tx2);border-radius:var(--r-md);
+  font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;
+  transition:.15s;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--bd);
+}
+.btn-secondary:hover{background:var(--s2);color:var(--tx);border-color:var(--bd2)}
+.btn-secondary svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+
+.ex-card{
+  background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-xl);
+  padding:32px 36px;margin-bottom:20px;box-shadow:var(--sh1);
+  animation:slideIn .4s cubic-bezier(.22,.68,0,1.2);
+}
+.ex-kicker{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.ex-type-badge{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--info-ink);background:var(--info-bg);border:1px solid var(--info-br);padding:4px 10px;border-radius:999px;font-weight:700}
+.ex-retry-badge{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-br);padding:4px 10px;border-radius:999px;font-weight:700;display:flex;align-items:center;gap:5px}
+.ex-retry-badge svg{width:10px;height:10px;stroke:var(--warn-ink);fill:none;stroke-width:2}
+.ex-prompt{font-family:'Syne',sans-serif;font-weight:700;font-size:22px;line-height:1.35;color:var(--tx);letter-spacing:-.5px;margin-bottom:22px}
+.ex-prompt-sub{font-size:13px;color:var(--mu);margin-top:-14px;margin-bottom:22px;line-height:1.5}
+
+.ex-options{display:flex;flex-direction:column;gap:10px}
+.ex-opt{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 18px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-md);
+  font-size:14px;line-height:1.5;cursor:pointer;transition:.15s;
+  text-align:left;color:var(--tx);font-family:inherit;
+}
+.ex-opt:hover:not(.disabled){border-color:var(--bd3);background:var(--s1);transform:translateX(2px)}
+.ex-opt.selected{border-color:var(--pri);background:var(--pri-bg)}
+.ex-opt.correct{border-color:var(--ok);background:var(--ok-bg);color:var(--ok-ink)}
+.ex-opt.wrong{border-color:var(--ko);background:var(--ko-bg);color:var(--ko-ink)}
+.ex-opt.disabled{cursor:default;pointer-events:none}
+.ex-opt.correct.disabled{animation:pulseOk .6s ease}
+.ex-opt.wrong.disabled{animation:shake .35s}
+@keyframes pulseOk{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.ex-opt-key{
+  width:30px;height:30px;border-radius:8px;background:var(--s2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--mu);
+  border:1px solid var(--bd);transition:.15s;
+}
+.ex-opt.selected .ex-opt-key{background:var(--pri);color:#1a2000;border-color:var(--pri-dark)}
+.ex-opt.correct .ex-opt-key{background:var(--ok);color:#fff;border-color:var(--ok-ink)}
+.ex-opt.wrong .ex-opt-key{background:var(--ko);color:#fff;border-color:var(--ko-ink)}
+.ex-opt-text{flex:1}
+.ex-opt-check{opacity:0;transition:.15s;flex-shrink:0}
+.ex-opt.correct .ex-opt-check,.ex-opt.wrong .ex-opt-check{opacity:1}
+.ex-opt-check svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+.ex-tf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.ex-tf-btn{
+  padding:28px 20px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-lg);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:20px;cursor:pointer;transition:.15s;
+  display:flex;align-items:center;justify-content:center;gap:10px;color:var(--tx);
+}
+.ex-tf-btn:hover:not(.disabled){border-color:var(--bd3);background:var(--s1);transform:translateY(-2px);box-shadow:var(--sh2)}
+.ex-tf-btn.selected{border-color:var(--pri);background:var(--pri-bg)}
+.ex-tf-btn.correct{border-color:var(--ok);background:var(--ok-bg);color:var(--ok-ink);animation:pulseOk .6s ease}
+.ex-tf-btn.wrong{border-color:var(--ko);background:var(--ko-bg);color:var(--ko-ink);animation:shake .35s}
+.ex-tf-btn.disabled{pointer-events:none}
+.ex-tf-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.4}
+
+.ex-order-list{display:flex;flex-direction:column;gap:8px}
+.ex-order-item{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;background:var(--s0);border:1.5px solid var(--bd2);
+  border-radius:var(--r-md);cursor:pointer;transition:.15s;
+}
+.ex-order-item:hover{border-color:var(--bd3);background:var(--s1)}
+.ex-order-num{
+  width:28px;height:28px;border-radius:8px;background:var(--s2);color:var(--mu);
+  display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;flex-shrink:0;
+  border:1px solid var(--bd);
+}
+.ex-order-item.placed .ex-order-num{background:var(--pri);color:#1a2000;border-color:var(--pri-dark)}
+.ex-order-text{flex:1;font-size:14px;color:var(--tx)}
+.ex-order-btns{display:flex;gap:4px;flex-shrink:0}
+.ex-order-btn{width:28px;height:28px;border-radius:6px;background:var(--s1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;transition:.1s;cursor:pointer}
+.ex-order-btn:hover{background:var(--s2);border-color:var(--bd2)}
+.ex-order-btn svg{width:12px;height:12px;stroke:var(--tx2);fill:none;stroke-width:2.4}
+.ex-order-btn:disabled{opacity:.3;cursor:not-allowed}
+
+.ex-classify{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.ex-cat{background:var(--s1);border:2px dashed var(--bd2);border-radius:var(--r-lg);padding:16px;min-height:120px;transition:.15s}
+.ex-cat-title{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);margin-bottom:10px;font-weight:700;text-align:center}
+.ex-cat.a{background:var(--info-bg);border-color:var(--info-br)}.ex-cat.a .ex-cat-title{color:var(--info-ink)}
+.ex-cat.b{background:var(--pur-bg);border-color:var(--pur-br)}.ex-cat.b .ex-cat-title{color:var(--pur-ink)}
+.ex-cat.c{background:var(--warn-bg);border-color:var(--warn-br)}.ex-cat.c .ex-cat-title{color:var(--warn-ink)}
+.ex-cat-items{display:flex;flex-direction:column;gap:6px}
+.ex-cat-drop{padding:10px 12px;background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-sm);font-size:13px;color:var(--tx);animation:slideIn .25s ease}
+.ex-cat-drop.correct{border-color:var(--ok);background:var(--ok-bg);color:var(--ok-ink)}
+.ex-cat-drop.wrong{border-color:var(--ko);background:var(--ko-bg);color:var(--ko-ink)}
+.ex-classify-pool{display:flex;flex-wrap:wrap;gap:8px;padding:16px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-md);min-height:60px}
+.ex-classify-chip{padding:10px 14px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-md);font-size:13px;color:var(--tx);cursor:pointer;transition:.15s;font-family:inherit}
+.ex-classify-chip:hover{border-color:var(--bd3);background:var(--s2);transform:translateY(-1px)}
+
+.ex-match{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ex-match-col{display:flex;flex-direction:column;gap:8px}
+.ex-match-item{
+  padding:14px 16px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-md);
+  font-size:13px;cursor:pointer;transition:.15s;color:var(--tx);
+}
+.ex-match-item:hover:not(.matched){border-color:var(--bd3);background:var(--s1)}
+.ex-match-item.selected{border-color:var(--pri);background:var(--pri-bg)}
+.ex-match-item.matched{cursor:default}
+.ex-match-item.matched-ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok-ink)}
+.ex-match-item.matched-ko{border-color:var(--ko);background:var(--ko-bg);color:var(--ko-ink);animation:shake .35s}
+
+.ex-fill-text{font-family:'Syne',sans-serif;font-weight:500;font-size:20px;line-height:1.7;color:var(--tx);margin-bottom:24px;letter-spacing:-.3px}
+.ex-fill-blank{display:inline-block;min-width:100px;padding:2px 12px;background:var(--pri-bg);border:2px dashed var(--pri-br);border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:16px;color:var(--pri-ink);font-weight:700;text-align:center;margin:0 4px}
+.ex-fill-blank.filled{background:var(--pri);color:#1a2000;border-style:solid;border-color:var(--pri-dark)}
+.ex-fill-blank.correct{background:var(--ok-bg);color:var(--ok-ink);border-color:var(--ok-br);border-style:solid}
+.ex-fill-blank.wrong{background:var(--ko-bg);color:var(--ko-ink);border-color:var(--ko-br);border-style:solid}
+.ex-fill-choices{display:flex;flex-wrap:wrap;gap:8px}
+.ex-fill-choice{padding:10px 18px;background:var(--s0);border:1.5px solid var(--bd2);border-radius:var(--r-md);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;color:var(--tx);font-family:inherit}
+.ex-fill-choice:hover:not(.used){border-color:var(--bd3);background:var(--s1);transform:translateY(-1px)}
+.ex-fill-choice.used{opacity:.35;cursor:default}
+
+.ex-scenario-ctx{
+  padding:18px 22px;margin-bottom:22px;
+  background:var(--info-bg);border:1px solid var(--info-br);border-left:3px solid var(--info);
+  border-radius:0 var(--r-md) var(--r-md) 0;font-size:14px;line-height:1.6;color:var(--info-ink);
+}
+.ex-scenario-ctx b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--info-ink);margin-bottom:6px;font-weight:700}
+
+.ex-explain{
+  margin-top:20px;padding:18px 20px;border-radius:var(--r-md);
+  display:none;animation:slideIn .35s ease;
+}
+.ex-explain.ok{background:var(--ok-bg);border:1px solid var(--ok-br)}
+.ex-explain.ko{background:var(--ko-bg);border:1px solid var(--ko-br)}
+.ex-explain.show{display:block}
+.ex-explain-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ex-explain-head svg{width:22px;height:22px;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.ex-explain.ok .ex-explain-head svg{stroke:var(--ok-ink)}
+.ex-explain.ko .ex-explain-head svg{stroke:var(--ko-ink)}
+.ex-explain-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-.2px}
+.ex-explain.ok .ex-explain-title{color:var(--ok-ink)}
+.ex-explain.ko .ex-explain-title{color:var(--ko-ink)}
+.ex-explain-body{font-size:13px;line-height:1.6;color:var(--tx2)}
+.ex-explain-body strong{color:var(--tx)}
+.ex-explain-bonus{margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd2);font-size:12px;color:var(--mu);line-height:1.5;font-style:italic}
+.ex-explain-bonus b{color:var(--tx);font-style:normal;font-weight:600;margin-right:6px}
+
+.ex-bar{
+  position:sticky;bottom:0;z-index:50;
+  background:linear-gradient(180deg,transparent 0%,var(--bg) 40%);
+  padding:20px 0 8px;margin-top:20px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.ex-bar-left{font-family:'DM Mono',monospace;font-size:11px;color:var(--mu);font-weight:500}
+.ex-bar-right{display:flex;gap:10px}
+
+/* ══ CLIFFHANGER ══ */
+.cliff{max-width:680px;margin:0 auto;padding:64px 24px 48px;text-align:center;animation:slideIn .5s cubic-bezier(.22,.68,0,1.2)}
+.cliff-badge{
+  display:inline-flex;align-items:center;gap:8px;padding:7px 16px;
+  background:var(--ok-bg);border:1px solid var(--ok-br);border-radius:999px;
+  font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--ok-ink);font-weight:700;margin-bottom:24px;
+}
+.cliff-badge svg{width:13px;height:13px;stroke:var(--ok-ink);fill:none;stroke-width:2.4}
+.cliff-title{font-family:'Syne',sans-serif;font-weight:800;font-size:42px;letter-spacing:-1.4px;line-height:1.1;color:var(--tx);margin-bottom:14px}
+.cliff-sub{font-size:15px;color:var(--tx2);line-height:1.6;max-width:500px;margin:0 auto 32px}
+
+.cliff-rewards{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:520px;margin:0 auto 40px;
+}
+.cliff-reward{padding:18px 14px;background:var(--s0);border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh1)}
+.cliff-reward-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
+.cliff-reward.xp .cliff-reward-icon{background:var(--pri-bg);border:1px solid var(--pri-br)}
+.cliff-reward.xp .cliff-reward-icon svg{fill:var(--pri-ink)}
+.cliff-reward.acc .cliff-reward-icon{background:var(--info-bg);border:1px solid var(--info-br)}
+.cliff-reward.acc .cliff-reward-icon svg{stroke:var(--info-ink);fill:none}
+.cliff-reward.streak .cliff-reward-icon{background:var(--warn-bg);border:1px solid var(--warn-br)}
+.cliff-reward.streak .cliff-reward-icon svg{fill:var(--warn);stroke:var(--warn-ink)}
+.cliff-reward-icon svg{width:16px;height:16px;stroke-width:1.8}
+.cliff-reward-val{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.6px;color:var(--tx);line-height:1}
+.cliff-reward-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);margin-top:4px;font-weight:600}
+
+.cliff-next{
+  max-width:520px;margin:0 auto 28px;
+  padding:24px 28px;background:linear-gradient(135deg,var(--tx) 0%,#1e2024 100%);
+  border-radius:var(--r-lg);color:var(--s0);text-align:left;
+  position:relative;overflow:hidden;
+}
+.cliff-next::before{content:'';position:absolute;top:0;right:0;width:180px;height:100%;background:radial-gradient(circle at 70% 50%,rgba(168,192,48,.25),transparent 60%);pointer-events:none}
+.cliff-next-lab{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--pri);margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:6px}
+.cliff-next-lab::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--pri);box-shadow:0 0 10px var(--pri)}
+.cliff-next-title{font-family:'Syne',sans-serif;font-weight:700;font-size:20px;letter-spacing:-.4px;line-height:1.2;margin-bottom:10px}
+.cliff-next-hook{font-size:13px;line-height:1.6;color:rgba(255,255,255,.75);font-style:italic;max-width:420px;position:relative;z-index:1}
+.cliff-next-hook::before{content:'\201C ';color:var(--pri);font-family:'Syne',sans-serif;font-size:20px;margin-right:2px;opacity:.8}
+.cliff-next-hook::after{content:' \201D';color:var(--pri);font-family:'Syne',sans-serif;font-size:20px;opacity:.8}
+
+.cliff-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* ══ PERFECT OVERLAY ══ */
+.overlay-perfect{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(15,16,18,.3);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:.25s;
+}
+.overlay-perfect.show{opacity:1;pointer-events:auto}
+.overlay-perfect-card{
+  background:var(--s0);border:1px solid var(--bd2);border-radius:var(--r-xl);
+  padding:36px 40px;max-width:440px;width:100%;text-align:center;
+  box-shadow:var(--sh3);transform:scale(.92);transition:.3s cubic-bezier(.22,.68,0,1.2);
+  position:relative;overflow:hidden;
+}
+.overlay-perfect.show .overlay-perfect-card{transform:scale(1)}
+.overlay-perfect-card::before{content:'';position:absolute;top:-2px;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--pri),var(--ok))}
+.overlay-perfect-big{font-family:'Syne',sans-serif;font-weight:800;font-size:46px;letter-spacing:-1.5px;line-height:1;color:var(--ok-ink);margin-bottom:10px}
+.overlay-perfect-sub{font-size:13px;color:var(--mu);margin-bottom:20px}
+.overlay-perfect-insight{padding:16px;background:var(--pri-bg);border:1px solid var(--pri-br);border-radius:var(--r-md);font-size:13px;line-height:1.55;color:var(--tx2);text-align:left}
+.overlay-perfect-insight b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pri-ink);margin-bottom:6px;font-weight:700}
+.overlay-perfect-btn{margin-top:22px;width:100%;padding:13px;background:var(--tx);color:var(--s0);border-radius:var(--r-md);font-weight:700;font-size:14px;cursor:pointer;border:none;font-family:inherit;transition:.15s}
+.overlay-perfect-btn:hover{background:#000}
+
+.confetti{position:absolute;width:8px;height:12px;pointer-events:none;animation:confettiFall 1.4s cubic-bezier(.22,.68,0,1.2) forwards;border-radius:2px}
+@keyframes confettiFall{
+  0%{opacity:0;transform:translateY(-20px) rotate(0)}
+  20%{opacity:1}
+  100%{opacity:0;transform:translateY(180px) rotate(720deg)}
+}
+
+/* ══ TOAST ══ */
+#toasts{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:380px}
+.toast{
+  padding:13px 16px;background:var(--s0);border:1px solid var(--bd2);border-radius:var(--r-md);
+  box-shadow:var(--sh3);font-size:13px;color:var(--tx);display:flex;align-items:center;gap:10px;
+  animation:toastIn .3s cubic-bezier(.22,.68,0,1.2);min-width:260px;
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(100%)}}
+.toast svg{width:16px;height:16px;fill:none;stroke-width:2.2;flex-shrink:0}
+.toast b{font-family:'Syne',sans-serif;font-weight:700;margin-right:4px}
+.toast.success{border-color:var(--ok-br)}.toast.success svg{stroke:var(--ok-ink)}
+.toast.xp{border-color:var(--pri-br);background:linear-gradient(135deg,var(--s0),var(--pri-bg))}.toast.xp svg{stroke:none;fill:var(--pri-ink)}
+.toast.info svg{stroke:var(--info-ink)}
+
+/* Responsive */
+@media(max-width:720px){
+  .topbar{padding:0 14px;gap:8px}
+  .tb-crumb,.tb-sep{display:none}
+  .wrap,.wrap-wide,.wrap-narrow{padding:20px 16px 80px}
+  .home-hero h1{font-size:32px}
+  .chap-card-inner{grid-template-columns:auto 1fr;gap:14px;padding:18px}
+  .chap-meta{display:none}
+  .chapter-title{font-size:28px}
+  .chapter-big-num{font-size:54px}
+  .mod-item{padding:14px;grid-template-columns:42px 1fr;gap:14px}
+  .mod-meta{display:none}
+  .continue-card{grid-template-columns:1fr;text-align:left}
+  .continue-title{font-size:22px}
+  .lesson,.ex-card{padding:24px 22px}
+  .lesson h2{font-size:24px}
+  .ex-prompt{font-size:18px}
+  .ex-tf-btn{padding:22px;font-size:17px}
+  .ex-match,.ex-classify{grid-template-columns:1fr}
+  .cliff-title{font-size:32px}
+  .cliff-rewards{grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .cliff-reward{padding:12px 8px}
+  .cliff-reward-val{font-size:20px}
+  .promise{grid-template-columns:1fr;gap:16px;padding:22px}
+  .promise-stat{text-align:left}
+}
+
+/* ═══ ACADÉMIE — PREMIUM ANIMATIONS ═══ */
+
+/* Topbar entrance */
+.topbar{animation:topIn .4s cubic-bezier(.16,1,.3,1)}
+@keyframes topIn{from{transform:translateY(-56px);opacity:0}to{transform:none;opacity:1}}
+
+/* View transition enhanced */
+.view.active{animation:viewSlide .45s cubic-bezier(.16,1,.3,1)}
+@keyframes viewSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* Hero title gradient */
+.home-hero h1{background:linear-gradient(120deg,var(--tx) 0%,var(--pri-ink) 45%,var(--ok-ink) 80%,var(--tx) 100%);background-size:280%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:heroGrad 9s ease-in-out infinite}
+@keyframes heroGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* Chapter cards — staggered entrance */
+.chap-card{opacity:0;transform:translateY(16px) scale(.97);transition:opacity .45s cubic-bezier(.16,1,.3,1),transform .45s cubic-bezier(.16,1,.3,1),border-color .2s,box-shadow .2s}
+.chap-card.visible{opacity:1;transform:none}
+.chap-card:not(.locked):hover{transform:translateY(-3px) scale(1.005);box-shadow:var(--sh3)}
+
+/* Chapter num bounce on hover */
+.chap-num{transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .2s,box-shadow .2s}
+.chap-card:not(.locked):hover .chap-num{transform:scale(1.1) rotate(-3deg)}
+
+/* Chapter arrow spring */
+.chap-arrow{transition:.25s cubic-bezier(.34,1.56,.64,1)}
+.chap-card:not(.locked):hover .chap-arrow{transform:translateX(4px) scale(1.1)}
+
+/* Module items stagger */
+.mod-item{opacity:0;transform:translateX(-12px);transition:opacity .4s cubic-bezier(.16,1,.3,1),transform .4s cubic-bezier(.16,1,.3,1)}
+.mod-item.visible{opacity:1;transform:none}
+.mod-item:not(.locked):hover{transform:translateX(6px) !important;box-shadow:var(--sh2)}
+
+/* Module num bounce */
+.mod-num{transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .2s}
+.mod-item:not(.locked):hover .mod-num{transform:scale(1.08)}
+
+/* Progress fill shimmer */
+@keyframes progShimmer{0%,100%{box-shadow:0 0 0 0 var(--pri-br)}50%{box-shadow:0 0 12px 2px var(--pri-br)}}
+.chap-prog-fill{animation:progShimmer 2.5s ease-in-out infinite}
+.tb-progress-fill{animation:progShimmer 2.5s ease-in-out infinite}
+
+/* Continue card shine */
+.continue-card{position:relative;overflow:hidden}
+.continue-card::after{content:'';position:absolute;top:0;left:-150%;width:80%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.1),transparent);transform:skewX(-20deg);pointer-events:none}
+.continue-card:hover::after{left:180%;transition:left .6s ease}
+.continue-btn{transition:.2s cubic-bezier(.16,1,.3,1)}
+.continue-btn:hover{transform:translateX(4px) scale(1.02);box-shadow:0 6px 20px rgba(0,0,0,.2)}
+
+/* Lesson slide-in */
+.lesson{animation:lessonIn .45s cubic-bezier(.16,1,.3,1)}
+@keyframes lessonIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* Ex card animation */
+.ex-card{animation:lessonIn .45s cubic-bezier(.16,1,.3,1)}
+
+/* XP chips topbar pop */
+.tb-xp,.tb-lives,.tb-streak{transition:transform .15s cubic-bezier(.34,1.56,.64,1)}
+.tb-xp:hover,.tb-lives:hover,.tb-streak:hover{transform:scale(1.05)}
+
+/* Promise card accent bar gradient shift */
+.promise::before,.chapter-promise{border-color:transparent;border-left-color:var(--pri)}
+.promise::before{background:linear-gradient(180deg,var(--pri),var(--ok));background-size:100% 200%;animation:barShift 3s ease-in-out infinite alternate}
+@keyframes barShift{from{background-position:0 0}to{background-position:0 100%}}
+
+/* Kicker dot pulse */
+.continue-kicker::before{animation:kickPulse 2s ease-in-out infinite}
+@keyframes kickPulse{0%,100%{box-shadow:0 0 0 0 var(--pri-br)}50%{box-shadow:0 0 0 8px rgba(168,192,48,0),0 0 14px var(--pri-br)}}
+
+/* Button premium */
+.btn-primary{position:relative;overflow:hidden}
+.btn-primary::before{content:'';position:absolute;top:0;left:-115%;width:80%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-25deg)}
+.btn-primary:hover::before{left:130%;transition:left .5s ease}
+.btn-primary:hover{transform:translateY(-2px) !important;box-shadow:var(--sh2) !important}
+
+/* Cursor glow */
+.cursor-acad{position:fixed;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(168,192,48,.03) 0%,transparent 60%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .2s linear,top .2s linear}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="/hub" class="tb-back" title="Retour au hub">
+    <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Hub
+  </a>
+  <a href="#" onclick="goHome();return false" class="tb-brand">
+    <div class="tb-brand-icon"><svg viewBox="0 0 24 24"><path d="M12 3v10M6 9l6 6 6-6"/></svg></div>
+    <div class="tb-brand-text">NOVAL<span>EM</span></div>
+  </a>
+  <div class="tb-sep"></div>
+  <div class="tb-crumb" id="tb-crumb">Académie</div>
+
+  <div class="tb-progress" id="tb-progress">
+    <button class="tb-progress-close" onclick="confirmExit()" title="Quitter">
+      <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" stroke-linecap="round"/></svg>
+    </button>
+    <div class="tb-progress-bar"><div class="tb-progress-fill" id="tb-progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="tb-spacer"></div>
+
+  <div class="tb-lives" id="tb-lives" title="Ta confiance">
+    <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linejoin="round"/></svg>
+    <b id="tb-lives-val">5</b>
+  </div>
+
+  <div class="tb-xp" title="Expérience accumulée">
+    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <b id="tb-xp">0</b> XP
+  </div>
+
+  <div class="tb-streak" title="Jours consécutifs">
+    <svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" stroke-linejoin="round"/></svg>
+    <b id="tb-streak">0</b>j
+  </div>
+</header>
+
+<main class="main">
+  <div id="view-home" class="view active"></div>
+  <div id="view-chapter" class="view"></div>
+  <div id="view-module" class="view"></div>
+  <div id="view-cliffhanger" class="view"></div>
+</main>
+
+<div class="overlay-perfect" id="overlay-perfect" onclick="if(event.target===this)closePerfect()">
+  <div class="overlay-perfect-card">
+    <div class="overlay-perfect-big" id="op-big">Exact</div>
+    <div class="overlay-perfect-sub" id="op-sub">Réponse juste du premier coup</div>
+    <div class="overlay-perfect-insight" id="op-insight">
+      <b>Pour aller plus loin</b>
+      <span id="op-insight-text"></span>
+    </div>
+    <button class="overlay-perfect-btn" onclick="closePerfect()">Continuer</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// ── PATCH SESSION (demo standalone) ──
+// Injecte un utilisateur fictif si aucune session n'existe.
+// En production, ton système de login doit écrire dans
+// sessionStorage avant d'arriver sur cette page.
+// ═══════════════════════════════════════════════════════════════
+if (!sessionStorage.getItem('novalem_user')) {
+  sessionStorage.setItem('novalem_user', JSON.stringify({
+    id: 'demo',
+    name: 'Scout',
+    ts: Date.now()
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOVALEM ACADÉMIE — Engine pédagogique v3
+// ═══════════════════════════════════════════════════════════════
+
+// ═ AUTH ═
+const rawUser = sessionStorage.getItem('novalem_user');
+if (!rawUser) { window.location.href = '/'; }
+let CURRENT_USER = null;
+try {
+  const u = JSON.parse(rawUser);
+  if (!u || !u.ts || (Date.now() - u.ts) > 8*3600000) {
+    sessionStorage.removeItem('novalem_user'); window.location.href='/';
+  } else CURRENT_USER = u;
+} catch(e){ window.location.href='/'; }
+const UID = (CURRENT_USER && CURRENT_USER.id) || 'anon';
+const STORE_KEY = `novalem_acad_${UID}`;
+
+// ═ STATE ═
+const DEFAULT_STATE = {
+  xp:0,
+  completed:[],
+  moduleScores:{},
+  lives:5,
+  streak:0,
+  lastActive:null,
+  masteredQuestions:{},
+  retryBank:{},
+  globalRetryBank:[],
+};
+let STATE = (function(){
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return Object.assign({}, DEFAULT_STATE, JSON.parse(raw)); } catch(e){}
+  return {...DEFAULT_STATE};
+})();
+function saveState(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch(e){} }
+
+// Streak tracking
+function touchStreak(){
+  const today = new Date().toISOString().slice(0,10);
+  if (STATE.lastActive === today){ return; }
+  if (STATE.lastActive){
+    const last = new Date(STATE.lastActive+'T00:00:00');
+    const now = new Date(today+'T00:00:00');
+    const diff = Math.round((now-last)/86400000);
+    if (diff === 1) STATE.streak += 1;
+    else if (diff > 1) STATE.streak = 1;
+  } else STATE.streak = 1;
+  STATE.lastActive = today; saveState();
+}
+touchStreak();
+
+// ═ TOPBAR UPDATE ═
+function updateTopbar(){
+  document.getElementById('tb-xp').textContent = STATE.xp || 0;
+  document.getElementById('tb-streak').textContent = STATE.streak || 0;
+  const lv = STATE.lives || 0;
+  document.getElementById('tb-lives-val').textContent = lv;
+  const livesEl = document.getElementById('tb-lives');
+  livesEl.classList.toggle('low', lv <= 2);
+}
+
+// ═ LIVES ═
+let _streakCorrect = 0;
+function loseLife(){
+  STATE.lives = Math.max(0, STATE.lives - 1);
+  _streakCorrect = 0;
+  saveState(); updateTopbar();
+  if (STATE.lives === 2) showToast({ type:'info', title:'Confiance basse', text:"Relâche, chaque erreur est une leçon." });
+}
+function gainLife(){
+  _streakCorrect++;
+  if (_streakCorrect >= 3 && STATE.lives < 5){
+    STATE.lives = Math.min(5, STATE.lives + 1);
+    _streakCorrect = 0;
+    saveState(); updateTopbar();
+    showToast({ type:'success', title:'Confiance', text:'Remontée — continue.' });
+  }
+}
+function resetLivesIfNewDay(){
+  const today = new Date().toISOString().slice(0,10);
+  const key = 'novalem_acad_lives_reset_' + UID;
+  const last = localStorage.getItem(key);
+  if (last !== today){
+    STATE.lives = 5;
+    localStorage.setItem(key, today);
+    saveState();
+  }
+}
+resetLivesIfNewDay();
+
+// ═ XP ═
+function addXP(n, reason){
+  STATE.xp += n; saveState(); updateTopbar();
+  if (reason) showToast({ type:'xp', title:`+${n} XP`, text: reason });
+}
+
+// ═ SPACED REPETITION ═
+const SR_INTERVALS_MS = [0, 86400000, 3*86400000, 7*86400000, 14*86400000, Infinity];
+function markMastered(exId, success){
+  const q = STATE.masteredQuestions[exId] || { level:0, lastSeenTs:0 };
+  if (success) q.level = Math.min(5, (q.level||0) + 1);
+  else q.level = Math.max(0, (q.level||0) - 1);
+  q.lastSeenTs = Date.now();
+  STATE.masteredQuestions[exId] = q;
+  saveState();
+}
+function shouldResurface(exId){
+  const q = STATE.masteredQuestions[exId];
+  if (!q) return false;
+  if (q.level >= 5) return false;
+  const interval = SR_INTERVALS_MS[q.level] || 0;
+  return (Date.now() - q.lastSeenTs) > interval;
+}
+function pickResurfaceQuestions(chapterId, n=2){
+  const candidates = [];
+  for (const modId of STATE.completed){
+    if (!modId.startsWith(chapterId+'.')) continue;
+    const mod = MODULES[modId];
+    if (!mod || !mod.exercises) continue;
+    for (const ex of mod.exercises){
+      if (ex.type === 'lesson') continue;
+      const exId = `${modId}:${ex.id}`;
+      if (shouldResurface(exId)){ candidates.push({modId, exId, ex}); }
+    }
+  }
+  for (let i=candidates.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [candidates[i],candidates[j]]=[candidates[j],candidates[i]]; }
+  return candidates.slice(0, n);
+}
+
+// ═ TOAST ═
+function showToast({ type='info', title='', text='' }){
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icons = {
+    success:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    xp:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  };
+  t.innerHTML = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">${icons[type]||icons.info}</svg><span><b>${title}</b>${text}</span>`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>{ t.style.animation='toastOut .28s ease forwards'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+// ═ CONFETTI ═
+function confetti(x, y, count=16){
+  const colors = ['#a8c030', '#16a34a', '#2563eb', '#c89618', '#9333ea'];
+  for (let i=0;i<count;i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = x + (Math.random()*60 - 30) + 'px';
+    c.style.top = y + 'px';
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDelay = (Math.random()*0.15) + 's';
+    c.style.transform = `rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(), 1600);
+  }
+}
+
+// ═ PERFECT OVERLAY ═
+function showPerfect({ big='Exact', sub='Réponse juste du premier coup', insight='' }){
+  document.getElementById('op-big').textContent = big;
+  document.getElementById('op-sub').textContent = sub;
+  const insEl = document.getElementById('op-insight');
+  if (insight){
+    insEl.style.display = '';
+    document.getElementById('op-insight-text').textContent = insight;
+  } else insEl.style.display = 'none';
+  document.getElementById('overlay-perfect').classList.add('show');
+  const card = document.querySelector('.overlay-perfect-card');
+  if (card){ const r = card.getBoundingClientRect(); confetti(r.left+r.width/2, r.top+10, 26); }
+}
+function closePerfect(){
+  document.getElementById('overlay-perfect').classList.remove('show');
+  if (typeof onPerfectContinue === 'function') onPerfectContinue();
+}
+let onPerfectContinue = null;
+
+// ═ HELPERS ═
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function firstName(){ return (CURRENT_USER && CURRENT_USER.name ? CURRENT_USER.name.split(' ')[0] : 'Scout'); }
+
+// ═══════════════════════════════════════════════════════════════
+// EXERCISE RENDERERS
+// ═══════════════════════════════════════════════════════════════
+
+const EX_LABELS = {
+  qcm:'Question', tf:'Vrai ou Faux', multi:'Sélection multiple',
+  order:'Ordonne', classify:'Classe', match:'Associe', fill:'Complète',
+  scenario:'Cas pratique', lesson:'Lecture',
+};
+
+let RUN = null;
+
+function renderExercise(ex, isRetry=false){
+  const box = document.createElement('div');
+  box.className = 'ex-card';
+  let inner = `<div class="ex-kicker">
+    <span class="ex-type-badge">${EX_LABELS[ex.type]||'Exercice'}</span>
+    ${isRetry ? `<span class="ex-retry-badge"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Revenante</span>` : ''}
+  </div>
+  <div class="ex-prompt">${ex.prompt}</div>
+  ${ex.promptSub ? `<div class="ex-prompt-sub">${ex.promptSub}</div>` : ''}`;
+
+  switch(ex.type){
+    case 'qcm':      inner += renderQCM(ex); break;
+    case 'tf':       inner += renderTF(ex); break;
+    case 'multi':    inner += renderMulti(ex); break;
+    case 'order':    inner += renderOrder(ex); break;
+    case 'classify': inner += renderClassify(ex); break;
+    case 'match':    inner += renderMatch(ex); break;
+    case 'fill':     inner += renderFill(ex); break;
+    case 'scenario': inner += renderScenario(ex); break;
+  }
+  inner += `<div class="ex-explain" id="ex-explain"></div>`;
+  box.innerHTML = inner;
+  return box;
+}
+
+// ── QCM ──
+function renderQCM(ex){
+  const opts = ex.options.map((o,i)=>`<button class="ex-opt" data-i="${i}" onclick="answerQCM(${i})">
+    <span class="ex-opt-key">${String.fromCharCode(65+i)}</span>
+    <span class="ex-opt-text">${o}</span>
+    <span class="ex-opt-check"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"></svg></span>
+  </button>`).join('');
+  return `<div class="ex-options">${opts}</div>`;
+}
+function answerQCM(i){
+  const ex = currentExercise();
+  const correct = (i === ex.correct);
+  const opts = document.querySelectorAll('.ex-opt');
+  opts.forEach(o=>o.classList.add('disabled'));
+  opts[i].classList.add(correct ? 'correct':'wrong');
+  opts[i].querySelector('.ex-opt-check svg').innerHTML = correct ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+  if (!correct) opts[ex.correct].classList.add('correct');
+  processAnswer(correct, ex);
+}
+
+// ── True/False ──
+function renderTF(ex){
+  return `<div class="ex-tf">
+    <button class="ex-tf-btn" onclick="answerTF(true)"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Vrai</button>
+    <button class="ex-tf-btn" onclick="answerTF(false)"><svg viewBox="0 0 24 24" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Faux</button>
+  </div>`;
+}
+function answerTF(val){
+  const ex = currentExercise();
+  const correct = (val === ex.answer);
+  const btns = document.querySelectorAll('.ex-tf-btn');
+  btns.forEach(b=>b.classList.add('disabled'));
+  const clicked = val ? btns[0] : btns[1];
+  clicked.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) (val ? btns[1] : btns[0]).classList.add('correct');
+  processAnswer(correct, ex);
+}
+
+// ── Multi-select ──
+function renderMulti(ex){
+  const opts = ex.options.map((o,i)=>`<button class="ex-opt" data-i="${i}" onclick="toggleMulti(${i})">
+    <span class="ex-opt-key">${String.fromCharCode(65+i)}</span>
+    <span class="ex-opt-text">${o}</span>
+    <span class="ex-opt-check"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"></svg></span>
+  </button>`).join('');
+  return `<div class="ex-options">${opts}</div>
+    <div class="ex-bar">
+      <div class="ex-bar-left">Sélectionne toutes les bonnes réponses</div>
+      <div class="ex-bar-right"><button class="btn-primary" onclick="submitMulti()">Valider</button></div>
+    </div>`;
+}
+let _multiSelected = new Set();
+function toggleMulti(i){
+  const btn = document.querySelector(`.ex-opt[data-i="${i}"]`);
+  if (_multiSelected.has(i)){ _multiSelected.delete(i); btn.classList.remove('selected'); }
+  else { _multiSelected.add(i); btn.classList.add('selected'); }
+}
+function submitMulti(){
+  const ex = currentExercise();
+  const correctSet = new Set(ex.correct);
+  const allRight = correctSet.size === _multiSelected.size && [...correctSet].every(v => _multiSelected.has(v));
+  document.querySelectorAll('.ex-opt').forEach((b,i)=>{
+    b.classList.add('disabled');
+    const isCorrect = correctSet.has(i);
+    const isSelected = _multiSelected.has(i);
+    b.classList.remove('selected');
+    if (isCorrect) b.classList.add('correct');
+    else if (isSelected) b.classList.add('wrong');
+    const check = b.querySelector('.ex-opt-check svg');
+    if (check){
+      if (isCorrect) check.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+      else if (isSelected) check.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+    }
+  });
+  _multiSelected.clear();
+  processAnswer(allRight, ex);
+}
+
+// ── Ordering ──
+let _orderState = [];
+function renderOrder(ex){
+  _orderState = shuffle(ex.items.map((t,i)=>({ text:t, origIdx:i })));
+  const html = _renderOrderList();
+  return `<div id="ex-order-wrap">${html}</div>
+    <div class="ex-bar">
+      <div class="ex-bar-left">Place dans le bon ordre, puis valide</div>
+      <div class="ex-bar-right"><button class="btn-primary" onclick="submitOrder()">Valider</button></div>
+    </div>`;
+}
+function _renderOrderList(){
+  return `<div class="ex-order-list">` + _orderState.map((it, pos)=>{
+    return `<div class="ex-order-item placed" data-pos="${pos}">
+      <span class="ex-order-num">${pos+1}</span>
+      <span class="ex-order-text">${it.text}</span>
+      <span class="ex-order-btns">
+        <button class="ex-order-btn" ${pos===0?'disabled':''} onclick="moveOrder(${pos},-1)"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+        <button class="ex-order-btn" ${pos===_orderState.length-1?'disabled':''} onclick="moveOrder(${pos},1)"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      </span>
+    </div>`;
+  }).join('') + `</div>`;
+}
+function moveOrder(pos, dir){
+  const np = pos + dir;
+  if (np < 0 || np >= _orderState.length) return;
+  [_orderState[pos], _orderState[np]] = [_orderState[np], _orderState[pos]];
+  document.getElementById('ex-order-wrap').innerHTML = _renderOrderList();
+}
+function submitOrder(){
+  const ex = currentExercise();
+  const correct = _orderState.every((it,i) => it.origIdx === i);
+  document.querySelectorAll('.ex-order-item').forEach((el,i)=>{
+    const isRight = _orderState[i].origIdx === i;
+    el.style.borderColor = isRight ? 'var(--ok)' : 'var(--ko)';
+    el.style.background = isRight ? 'var(--ok-bg)' : 'var(--ko-bg)';
+    el.querySelector('.ex-order-num').style.background = isRight ? 'var(--ok)' : 'var(--ko)';
+    el.querySelector('.ex-order-num').style.color = '#fff';
+    el.querySelector('.ex-order-num').style.borderColor = isRight ? 'var(--ok-ink)' : 'var(--ko-ink)';
+    el.querySelectorAll('.ex-order-btn').forEach(b=>b.disabled=true);
+  });
+  processAnswer(correct, ex);
+}
+
+// ── Classify ──
+let _classifyState = null;
+function renderClassify(ex){
+  _classifyState = { placed:{}, remaining: shuffle(ex.items.map((it,i)=>({...it, _i:i}))) };
+  const catsHTML = ex.categories.map((cat,ci)=>`<div class="ex-cat ${['a','b','c'][ci]||'a'}" data-cat="${ci}">
+    <div class="ex-cat-title">${cat}</div>
+    <div class="ex-cat-items" id="cat-items-${ci}"></div>
+  </div>`).join('');
+  const pool = _classifyState.remaining.map((it)=>`<button class="ex-classify-chip" onclick="classifyPick(${it._i})">${it.text}</button>`).join('');
+  return `<div class="ex-classify">${catsHTML}</div>
+    <div class="ex-classify-pool" id="classify-pool">${pool}</div>
+    <div class="ex-bar">
+      <div class="ex-bar-left">Clique sur un item puis sur une catégorie</div>
+      <div class="ex-bar-right"><button class="btn-primary" onclick="submitClassify()">Valider</button></div>
+    </div>`;
+}
+let _classifyPending = null;
+function classifyPick(i){
+  _classifyPending = i;
+  document.querySelectorAll('.ex-classify-chip').forEach(c=>c.style.opacity='.4');
+  document.querySelectorAll('.ex-classify-chip').forEach(c => {
+    if (c.onclick && c.onclick.toString().includes(`(${i})`)) c.style.opacity='1';
+  });
+  document.querySelectorAll('.ex-cat').forEach(cat=>{
+    cat.style.cursor = 'pointer';
+    cat.onclick = () => classifyDrop(parseInt(cat.dataset.cat,10));
+  });
+}
+function classifyDrop(cat){
+  if (_classifyPending === null) return;
+  const ex = currentExercise();
+  _classifyState.placed[_classifyPending] = cat;
+  const chip = [...document.querySelectorAll('.ex-classify-chip')].find(c => c.onclick && c.onclick.toString().includes(`(${_classifyPending})`));
+  if (chip) chip.remove();
+  const item = ex.items[_classifyPending];
+  const div = document.createElement('div');
+  div.className = 'ex-cat-drop';
+  div.textContent = item.text;
+  div.dataset.i = _classifyPending;
+  document.getElementById(`cat-items-${cat}`).appendChild(div);
+  _classifyPending = null;
+  document.querySelectorAll('.ex-classify-chip').forEach(c=>c.style.opacity='1');
+  document.querySelectorAll('.ex-cat').forEach(cat=>{ cat.style.cursor='default'; cat.onclick=null; });
+}
+function submitClassify(){
+  const ex = currentExercise();
+  let allRight = true;
+  for (let i=0;i<ex.items.length;i++){
+    if (_classifyState.placed[i] === undefined){ allRight = false; break; }
+    if (_classifyState.placed[i] !== ex.items[i].cat){ allRight = false; }
+  }
+  document.querySelectorAll('.ex-cat-drop').forEach(el=>{
+    const i = parseInt(el.dataset.i,10);
+    const isRight = _classifyState.placed[i] === ex.items[i].cat;
+    el.classList.add(isRight ? 'correct' : 'wrong');
+  });
+  processAnswer(allRight, ex);
+}
+
+// ── Match ──
+let _matchState = null;
+function renderMatch(ex){
+  _matchState = { selectedL:null, matched:{} };
+  const leftShuffled = shuffle(ex.pairs.map((p,i)=>({text:p[0], i})));
+  const rightShuffled = shuffle(ex.pairs.map((p,i)=>({text:p[1], i})));
+  const leftHTML = leftShuffled.map(it=>`<button class="ex-match-item" data-side="L" data-i="${it.i}" onclick="matchPickL(${it.i})">${it.text}</button>`).join('');
+  const rightHTML = rightShuffled.map(it=>`<button class="ex-match-item" data-side="R" data-i="${it.i}" onclick="matchPickR(${it.i})">${it.text}</button>`).join('');
+  return `<div class="ex-match"><div class="ex-match-col">${leftHTML}</div><div class="ex-match-col">${rightHTML}</div></div>
+    <div class="ex-bar">
+      <div class="ex-bar-left">Clique à gauche, puis sur sa paire à droite</div>
+      <div class="ex-bar-right"><button class="btn-primary" onclick="submitMatch()" id="match-valid" disabled style="opacity:.5">Valider</button></div>
+    </div>`;
+}
+function matchPickL(i){
+  if (_matchState.matched[i] !== undefined) return;
+  _matchState.selectedL = i;
+  document.querySelectorAll('.ex-match-item[data-side="L"]').forEach(el=>el.classList.remove('selected'));
+  document.querySelector(`.ex-match-item[data-side="L"][data-i="${i}"]`).classList.add('selected');
+}
+function matchPickR(i){
+  if (_matchState.selectedL === null) return;
+  const lIdx = _matchState.selectedL;
+  for (const k of Object.keys(_matchState.matched)) if (_matchState.matched[k] === i) delete _matchState.matched[k];
+  _matchState.matched[lIdx] = i;
+  _matchState.selectedL = null;
+  document.querySelectorAll('.ex-match-item').forEach(el=>el.classList.remove('selected'));
+  refreshMatchVisuals();
+  const ex = currentExercise();
+  const allPaired = Object.keys(_matchState.matched).length === ex.pairs.length;
+  const vBtn = document.getElementById('match-valid');
+  if (vBtn){ vBtn.disabled = !allPaired; vBtn.style.opacity = allPaired ? '1':'.5'; }
+}
+function refreshMatchVisuals(){
+  document.querySelectorAll('.ex-match-item').forEach(el=>{
+    const side = el.dataset.side, i = parseInt(el.dataset.i,10);
+    if (side === 'L'){
+      const m = _matchState.matched[i];
+      if (m !== undefined){ el.style.background = 'var(--pri-bg)'; el.style.borderColor = 'var(--pri-br)'; el.style.color = 'var(--pri-ink)'; }
+      else { el.style.background=''; el.style.borderColor=''; el.style.color=''; }
+    } else {
+      const isUsed = Object.values(_matchState.matched).includes(i);
+      if (isUsed){ el.style.background = 'var(--pri-bg)'; el.style.borderColor = 'var(--pri-br)'; el.style.color = 'var(--pri-ink)'; }
+      else { el.style.background=''; el.style.borderColor=''; el.style.color=''; }
+    }
+  });
+}
+function submitMatch(){
+  const ex = currentExercise();
+  let allRight = true;
+  for (let i=0;i<ex.pairs.length;i++){
+    if (_matchState.matched[i] !== i) allRight = false;
+  }
+  document.querySelectorAll('.ex-match-item').forEach(el=>{
+    el.classList.add('matched');
+    el.style.background=''; el.style.borderColor=''; el.style.color='';
+    const side = el.dataset.side, i = parseInt(el.dataset.i,10);
+    if (side === 'L'){
+      const m = _matchState.matched[i];
+      el.classList.add((m === i) ? 'matched-ok':'matched-ko');
+    } else {
+      const userL = Object.keys(_matchState.matched).find(k => _matchState.matched[k]==i);
+      el.classList.add((userL == i) ? 'matched-ok':'matched-ko');
+    }
+  });
+  processAnswer(allRight, ex);
+}
+
+// ── Fill-in ──
+let _fillAnswer = null;
+function renderFill(ex){
+  const text = ex.text.replace('___', `<span class="ex-fill-blank" id="fill-blank">…</span>`);
+  const choices = shuffle(ex.choices.map((c,i)=>({text:c,i})));
+  const choicesHTML = choices.map(c=>`<button class="ex-fill-choice" data-i="${c.i}" onclick="fillPick(${c.i},'${c.text.replace(/'/g,"&#39;")}')">${c.text}</button>`).join('');
+  return `<div class="ex-fill-text">${text}</div>
+    <div class="ex-fill-choices">${choicesHTML}</div>
+    <div class="ex-bar">
+      <div class="ex-bar-left">Clique sur le bon mot pour remplir</div>
+      <div class="ex-bar-right"><button class="btn-primary" id="fill-valid" onclick="submitFill()" disabled style="opacity:.5">Valider</button></div>
+    </div>`;
+}
+function fillPick(i, text){
+  _fillAnswer = i;
+  const blank = document.getElementById('fill-blank');
+  blank.textContent = text;
+  blank.classList.add('filled');
+  document.querySelectorAll('.ex-fill-choice').forEach(el=>el.classList.remove('used'));
+  const picked = document.querySelector(`.ex-fill-choice[data-i="${i}"]`);
+  if (picked) picked.classList.add('used');
+  const vBtn = document.getElementById('fill-valid');
+  vBtn.disabled = false; vBtn.style.opacity = '1';
+}
+function submitFill(){
+  const ex = currentExercise();
+  const correct = _fillAnswer === ex.correct;
+  const blank = document.getElementById('fill-blank');
+  blank.classList.remove('filled');
+  blank.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct){ blank.textContent = ex.choices[ex.correct]; }
+  document.querySelectorAll('.ex-fill-choice').forEach(el=>{ el.style.pointerEvents='none'; el.style.opacity='.35'; });
+  processAnswer(correct, ex);
+}
+
+// ── Scenario ──
+function renderScenario(ex){
+  const ctx = ex.context ? `<div class="ex-scenario-ctx"><b>Situation</b>${ex.context}</div>` : '';
+  const opts = ex.options.map((o,i)=>`<button class="ex-opt" data-i="${i}" onclick="answerScenario(${i})">
+    <span class="ex-opt-key">${String.fromCharCode(65+i)}</span>
+    <span class="ex-opt-text">${o}</span>
+    <span class="ex-opt-check"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"></svg></span>
+  </button>`).join('');
+  return ctx + `<div class="ex-options">${opts}</div>`;
+}
+function answerScenario(i){
+  const ex = currentExercise();
+  const correct = (i === ex.correct);
+  const opts = document.querySelectorAll('.ex-opt');
+  opts.forEach(o=>o.classList.add('disabled'));
+  opts[i].classList.add(correct ? 'correct':'wrong');
+  opts[i].querySelector('.ex-opt-check svg').innerHTML = correct ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+  if (!correct) opts[ex.correct].classList.add('correct');
+  processAnswer(correct, ex);
+}
+
+// ═ EXPLANATION ═
+function showExplanation(ok, ex){
+  const el = document.getElementById('ex-explain');
+  if (!el) return;
+  el.className = 'ex-explain show ' + (ok ? 'ok' : 'ko');
+  const iconOk = '<circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/>';
+  const iconKo = '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>';
+  el.innerHTML = `
+    <div class="ex-explain-head">
+      <svg viewBox="0 0 24 24" fill="none">${ok ? iconOk : iconKo}</svg>
+      <div class="ex-explain-title">${ok ? 'Bien vu.' : 'Pas cette fois — regarde :'}</div>
+    </div>
+    <div class="ex-explain-body">${ex.explain || ''}</div>
+    ${ex.bonus ? `<div class="ex-explain-bonus"><b>Pour aller plus loin :</b>${ex.bonus}</div>` : ''}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE RUNNER
+// ═══════════════════════════════════════════════════════════════
+
+function currentExercise(){ return RUN ? RUN.queue[RUN.pos] : null; }
+
+function startModule(modId){
+  const mod = MODULES[modId];
+  if (!mod){ showToast({type:'info',title:'Bientôt',text:'Module pas encore disponible.'}); return; }
+  const chapterId = modId.split('.')[0];
+  const resurfaced = pickResurfaceQuestions(chapterId, 2);
+  const queue = [];
+  for (const r of resurfaced){ queue.push({ ...r.ex, _isRetry:true, _sourceMod:r.modId }); }
+  for (const ex of mod.exercises){ queue.push({...ex}); }
+  RUN = { modId, mod, queue, pos:0, firstTryMap:{}, wrongOnce:new Set(), answered:0, correct:0, startTs:Date.now() };
+  document.getElementById('tb-progress').classList.add('show');
+  document.getElementById('tb-crumb').textContent = mod.title;
+  showView('module');
+  renderCurrentStep();
+}
+
+function renderCurrentStep(){
+  const ex = currentExercise();
+  const view = document.getElementById('view-module');
+  if (!ex){ return endModule(); }
+  const pct = Math.round((RUN.pos / RUN.queue.length) * 100);
+  document.getElementById('tb-progress-fill').style.width = pct + '%';
+  view.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'module-runner';
+  if (ex.type === 'lesson'){
+    wrap.appendChild(renderLesson(ex));
+  } else {
+    wrap.appendChild(renderExercise(ex, ex._isRetry));
+    wrap.appendChild(renderContinueBar());
+  }
+  view.appendChild(wrap);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderLesson(ex){
+  const wrap = document.createElement('div');
+  wrap.className = 'lesson';
+  const body = ex.body.map(b=>{
+    if (b.type === 'p') return `<p>${b.text}</p>`;
+    if (b.type === 'highlight') return `<div class="lesson-highlight"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div><b>${b.title||'À retenir'}</b>${b.text}</div></div>`;
+    return '';
+  }).join('');
+  wrap.innerHTML = `
+    <div class="lesson-kicker">Lecture · ${ex.duration||2} min</div>
+    <h2>${ex.title}</h2>
+    <div class="lesson-body">${body}</div>
+    <div class="lesson-cta"><button class="btn-primary pri" onclick="nextStep()">J'ai compris<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  `;
+  return wrap;
+}
+
+function renderContinueBar(){
+  const bar = document.createElement('div');
+  bar.className = 'ex-bar';
+  bar.style.display = 'none';
+  bar.id = 'continue-bar';
+  bar.innerHTML = `
+    <div class="ex-bar-left" id="continue-left"></div>
+    <div class="ex-bar-right"><button class="btn-primary pri" onclick="nextStep()">Continuer<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  `;
+  return bar;
+}
+
+function processAnswer(correct, ex){
+  const exKey = `${RUN.modId}:${ex.id}`;
+  RUN.answered++;
+  const isFirstAnswer = (RUN.firstTryMap[ex.id] === undefined);
+
+  if (correct){
+    RUN.correct++;
+    if (isFirstAnswer){
+      RUN.firstTryMap[ex.id] = true;
+      if (!ex._isRetry && !RUN.wrongOnce.has(ex.id)){
+        markMastered(exKey, true);
+        gainLife();
+        if (Math.random() < 0.45 && ex.bonus){
+          onPerfectContinue = () => { showExplanation(true, ex); revealContinue(); };
+          showPerfect({ big:'Exact', sub:'Du premier coup.', insight:ex.bonus });
+        } else {
+          showExplanation(true, ex);
+          revealContinue();
+        }
+      } else {
+        showExplanation(true, ex);
+        revealContinue();
+        markMastered(exKey, true);
+      }
+    } else {
+      showExplanation(true, ex);
+      revealContinue();
+      markMastered(exKey, true);
+    }
+  } else {
+    RUN.wrongOnce.add(ex.id);
+    RUN.firstTryMap[ex.id] = false;
+    loseLife();
+    markMastered(exKey, false);
+    showExplanation(false, ex);
+    const retryItem = { ...ex, _isRetry:true };
+    RUN.queue.push(retryItem);
+    revealContinue('Cette question reviendra à la fin — on va la rejouer.');
+  }
+}
+
+function revealContinue(msg){
+  const bar = document.getElementById('continue-bar');
+  if (bar){
+    bar.style.display = 'flex';
+    const left = document.getElementById('continue-left');
+    if (left) left.textContent = msg || `Question ${RUN.pos+1} sur ${RUN.queue.length}`;
+  }
+}
+
+function nextStep(){
+  RUN.pos++;
+  renderCurrentStep();
+}
+
+function endModule(){
+  const mod = RUN.mod;
+  const total = mod.exercises.filter(e=>e.type!=='lesson').length;
+  const firstTryGood = Object.values(RUN.firstTryMap).filter(v=>v===true).length;
+  const accuracy = total > 0 ? Math.round((firstTryGood/total)*100) : 100;
+  const baseXP = mod.xp || 50;
+  const bonusXP = Math.round(baseXP * (accuracy/100) * 0.5);
+  const totalXP = baseXP + bonusXP;
+
+  if (!STATE.completed.includes(RUN.modId)) STATE.completed.push(RUN.modId);
+  STATE.moduleScores[RUN.modId] = { correct: firstTryGood, total, accuracy, xp: totalXP, ts: Date.now() };
+  addXP(totalXP);
+  saveState();
+
+  document.getElementById('tb-progress').classList.remove('show');
+  showCliffhanger(totalXP, accuracy);
+}
+
+function showCliffhanger(xp, accuracy){
+  const mod = RUN.mod;
+  const chapterId = RUN.modId.split('.')[0];
+  const modList = Object.keys(MODULES).filter(k=>k.startsWith(chapterId+'.')).sort((a,b)=>parseInt(a.split('.')[1])-parseInt(b.split('.')[1]));
+  const curIdx = modList.indexOf(RUN.modId);
+  const nextModId = curIdx >= 0 && curIdx < modList.length-1 ? modList[curIdx+1] : null;
+  const nextMod = nextModId ? MODULES[nextModId] : null;
+
+  let nextChapter = null;
+  if (!nextMod){
+    const chapList = Object.keys(CHAPTERS);
+    const cIdx = chapList.indexOf(chapterId);
+    if (cIdx >= 0 && cIdx < chapList.length-1) nextChapter = CHAPTERS[chapList[cIdx+1]];
+  }
+
+  const streak = STATE.streak || 0;
+  const bigTitle = accuracy === 100 ? 'Sans-faute.' : (accuracy >= 80 ? 'Bien joué.' : 'Module validé.');
+  const subText = accuracy === 100 ? 'Tu as tout réussi du premier coup.' :
+                  accuracy >= 80 ? `${accuracy}% de bonnes réponses du premier coup — solide.` :
+                  `Quelques erreurs — normal. Les questions ratées reviendront bientôt pour ancrer.`;
+
+  const view = document.getElementById('view-cliffhanger');
+  const nextBlock = nextMod ? `
+    <div class="cliff-next">
+      <div class="cliff-next-lab">Prochain module</div>
+      <div class="cliff-next-title">${nextMod.title}</div>
+      <div class="cliff-next-hook">${nextMod.hook || nextMod.lead}</div>
+    </div>
+    <div class="cliff-actions">
+      <button class="btn-primary pri" onclick="startModule('${nextModId}')">Enchaîner maintenant<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+      <button class="btn-secondary" onclick="showView('chapter','${chapterId}')">Retour au chapitre</button>
+    </div>` : (nextChapter ? `
+    <div class="cliff-next">
+      <div class="cliff-next-lab">Chapitre suivant</div>
+      <div class="cliff-next-title">${nextChapter.title}</div>
+      <div class="cliff-next-hook">${nextChapter.hook || nextChapter.desc}</div>
+    </div>
+    <div class="cliff-actions">
+      <button class="btn-primary pri" onclick="showView('chapter','${Object.keys(CHAPTERS)[Object.keys(CHAPTERS).indexOf(chapterId)+1]}')">Ouvrir ce chapitre<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+      <button class="btn-secondary" onclick="goHome()">Retour à l'accueil</button>
+    </div>` : `
+    <div class="cliff-actions">
+      <button class="btn-primary pri" onclick="goHome()">Retour à l'accueil<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+    </div>`);
+
+  view.innerHTML = `
+    <div class="cliff">
+      <div class="cliff-badge"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Module terminé</div>
+      <div class="cliff-title">${bigTitle}</div>
+      <div class="cliff-sub">${subText}</div>
+      <div class="cliff-rewards">
+        <div class="cliff-reward xp"><div class="cliff-reward-icon"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="cliff-reward-val">+${xp}</div><div class="cliff-reward-lab">XP gagnés</div></div>
+        <div class="cliff-reward acc"><div class="cliff-reward-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></div><div class="cliff-reward-val">${accuracy}%</div><div class="cliff-reward-lab">1er essai</div></div>
+        <div class="cliff-reward streak"><div class="cliff-reward-icon"><svg viewBox="0 0 24 24" fill="currentColor" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div><div class="cliff-reward-val">${streak}j</div><div class="cliff-reward-lab">Streak</div></div>
+      </div>
+      ${nextBlock}
+    </div>
+  `;
+  showView('cliffhanger');
+  document.getElementById('tb-crumb').textContent = 'Bravo';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIEWS
+// ═══════════════════════════════════════════════════════════════
+
+function showView(name, arg){
+  if (name !== 'module') document.getElementById('tb-progress').classList.remove('show');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  window.scrollTo({top:0, behavior:'instant'});
+  if (name === 'home') renderHome();
+  if (name === 'chapter') renderChapter(arg);
+}
+
+function goHome(){
+  RUN = null;
+  showView('home');
+  document.getElementById('tb-crumb').textContent = 'Académie';
+}
+
+function confirmExit(){
+  if (!confirm('Quitter le module ? Ta progression dans ce module sera perdue, mais tes XP validés sont sauvegardés.')) return;
+  RUN = null;
+  document.getElementById('tb-progress').classList.remove('show');
+  showView('home');
+  document.getElementById('tb-crumb').textContent = 'Académie';
+}
+
+function chapterProgress(chapId){
+  const mods = Object.keys(MODULES).filter(k=>k.startsWith(chapId+'.'));
+  const total = mods.length;
+  const done = mods.filter(m=>STATE.completed.includes(m)).length;
+  return { done, total, pct: total ? Math.round((done/total)*100) : 0 };
+}
+
+function isChapterUnlocked(chapId){
+  const chapList = Object.keys(CHAPTERS);
+  const idx = chapList.indexOf(chapId);
+  if (idx === 0) return true;
+  const prev = chapList[idx-1];
+  const p = chapterProgress(prev);
+  return p.pct >= 50;
+}
+
+function renderHome(){
+  const first = firstName();
+  const totalMods = Object.keys(MODULES).length;
+  const doneMods = STATE.completed.length;
+  const completionPct = totalMods ? Math.round((doneMods/totalMods)*100) : 0;
+
+  let nextMod = null;
+  for (const chapId of Object.keys(CHAPTERS)){
+    const mods = Object.keys(MODULES).filter(k=>k.startsWith(chapId+'.')).sort();
+    for (const m of mods){
+      if (!STATE.completed.includes(m)){ nextMod = { id:m, mod:MODULES[m], chapId }; break; }
+    }
+    if (nextMod) break;
+  }
+
+  const chapterCards = Object.entries(CHAPTERS).map(([cid, c])=>{
+    const p = chapterProgress(cid);
+    const unlocked = isChapterUnlocked(cid);
+    const cls = p.pct === 100 ? 'completed' : (p.done > 0 ? 'in-progress' : '');
+    const pillLabel = !unlocked ? 'verrouillé' : (p.pct === 100 ? 'terminé' : (p.done > 0 ? 'en cours' : 'à faire'));
+    const pillClass = p.pct === 100 ? 'done' : (p.done > 0 ? 'new' : (unlocked ? '':'locked'));
+    return `<a class="chap-card ${cls} ${unlocked?'':'locked'}" onclick="${unlocked?`showView('chapter','${cid}')`:`showToast({type:'info',title:'Verrouillé',text:'Complète 50% du chapitre précédent.'})`}">
+      <div class="chap-card-inner">
+        <div class="chap-num">${c.num}</div>
+        <div class="chap-body">
+          <div class="chap-kicker">
+            <span class="chap-tag">Chapitre ${c.num}</span>
+            <span class="chap-pill ${pillClass}">${pillLabel}</span>
+          </div>
+          <div class="chap-title">${c.title}</div>
+          <div class="chap-desc">${c.desc}</div>
+        </div>
+        <div class="chap-meta">
+          <div class="chap-prog">
+            <div class="chap-prog-bar"><div class="chap-prog-fill" style="width:${p.pct}%"></div></div>
+            <div class="chap-prog-text"><b>${p.done}</b>/${p.total} modules</div>
+          </div>
+          ${unlocked ? `<div class="chap-arrow"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>` : `<div class="chap-lock"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`}
+        </div>
+      </div>
+    </a>`;
+  }).join('');
+
+  const continueCard = nextMod ? `
+    <div class="continue-card">
+      <div class="continue-body">
+        <div class="continue-kicker">${doneMods === 0 ? 'Commence ici' : 'Continue où tu t\'es arrêté'}</div>
+        <div class="continue-title">${nextMod.mod.title}</div>
+        <div class="continue-sub">${nextMod.mod.lead}</div>
+        <div class="continue-meta">
+          <div class="continue-meta-item"><svg viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${nextMod.mod.duration || 8} min</div>
+          <div class="continue-meta-item"><svg viewBox="0 0 24 24" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor" stroke="none"/></svg>+${nextMod.mod.xp||50} XP</div>
+          <div class="continue-meta-item"><svg viewBox="0 0 24 24" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Ch. ${CHAPTERS[nextMod.chapId].num}</div>
+        </div>
+      </div>
+      <button class="continue-btn" onclick="startModule('${nextMod.id}')">${doneMods === 0 ? 'Commencer' : 'Reprendre'}<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+    </div>` : '';
+
+  document.getElementById('view-home').innerHTML = `
+    <div class="wrap">
+      <div class="home-hero">
+        <div class="home-kicker">Académie Novalem</div>
+        <h1>Bonjour <span class="accent">${first}</span>, prêt pour la suite ?</h1>
+        <p class="home-hero-sub">Apprends le recrutement depuis ses fondations jusqu'aux spécialités. Chaque module est court, actif, et ancre ce que tu apprends — pour de bon.</p>
+      </div>
+      <div class="promise">
+        <div class="promise-body">
+          <div class="promise-label">Pourquoi cette académie existe</div>
+          <div class="promise-text">Le recrutement n'est pas un métier de chance — c'est un <em>métier de répétition</em>. Chaque module que tu complètes te rend plus rare. Pas plus cher. Plus <em>rare</em>.</div>
+        </div>
+        <div class="promise-stat">
+          <div class="promise-stat-val">${completionPct}%</div>
+          <div class="promise-stat-lab">de ton parcours</div>
+        </div>
+      </div>
+      ${continueCard}
+      <div class="path">
+        <div class="path-intro"><div class="path-label">Parcours</div><div class="path-line"></div></div>
+        <div class="path-nodes">${chapterCards}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderChapter(chapId){
+  const c = CHAPTERS[chapId];
+  if (!c) return goHome();
+  document.getElementById('tb-crumb').textContent = c.title;
+  const mods = Object.keys(MODULES).filter(k=>k.startsWith(chapId+'.')).sort((a,b)=>parseInt(a.split('.')[1])-parseInt(b.split('.')[1]));
+  const p = chapterProgress(chapId);
+
+  const modsHTML = mods.map((mid, idx)=>{
+    const m = MODULES[mid];
+    const done = STATE.completed.includes(mid);
+    const prevDone = idx === 0 || STATE.completed.includes(mods[idx-1]);
+    const inProgress = !done && prevDone;
+    const isBoss = m.isBoss;
+    return `<a class="mod-item ${done?'completed':''} ${inProgress?'in-progress':''} ${!prevDone?'locked':''}" onclick="${prevDone?`startModule('${mid}')`:`showToast({type:'info',title:'Verrouillé',text:'Complète le module précédent.'})`}">
+      <div class="mod-num">${done ? `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : String(m.num).padStart(2,'0')}</div>
+      <div class="mod-body">
+        <div class="mod-tags">
+          <span class="mod-tag type">${m.type||'Leçon'}</span>
+          ${isBoss ? `<span class="mod-tag boss">Test de chapitre</span>` : ''}
+        </div>
+        <div class="mod-title-text">${m.title}</div>
+        <div class="mod-lead">${m.lead||''}</div>
+      </div>
+      <div class="mod-meta">
+        <div class="mod-dur"><svg viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${m.duration||8} min</div>
+        <div class="mod-xp"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>+${m.xp||50}</div>
+        <div class="mod-go"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      </div>
+    </a>`;
+  }).join('');
+
+  document.getElementById('view-chapter').innerHTML = `
+    <div class="wrap">
+      <div class="chapter-hero">
+        <div class="chapter-crumb"><a onclick="goHome()">Académie</a><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>Chapitre ${c.num}</div>
+        <div class="chapter-numrow">
+          <div class="chapter-big-num">${c.num}</div>
+          <div class="chapter-title-box">
+            <div class="chapter-title">${c.title}</div>
+            <div class="chapter-subtitle">${c.subtitle||''}</div>
+          </div>
+        </div>
+        <div class="chapter-desc">${c.desc}</div>
+        ${c.promise ? `<div class="chapter-promise">
+          <div class="chapter-promise-lab">Ce que tu sauras à la fin</div>
+          <div class="chapter-promise-txt">${c.promise}</div>
+        </div>` : ''}
+      </div>
+      <div class="modules-section">
+        <div class="modules-section-head">
+          <div class="modules-section-title">Modules</div>
+          <div class="modules-section-stats">${p.done}/${p.total} validés · ${p.pct}%</div>
+        </div>
+        ${modsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// ═ KEYBOARD SHORTCUTS ═
+document.addEventListener('keydown', e=>{
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const isModule = document.getElementById('view-module').classList.contains('active');
+  if (isModule && ['1','2','3','4'].includes(e.key)){
+    const idx = parseInt(e.key,10) - 1;
+    const qcmBtn = document.querySelectorAll('.ex-opt:not(.disabled)')[idx];
+    if (qcmBtn) qcmBtn.click();
+    const tfBtns = document.querySelectorAll('.ex-tf-btn:not(.disabled)');
+    if (tfBtns.length && idx < 2) tfBtns[idx].click();
+  }
+  if (e.key === 'Enter' && isModule){
+    const cont = document.querySelector('#continue-bar .btn-primary');
+    if (cont && document.getElementById('continue-bar').style.display !== 'none') cont.click();
+  }
+  if (e.key === 'Escape'){ closePerfect(); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CONTENT
+// ═══════════════════════════════════════════════════════════════
+
+const CHAPTERS = {
+  '1': {
+    num: '1',
+    title: "Les Fondations du recrutement",
+    subtitle: "Comprendre le métier avant de le pratiquer.",
+    desc: "Avant de parler de sourcing, de scripts ou de closing, il faut comprendre ce qu'est le recrutement, pourquoi il existe, qui sont les trois acteurs en présence, et comment l'argent circule. Ce premier chapitre pose les fondations mentales. Sans elles, le reste ne tiendra pas.",
+    promise: "Tu sauras expliquer à n'importe qui en 60 secondes pourquoi un cabinet de recrutement existe, qui paie quoi, et pourquoi ce métier a un avenir long.",
+    hook: "Il y a une raison pour laquelle les candidats acceptent de parler à un cabinet plutôt qu'à une entreprise directement. Elle n'est pas dans les livres de RH — elle est dans la psychologie."
+  },
+  '2': {
+    num: '2',
+    title: "Le métier au quotidien",
+    subtitle: "Une journée, une semaine, un rythme.",
+    desc: "Le métier de scout se joue dans les routines. KPIs, outils, code d'honneur, structure de journée : ce qui fait qu'un scout tient six mois et devient dangereux, plutôt que d'abandonner au bout de deux.",
+    promise: "Tu sauras exactement quoi faire chaque matin en arrivant, et quoi mesurer pour savoir si tu progresses.",
+    hook: "Le secret n'est pas de travailler plus. C'est de savoir quels trois chiffres regarder chaque soir."
+  },
+  '3': {
+    num: '3',
+    title: "La Chasse — sourcing",
+    subtitle: "Trouver ce que les autres ne voient pas.",
+    desc: "Le sourcing n'est pas du volume, c'est de la précision. Où sont les profils qui ne postulent pas, comment les atteindre avant la concurrence, comment trier sans gaspiller ton temps.",
+    promise: "Tu rempliras ton pipeline chaque semaine avec des candidats qualifiés — pas du bruit.",
+    hook: "Les meilleurs profils ne sont jamais sur les jobboards. Alors où sont-ils ?"
+  },
+  '4': {
+    num: '4',
+    title: "La Voix — téléphone & objections",
+    subtitle: "Chaque mot est un levier.",
+    desc: "Au téléphone, tu as 30 secondes pour capter, 2 minutes pour qualifier, 5 minutes pour convaincre. Ta voix, ton script, ta gestion des objections — c'est ce qui sépare un scout moyen d'un closer.",
+    promise: "Tu décrocheras sans hésiter, tu traiteras vingt objections sans broncher, tu closeras comme une évidence.",
+    hook: "La phrase « je ne suis pas en recherche active » n'est pas une fin. C'est le début de la vraie conversation."
+  },
+  '5': {
+    num: '5',
+    title: "La Performance",
+    subtitle: "Qualifier, présenter, closer.",
+    desc: "De la qualification candidat à la négociation finale avec le client : les gestes techniques qui font qu'un processus aboutit. Grilles, templates, signaux faibles, négociation salariale.",
+    promise: "Tu piloteras un processus de placement du premier contact à la signature, sans rien laisser filer.",
+    hook: "Un candidat qui ghoste juste avant la signature a donné des signaux trois semaines avant. Lesquels ?"
+  },
+  '6': {
+    num: '6',
+    title: "La Forge Mentale",
+    subtitle: "Ce qui fait qu'on dure.",
+    desc: "Le recrutement est un métier d'endurance. Refus, ghosts, creux, doutes. Comment on tient. Comment on construit, mois après mois, une carrière qu'on ne lâche plus.",
+    promise: "Tu sauras comment traverser les creux sans les subir — et comment construire une carrière longue plutôt qu'une année intense.",
+    hook: "Ceux qui gagnent dans ce métier ne sont pas les plus brillants. Ce sont ceux qui reviennent."
+  }
+};
+
+const MODULES = {};
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 1.1 — BIENVENUE
+// ═══════════════════════════════════════════════════════════════
+MODULES['1.1'] = {
+  num: 1, title: "Bienvenue",
+  type: "Manifeste", duration: 3, xp: 30,
+  lead: "Trois minutes pour comprendre dans quoi tu t'engages — vraiment.",
+  hook: "Pourquoi un métier que presque personne ne comprend en est peut-être un des plus solides des dix prochaines années.",
+  exercises: [
+    {
+      id: 'l1', type: 'lesson',
+      title: "Tu viens d'ouvrir une porte",
+      duration: 3,
+      body: [
+        { type:'p', text:"Il y a deux façons de lire cette académie. La première, c'est de cliquer, lire, cocher, valider. La seconde, c'est de comprendre qu'on ne forme pas ici <strong>des gens qui font du recrutement</strong> — on forme des gens qui <em>pensent</em> le recrutement." },
+        { type:'p', text:"La nuance peut paraître subtile. Elle ne l'est pas. <strong>Un exécutant fait ce qu'on lui dit</strong>. Un scout comprend pourquoi. Et quand on comprend pourquoi, on devient difficile à remplacer." },
+        { type:'highlight', title:"Ce que tu vas apprendre ici", text:"Comment le recrutement fonctionne vraiment, pourquoi les cabinets existent, comment se construit la valeur que tu vas vendre, et comment ta voix, ton temps et ta discipline deviennent tes outils principaux." },
+        { type:'p', text:"L'académie se traverse chapitre par chapitre. Chaque module dure entre 5 et 15 minutes. Pas d'examen final, pas de date butoir, pas de pression. Mais un principe : les questions que tu rates reviennent, à J+1, J+3, J+7. Parce que la mémoire ne se construit pas à la lecture — elle se construit à la répétition." },
+        { type:'p', text:"Commence quand tu veux. Reprends quand tu veux. Mais ne lâche pas. <em>Le jeu appartient à ceux qui restent.</em>" },
+      ]
+    }
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 1.2 — POURQUOI LE RECRUTEMENT EXISTE
+// ═══════════════════════════════════════════════════════════════
+MODULES['1.2'] = {
+  num: 2, title: "Pourquoi le recrutement existe",
+  type: "Fondation", duration: 10, xp: 60,
+  lead: "Le recrutement n'est pas une industrie — c'est une solution à un problème. Lequel ?",
+  hook: "Et si les entreprises pouvaient recruter seules, pourquoi elles passent quand même par nous ?",
+  exercises: [
+    {
+      id: 'l2', type: 'lesson',
+      title: "Un problème aussi vieux que le travail",
+      duration: 2,
+      body: [
+        { type:'p', text:"Le recrutement existe pour une raison simple : <strong>trouver la bonne personne pour un poste est extrêmement difficile</strong>. Pas parce qu'il n'y a personne. Parce que les bons sont rarement disponibles, souvent mal référencés, et coûtent cher à identifier." },
+        { type:'p', text:"Une entreprise qui recrute doit poser trois questions : <strong>qui</strong> sait faire ce poste, <strong>où</strong> est cette personne aujourd'hui, et <strong>comment</strong> la convaincre de bouger. Chacune de ces questions demande des heures de travail — et un savoir-faire que peu de gens en interne possèdent." },
+        { type:'highlight', title:"La vraie proposition de valeur", text:"Un cabinet de recrutement ne vend pas des candidats. Il vend du temps, de la précision, et de l'anti-risque. Retiens ça : temps, précision, risque." },
+        { type:'p', text:"Dans les exercices qui suivent, on va te tester sur les cas où une entreprise a besoin d'un cabinet, les cas où elle n'en a pas besoin, et ce qu'elle achète réellement quand elle nous paie." },
+      ]
+    },
+    {
+      id:'e1', type:'qcm',
+      prompt:"Quand une entreprise fait appel à un cabinet de recrutement, qu'est-ce qu'elle achète en priorité ?",
+      options:["Un candidat","Du temps, de la précision et de l'anti-risque","Un CV validé","Un réseau"],
+      correct:1,
+      explain:"Le candidat est le livrable. Ce que le client paie vraiment, c'est <strong>le temps qu'il ne va pas perdre</strong>, la précision du ciblage, et le fait qu'un mauvais recrutement coûte très cher — donc on réduit ce risque.",
+      bonus:"Un directeur RH te dira rarement « j'achète du temps ». Il dira « je n'ai pas la bande passante ». C'est la même chose — formulée différemment."
+    },
+    {
+      id:'e2', type:'tf',
+      prompt:"Une entreprise qui a un bon service RH n'a jamais besoin d'un cabinet de recrutement.",
+      answer:false,
+      explain:"Faux. Même les meilleures équipes RH passent par des cabinets sur des postes pénuriques, urgents, ou confidentiels. La qualité interne et l'usage d'un cabinet ne s'opposent pas — ils se complètent.",
+      bonus:"Les plus gros clients cabinets sont souvent les entreprises qui ont les meilleurs RH. Parce que ces RH savent justement quand déléguer."
+    },
+    {
+      id:'e3', type:'classify',
+      prompt:"Classe ces situations : cabinet pertinent, ou pas nécessaire ?",
+      categories:["Cabinet pertinent", "Interne suffit"],
+      items:[
+        { text:"Recruter 12 commerciaux juniors en CDI avec un budget marketing", cat:1 },
+        { text:"Trouver un directeur financier dans une zone géographique pénurique", cat:0 },
+        { text:"Remplacer un stagiaire qui part en septembre", cat:1 },
+        { text:"Recruter en confidentiel un remplaçant à un poste encore occupé", cat:0 },
+        { text:"Ouvrir un poste classique avec 200 candidatures par semaine sur le jobboard", cat:1 },
+        { text:"Chasser un profil qui n'est pas en recherche active", cat:0 },
+      ],
+      explain:"Un cabinet apporte de la valeur quand le profil est rare, le processus confidentiel, la zone pénurique, ou le poste critique. Pour des postes à fort volume de candidatures entrantes, l'interne est souvent suffisant — et moins cher.",
+      bonus:"Règle simple : <strong>si le client peut se servir d'un formulaire et remplir son poste en 2 semaines, il n'a pas besoin de toi</strong>. Ton terrain, c'est la pénurie."
+    },
+    {
+      id:'e4', type:'multi',
+      prompt:"Quelles raisons poussent une entreprise à passer par un cabinet ? (plusieurs réponses)",
+      options:[
+        "Le temps RH est limité et le poste est prioritaire",
+        "Le poste est confidentiel et ne peut pas être affiché",
+        "Le profil ciblé est rare et difficile à approcher",
+        "L'entreprise veut obtenir un meilleur prix qu'en interne",
+        "Un mauvais recrutement coûterait très cher et l'entreprise veut du filtre",
+      ],
+      correct:[0,1,2,4],
+      explain:"Temps, confidentialité, rareté du profil, et réduction du risque. Le prix, lui, n'est jamais un moteur — un cabinet coûte toujours plus cher qu'un recrutement interne simple. On nous appelle <em>malgré</em> le prix, pas à cause de lui.",
+      bonus:"Si un client négocie uniquement sur le prix, c'est un signal : soit il n'a pas compris ta valeur, soit il n'avait pas réellement besoin de toi."
+    },
+    {
+      id:'e5', type:'fill',
+      prompt:"Complète cette phrase fondamentale sur le métier :",
+      text:"Un cabinet ne vend pas des candidats. Un cabinet vend de la ___ résolue.",
+      choices:["pénurie", "chance", "opinion", "stratégie"],
+      correct:0,
+      explain:"Tu vends de la pénurie résolue. Ton client a un problème (un poste vide) causé par une pénurie (pas assez de profils disponibles, ou pas accessibles). Tu résous cette pénurie. C'est le cadrage mental à avoir.",
+      bonus:"Cette formulation change ta posture commerciale : tu n'es pas en train de vendre un produit, tu es en train de <strong>résoudre un manque</strong>. Le client n'achète pas — il se soigne."
+    },
+    {
+      id:'e6', type:'scenario',
+      prompt:"Que fais-tu ?",
+      context:"Un prospect te dit : « Vos honoraires sont trop chers, on va passer par une annonce Indeed. » Tu lui réponds quoi ?",
+      options:[
+        "« Je comprends, bonne chance. »",
+        "« On peut s'aligner si vous voulez. »",
+        "« Tout dépend du coût d'un mauvais recrutement pour vous. Sur ce poste, combien coûterait une erreur ? »",
+        "« Indeed c'est bien pour les postes faciles, je vous laisse essayer. »",
+      ],
+      correct:2,
+      explain:"La bonne réponse recadre le sujet : <strong>le prix n'est pas un coût, c'est une assurance</strong>. Tu remets le client face à la question qu'il n'a pas envie de se poser — combien coûte une erreur ? Un mauvais recrutement se chiffre typiquement entre 30% et 200% du salaire annuel du poste.",
+      bonus:"Un bon scout ne baisse jamais ses honoraires pour gagner un dossier. Il change de terrain : il passe du prix à la valeur."
+    },
+    {
+      id:'e7', type:'qcm',
+      prompt:"Combien coûte en moyenne un mauvais recrutement (estimation conservatrice) ?",
+      options:["Quelques centaines d'euros","Environ un mois de salaire","Entre 30% et 200% du salaire annuel","Toujours plus de 100 000 €"],
+      correct:2,
+      explain:"Entre 30% et 200% du salaire brut annuel, selon le poste. Pour un conducteur de travaux à 50K€, une erreur peut coûter 15K€ à 100K€ — entre salaires versés, temps RH, perte de productivité de l'équipe, onboarding perdu. C'est l'argument qui rend tes honoraires raisonnables.",
+      bonus:"Étude Harvard Business Review : 80% des turnovers sont dus à des erreurs de recrutement initiales. Le coût caché le plus souvent sous-estimé : l'impact moral sur l'équipe autour."
+    },
+    {
+      id:'e8', type:'order',
+      prompt:"Remets dans l'ordre les étapes du problème que résout un cabinet :",
+      items:[
+        "L'entreprise identifie un besoin de recruter",
+        "Elle découvre que le profil est rare ou que son temps RH est saturé",
+        "Elle fait appel à un cabinet",
+        "Le cabinet trouve et qualifie des candidats",
+        "L'entreprise recrute sans avoir perdu son temps",
+      ],
+      explain:"C'est exactement cet enchaînement qu'il faut avoir en tête. Ton entrée dans le processus se fait à l'étape 3, mais tu dois comprendre ce qui s'est passé avant (besoin, saturation) pour parler le bon langage.",
+      bonus:"Une bonne question à poser à un prospect en entretien : <em>« À quel moment vous êtes-vous dit qu'un cabinet serait utile ? »</em>. Sa réponse te dit exactement où il en est dans le processus."
+    },
+    {
+      id:'e9', type:'tf',
+      prompt:"Les cabinets de recrutement vont disparaître à cause des outils d'IA et des plateformes automatisées.",
+      answer:false,
+      explain:"Faux. L'IA facilite le sourcing brut (trier 10 000 CV), mais elle ne <strong>convainc pas un candidat passif de bouger</strong>. Ce moment-là — la conversation humaine qui transforme un « non merci » en un oui — reste le vrai métier. L'IA accélère nos outils, elle ne remplace pas le scout.",
+      bonus:"Les cabinets qui disparaissent sont ceux qui faisaient déjà du tri basique. Ceux qui font de la vraie chasse et de la vraie qualification se renforcent — parce que leur valeur devient plus visible."
+    },
+    {
+      id:'e10', type:'qcm',
+      prompt:"Quelle phrase résume le mieux ta future posture face à un client ?",
+      options:["Je vends des CV","Je résous une pénurie précise contre des honoraires","Je propose des candidats au meilleur prix","Je fais de la pub pour votre offre"],
+      correct:1,
+      explain:"« Je résous une pénurie précise contre des honoraires. » Précise, parce que tu ne traites pas n'importe quel poste. Contre des honoraires, parce que tu n'es pas une œuvre caritative. Cette phrase te protège de toutes les dérives : briefs flous, honoraires négociés à la baisse, demandes en-dehors de ta spécialité.",
+      bonus:"Un scout mature apprend à dire non. Refuser un dossier mal cadré est souvent plus rentable que le prendre. <em>Tout dossier pris est un dossier dû.</em>"
+    }
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 1.3 — L'ÉCOSYSTÈME À 3 ACTEURS
+// ═══════════════════════════════════════════════════════════════
+MODULES['1.3'] = {
+  num: 3, title: "L'écosystème à trois acteurs",
+  type: "Fondation", duration: 12, xp: 70,
+  lead: "Candidat, entreprise, cabinet — chacun a ses peurs, ses leviers, sa logique. Si tu comprends les trois, tu deviens indispensable.",
+  hook: "La plupart des scouts débutants pensent qu'ils vendent à l'entreprise. Ils se trompent — ils vendent aussi au candidat. Et parfois plus durement.",
+  exercises: [
+    {
+      id:'l3', type:'lesson',
+      title:"Trois acteurs, trois langues, un seul pont",
+      duration:3,
+      body:[
+        { type:'p', text:"Dans chaque dossier tu as trois acteurs : <strong>le candidat</strong>, <strong>l'entreprise</strong>, <strong>toi (le cabinet)</strong>. Chacun a sa peur principale, son levier principal, et sa manière de parler." },
+        { type:'p', text:"<strong>Le candidat</strong> a peur de se tromper de poste, d'être manipulé, de perdre sa stabilité pour rien. Son levier : <em>un projet qui donne envie</em>. Pas un salaire. Pas un titre. Un projet." },
+        { type:'p', text:"<strong>L'entreprise</strong> a peur de recruter mal, de perdre des mois sur un mauvais profil, de passer pour une boîte qui n'arrive pas à retenir. Son levier : <em>la certitude</em>. Pas le prix. Pas la rapidité brute. La certitude qu'on ne lui fait pas perdre son temps." },
+        { type:'p', text:"<strong>Toi</strong>, tu es le pont. Tu traduis dans les deux sens. Tu rassures des deux côtés. Tu portes la confiance de l'un à l'autre. <em>Sans toi, ils ne se parleraient pas.</em>" },
+        { type:'highlight', title:"Le déclic à avoir", text:"Tu ne travailles pas pour l'entreprise. Tu ne travailles pas pour le candidat. Tu travailles pour le match — la rencontre réussie. C'est une posture à part." },
+      ]
+    },
+    {
+      id:'e11', type:'match',
+      prompt:"Associe chaque acteur à sa peur principale :",
+      pairs:[
+        ["Le candidat", "Se tromper de poste et perdre sa stabilité"],
+        ["L'entreprise", "Recruter mal et perdre des mois"],
+        ["Le cabinet", "Perdre un dossier en cours par manque de suivi"],
+      ],
+      explain:"Chacun a sa peur dominante. Le candidat protège sa vie, l'entreprise protège son budget et son équipe, toi tu protèges ton pipeline et ta réputation. Reconnaître la peur de l'autre, c'est déjà commencer à la rassurer.",
+      bonus:"En entretien candidat, une phrase qui marche souvent : « Qu'est-ce qui vous ferait regretter ce changement dans six mois ? » — tu vas chercher sa peur, pour pouvoir la traiter."
+    },
+    {
+      id:'e12', type:'qcm',
+      prompt:"Qu'est-ce qui motive le plus souvent un candidat à quitter un poste qu'il occupe déjà ?",
+      options:["Le salaire, uniquement","Un projet ou une perspective qui donne envie, plus qu'un simple salaire","Un titre plus prestigieux","La proximité géographique"],
+      correct:1,
+      explain:"Études Gallup & LinkedIn répétées : le salaire est rarement le <em>vrai</em> déclencheur — même s'il est souvent celui qu'on évoque publiquement. Ce qui fait bouger un candidat, c'est un <strong>projet, une évolution, une équipe, un sens</strong>. Le salaire est une condition, pas un moteur.",
+      bonus:"Un scout qui argumente uniquement sur le salaire perd systématiquement face à un scout qui construit un récit sur le projet. Même avec une offre financière inférieure."
+    },
+    {
+      id:'e13', type:'tf',
+      prompt:"En tant que scout, tu dois défendre en priorité les intérêts de l'entreprise qui te paie.",
+      answer:false,
+      explain:"Faux — et c'est un piège classique. Si tu ne défends que l'entreprise, tu pousses des profils à accepter des postes qui ne leur conviennent pas, ils partent en quelques mois, et l'entreprise te reproche le mauvais recrutement. Tu dois défendre <strong>la qualité du match</strong>. C'est ça que l'entreprise achète réellement.",
+      bonus:"Les meilleurs cabinets refusent parfois de présenter un candidat, même quand le client insiste, parce qu'ils savent que le match ne tiendra pas. C'est contre-intuitif mais c'est ce qui construit une réputation solide sur dix ans."
+    },
+    {
+      id:'e14', type:'classify',
+      prompt:"Pour chaque phrase, qui parle ?",
+      categories:["Candidat", "Client (entreprise)"],
+      items:[
+        { text:"« J'ai besoin de quelqu'un pour hier, mon équipe est sous l'eau. »", cat:1 },
+        { text:"« Je ne suis pas forcément en recherche, mais j'écoute. »", cat:0 },
+        { text:"« On a déjà eu des déceptions avec deux cabinets l'année dernière. »", cat:1 },
+        { text:"« J'aimerais comprendre qui sera mon manager direct. »", cat:0 },
+        { text:"« Envoyez-moi trois profils sous 15 jours. »", cat:1 },
+        { text:"« Quel type d'évolution est possible sur 3 ans ? »", cat:0 },
+      ],
+      explain:"Reconnaître le langage de chacun est un réflexe. Les candidats parlent manager, évolution, projet. Les entreprises parlent délais, profils, résultats. Si tu confonds, tu parles la mauvaise langue au mauvais moment.",
+      bonus:"Quand un candidat te demande « quel est le salaire ? » en première question, c'est rarement un bon signal. Les meilleurs profils commencent toujours par le projet."
+    },
+    {
+      id:'e15', type:'scenario',
+      prompt:"Que fais-tu ?",
+      context:"Un candidat excellent te dit en entretien qu'il a aussi un process chez un concurrent de ton client. Tu apprends que ton client va lui faire une offre demain. Que fais-tu ?",
+      options:[
+        "Tu caches l'info à ton client pour le laisser faire son offre sans pression",
+        "Tu préviens ton client que le candidat est en process ailleurs — c'est une info utile pour son offre et son timing",
+        "Tu essaies de convaincre le candidat d'arrêter l'autre process",
+        "Tu retardes l'offre de ton client pour gagner du temps",
+      ],
+      correct:1,
+      explain:"Tu préviens ton client. <strong>La transparence est ta meilleure assurance long terme.</strong> Un client qui découvre plus tard que tu lui as caché une concurrence ne te redonnera pas de dossier. Par contre, le client qui t'achète l'info et aligne son offre en conséquence te respecte — et revient.",
+      bonus:"Un mantra utile : « ce que tu caches aujourd'hui te coûte dix fois plus demain ». Même vrai au téléphone, en entretien, dans les emails."
+    },
+    {
+      id:'e16', type:'qcm',
+      prompt:"Qu'est-ce que l'entreprise achète vraiment quand elle te signe un mandat ?",
+      options:["Ton temps à chercher","Un CV acceptable à moindre coût","La certitude qu'elle ne fera pas d'erreur sur un poste qu'elle ne maîtrise pas","Ton réseau social"],
+      correct:2,
+      explain:"La certitude. C'est ce qu'on vend, ce qu'on facture, et ce qui justifie les honoraires. Un directeur paie pour <strong>arrêter de s'inquiéter</strong> d'un poste qu'il n'arrive pas à pourvoir seul. Tout le reste (ton temps, ton réseau) est un moyen — pas le produit fini.",
+      bonus:"La phrase commerciale qui marche : « Je ne peux pas vous garantir un placement, mais je peux vous garantir de ne plus perdre une minute là-dessus tant qu'on cherche ensemble. »"
+    },
+    {
+      id:'e17', type:'fill',
+      prompt:"Complète cette phrase stratégique :",
+      text:"Un scout ne travaille ni pour le candidat, ni pour l'entreprise. Il travaille pour le ___.",
+      choices:["match", "salaire", "cabinet", "CRM"],
+      correct:0,
+      explain:"Pour le match. C'est la posture neutre qui te protège. Si tu travailles pour le candidat, tu pousses des offres marginales à ton client. Si tu travailles pour l'entreprise, tu forces des profils qui ne conviennent pas. Si tu travailles pour le match — la rencontre qui tient — tu protèges les trois intérêts.",
+      bonus:"Cette posture est la seule qui reste rentable sur dix ans. Les scouts qui vendent des placements forcés disparaissent en deux ou trois ans."
+    },
+    {
+      id:'e18', type:'multi',
+      prompt:"Un candidat te demande « vous êtes payé par qui ? ». Que peux-tu lui répondre ? (plusieurs réponses correctes)",
+      options:[
+        "« Par l'entreprise qui m'a mandaté — vous ne me coûtez rien. »",
+        "« C'est confidentiel. »",
+        "« Par l'entreprise, et c'est important que vous le sachiez : je ne placerai jamais quelqu'un qui n'est pas fait pour le poste, parce que c'est ma réputation qui est en jeu. »",
+        "« Par personne, je travaille gratuitement. »",
+      ],
+      correct:[0,2],
+      explain:"Réponses correctes : 1 et 3. Tu assumes qui te paie, parce que la loi l'exige (un candidat ne paie jamais un cabinet) et parce que la transparence construit la confiance. Tu peux aussi ajouter que ta réputation te protège contre les placements forcés — ça rassure le candidat sur ta neutralité.",
+      bonus:"Article L5324-1 du Code du travail : facturer un candidat est interdit, même pour des frais annexes. C'est une ligne rouge absolue en France."
+    },
+    {
+      id:'e19', type:'order',
+      prompt:"Remets dans l'ordre le parcours typique d'un dossier :",
+      items:[
+        "Le client signe un mandat avec le cabinet",
+        "Le scout sourcera et qualifie des candidats",
+        "Les candidats sont présentés au client",
+        "Le client reçoit les candidats en entretien",
+        "Le client fait une offre au candidat retenu",
+        "Le candidat prend ses fonctions et la période d'essai commence",
+      ],
+      explain:"C'est la chaîne standard. Chaque étape peut durer de quelques jours à plusieurs semaines. Un scout efficace comprend où le dossier est à chaque instant, et sait quelle étape débloquer en priorité.",
+      bonus:"Règle : <strong>la période d'essai fait partie de ta mission</strong>. Tant que le candidat n'est pas confirmé après sa période d'essai, ton dossier n'est pas clos. Tu restes en contact avec lui et avec le client."
+    },
+    {
+      id:'e20', type:'qcm',
+      prompt:"Sur quelle métrique un bon scout est-il évalué long terme ?",
+      options:["Le nombre de candidats dans son CRM","Le nombre d'appels par jour","Le taux de candidats qui restent en poste après 12 mois","Le prix moyen de ses honoraires"],
+      correct:2,
+      explain:"Le taux de rétention à 12 mois. Un placement qui tient, c'est un client qui revient et qui recommande. Les autres métriques (CRM, appels, honoraires) sont des moyens pour y arriver — pas le résultat final. C'est la différence entre un scout transactionnel et un scout de carrière.",
+      bonus:"Les meilleurs cabinets suivent ce chiffre publiquement. Taux de rétention à 12 mois au-dessus de 85% = référence reconnue du marché."
+    },
+    {
+      id:'e21', type:'tf',
+      prompt:"Un bon scout doit développer une forme d'empathie stratégique : sentir ce que ressentent les deux côtés à tout moment.",
+      answer:true,
+      explain:"Vrai. L'empathie stratégique — la capacité à sentir l'état émotionnel de l'autre et à en tenir compte — est ce qui sépare un vendeur d'un conseiller. Ce n'est pas de la sensiblerie : c'est un outil de précision. Un candidat qui dit « c'est intéressant » sur un ton plat te dit « non » sans le dire.",
+      bonus:"Exercice utile : après chaque appel, noter en une phrase <em>ce que la personne ressentait</em>, pas seulement ce qu'elle a dit. Cette pratique, faite 100 fois, transforme ton écoute."
+    }
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 1.4 — L'ÉCONOMIE DU RECRUTEMENT
+// ═══════════════════════════════════════════════════════════════
+MODULES['1.4'] = {
+  num: 4, title: "L'économie du recrutement",
+  type: "Fondation", duration: 10, xp: 65,
+  lead: "Qui paie quoi, pourquoi, et combien. Les chiffres qu'un scout doit connaître par cœur.",
+  hook: "Un cabinet facture entre 15 et 25% d'un salaire annuel. Pour un seul candidat placé. Pourquoi les entreprises acceptent ?",
+  exercises: [
+    {
+      id:'l4', type:'lesson',
+      title:"Les chiffres qui définissent le métier",
+      duration:3,
+      body:[
+        { type:'p', text:"Le marché français du recrutement par cabinet pèse <strong>environ 4 milliards d'euros</strong>. Les acteurs vont des gros chasseurs de têtes internationaux (Spencer Stuart, Egon Zehnder) aux cabinets indépendants spécialisés." },
+        { type:'p', text:"Le modèle de facturation standard : <strong>entre 15 et 25% du salaire brut annuel du candidat placé</strong>. Pour un cadre à 50K€, ça fait 7 500€ à 12 500€ d'honoraires pour un seul placement." },
+        { type:'p', text:"Pourquoi un client accepte ? Parce qu'un mauvais recrutement coûte entre 30% et 200% du salaire annuel (temps RH, salaires versés, impact équipe, onboarding perdu). Nos honoraires sont donc <em>une assurance</em>, pas un coût brut." },
+        { type:'highlight', title:"Les trois types de contrats", text:"Success fee (honoraires à la signature, 80% du marché), retainer (honoraires répartis sur le process), exclusif (tarif plus élevé mais engagement garanti de ta part). Le success fee est le plus risqué pour le cabinet — mais le plus vendu." },
+      ]
+    },
+    {
+      id:'e22', type:'qcm',
+      prompt:"Marge de facturation standard d'un cabinet sur un placement :",
+      options:["5-10% du salaire","10-15% du salaire","15-25% du salaire brut annuel","30-40% du salaire brut annuel"],
+      correct:2,
+      explain:"Entre 15 et 25% du salaire brut annuel. 15% pour les profils courants, 20% pour les postes techniques ou pénuriques, 25%+ pour les cadres dirigeants ou les chasses complexes. En-dessous de 15%, tu es en train de te brader.",
+      bonus:"Règle : si ton honoraire est trop bas, le client pense que tu n'es pas spécialiste. Un cabinet qui baisse ses prix perd de la valeur perçue, pas l'inverse."
+    },
+    {
+      id:'e23', type:'qcm',
+      prompt:"Pour un conducteur de travaux placé à 48 000€ brut annuel, avec 18% d'honoraires, ça fait :",
+      options:["4 800€","8 640€","12 000€","18 000€"],
+      correct:1,
+      explain:"48 000 × 18% = 8 640€. À connaître : savoir calculer mentalement des honoraires en une ou deux secondes pendant un appel client. Entraîne-toi sur 18% et 20% des multiples de 10 000 — c'est ta table de multiplication.",
+      bonus:"Raccourci pour 18% : prends 20% (facile) et retire 10%. 50K × 20% = 10K, moins 10% (1K) = 9K. Proche de 8,64K en quelques secondes."
+    },
+    {
+      id:'e24', type:'tf',
+      prompt:"Un candidat peut être facturé pour des prestations annexes (conseil carrière, relecture CV) par le cabinet qui le place.",
+      answer:false,
+      explain:"Faux, strictement interdit. Article L5324-1 du Code du travail : aucun frais ne peut être facturé à un candidat, quelle que soit la forme. Cette règle est absolue et engage la responsabilité pénale du cabinet.",
+      bonus:"Certains cabinets peu scrupuleux contournent en créant une filiale « coaching ». C'est juridiquement fragile et moralement inacceptable. Ne joue jamais à ça."
+    },
+    {
+      id:'e25', type:'order',
+      prompt:"Remets dans l'ordre un cycle de facturation standard :",
+      items:[
+        "Signature du mandat avec le client",
+        "Sourcing et qualification de candidats",
+        "Présentation au client",
+        "Entretiens client-candidat",
+        "Signature de l'embauche (promesse ou contrat)",
+        "Émission de la facture du cabinet",
+        "Paiement par le client (sous 30 à 60 jours)",
+        "Fin de période d'essai validée — dossier clos",
+      ],
+      explain:"Le moment clé pour facturer : <strong>la signature de la promesse d'embauche</strong>. Pas la prise de poste (qui peut être reportée), pas l'offre verbale (trop flou). Le cash arrive entre 30 et 60 jours plus tard selon le contrat signé.",
+      bonus:"Clause à exiger dans tous tes mandats : <em>« facturation à la signature, avec garantie de remplacement gratuite si le candidat part pendant sa période d'essai »</em>. C'est le standard du marché et ça te protège."
+    },
+    {
+      id:'e26', type:'match',
+      prompt:"Associe chaque type de mission à son modèle économique :",
+      pairs:[
+        ["Recrutement standard (volume)", "Success fee — payé à la signature"],
+        ["Chasse complexe (cadre dirigeant)", "Retainer — honoraires étalés"],
+        ["Mission exclusive avec engagement fort", "Exclusif — honoraires majorés"],
+      ],
+      explain:"Trois modèles, trois niveaux de risque et d'engagement. Success fee : le plus vendu, le plus risqué pour le cabinet. Retainer : plus sûr mais demande de justifier l'investissement étape par étape. Exclusif : la meilleure relation client possible — le client s'engage à ne passer que par toi.",
+      bonus:"Règle : essaie de faire basculer tes gros clients vers du retainer ou de l'exclusif. Un success fee pur c'est du freelance avec tout le risque côté cabinet."
+    },
+    {
+      id:'e27', type:'scenario',
+      prompt:"Que fais-tu ?",
+      context:"Un prospect te demande un tarif à 10% « pour voir ». Tu sens qu'il teste plusieurs cabinets en parallèle. Comment réagis-tu ?",
+      options:[
+        "Tu acceptes à 10% pour avoir le dossier et faire tes preuves",
+        "Tu proposes 10% mais en success fee seulement, sans exclusivité",
+        "Tu refuses et expliques pourquoi ton tarif est à 18% — si ça ne passe pas, tu laisses",
+        "Tu proposes 15% et tu espères un oui",
+      ],
+      correct:2,
+      explain:"Tu refuses. Un prospect qui fait jouer plusieurs cabinets en parallèle à 10% cherche du volume low-cost — pas de la qualité. Accepter c'est <strong>signaler que tu n'es pas spécialiste</strong>. Dire non te place comme pro, et la moitié du temps le client revient deux mois plus tard en acceptant ton prix.",
+      bonus:"Les scouts qui pratiquent le « non cadré » (refuser proprement, expliquer pourquoi, rester en bon terme) signent plus de dossiers long terme que ceux qui acceptent tout au rabais."
+    },
+    {
+      id:'e28', type:'qcm',
+      prompt:"Coût typique pour une entreprise d'un mauvais recrutement (profil cadre) :",
+      options:["Environ un mois de salaire","Entre 10% et 20% du salaire annuel","Entre 30% et 200% du salaire annuel","Plus de 500 000€"],
+      correct:2,
+      explain:"30 à 200% du salaire annuel. Pour un cadre à 60K€, c'est entre 18K€ et 120K€ de coût caché : salaires versés, onboarding perdu, temps management, impact équipe, processus de remplacement. Ce chiffre est ta meilleure arme pour justifier tes honoraires.",
+      bonus:"Étude INSEE : le coût moyen d'un mauvais recrutement en France est de 45 000€ tout compris. À connaître et à ressortir à bon escient — pas comme un épouvantail, comme une donnée."
+    },
+    {
+      id:'e29', type:'multi',
+      prompt:"Quelles clauses doivent absolument figurer dans un mandat de recrutement ? (plusieurs réponses)",
+      options:[
+        "Montant et base de calcul des honoraires",
+        "Garantie de remplacement si départ pendant la période d'essai",
+        "Délai de paiement",
+        "Engagement d'exclusivité du cabinet sur le poste",
+        "Obligation pour le candidat de rester 2 ans minimum",
+      ],
+      correct:[0,1,2],
+      explain:"Les trois indispensables : honoraires, garantie de remplacement, délai de paiement. L'exclusivité est un plus si tu peux l'obtenir, mais pas indispensable. <strong>La 5 est illégale</strong> — on ne peut pas contraindre un candidat à rester, ce serait une atteinte à la liberté du travail.",
+      bonus:"Une garantie de remplacement standard : 3 mois à 6 mois après la prise de poste. Tu remplaces gratuitement ou tu rembourses. C'est ton engagement qualité — et ton meilleur argument commercial."
+    },
+    {
+      id:'e30', type:'fill',
+      prompt:"Complète cette règle d'or financière :",
+      text:"Un cabinet qui baisse ses honoraires pour gagner un dossier perd ___, pas l'inverse.",
+      choices:["de la valeur perçue","du volume","du temps","un client"],
+      correct:0,
+      explain:"De la valeur perçue. Quand tu baisses ton prix, le client conclut que tu n'étais pas indispensable à ce prix-là. Tu deviens une commodité — remplaçable. Les cabinets qui tiennent leurs tarifs gagnent en réputation ; ceux qui bradent perdent leurs meilleurs clients au profit de concurrents qui assument leur valeur.",
+      bonus:"Variante utile : si tu <em>dois</em> bouger sur le prix, ne baisse pas tes honoraires — modifie la prestation (moins de candidats présentés, délai plus long, garantie réduite). Ça garde ta valeur et ça cadre l'échange."
+    }
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 1.5 — PSYCHOLOGIE DU CANDIDAT
+// ═══════════════════════════════════════════════════════════════
+MODULES['1.5'] = {
+  num: 5, title: "Psychologie du candidat",
+  type: "Fondation", duration: 12, xp: 80,
+  lead: "Sept raisons font bouger un candidat. Aucune n'est le salaire — en tout cas pas en premier.",
+  hook: "Pourquoi le meilleur profil du marché accepte parfois une baisse de salaire pour changer de boîte ? Tu vas comprendre.",
+  exercises: [
+    {
+      id:'l5', type:'lesson',
+      title:"Les sept raisons de bouger",
+      duration:4,
+      body:[
+        { type:'p', text:"Quand un candidat bouge, il y a toujours une raison principale et deux ou trois secondaires. Les scouts débutants demandent « quel salaire ? » en premier. Les scouts expérimentés posent la vraie question : « qu'est-ce qui vous manque aujourd'hui ? »." },
+        { type:'p', text:"Les sept moteurs principaux, par ordre de fréquence observée :" },
+        { type:'p', text:"<strong>1. Reconnaissance insuffisante</strong> — le candidat fait bien son job mais personne ne le voit. C'est le plus sous-estimé des moteurs. <strong>2. Manque de sens ou de projet</strong> — l'entreprise n'a plus de cap ou le poste n'évolue plus. <strong>3. Manager toxique ou absent</strong> — rarement évoqué directement, mais souvent présent en creux." },
+        { type:'p', text:"<strong>4. Salaire</strong> — oui, il est là, mais presque jamais en cause principale. <strong>5. Localisation</strong> — changement de vie perso, déménagement, équilibre. <strong>6. Évolution bloquée</strong> — plafond de verre visible. <strong>7. Envie de changement pur</strong> — après 5-7 ans au même endroit." },
+        { type:'highlight', title:"La règle d'or de l'entretien", text:"Ne demande jamais « pourquoi vous voulez changer ? ». Demande « qu'est-ce qui vous ferait rester si vous receviez une contre-offre ? ». La réponse te dit le vrai sujet — celui qu'il faut traiter." },
+      ]
+    },
+    {
+      id:'e31', type:'qcm',
+      prompt:"Première raison (la plus fréquente) de départ volontaire chez les cadres français :",
+      options:["Le salaire","Le manque de reconnaissance ou de perspective","La distance domicile-travail","La charge de travail"],
+      correct:1,
+      explain:"Reconnaissance et perspective — environ 40% des départs dans les études récentes (Apec, LinkedIn Talent, Robert Half). Le salaire arrive en 3ème ou 4ème position. Les candidats évoquent souvent le salaire comme raison <em>parce que c'est socialement acceptable</em>, pas parce que c'est le vrai moteur.",
+      bonus:"Question à poser systématiquement : « Sur une échelle de 1 à 10, à quel point vous sentez-vous reconnu dans votre poste actuel ? ». Réponse sous 7 = signal fort."
+    },
+    {
+      id:'e32', type:'tf',
+      prompt:"Un candidat qui dit « je suis bien dans ma boîte, je ne cherche pas » est un mauvais candidat.",
+      answer:false,
+      explain:"Faux — c'est souvent exactement l'inverse. Les <strong>candidats passifs</strong> (pas en recherche active) représentent 70% du marché et sont généralement les meilleurs profils. Ils sont stables, performants, et donc recherchés par les entreprises qui savent que la rareté est leur meilleur investissement.",
+      bonus:"Le candidat qui « cherche activement depuis 6 mois sans trouver » est presque toujours le signal inverse — quelque chose ne passe pas dans ses entretiens. Creuse avant d'investir du temps."
+    },
+    {
+      id:'e33', type:'match',
+      prompt:"Associe chaque phrase de candidat à la vraie raison qui se cache derrière :",
+      pairs:[
+        ["« Je cherche une boîte avec plus de sens »", "Manque de reconnaissance ou projet flou"],
+        ["« Je veux évoluer »", "Perspective bloquée ou plafond de verre"],
+        ["« J'aimerais un meilleur équilibre »", "Charge ou management difficile"],
+        ["« Je veux un salaire à la hauteur »", "Dévalorisation ressentie"],
+      ],
+      explain:"Ce que les candidats disent n'est jamais exactement ce qu'ils pensent. « Plus de sens » = souvent « mon manager ne me remercie jamais ». « Salaire à la hauteur » = « je ne me sens pas à ma valeur ». Ton travail, c'est de décoder — pas de prendre au pied de la lettre.",
+      bonus:"Astuce : quand un candidat évoque le salaire en 1ère position, c'est rarement que le salaire qui pose problème. Pose la question : « si le salaire était ok, qu'est-ce qui resterait à régler ? ». Là tu as le vrai sujet."
+    },
+    {
+      id:'e34', type:'scenario',
+      prompt:"Que fais-tu ?",
+      context:"Un candidat excellent te dit : « Je gagne 55K chez mon employeur actuel, je veux au moins 65K pour bouger. » Que lui réponds-tu ?",
+      options:[
+        "« OK, je vais chercher uniquement des postes à 65K+. »",
+        "« Si le salaire était ok, qu'est-ce qui vous ferait rester là où vous êtes aujourd'hui ? »",
+        "« C'est beaucoup, il faudra baisser. »",
+        "« Je vais vous proposer 62K, c'est correct. »",
+      ],
+      correct:1,
+      explain:"La bonne réponse creuse. Tu ne contestes pas le chiffre — tu déplaces la conversation vers ce qui est <strong>vraiment</strong> en jeu. 8 fois sur 10, le candidat va te dire un vrai sujet (manager, projet, perspective) et tu sauras que le salaire est négociable si le reste est solide.",
+      bonus:"Cette technique s'appelle « décaler pour qualifier ». Elle marche aussi côté client : « si les honoraires étaient ok, sur quoi choisiriez-vous ? »."
+    },
+    {
+      id:'e35', type:'multi',
+      prompt:"Signaux d'un candidat passif qui est en réalité mûr pour bouger : (plusieurs réponses)",
+      options:[
+        "Il dit « je ne cherche pas » mais prend le temps de te parler 30 minutes",
+        "Il te demande des détails sur le manager et la culture",
+        "Il répond en moins de 4 heures à tes emails",
+        "Il évoque spontanément ce qui « ne va pas » dans sa boîte actuelle",
+        "Il te demande poliment d'arrêter de l'appeler",
+      ],
+      correct:[0,1,2,3],
+      explain:"Les quatre premiers sont des <strong>signaux forts</strong>. Un candidat réellement non-intéressé raccroche en 2 minutes. Quelqu'un qui te donne du temps, qui creuse le poste, qui évoque ses irritations actuelles — il est en train de tester ses options. Ton job : rester présent, pas presser.",
+      bonus:"Règle du bon timing : rappelle un candidat passif toutes les 6-8 semaines. Trop souvent, il bloque. Jamais, il part chez le concurrent. Entre les deux, tu es <em>le premier appelé quand il décide de bouger</em>."
+    },
+    {
+      id:'e36', type:'qcm',
+      prompt:"Quelle est la peur numéro 1 d'un candidat au moment de signer une offre ?",
+      options:["Ne pas assez gagner","Se tromper et regretter dans 6 mois","Être mal accueilli par la nouvelle équipe","Que le manager soit désagréable"],
+      correct:1,
+      explain:"La peur du regret. Un candidat qui bouge sacrifie <strong>ce qu'il connaît</strong> (stabilité, habitudes, collègues) pour <strong>ce qu'il imagine</strong>. Si le « ce qu'il imagine » n'est pas solide dans sa tête, il recule. Ton job de closer : lui donner assez d'éléments pour qu'il se projette concrètement.",
+      bonus:"Astuce de closing : organise un déjeuner ou un café avec son futur manager <em>avant</em> la signature. Le concret bat l'abstrait. Un candidat qui a rencontré son futur N+1 ne recule presque jamais."
+    },
+    {
+      id:'e37', type:'classify',
+      prompt:"Classe ces raisons de départ selon leur solidité réelle :",
+      categories:["Raison solide (il va bouger)","Raison fragile (risque de ghost)"],
+      items:[
+        { text:"« Mon manager vient de partir, je ne connais pas le remplaçant »", cat:0 },
+        { text:"« Je veux un peu plus de salaire »", cat:1 },
+        { text:"« Mon conjoint a été muté à Lyon, on déménage en septembre »", cat:0 },
+        { text:"« Je m'ennuie un peu en ce moment »", cat:1 },
+        { text:"« J'ai été dépassé pour une promotion que je méritais »", cat:0 },
+        { text:"« Un ami m'a dit que ça payait mieux ailleurs »", cat:1 },
+      ],
+      explain:"Les raisons solides ont un <strong>élément déclencheur concret</strong> (départ du manager, déménagement, événement de carrière raté). Les raisons fragiles sont diffuses, souvent formulées au conditionnel. Investis ton temps sur les premières — tu vas gagner.",
+      bonus:"Règle du scout : « un candidat sans déclencheur clair est un candidat qui va ghoster ». Avant de pousser un dossier, identifie le déclencheur. Si tu n'en trouves pas, il n'y en a probablement pas."
+    },
+    {
+      id:'e38', type:'order',
+      prompt:"Ordonne les étapes psychologiques d'un candidat qui accepte une offre :",
+      items:[
+        "Première curiosité sur une opportunité",
+        "Intérêt réel : il se projette",
+        "Doute : « je me trompe peut-être »",
+        "Validation par l'entourage (conjoint, amis)",
+        "Décision finale et signature",
+        "Période d'essai : consolidation ou regret",
+      ],
+      explain:"Ce parcours psychologique est universel. La phase critique c'est l'étape 3 (<strong>le doute</strong>) — c'est là qu'un candidat ghost, recule, accepte une contre-offre de son employeur actuel. Tu dois savoir la détecter et accompagner la sortie du doute — pas la forcer.",
+      bonus:"Technique : quand tu sens le doute (candidat qui met plus de 48h à répondre, réponses courtes, demande de délai), ne pousse pas — pose la question directe : « qu'est-ce qui vous fait hésiter aujourd'hui ? ». 80% du temps, le candidat te dira la vraie chose, et tu sauras quoi faire."
+    },
+    {
+      id:'e39', type:'tf',
+      prompt:"Un candidat qui reçoit une contre-offre de son employeur actuel et l'accepte reste typiquement moins de 12 mois.",
+      answer:true,
+      explain:"Vrai, et c'est documenté. Études cohérentes depuis 20 ans : environ 70 à 80% des candidats qui acceptent une contre-offre de leur employeur actuel partent dans les 12 mois qui suivent. Pourquoi ? Parce que la raison profonde qui les avait fait chercher n'était pas le salaire — c'était autre chose, et elle n'a pas été traitée.",
+      bonus:"Argument à ressortir à un candidat tenté par une contre-offre : « si votre employeur actuel vous respectait vraiment, pourquoi a-t-il fallu que vous menaciez de partir pour qu'il s'intéresse à votre cas ? »."
+    },
+    {
+      id:'e40', type:'qcm',
+      prompt:"Quelle est la meilleure manière de conclure un premier entretien téléphonique avec un candidat intéressant ?",
+      options:[
+        "« Je vous envoie le descriptif du poste. »",
+        "« On fixe tout de suite un prochain échange : quel créneau vous va cette semaine ? »",
+        "« Je reviens vers vous si ça se confirme. »",
+        "« Voulez-vous postuler ? »"
+      ],
+      correct:1,
+      explain:"Toujours <strong>fixer le prochain rendez-vous avant de raccrocher</strong>. Un candidat dans l'agenda est un candidat qui avance. Un candidat qui « va réfléchir » est un candidat qui disparaît. Cette règle de base fait la différence entre un pipeline vivant et un pipeline fantôme.",
+      bonus:"La phrase magique : « Pour avancer proprement, je préfère qu'on bloque 20 minutes jeudi plutôt qu'on se rappelle à l'aveugle la semaine prochaine — quel créneau ? ». En 10 secondes, tu as un engagement."
+    }
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+updateTopbar();
+showView('home');
+
+/* === ACADÉMIE PREMIUM ANIMATIONS JS === */
+(function(){
+  /* Cursor glow */
+  const cg = document.createElement('div');
+  cg.className = 'cursor-acad';
+  document.body.appendChild(cg);
+  document.addEventListener('mousemove', e => {
+    cg.style.left = e.clientX + 'px';
+    cg.style.top = e.clientY + 'px';
+  });
+
+  /* Intersection Observer — trigger when elements enter viewport */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.04, rootMargin: '0px 0px -20px 0px' });
+
+  /* Observe function — called each time a view is rendered */
+  function observeAll() {
+    /* Chapter cards */
+    document.querySelectorAll('.chap-card:not(.visible)').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 55}ms`;
+      io.observe(el);
+    });
+    /* Module items */
+    document.querySelectorAll('.mod-item:not(.visible)').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 40}ms`;
+      io.observe(el);
+    });
+  }
+
+  /* Watch DOM changes (view switches) */
+  new MutationObserver(observeAll).observe(document.querySelector('.main'), { childList: true, subtree: true });
+  observeAll();
+
+  /* 3D Tilt on chapter cards */
+  document.addEventListener('mousemove', function(e) {
+    const card = e.target.closest('.chap-card:not(.locked)');
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - .5;
+    const y = (e.clientY - rect.top) / rect.height - .5;
+    card.style.transform = `perspective(700px) rotateX(${-y*3}deg) rotateY(${x*3}deg) translateY(-3px)`;
+  });
+  document.addEventListener('mouseleave', function(e) {
+    const card = e.target.closest && e.target.closest('.chap-card');
+    if (card) card.style.transform = '';
+  }, true);
+  document.querySelectorAll('.chap-card').forEach(card => {
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+  });
+})();
+</script>
+</body>
+</html>
