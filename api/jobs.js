@@ -27,8 +27,8 @@ module.exports = async function handler(req, res) {
     try {
       const sb = getSB();
       const { data: jobs, error } = await sb
-        .from('jobs')
-        .select('id,title,location,contract_type,category,salary_display,experience,reference,description,skills,views_count,applications_count,created_at')
+        .from('job_postings')
+        .select('id,title,location,contract_type,category:cat,salary_display,experience,reference,description,skills,views_count,applications_count,created_at')
         .eq('published', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -68,30 +68,30 @@ module.exports = async function handler(req, res) {
       const row = {
         crm_id: job.crm_id, title: job.title,
         location: job.location || '', contract_type: job.contract_type || 'CDI',
-        category: job.cat || job.category || '',
+        cat: job.cat || job.category || 'go',
         salary_display: job.salary_display || job.salary || '',
         experience: job.experience || '', reference: job.reference || '',
         description: job.description || job.body || '',
         skills: Array.isArray(job.skills) ? job.skills : [],
         published: true, updated_at: new Date().toISOString(),
       };
-      const { data, error } = await sb.from('jobs').upsert(row, { onConflict: 'crm_id' }).select().single();
+      const { data, error } = await sb.from('job_postings').upsert(row, { onConflict: 'crm_id' }).select().single();
       if (error) throw error;
       return res.status(200).json({ success: true, job: data });
     }
     if (action === 'unpublish') {
       const filter = job?.id ? { id: job.id } : { crm_id: job?.crm_id };
-      const { error } = await sb.from('jobs').update({ published: false, updated_at: new Date().toISOString() }).match(filter);
+      const { error } = await sb.from('job_postings').update({ published: false, updated_at: new Date().toISOString() }).match(filter);
       if (error) throw error;
       return res.status(200).json({ success: true });
     }
     if (action === 'list_all') {
-      const { data: jobs, error } = await sb.from('jobs').select('*').order('created_at', { ascending: false });
+      const { data: jobs, error } = await sb.from('job_postings').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       return res.status(200).json({ success: true, jobs: jobs || [] });
     }
     if (action === 'get_applications') {
-      const { data: apps, error } = await sb.from('job_applications').select('*').eq('job_id', job?.id).order('created_at', { ascending: false });
+      const { data: apps, error } = await sb.from('job_applications').select('*').eq('job_posting_id', job?.id).order('created_at', { ascending: false });
       if (error) throw error;
       return res.status(200).json({ success: true, applications: apps || [] });
     }
@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
     }
     if (action === 'delete') {
       const filter = job?.id ? { id: job.id } : { crm_id: job?.crm_id };
-      const { error } = await sb.from('jobs').delete().match(filter);
+      const { error } = await sb.from('job_postings').delete().match(filter);
       if (error) throw error;
       return res.status(200).json({ success: true });
     }
