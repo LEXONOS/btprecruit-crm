@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dossier de candidature — NOVALEM</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F5F3EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:24px 16px}
+
+.wrap{max-width:620px;margin:0 auto}
+
+/* Header */
+.hd{background:#1A1614;border-radius:12px 12px 0 0;padding:22px 28px;margin-bottom:0}
+.hd-logo{font-size:22px;font-weight:900;color:#fff;letter-spacing:-.5px}
+.hd-logo span{color:#C9891A}
+.hd-sub{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+.hd-title{font-size:13px;color:rgba(255,255,255,.7);margin-top:10px;font-weight:500}
+
+/* Progress */
+.progress-bar{background:#2a2421;padding:14px 28px;display:flex;gap:6px;align-items:center}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;transition:all .2s}
+.step-dot.done{background:#C9891A;color:#fff}
+.step-dot.active{background:#fff;color:#1A1614}
+.step-dot.todo{background:rgba(255,255,255,.1);color:rgba(255,255,255,.3)}
+.step-line{flex:1;height:2px;background:rgba(255,255,255,.1);transition:.2s}
+.step-line.done{background:#C9891A}
+.step-label{font-size:9px;color:rgba(255,255,255,.5);text-align:center;margin-top:2px;display:none}
+
+/* Card */
+.card{background:#fff;border-radius:0 0 12px 12px;box-shadow:0 4px 24px rgba(0,0,0,.09)}
+.screen{display:none;padding:28px}
+.screen.active{display:block}
+
+/* Titre section */
+.sec-title{font-family:'Segoe UI',sans-serif;font-weight:700;font-size:15px;color:#1A1614;margin-bottom:4px}
+.sec-sub{font-size:12px;color:#888;margin-bottom:20px;line-height:1.5}
+
+/* Formulaire */
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.frow-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.fgrp{margin-bottom:14px}
+.lbl{display:block;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.req{color:#C9891A}
+.inp{width:100%;padding:10px 13px;border:1.5px solid #E8E4DC;border-radius:8px;font-size:13px;color:#1A1614;outline:none;transition:border .15s;background:#fff}
+.inp:focus{border-color:#C9891A}
+.inp.err-field{border-color:#e53935}
+select.inp{cursor:pointer}
+textarea.inp{resize:vertical;min-height:70px}
+
+/* Radio / Checkbox groupes */
+.radio-group{display:flex;gap:8px;flex-wrap:wrap}
+.radio-btn{padding:8px 14px;border:1.5px solid #E8E4DC;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;user-select:none;color:#555}
+.radio-btn.sel{border-color:#C9891A;background:rgba(201,137,26,.08);color:#C9891A;font-weight:700}
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.check-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1.5px solid #E8E4DC;border-radius:7px;font-size:12px;cursor:pointer;transition:.15s}
+.check-item:hover{border-color:#C9891A}
+.check-item.sel{border-color:#C9891A;background:rgba(201,137,26,.06)}
+.check-item input{accent-color:#C9891A;width:15px;height:15px}
+
+/* Séparateur */
+.sep{height:1px;background:#F0EDE8;margin:18px 0}
+
+/* Zone conditionnelle */
+.cond-zone{background:#FFF8EE;border:1px solid rgba(201,137,26,.25);border-radius:8px;padding:14px;margin-top:8px;margin-bottom:10px}
+.cond-zone .lbl{color:#9a6510}
+
+/* RGPD block */
+.rgpd-block{background:#F8F5EF;border:1px solid #E8E4DC;border-radius:10px;padding:16px;margin-bottom:18px;font-size:11px;color:#666;line-height:1.7;max-height:180px;overflow-y:auto}
+.rgpd-block strong{color:#1A1614}
+
+/* Signature */
+.cbl{display:flex;align-items:flex-start;gap:11px;cursor:pointer;padding:12px 14px;border:1.5px solid #E8E4DC;border-radius:9px;transition:.15s;margin-bottom:12px}
+.cbl:hover{border-color:#C9891A}
+.cbl.on{border-color:#C9891A;background:rgba(201,137,26,.04)}
+.cb{width:20px;height:20px;border-radius:5px;border:2px solid #D0C8BC;background:#fff;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.cbl.on .cb{background:#C9891A;border-color:#C9891A;color:#fff;font-size:12px;font-weight:900}
+.cl{font-size:11px;color:#555;line-height:1.6}
+
+/* Zone sig */
+.sig-box{border:1.5px solid #E8E4DC;border-radius:10px;padding:20px;text-align:center;margin-bottom:14px}
+.sig-name{font-family:'Segoe UI',sans-serif;font-size:22px;font-style:italic;color:#C9891A;min-height:36px}
+
+/* Boutons nav */
+.btn-nav{display:flex;gap:10px;margin-top:20px}
+.btn-primary{flex:1;padding:13px;background:#C9891A;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:9px;cursor:pointer;transition:.15s}
+.btn-primary:hover{background:#B37A16}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-secondary{padding:13px 20px;background:transparent;color:#888;font-size:13px;border:1.5px solid #E8E4DC;border-radius:9px;cursor:pointer;transition:.15s}
+.btn-secondary:hover{border-color:#C9891A;color:#C9891A}
+
+/* Erreur */
+.err-msg{color:#e53935;font-size:11px;margin-top:6px;display:none}
+.err-banner{background:rgba(229,57,53,.07);border:1px solid rgba(229,57,53,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#c62828;margin-bottom:14px;display:none}
+
+/* Upload zone */
+.upload-zone{border:2px dashed #E8E4DC;border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:.15s;margin-bottom:10px}
+.upload-zone:hover,.upload-zone.drag{border-color:#C9891A;background:rgba(201,137,26,.04)}
+.upload-zone input{display:none}
+.upload-zone .ico{font-size:28px;margin-bottom:8px}
+.upload-zone .lbl2{font-size:12px;color:#888;line-height:1.5}
+.upload-zone .lbl2 strong{color:#C9891A}
+.file-ok{background:#F0FFF4;border:1px solid #86EFB0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.file-ok .ico2{font-size:18px}
+.file-ok .name{font-size:12px;font-weight:600;color:#166534;flex:1}
+.file-ok .rm{background:none;border:none;color:#888;cursor:pointer;font-size:16px}
+
+/* Écran succès */
+.success-wrap{padding:40px 28px;text-align:center}
+.success-icon{width:72px;height:72px;background:rgba(45,212,160,.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 18px}
+.success-title{font-weight:800;font-size:20px;color:#1A1614;margin-bottom:8px}
+.success-sub{font-size:13px;color:#888;line-height:1.7;margin-bottom:24px}
+.proof-box{background:#F8F5EF;border-radius:10px;padding:16px;text-align:left}
+.pr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #EEE;font-size:12px}
+.pr:last-child{border-bottom:none}
+.pk{color:#999}.pv{font-weight:600;color:#1A1614}
+.btn-dl{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:11px 22px;background:#1A1614;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
+
+/* Footer */
+.footer{margin-top:20px;font-size:11px;color:#bbb;text-align:center;line-height:1.8;padding-bottom:20px}
+.footer a{color:#C9891A;text-decoration:none}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+/* Badge étape */
+.step-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--mu2,#aaa);margin-bottom:14px}
+.step-n{background:#F0EDE8;border-radius:10px;padding:2px 8px;font-weight:700;color:#888}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hd">
+ <div class="hd-logo">NOVA<span>LEM</span></div>
+ <div class="hd-sub">Recrutement BTP · CDI</div>
+ <div class="hd-title">Dossier de candidature</div>
+</div>
+
+<!-- Barre de progression -->
+<div class="progress-bar" id="prog-bar">
+ <div class="step-dot active" id="sd1">1</div>
+ <div class="step-line" id="sl1"></div>
+ <div class="step-dot todo" id="sd2">2</div>
+ <div class="step-line" id="sl2"></div>
+ <div class="step-dot todo" id="sd3">3</div>
+ <div class="step-line" id="sl3"></div>
+ <div class="step-dot todo" id="sd4">4</div>
+ <div class="step-line" id="sl4"></div>
+ <div class="step-dot todo" id="sd5">5</div>
+</div>
+
+<div class="card">
+
+<!-- ═══════════ ÉTAPE 1 — Identité ═══════════ -->
+<div id="s1" class="screen active">
+ <div class="step-badge"><span class="step-n">Étape 1 / 5</span> Identité</div>
+ <div class="sec-title">Votre identité</div>
+ <div class="sec-sub">Informations personnelles obligatoires pour constituer votre dossier.</div>
+
+ <div class="err-banner" id="err1"></div>
+
+ <div class="frow">
+  <div>
+   <label class="lbl">Civilité <span class="req">*</span></label>
+   <select id="f-civ" class="inp">
+    <option value="">—</option>
+    <option value="M.">M.</option>
+    <option value="Mme">Mme</option>
+   </select>
+  </div>
+  <div></div>
+ </div>
+ <div class="frow">
+  <div><label class="lbl">Prénom <span class="req">*</span></label><input id="f-prenom" class="inp" placeholder="Jean"></div>
+  <div><label class="lbl">Nom <span class="req">*</span></label><input id="f-nom" class="inp" placeholder="DUPONT"></div>
+ </div>
+ <div class="frow">
+  <div><label class="lbl">Date de naissance <span class="req">*</span></label><input id="f-ddn" class="inp" type="date"></div>
+  <div><label class="lbl">Nationalité <span class="req">*</span></label><input id="f-nat" class="inp" placeholder="Française"></div>
+ </div>
+ <div class="fgrp">
+  <label class="lbl">Adresse <span class="req">*</span></label>
+  <input id="f-adresse" class="inp" placeholder="12 rue de la République">
+ </div>
+ <div class="frow">
+  <div><label class="lbl">Code postal <span class="req">*</span></label><input id="f-cp" class="inp" placeholder="06000" maxlength="5"></div>
+  <div><label class="lbl">Ville <span class="req">*</span></label><input id="f-ville" class="inp" placeholder="Nice"></div>
+ </div>
+ <div class="frow">
+  <div><label class="lbl">Téléphone <span class="req">*</span></label><input id="f-tel" class="inp" type="tel" placeholder="06 00 00 00 00"></div>
+  <div><label class="lbl">Email <span class="req">*</span></label><input id="f-email" class="inp" type="email" placeholder="jean.dupont@mail.fr"></div>
+ </div>
+
+ <div class="btn-nav">
+  <button class="btn-primary" onclick="goStep(2)">Continuer →</button>
+ </div>
+</div>
+
+<!-- ═══════════ ÉTAPE 2 — Situation professionnelle ═══════════ -->
+<div id="s2" class="screen">
+ <div class="step-badge"><span class="step-n">Étape 2 / 5</span> Situation professionnelle</div>
+ <div class="sec-title">Votre situation professionnelle</div>
+ <div class="sec-sub">Ces informations nous permettent de vous proposer les meilleures opportunités.</div>
+
+ <div class="err-banner" id="err2"></div>
+
+ <div class="fgrp">
+  <label class="lbl">Spécialité BTP <span class="req">*</span></label>
+  <select id="f-cat" class="inp">
+   <option value="">— Choisir —</option>
+   <option value="go">Gros Œuvre</option>
+   <option value="tp">Travaux Publics</option>
+   <option value="vrd">VRD</option>
+   <option value="elec">Électricité</option>
+   <option value="plomb">Plomberie / CVC</option>
+   <option value="charp">Charpente / Couverture</option>
+   <option value="fin">Second œuvre / Finitions</option>
+   <option value="archi">Bureau d'études / Architecture</option>
+   <option value="autre">Autre</option>
+  </select>
+ </div>
+
+ <div class="fgrp">
+  <label class="lbl">Poste recherché <span class="req">*</span></label>
+  <input id="f-poste" class="inp" placeholder="Ex : Conducteur de travaux, Chef de chantier…">
+ </div>
+
+ <div class="fgrp">
+  <label class="lbl">Expérience professionnelle <span class="req">*</span></label>
+  <div class="radio-group" id="rg-exp">
+   <div class="radio-btn" onclick="setRadio('exp','moins5')">Moins de 5 ans</div>
+   <div class="radio-btn" onclick="setRadio('exp','5a15')">5 à 15 ans</div>
+   <div class="radio-btn" onclick="setRadio('exp','plus15')">Plus de 15 ans</div>
+  </div>
+ </div>
+
+ <div class="frow">
+  <div><label class="lbl">Salaire actuel (€/an)</label><input id="f-sal-act" class="inp" type="number" placeholder="35000"></div>
+  <div><label class="lbl">Salaire souhaité (€/an) <span class="req">*</span></label><input id="f-sal-wish" class="inp" type="number" placeholder="40000"></div>
+ </div>
+
+ <div class="frow">
+  <div>
+   <label class="lbl">Disponibilité <span class="req">*</span></label>
+   <select id="f-dispo" class="inp">
+    <option value="">— Choisir —</option>
+    <option value="Immédiate">Immédiate</option>
+    <option value="1 mois">1 mois de préavis</option>
+    <option value="2 mois">2 mois de préavis</option>
+    <option value="3 mois">3 mois de préavis</option>
+    <option value="À définir">À définir</option>
+   </select>
+  </div>
+  <div>
+   <label class="lbl">Type de contrat</label>
+   <select id="f-contrat" class="inp">
+    <option value="CDI">CDI</option>
+    <option value="CDD">CDD</option>
+    <option value="Les deux">CDI ou CDD</option>
+   </select>
+  </div>
+ </div>
+
+ <div class="fgrp">
+  <label class="lbl">Mobilité géographique <span class="req">*</span></label>
+  <input id="f-mob" class="inp" placeholder="Ex : Région PACA, toute France, Île-de-France…">
+ </div>
+
+ <div class="fgrp">
+  <label class="lbl">Permis de conduire <span class="req">*</span></label>
+  <div class="radio-group" id="rg-permis">
+   <div class="radio-btn" onclick="setRadio('permis','oui');showCond('permis-info',true)">Oui — Permis B</div>
+   <div class="radio-btn" onclick="setRadio('permis','non');showCond('permis-info',false)">Non</div>
+   <div class="radio-btn" onclick="setRadio('permis','autres');showCond('permis-info',true)">Autres (C, BE…)</div>
+  </div>
+  <div id="permis-info" class="cond-zone" style="display:none">
+   <label class="lbl" style="font-size:10px">Préciser (optionnel)</label>
+   <input id="f-permis-detail" class="inp" placeholder="B, C, BE… Véhicule personnel : oui/non">
+  </div>
+ </div>
+
+ <div class="btn-nav">
+  <button class="btn-secondary" onclick="goStep(1)">← Retour</button>
+  <button class="btn-primary" onclick="goStep(3)">Continuer →</button>
+ </div>
+</div>
+
+<!-- ═══════════ ÉTAPE 3 — Situation administrative ═══════════ -->
+<div id="s3" class="screen">
+ <div class="step-badge"><span class="step-n">Étape 3 / 5</span> Situation administrative</div>
+ <div class="sec-title">Situation administrative</div>
+ <div class="sec-sub">Ces informations sont nécessaires pour valider votre droit au travail en France.</div>
+
+ <div class="err-banner" id="err3"></div>
+
+ <div class="fgrp">
+  <label class="lbl">Avez-vous le droit de travailler en France ? <span class="req">*</span></label>
+  <div class="radio-group" id="rg-ue">
+   <div class="radio-btn" onclick="setRadio('ue','ue');showCond('visa-zone',false)">Oui — Ressortissant UE / EEE</div>
+   <div class="radio-btn" onclick="setRadio('ue','non-ue');showCond('visa-zone',true)">Oui — Titre de séjour hors UE</div>
+   <div class="radio-btn" onclick="setRadio('ue','fr');showCond('visa-zone',false)">Oui — Nationalité française</div>
+  </div>
+ </div>
+
+ <div id="visa-zone" class="cond-zone" style="display:none">
+  <div style="font-size:11px;color:#9a6510;margin-bottom:10px;line-height:1.6">
+   <strong>Important :</strong> Votre titre de séjour doit mentionner explicitement l'autorisation d'exercer une activité salariée (mention "salarié", "travailleur temporaire" ou "toutes activités professionnelles"). Vous devrez uploader ce document à l'étape suivante.
+  </div>
+  <div class="frow">
+   <div>
+    <label class="lbl">Type de titre <span class="req">*</span></label>
+    <select id="f-titre-type" class="inp">
+     <option value="">— Choisir —</option>
+     <option value="carte-sejour">Carte de séjour salarié</option>
+     <option value="talent">Carte talent / Passeport talent</option>
+     <option value="vie-privee">Vie privée et familiale</option>
+     <option value="autre">Autre</option>
+    </select>
+   </div>
+   <div>
+    <label class="lbl">Date d'expiration <span class="req">*</span></label>
+    <input id="f-titre-exp" class="inp" type="date">
+   </div>
+  </div>
+  <div class="fgrp">
+   <label class="lbl">Pays d'origine <span class="req">*</span></label>
+   <input id="f-pays-origine" class="inp" placeholder="Ex : Maroc, Tunisie, Sénégal…">
+  </div>
+ </div>
+
+ <div class="fgrp" style="margin-top:14px">
+  <label class="lbl">N° de sécurité sociale (7 premiers chiffres)</label>
+  <input id="f-secu" class="inp" placeholder="1 85 03 75…" maxlength="15" style="font-family:monospace">
+  <div style="font-size:10px;color:#aaa;margin-top:4px">Facultatif — utilisé uniquement pour les déclarations légales à l'embauche</div>
+ </div>
+
+ <div class="btn-nav">
+  <button class="btn-secondary" onclick="goStep(2)">← Retour</button>
+  <button class="btn-primary" onclick="goStep(4)">Continuer →</button>
+ </div>
+</div>
+
+<!-- ═══════════ ÉTAPE 4 — Compétences ═══════════ -->
+<div id="s4" class="screen">
+ <div class="step-badge"><span class="step-n">Étape 4 / 5</span> Compétences &amp; qualifications</div>
+ <div class="sec-title">Compétences &amp; qualifications</div>
+ <div class="sec-sub">Cochez toutes les qualifications que vous possédez avec une attestation valide.</div>
+
+ <div class="err-banner" id="err4"></div>
+
+ <div class="fgrp">
+  <label class="lbl">CACES (Certificats d'aptitude à la conduite en sécurité)</label>
+  <div class="check-grid" id="cg-caces">
+   <label class="check-item"><input type="checkbox" value="R482-A"> R482-A (mini-pelles)</label>
+   <label class="check-item"><input type="checkbox" value="R482-B1"> R482-B1 (pelles)</label>
+   <label class="check-item"><input type="checkbox" value="R482-C1"> R482-C1 (chargeuses)</label>
+   <label class="check-item"><input type="checkbox" value="R482-F"> R482-F (compacteurs)</label>
+   <label class="check-item"><input type="checkbox" value="R483"> R483 (grues auxiliaires)</label>
+   <label class="check-item"><input type="checkbox" value="R484"> R484 (ponts roulants)</label>
+   <label class="check-item"><input type="checkbox" value="R485"> R485 (chariots)</label>
+   <label class="check-item"><input type="checkbox" value="R486"> R486 (nacelles)</label>
+   <label class="check-item"><input type="checkbox" value="R487"> R487 (grues à tour)</label>
+   <label class="check-item"><input type="checkbox" value="R490"> R490 (grues mobiles)</label>
+  </div>
+ </div>
+
+ <div class="sep"></div>
+
+ <div class="fgrp">
+  <label class="lbl">Habilitations électriques</label>
+  <div class="check-grid" id="cg-elec">
+   <label class="check-item"><input type="checkbox" value="H0/B0"> H0 / B0 (non électricien)</label>
+   <label class="check-item"><input type="checkbox" value="B1/H1"> B1 / H1</label>
+   <label class="check-item"><input type="checkbox" value="B2/H2"> B2 / H2</label>
+   <label class="check-item"><input type="checkbox" value="BR"> BR (chargé d'intervention)</label>
+   <label class="check-item"><input type="checkbox" value="BC"> BC (chargé de consignation)</label>
+   <label class="check-item"><input type="checkbox" value="BE Essai"> BE Essai</label>
+  </div>
+ </div>
+
+ <div class="sep"></div>
+
+ <div class="fgrp">
+  <label class="lbl">Formations sécurité</label>
+  <div class="check-grid" id="cg-secu">
+   <label class="check-item"><input type="checkbox" value="AIPR"> AIPR (travaux proximité réseaux)</label>
+   <label class="check-item"><input type="checkbox" value="Travail en hauteur"> Travail en hauteur</label>
+   <label class="check-item"><input type="checkbox" value="SST"> SST (sauveteur secouriste)</label>
+   <label class="check-item"><input type="checkbox" value="PASI"> PASI (premiers secours)</label>
+   <label class="check-item"><input type="checkbox" value="Amiante SS4"> Amiante SS4</label>
+   <label class="check-item"><input type="checkbox" value="Amiante sous-section 3"> Amiante sous-section 3</label>
+  </div>
+ </div>
+
+ <div class="sep"></div>
+
+ <div class="fgrp">
+  <label class="lbl">Logiciels maîtrisés</label>
+  <div class="check-grid" id="cg-logiciels">
+   <label class="check-item"><input type="checkbox" value="AutoCAD"> AutoCAD</label>
+   <label class="check-item"><input type="checkbox" value="Revit / BIM"> Revit / BIM</label>
+   <label class="check-item"><input type="checkbox" value="MS Project"> MS Project</label>
+   <label class="check-item"><input type="checkbox" value="Batigest"> Batigest / EBP</label>
+   <label class="check-item"><input type="checkbox" value="Chorus Pro"> Chorus Pro</label>
+   <label class="check-item"><input type="checkbox" value="Pack Office"> Pack Office</label>
+  </div>
+ </div>
+
+ <div class="fgrp">
+  <label class="lbl">Langues parlées (en plus du français)</label>
+  <input id="f-langues" class="inp" placeholder="Ex : Anglais professionnel, Arabe natif…">
+ </div>
+
+ <div class="fgrp">
+  <label class="lbl">Informations complémentaires</label>
+  <textarea id="f-notes" class="inp" placeholder="Tout élément que vous souhaitez nous communiquer : projet de formation, contraintes particulières, points forts…" style="min-height:80px"></textarea>
+ </div>
+
+ <div class="btn-nav">
+  <button class="btn-secondary" onclick="goStep(3)">← Retour</button>
+  <button class="btn-primary" onclick="goStep(5)">Continuer →</button>
+ </div>
+</div>
+
+<!-- ═══════════ ÉTAPE 5 — Documents + Signature ═══════════ -->
+<div id="s5" class="screen">
+ <div class="step-badge"><span class="step-n">Étape 5 / 5</span> Documents &amp; Signature</div>
+ <div class="sec-title">Documents &amp; Signature électronique</div>
+ <div class="sec-sub">Téléversez vos documents puis signez pour finaliser votre dossier.</div>
+
+ <div class="err-banner" id="err5"></div>
+
+ <!-- Récapitulatif automatique -->
+ <div id="recap-docs" style="background:#F8F5EF;border:1px solid #E8E4DC;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:11px;line-height:1.8;color:#555">
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#C9891A;margin-bottom:8px">Récapitulatif de votre dossier</div>
+  <div id="recap-content"></div>
+ </div>
+
+ <!-- Titre section documents -->
+ <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Documents à joindre</div>
+ <div style="font-size:11px;color:#aaa;margin-bottom:14px" id="docs-hint">Les documents obligatoires sont déterminés automatiquement selon vos réponses.</div>
+
+ <!-- Upload CV — toujours obligatoire -->
+ <div class="fgrp">
+  <label class="lbl">CV <span class="req">*</span> — Obligatoire</label>
+  <div class="upload-zone" id="uz-cv" onclick="document.getElementById('fi-cv').click()" ondrop="dropFile(event,'cv')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+   <input type="file" id="fi-cv" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFile(this,'cv')">
+   <div class="ico">📄</div>
+   <div class="lbl2">Glissez votre CV ici ou <strong>cliquez pour parcourir</strong><br><span style="font-size:10px">PDF, Word, JPG — max 5 Mo</span></div>
+  </div>
+  <div id="file-cv-ok" style="display:none"></div>
+ </div>
+
+ <!-- Upload CNI/Passeport — obligatoire si UE ou FR -->
+ <div id="upload-id" class="fgrp" style="display:none">
+  <label class="lbl">Pièce d'identité — CNI ou Passeport (recto-verso) <span class="req">*</span></label>
+  <div class="upload-zone" id="uz-id" onclick="document.getElementById('fi-id').click()" ondrop="dropFile(event,'id')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+   <input type="file" id="fi-id" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'id')">
+   <div class="ico">🪪</div>
+   <div class="lbl2">Carte nationale d'identité ou passeport <strong>recto-verso</strong><br><span style="font-size:10px">PDF ou image — max 5 Mo</span></div>
+  </div>
+  <div id="file-id-ok" style="display:none"></div>
+ </div>
+
+ <!-- Upload Permis — obligatoire si permis coché -->
+ <div id="upload-permis" class="fgrp" style="display:none">
+  <label class="lbl">Permis de conduire (recto-verso) <span class="req">*</span></label>
+  <div class="upload-zone" id="uz-permis" onclick="document.getElementById('fi-permis').click()" ondrop="dropFile(event,'permis')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+   <input type="file" id="fi-permis" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'permis')">
+   <div class="ico">🚗</div>
+   <div class="lbl2">Permis de conduire <strong>recto-verso</strong><br><span style="font-size:10px">PDF ou image — max 5 Mo</span></div>
+  </div>
+  <div id="file-permis-ok" style="display:none"></div>
+ </div>
+
+ <!-- Upload Titre séjour — obligatoire si hors UE -->
+ <div id="upload-titre" class="fgrp" style="display:none">
+  <label class="lbl">Titre de séjour (recto-verso) <span class="req">*</span></label>
+  <div style="background:rgba(201,137,26,.08);border:1px solid rgba(201,137,26,.25);border-radius:8px;padding:10px 13px;margin-bottom:8px;font-size:11px;color:#9a6510">
+   Votre titre de séjour doit mentionner l'autorisation d'exercer une activité salariée.
+  </div>
+  <div class="upload-zone" id="uz-titre" onclick="document.getElementById('fi-titre').click()" ondrop="dropFile(event,'titre')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+   <input type="file" id="fi-titre" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'titre')">
+   <div class="ico">📋</div>
+   <div class="lbl2">Titre de séjour <strong>recto-verso</strong> avec mention autorisation travail</div>
+  </div>
+  <div id="file-titre-ok" style="display:none"></div>
+ </div>
+
+ <div class="sep"></div>
+
+ <!-- RGPD -->
+ <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:8px">Consentement RGPD &amp; mentions légales</div>
+ <div class="rgpd-block">
+  <strong>Protection de vos données personnelles</strong><br>
+  Conformément au Règlement Général sur la Protection des Données (RGPD — UE 2016/679), les informations recueillies dans ce formulaire sont collectées par <strong>NOVALEM</strong>, cabinet de recrutement BTP (APE 7810Z), en qualité de responsable de traitement.<br><br>
+  <strong>Finalité :</strong> Ces données sont collectées exclusivement pour vous proposer des opportunités d'emploi dans le secteur BTP, effectuer les démarches liées à votre recrutement et vous transmettre des offres correspondant à votre profil.<br><br>
+  <strong>Durée de conservation :</strong> Vos données seront conservées pendant <strong>2 ans</strong> à compter de votre consentement, puis supprimées ou anonymisées, sauf si une relation contractuelle est établie.<br><br>
+  <strong>Vos droits :</strong> Vous disposez d'un droit d'accès, de rectification, d'effacement, d'opposition et de portabilité. Pour exercer ces droits : <strong>contact@novalem-recrutement.fr</strong>.<br><br>
+  <strong>Transmission à des tiers :</strong> Votre profil peut être transmis, sous forme anonymisée ou avec votre accord explicite, à des entreprises clientes de NOVALEM susceptibles de vous recruter. Aucune donnée ne sera vendue à des tiers.<br><br>
+  En signant ce dossier, vous attestez avoir pris connaissance des présentes mentions légales et consentez au traitement de vos données pour les finalités décrites.
+ </div>
+
+ <label class="cbl" id="cbl-rgpd" onclick="togRgpd()">
+  <div class="cb" id="cb-rgpd"></div>
+  <div class="cl">J'ai lu et j'accepte les conditions de traitement de mes données personnelles par NOVALEM, conformément au RGPD. Je consens à la conservation de mon dossier pendant 2 ans. <span class="req">*</span></div>
+ </label>
+
+ <label class="cbl" id="cbl-exact" onclick="togExact()">
+  <div class="cb" id="cb-exact"></div>
+  <div class="cl">Je certifie sur l'honneur l'exactitude des informations fournies dans ce dossier et l'authenticité des documents transmis. <span class="req">*</span></div>
+ </label>
+
+ <!-- Attestation permis (conditionnelle) -->
+ <div id="cbl-permis-wrap" style="display:none">
+  <label class="cbl" id="cbl-permis" onclick="togPermisAttest()">
+   <div class="cb" id="cb-permis"></div>
+   <div class="cl">J'atteste sur l'honneur être titulaire d'un permis de conduire valide au jour de la signature du présent dossier, et m'engage à informer NOVALEM de toute suspension ou invalidation. <span class="req">*</span></div>
+  </label>
+ </div>
+
+ <!-- Signature -->
+ <div class="sig-box">
+  <div style="font-size:11px;color:#aaa;margin-bottom:8px">Votre signature électronique</div>
+  <div class="sig-name" id="sig-preview">Votre nom s'affichera ici</div>
+  <div style="font-size:10px;color:#bbb;margin-top:6px">Signature simple — valeur juridique conforme eIDAS (UE n°910/2014)</div>
+ </div>
+
+ <div class="btn-nav">
+  <button class="btn-secondary" onclick="goStep(4)">← Retour</button>
+  <button class="btn-primary" id="btn-submit" onclick="submitDossier()" disabled>
+   ✍ Finaliser et signer mon dossier
+  </button>
+ </div>
+</div>
+
+<!-- ═══════════ SUCCÈS ═══════════ -->
+<div id="s-ok" class="screen">
+ <div class="success-wrap">
+  <div class="success-icon">✅</div>
+  <div class="success-title">Dossier validé !</div>
+  <div class="success-sub">
+   Merci <strong id="ok-name"></strong>. Votre dossier de candidature a été transmis à l'équipe NOVALEM.<br>
+   Vous recevrez une confirmation par email. Nous vous contacterons très prochainement.
+  </div>
+  <div class="proof-box">
+   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#C9891A;margin-bottom:10px">Récapitulatif</div>
+   <div id="ok-recap"></div>
+  </div>
+  <a href="#" id="btn-dl-pdf" class="btn-dl" onclick="downloadDossierPDF();return false">
+   ⬇ Télécharger mon dossier (PDF)
+  </a>
+ </div>
+</div>
+
+</div><!-- /.card -->
+
+<div class="footer">
+ <strong style="color:#C9891A">NOVALEM</strong> — Cabinet de recrutement BTP<br>
+ <a href="mailto:contact@novalem-recrutement.fr">contact@novalem-recrutement.fr</a> · 06 58 21 20 96<br>
+ <a href="https://novalem-recrutement.fr">novalem-recrutement.fr</a>
+</div>
+</div><!-- /.wrap -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+var API = 'https://novalem-crm.vercel.app';
+var CAND_ID = null; // Récupéré depuis l'URL si lien depuis CRM
+var currentStep = 1;
+var radioValues = {};
+var agreedRgpd = false;
+var agreedExact = false;
+var uploadedFiles = {};
+
+// Lire les paramètres URL
+var qp = new URLSearchParams(location.search);
+CAND_ID = qp.get('cid') || null;
+var candName = qp.get('n') ? decodeURIComponent(qp.get('n')) : '';
+
+// Mettre à jour la signature preview en temps réel
+['f-prenom','f-nom'].forEach(function(id){
+ document.getElementById(id)?.addEventListener('input', updateSigPreview);
+});
+
+function updateSigPreview(){
+ var p = (document.getElementById('f-prenom')?.value||'').trim();
+ var n = (document.getElementById('f-nom')?.value||'').trim();
+ var el = document.getElementById('sig-preview');
+ if(el) el.textContent = (p||n) ? p+' '+n : 'Votre nom s\'affichera ici';
+}
+
+function setRadio(group, val){
+ radioValues[group] = val;
+ document.querySelectorAll('#rg-'+group+' .radio-btn').forEach(function(btn){
+  btn.classList.toggle('sel', btn.textContent.includes(val) || btn.getAttribute('onclick')?.includes("'"+val+"'"));
+ });
+ // Corriger : marquer par onclick
+ document.querySelectorAll('#rg-'+group+' .radio-btn').forEach(function(btn){
+  var oc = btn.getAttribute('onclick')||'';
+  btn.classList.toggle('sel', oc.includes("'"+val+"'"));
+ });
+}
+
+function showCond(id, show){
+ var el = document.getElementById(id);
+ if(el) el.style.display = show ? '' : 'none';
+}
+
+function togRgpd(){
+ agreedRgpd = !agreedRgpd;
+ document.getElementById('cbl-rgpd').className = 'cbl'+(agreedRgpd?' on':'');
+ document.getElementById('cb-rgpd').textContent = agreedRgpd ? '✓' : '';
+ checkSubmit();
+}
+
+function togExact(){
+ agreedExact = !agreedExact;
+ document.getElementById('cbl-exact').className = 'cbl'+(agreedExact?' on':'');
+ document.getElementById('cb-exact').textContent = agreedExact ? '✓' : '';
+ checkSubmit();
+}
+
+var agreedPermisAttest = false;
+function togPermisAttest(){
+ agreedPermisAttest = !agreedPermisAttest;
+ document.getElementById('cbl-permis').className = 'cbl'+(agreedPermisAttest?' on':'');
+ document.getElementById('cb-permis').textContent = agreedPermisAttest ? '✓' : '';
+ checkSubmit();
+}
+
+function checkSubmit(){
+ var hasCV = !!uploadedFiles['cv'];
+
+ // Pièce d'identité : UE/FR → CNI obligatoire | hors-UE → titre séjour obligatoire
+ var needsId    = radioValues['ue'] === 'ue' || radioValues['ue'] === 'fr';
+ var needsTitre = radioValues['ue'] === 'non-ue';
+ var hasId    = !needsId    || !!uploadedFiles['id'];
+ var hasTitre = !needsTitre || !!uploadedFiles['titre'];
+
+ // Permis : obligatoire si coché
+ var needsPermis = ['oui','autres'].includes(radioValues['permis']);
+ var hasPermis = !needsPermis || !!uploadedFiles['permis'];
+
+ // Afficher/masquer dynamiquement les zones upload
+ var elId    = document.getElementById('upload-id');
+ var elTitre = document.getElementById('upload-titre');
+ if(elId)    elId.style.display    = needsId    ? '' : 'none';
+ if(elTitre) elTitre.style.display = needsTitre ? '' : 'none';
+
+ // Attestation permis requise si permis coché
+ var needsPermisAttest = needsPermis;
+ var hasPermisAttest = !needsPermisAttest || agreedPermisAttest;
+ // Afficher/masquer l'attestation permis
+ var elPermisWrap = document.getElementById('cbl-permis-wrap');
+ if(elPermisWrap) elPermisWrap.style.display = needsPermisAttest ? '' : 'none';
+
+ var ok = agreedRgpd && agreedExact && hasPermisAttest && hasCV && hasId && hasTitre && hasPermis;
+ document.getElementById('btn-submit').disabled = !ok;
+
+ // Mettre à jour l'indication des documents
+ var hint = document.getElementById('docs-hint');
+ if(hint){
+  var required = ['CV'];
+  if(needsId)    required.push('Pièce d’identité');
+  if(needsTitre) required.push('Titre de séjour');
+  if(needsPermis)required.push('Permis de conduire');
+  hint.textContent = 'Documents obligatoires : ' + required.join(', ') + '.';
+ }
+}
+
+function buildRecap(){
+ var catLabels = {go:'Gros Œuvre',tp:'Travaux Publics',vrd:'VRD',elec:'Électricité',
+  plomb:'Plomberie/CVC',charp:'Charpente/Couverture',fin:'Second œuvre',archi:"Bureau d'études",autre:'Autre'};
+ var expLabels = {moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'};
+ var el = document.getElementById('recap-content');
+ if(!el) return;
+ var p = function(k,v){ return v ? '<div><strong>' + k + ' :</strong> ' + escHtml(String(v)) + '</div>' : ''; };
+ var html = [
+  p('Nom', (document.getElementById('f-civ')?.value||'') + ' ' + (document.getElementById('f-prenom')?.value||'') + ' ' + (document.getElementById('f-nom')?.value||'')),
+  p('Date de naissance', document.getElementById('f-ddn')?.value),
+  p('Téléphone', document.getElementById('f-tel')?.value),
+  p('Email', document.getElementById('f-email')?.value),
+  p('Poste', document.getElementById('f-poste')?.value),
+  p('Spécialité', catLabels[document.getElementById('f-cat')?.value]||''),
+  p('Expérience', expLabels[radioValues['exp']]||''),
+  p('Salaire souhaité', document.getElementById('f-sal-wish')?.value ? document.getElementById('f-sal-wish').value + ' €/an' : ''),
+  p('Disponibilité', document.getElementById('f-dispo')?.value),
+  p('Mobilité', document.getElementById('f-mob')?.value),
+  p('Permis', {oui:'Oui — Permis B',non:'Non',autres:'Autres catégories'}[radioValues['permis']]||''),
+  p('Nationalité / Séjour', {ue:'Ressortissant UE/EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'}[radioValues['ue']]||''),
+ ].filter(Boolean).join('');
+ el.innerHTML = html || '<em>Complétez les étapes précédentes pour voir le récapitulatif.</em>';
+}
+
+function handleFile(input, key){
+ var file = input.files[0]; if(!file) return;
+ if(file.size > 5*1024*1024){ alert('Fichier trop volumineux (max 5 Mo)'); return; }
+ uploadedFiles[key] = file;
+ showFileOk(key, file.name);
+ checkSubmit();
+}
+
+function dropFile(e, key){
+ e.preventDefault();
+ document.getElementById('uz-'+key)?.classList.remove('drag');
+ var file = e.dataTransfer?.files?.[0]; if(!file) return;
+ uploadedFiles[key] = file;
+ showFileOk(key, file.name);
+ checkSubmit();
+}
+
+function showFileOk(key, name){
+ var zone = document.getElementById('uz-'+key);
+ var okDiv = document.getElementById('file-'+key+'-ok');
+ if(zone) zone.style.display = 'none';
+ if(okDiv){
+  okDiv.style.display = '';
+  okDiv.innerHTML = '<div class="file-ok"><span class="ico2">✅</span><span class="name">'+escHtml(name)+'</span><button class="rm" onclick="removeFile(\''+key+'\')">×</button></div>';
+ }
+}
+
+function removeFile(key){
+ delete uploadedFiles[key];
+ var zone = document.getElementById('uz-'+key);
+ var okDiv = document.getElementById('file-'+key+'-ok');
+ if(zone) zone.style.display = '';
+ if(okDiv) okDiv.style.display = 'none';
+ checkSubmit();
+}
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showErr(step, msg, fieldId){
+ var el = document.getElementById('err'+step);
+ if(el){ el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+ // Scroll vers le banner d'erreur
+ if(msg && el){ el.scrollIntoView({behavior:'smooth', block:'center'}); }
+ // Mettre en rouge le champ invalide + focus
+ if(fieldId){
+  var field = document.getElementById(fieldId);
+  if(field){
+   field.classList.add('err-field');
+   field.addEventListener('input', function(){ this.classList.remove('err-field'); }, {once:true});
+   field.addEventListener('change', function(){ this.classList.remove('err-field'); }, {once:true});
+   setTimeout(function(){ if(field) field.focus(); }, 300);
+  }
+ }
+}
+
+function validateStep(n){
+ showErr(n,'');
+ if(n===1){
+  if(!document.getElementById('f-civ').value){ showErr(1,'Veuillez sélectionner votre civilité','f-civ'); return false; }
+  if(!document.getElementById('f-prenom').value.trim()){ showErr(1,'Prénom obligatoire','f-prenom'); return false; }
+  if(!document.getElementById('f-nom').value.trim()){ showErr(1,'Nom obligatoire','f-nom'); return false; }
+  if(!document.getElementById('f-ddn').value){ showErr(1,'Date de naissance obligatoire','f-ddn'); return false; }
+  if(!document.getElementById('f-nat').value.trim()){ showErr(1,'Nationalité obligatoire','f-nat'); return false; }
+  if(!document.getElementById('f-adresse').value.trim()){ showErr(1,'Adresse obligatoire','f-adresse'); return false; }
+  if(!document.getElementById('f-cp').value.trim()){ showErr(1,'Code postal obligatoire','f-cp'); return false; }
+  if(!document.getElementById('f-ville').value.trim()){ showErr(1,'Ville obligatoire','f-ville'); return false; }
+  if(!document.getElementById('f-tel').value.trim()){ showErr(1,'Téléphone obligatoire','f-tel'); return false; }
+  var email = document.getElementById('f-email').value.trim();
+  if(!email || !email.includes('@')){ showErr(1,'Email valide obligatoire','f-email'); return false; }
+ }
+ if(n===2){
+  if(!document.getElementById('f-cat').value){ showErr(2,'Spécialité BTP obligatoire','f-cat'); return false; }
+  if(!document.getElementById('f-poste').value.trim()){ showErr(2,'Poste recherché obligatoire','f-poste'); return false; }
+  if(!radioValues['exp']){ showErr(2,'Veuillez indiquer votre niveau d\'expérience'); return false; }
+  if(!document.getElementById('f-sal-wish').value){ showErr(2,'Salaire souhaité obligatoire','f-sal-wish'); return false; }
+  if(!document.getElementById('f-dispo').value){ showErr(2,'Disponibilité obligatoire','f-dispo'); return false; }
+  if(!document.getElementById('f-mob').value.trim()){ showErr(2,'Mobilité géographique obligatoire','f-mob'); return false; }
+  if(!radioValues['permis']){ showErr(2,'Veuillez indiquer si vous avez le permis'); return false; }
+  // Afficher/masquer upload permis
+  var needsPermis = ['oui','autres'].includes(radioValues['permis']);
+  document.getElementById('upload-permis').style.display = needsPermis ? '' : 'none';
+ }
+ if(n===3){
+  if(!radioValues['ue']){ showErr(3,'Veuillez indiquer votre situation administrative'); return false; }
+  if(radioValues['ue']==='non-ue'){
+   if(!document.getElementById('f-titre-type').value){ showErr(3,'Type de titre de séjour obligatoire'); return false; }
+   if(!document.getElementById('f-titre-exp').value){ showErr(3,'Date d\'expiration obligatoire'); return false; }
+   var exp = new Date(document.getElementById('f-titre-exp').value);
+   if(exp < new Date()){ showErr(3,'Titre de séjour expiré — contactez NOVALEM'); return false; }
+   document.getElementById('upload-titre').style.display = '';
+  } else {
+   document.getElementById('upload-titre').style.display = 'none';
+  }
+ }
+ if(n===5){
+  // CV toujours obligatoire
+  if(!uploadedFiles['cv']){ showErr(5,'Veuillez joindre votre CV pour continuer.'); return false; }
+  // Pièce d'identité / Titre de séjour selon situation
+  var needsId    = radioValues['ue'] === 'ue' || radioValues['ue'] === 'fr';
+  var needsTitre = radioValues['ue'] === 'non-ue';
+  if(needsId && !uploadedFiles['id']){ showErr(5,'Veuillez joindre votre pièce d\'identité (CNI ou passeport).'); return false; }
+  if(needsTitre && !uploadedFiles['titre']){ showErr(5,'Veuillez joindre votre titre de séjour.'); return false; }
+  // Permis si coché
+  var needsPermis = ['oui','autres'].includes(radioValues['permis']);
+  if(needsPermis && !uploadedFiles['permis']){ showErr(5,'Veuillez joindre votre permis de conduire.'); return false; }
+  // Consentements
+  if(!agreedRgpd){ showErr(5,'Veuillez accepter les conditions RGPD.'); return false; }
+  if(!agreedExact){ showErr(5,'Veuillez certifier l\'exactitude des informations.'); return false; }
+  if(needsPermis && !agreedPermisAttest){ showErr(5,'Veuillez cocher l\'attestation sur l\'honneur du permis.'); return false; }
+ }
+ return true;
+}
+
+function goStep(n){
+ if(n > currentStep && !validateStep(currentStep)) return;
+ // Mettre à jour la progress bar
+ for(var i=1;i<=5;i++){
+  var dot = document.getElementById('sd'+i);
+  var line = document.getElementById('sl'+i);
+  if(!dot) continue;
+  if(i<n){ dot.className='step-dot done'; dot.textContent='✓'; }
+  else if(i===n){ dot.className='step-dot active'; dot.textContent=i; }
+  else{ dot.className='step-dot todo'; dot.textContent=i; }
+  if(line){ line.className='step-line'+(i<n?' done':''); }
+ }
+ document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+ var screen = document.getElementById('s'+n);
+ if(screen){ screen.classList.add('active'); window.scrollTo(0,0); }
+ currentStep = n;
+ // Quand on arrive à l'étape 5 → construire le récap + mettre à jour docs obligatoires
+ if(n === 5){
+  buildRecap();
+  checkSubmit();
+ }
+}
+
+async function submitDossier(){
+ // Protection double-envoi
+ if(window._dossierSubmitting){ return; }
+ if(!validateStep(5)) return;
+ window._dossierSubmitting = true;
+
+ var btn = document.getElementById('btn-submit');
+ btn.disabled = true;
+ btn.innerHTML = '<span class="spinner"></span> Envoi en cours…';
+
+ // Collecter toutes les données
+ var CACES = [...document.querySelectorAll('#cg-caces input:checked')].map(function(e){return e.value;});
+ var ELEC  = [...document.querySelectorAll('#cg-elec input:checked')].map(function(e){return e.value;});
+ var SECU  = [...document.querySelectorAll('#cg-secu input:checked')].map(function(e){return e.value;});
+ var LOGI  = [...document.querySelectorAll('#cg-logiciels input:checked')].map(function(e){return e.value;});
+
+ var dossier = {
+  identite: {
+   civilite:   document.getElementById('f-civ').value,
+   prenom:     document.getElementById('f-prenom').value.trim(),
+   nom:        document.getElementById('f-nom').value.trim(),
+   ddn:        document.getElementById('f-ddn').value,
+   nationalite:document.getElementById('f-nat').value.trim(),
+   adresse:    document.getElementById('f-adresse').value.trim(),
+   cp:         document.getElementById('f-cp').value.trim(),
+   ville:      document.getElementById('f-ville').value.trim(),
+   tel:        document.getElementById('f-tel').value.trim(),
+   email:      document.getElementById('f-email').value.trim(),
+  },
+  pro: {
+   cat:        document.getElementById('f-cat').value,
+   poste:      document.getElementById('f-poste').value.trim(),
+   experience: radioValues['exp']||'',
+   sal_actuel: document.getElementById('f-sal-act').value,
+   sal_souhaite:document.getElementById('f-sal-wish').value,
+   dispo:      document.getElementById('f-dispo').value,
+   contrat:    document.getElementById('f-contrat').value,
+   mobilite:   document.getElementById('f-mob').value.trim(),
+   permis:     radioValues['permis']||'non',
+   permis_detail:document.getElementById('f-permis-detail')?.value||'',
+  },
+  admin: {
+   situation_ue: radioValues['ue']||'',
+   titre_type:  document.getElementById('f-titre-type')?.value||'',
+   titre_exp:   document.getElementById('f-titre-exp')?.value||'',
+   pays_origine:document.getElementById('f-pays-origine')?.value||'',
+   secu:        document.getElementById('f-secu')?.value||'',
+  },
+  competences: {
+   caces: CACES,
+   electrique: ELEC,
+   securite: SECU,
+   logiciels: LOGI,
+   langues:  document.getElementById('f-langues')?.value||'',
+   notes:    document.getElementById('f-notes')?.value||'',
+  },
+  signature: {
+   signed_at: new Date().toISOString(),
+   signed_by: document.getElementById('f-prenom').value.trim()+' '+document.getElementById('f-nom').value.trim(),
+  },
+  cand_id: CAND_ID,
+ };
+
+ // Convertir les fichiers en base64
+ var attachments = [];
+ for(var key of Object.keys(uploadedFiles)){
+  var file = uploadedFiles[key];
+  var b64 = await fileToBase64(file);
+  attachments.push({ key: key, filename: file.name, content: b64.split(',')[1], type: file.type });
+ }
+
+ try {
+  var resp = await fetch(API+'/api/jobs', {
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body: JSON.stringify({ action:'submit_dossier', dossier, attachments })
+  });
+  var data = await resp.json();
+
+  if(!resp.ok || !data.success){
+   btn.disabled = false;
+   btn.innerHTML = '✍ Finaliser et signer mon dossier';
+   window._dossierSubmitting = false;
+   document.getElementById('err5').textContent = data.error || 'Erreur — Réessayez ou contactez NOVALEM';
+   document.getElementById('err5').style.display = '';
+   return;
+  }
+
+  // Succès — masquer le formulaire définitivement, bloquer tout retour
+  window._dossierSubmitting = true; // rester bloqué
+  window._dossierDone = true;
+  showSuccess(dossier);
+
+ } catch(e) {
+  btn.disabled = false;
+  btn.innerHTML = '✍ Finaliser et signer mon dossier';
+  window._dossierSubmitting = false;
+  document.getElementById('err5').textContent = 'Erreur réseau. Vérifiez votre connexion.';
+  document.getElementById('err5').style.display = '';
+ }
+}
+
+function fileToBase64(file){
+ return new Promise(function(resolve,reject){
+  var r = new FileReader();
+  r.onload = function(){resolve(r.result);};
+  r.onerror = reject;
+  r.readAsDataURL(file);
+ });
+}
+
+function showSuccess(d){
+ // Masquer tous les écrans, désactiver navigation arrière
+ document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+ document.getElementById('s-ok').classList.add('active');
+ document.getElementById('prog-bar').style.display='none';
+ // Empêcher tout retour en arrière
+ window.history.pushState(null,'',window.location.href);
+ window.onpopstate = function(){ window.history.pushState(null,'',window.location.href); };
+ window.scrollTo({top:0,behavior:'smooth'});
+
+ var nom = d.identite.prenom+' '+d.identite.nom;
+ document.getElementById('ok-name').textContent = d.identite.prenom;
+
+ var dt = new Date(d.signature.signed_at).toLocaleString('fr-FR',{
+  day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'
+ });
+
+ var catLabels = {go:'Gros Œuvre',tp:'Travaux Publics',vrd:'VRD',elec:'Électricité',
+  plomb:'Plomberie/CVC',charp:'Charpente/Couverture',fin:'Second œuvre',archi:'Bureau d\'études',autre:'Autre'};
+
+ document.getElementById('ok-recap').innerHTML =
+  '<div class="pr"><span class="pk">Nom</span><span class="pv">'+escHtml(nom)+'</span></div>'+
+  '<div class="pr"><span class="pk">Email</span><span class="pv">'+escHtml(d.identite.email)+'</span></div>'+
+  '<div class="pr"><span class="pk">Poste</span><span class="pv">'+escHtml(d.pro.poste)+'</span></div>'+
+  '<div class="pr"><span class="pk">Spécialité</span><span class="pv">'+escHtml(catLabels[d.pro.cat]||d.pro.cat)+'</span></div>'+
+  '<div class="pr"><span class="pk">Disponibilité</span><span class="pv">'+escHtml(d.pro.dispo)+'</span></div>'+
+  '<div class="pr"><span class="pk">Salaire souhaité</span><span class="pv">'+escHtml(d.pro.sal_souhaite)+' €/an</span></div>'+
+  '<div class="pr"><span class="pk">Signé le</span><span class="pv">'+escHtml(dt)+'</span></div>'+
+  '<div class="pr"><span class="pk">Valeur légale</span><span class="pv">Signature simple eIDAS</span></div>';
+
+ // Stocker pour le PDF
+ window._dossierId = d;
+}
+
+function downloadDossierPDF(){
+ var d = window._dossierId; if(!d) return;
+ var jsPDFLib = window.jspdf;
+ if(!jsPDFLib){ alert('PDF non disponible'); return; }
+ var doc = new jsPDFLib.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+ var W=210,H=297,ML=18,MR=18,MT=16,CW=174;
+ var C={n:[26,22,20],o:[201,137,26],g:[85,85,85],f:[245,243,239],l:[232,228,220]};
+ var y=MT;
+
+ function sf(s,sz){doc.setFont('helvetica',s);doc.setFontSize(sz);}
+ function tc(){doc.setTextColor.apply(doc,arguments);}
+ function wt(t,x,yy,o){doc.text(t,x,yy,o||{});}
+ function sep(){doc.setDrawColor(...C.l);doc.setLineWidth(0.3);doc.line(ML,y,W-MR,y);y+=5;}
+ function section(title){
+  if(y>H-40){doc.addPage();y=MT;}
+  sf('bold',9);tc(...C.o);wt(title,ML,y);y+=5;
+  doc.setDrawColor(...C.o);doc.setLineWidth(0.3);doc.line(ML,y,ML+60,y);y+=4;
+ }
+ function row(label,val){
+  if(y>H-20){doc.addPage();y=MT;}
+  sf('normal',8);tc(...C.g);wt(label,ML,y);
+  sf('normal',8.5);tc(...C.n);
+  var lines=doc.splitTextToSize(String(val||'—'),CW-60);
+  wt(lines,ML+60,y);
+  y+=lines.length*4+1.5;
+ }
+
+ // Header
+ sf('bold',20);tc(...C.n);wt('NOVA',ML,y+7);
+ var nw=doc.getTextWidth('NOVA');
+ tc(...C.o);wt('LEM',ML+nw,y+7);
+ sf('normal',7.5);tc(...C.g);
+ wt('contact@novalem-recrutement.fr  ·  06 58 21 20 96',W-MR,y+4,{align:'right'});
+ y+=10;sf('normal',8);tc(...C.o);wt('RECRUTEMENT BTP - CDI',ML,y+2);
+ y+=5;doc.setDrawColor(...C.o);doc.setLineWidth(0.8);doc.line(ML,y,W-MR,y);y+=7;
+
+ sf('bold',13);tc(...C.n);wt('DOSSIER DE CANDIDATURE',ML,y);y+=5;
+ sf('normal',8.5);tc(...C.g);wt('Document confidentiel — '+new Date(d.signature.signed_at).toLocaleDateString('fr-FR'),ML,y);y+=9;
+
+ section('IDENTITÉ');
+ row('Civilité + Prénom Nom', d.identite.civilite+' '+d.identite.prenom+' '+d.identite.nom);
+ row('Date de naissance', d.identite.ddn);
+ row('Nationalité', d.identite.nationalite);
+ row('Adresse', d.identite.adresse+', '+d.identite.cp+' '+d.identite.ville);
+ row('Téléphone', d.identite.tel);
+ row('Email', d.identite.email);
+
+ section('SITUATION PROFESSIONNELLE');
+ row('Poste recherché', d.pro.poste);
+ row('Expérience', {moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'}[d.pro.experience]||d.pro.experience);
+ row('Salaire actuel', d.pro.sal_actuel ? d.pro.sal_actuel+' €/an' : 'Non communiqué');
+ row('Salaire souhaité', d.pro.sal_souhaite+' €/an');
+ row('Disponibilité', d.pro.dispo);
+ row('Type de contrat', d.pro.contrat);
+ row('Mobilité', d.pro.mobilite);
+ row('Permis', d.pro.permis==='oui'?'Oui — Permis B'+(d.pro.permis_detail?' ('+d.pro.permis_detail+')':''):d.pro.permis==='non'?'Non':d.pro.permis_detail||d.pro.permis);
+
+ section('SITUATION ADMINISTRATIVE');
+ var ueLabels={ue:'Ressortissant UE/EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'};
+ row('Situation', ueLabels[d.admin.situation_ue]||d.admin.situation_ue);
+ if(d.admin.situation_ue==='non-ue'){
+  row('Type de titre', d.admin.titre_type);
+  row('Expiration titre', d.admin.titre_exp);
+  row('Pays d\'origine', d.admin.pays_origine);
+ }
+ if(d.admin.secu) row('N° Sécu (partiel)', d.admin.secu);
+
+ section('COMPÉTENCES');
+ if(d.competences.caces.length) row('CACES', d.competences.caces.join(', '));
+ if(d.competences.electrique.length) row('Habilitations élec.', d.competences.electrique.join(', '));
+ if(d.competences.securite.length) row('Formations sécurité', d.competences.securite.join(', '));
+ if(d.competences.logiciels.length) row('Logiciels', d.competences.logiciels.join(', '));
+ if(d.competences.langues) row('Langues', d.competences.langues);
+ if(d.competences.notes) row('Notes', d.competences.notes);
+
+ sep();
+ section('SIGNATURE ÉLECTRONIQUE');
+ sf('italic',12);tc(...C.o);wt(d.signature.signed_by,ML,y);y+=6;
+ sf('normal',7.5);tc(...C.g);
+ wt('Signé le '+new Date(d.signature.signed_at).toLocaleString('fr-FR'),ML,y);y+=5;
+ wt('Signature électronique simple — valeur juridique conforme eIDAS (UE n°910/2014)',ML,y);y+=5;
+ wt('Le candidat certifie l\'exactitude des informations et consent au traitement RGPD par NOVALEM.',ML,y);
+
+ // Footer
+ var np=doc.getNumberOfPages();
+ for(var p=1;p<=np;p++){
+  doc.setPage(p);
+  doc.setDrawColor(...C.l);doc.setLineWidth(0.3);doc.line(ML,H-12,W-MR,H-12);
+  sf('normal',6.5);tc(...C.g);
+  wt('NOVALEM · Cabinet de recrutement BTP · contact@novalem-recrutement.fr · Document confidentiel',ML,H-8);
+  wt(p+' / '+np,W-MR,H-8,{align:'right'});
+ }
+
+ doc.save('Dossier_Candidature_NOVALEM_'+d.identite.nom+'.pdf');
+}
+</script>
+</body>
+</html>
