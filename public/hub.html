@@ -1286,8 +1286,8 @@ try {
 } catch(e) { location.href = '/'; }
 
 /* ── Supabase ────────────────────────────────────────────────── */
-const SB_URL  = 'https://ygphaqvwbtjhcypaixim.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlncGhhcXZ3YnRqaGN5cGFpeGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNDM3MTcsImV4cCI6MjA3NDgxOTcxN30.Xu8QXcJOStVsFT4rEgUYhEPtXW2IVKijR9SZb-cTgyc';
+const SB_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
 let sb = null;
 try { sb = window.supabase.createClient(SB_URL, SB_ANON); } catch(e) { console.warn('Supabase unavailable', e); }
 
@@ -1440,12 +1440,12 @@ async function loadData() {
 
   try {
     const [{ count: cand }, { count: placed }, { count: offers }, { data: recent }] = await Promise.all([
-      sb.from('candidates').select('*', { count:'exact', head:true }),
-      sb.from('candidates').select('*', { count:'exact', head:true })
-        .eq('status','place')
+      sb.from('candidats').select('*', { count:'exact', head:true }),
+      sb.from('candidats').select('*', { count:'exact', head:true })
+        .eq('statut','place')
         .gte('updated_at', (() => { const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); return d.toISOString(); })()),
-      sb.from('jobs').select('*', { count:'exact', head:true }).eq('status','active'),
-      sb.from('candidates').select('name,status,updated_at').order('updated_at',{ascending:false}).limit(12),
+      sb.from('job_postings').select('*', { count:'exact', head:true }).eq('published',true),
+      sb.from('candidats').select('nom,prenom,statut,updated_at').order('updated_at',{ascending:false}).limit(12),
     ]);
 
     animateCount(document.getElementById('st-cand'),  cand    || 0);
@@ -1455,17 +1455,19 @@ async function loadData() {
     animateCount(document.getElementById('st-rate'),  rate, '%');
 
     if (recent?.length) {
-      const stLabel = { nouveau:'Nouveau candidat', contacte:'Contact initié', entretien:'En entretien', propose:'Proposé', place:'Placé', archive:'Archivé' };
-      const stDot   = { nouveau:'bl', contacte:'or', entretien:'ac', propose:'or', place:'gn', archive:'mu' };
-      document.getElementById('feed-list').innerHTML = recent.map(c => `
+      const stLabel = { nouveau:'Nouveau candidat', contact:'Contact initié', entretien_scout:'Entretien scout', presente:'Présenté', entretien_client:'Entretien client', offre:'Offre', place:'Placé', refuse:'Refusé', archive:'Archivé' };
+      const stDot   = { nouveau:'bl', contact:'or', entretien_scout:'or', presente:'or', entretien_client:'or', offre:'or', place:'gn', refuse:'mu', archive:'mu' };
+      document.getElementById('feed-list').innerHTML = recent.map(c => {
+        const fullName = [c.prenom, c.nom].filter(Boolean).join(' ') || 'Candidat';
+        return `
         <div class="fi">
-          <div class="fi-dot ${stDot[c.status]||'mu'}"></div>
+          <div class="fi-dot ${stDot[c.statut]||'mu'}"></div>
           <div>
-            <div class="fi-text"><strong>${c.name || 'Candidat'}</strong> — ${stLabel[c.status] || c.status}</div>
+            <div class="fi-text"><strong>${fullName}</strong> — ${stLabel[c.statut] || c.statut}</div>
             <div class="fi-time">${timeAgo(c.updated_at)}</div>
           </div>
         </div>
-      `).join('');
+      `;}).join('');
     } else {
       document.getElementById('feed-list').innerHTML =
         `<div class="fi"><div class="fi-dot mu"></div><div class="fi-text" style="color:var(--mu)">Aucune activité récente</div></div>`;
