@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
 
     // ── Insert dans Supabase ─────────────────────────
     const record = {
-      job_id:        job_id        || null,
+      job_posting_id: job_id        || null,
       job_title:     job_title     || null,
       job_reference: job_reference || null,
       firstname:     (firstname || '').trim(),
@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
       linkedin_url:  (linkedin_url || '').trim() || null,
       message:       (message   || '').trim() || null,
       source:        source || 'site_novalem',
-      status:        'new',
+      status:        'nouveau',
     };
 
     const { data: appData, error: appError } = await supabase
