@@ -628,10 +628,31 @@
             <div class="ex-bsn-end-stat-lab">temps</div>
           </div>
         </div>
+        <div style="margin-top:22px">
+          <button class="btn-primary pri" onclick="nextStep()" style="padding:12px 28px">Continuer<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;margin-left:6px"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+        </div>
       </div>`;
 
-    /* Comme cette extension a son propre écran final, on signale immédiatement au moteur. */
-    processAnswer(correct, currentExercise());
+    /* Le bison a son propre écran final et son propre bouton Continuer,
+       donc on signale le résultat au moteur SANS passer par le flux
+       d'explication standard (qui chercherait des éléments DOM disparus).
+       On reproduit la partie "comptable" de processAnswer à la main. */
+    const ex = currentExercise();
+    const exKey = `${RUN.modId}:${ex.id}`;
+    RUN.answered++;
+    if (correct){
+      RUN.correct++;
+      RUN.firstTryMap[ex.id] = true;
+      markMastered(exKey, true);
+      gainLife();
+    } else {
+      RUN.wrongOnce.add(ex.id);
+      RUN.firstTryMap[ex.id] = false;
+      loseLife();
+      markMastered(exKey, false);
+      /* Le bison entier reviendra si raté — mais on ne le push pas en retry
+         immédiat dans la même session (ce serait punir trop). */
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════
