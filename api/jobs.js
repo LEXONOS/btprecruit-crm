@@ -114,13 +114,31 @@ module.exports = async function handler(req, res) {
 };
 
 // ── Signature électronique ─────────────────────────────────────
-// Stockage dans novalem_signatures (table simple, pas de validation croisée)
-// Le token long (2×uid = ~48 chars aléatoires) est l'authentification suffisante
+// Niveau eIDAS simple + faisceau d'indices renforcé
+// Stockage dans novalem_signatures avec preuves juridiques (signature graphique,
+// fonction signataire, hash contrat, audit log, acceptances)
 async function handleSignContract(req, res) {
-  const { co_id, ct_id, token, signer_name, signer_email, co_name } = req.body || {};
+  const {
+    co_id, ct_id, token,
+    signer_name, signer_fonction, signer_email, co_name,
+    signature_image, signature_method,
+    user_agent, contract_hash, audit_log, acceptances,
+  } = req.body || {};
 
+  // ── Validations ──
   if (!ct_id || !token || !signer_name?.trim()) {
     return res.status(400).json({ error: 'ct_id, token et signer_name sont requis' });
+  }
+  if (!signer_fonction?.trim()) {
+    return res.status(400).json({ error: 'La fonction du signataire est requise (preuve du pouvoir d\'engagement)' });
+  }
+  // Signature graphique obligatoire (dessinée ou importée) — la typée seule n'est pas suffisante
+  if (!signature_image || !signature_method || !['drawn', 'uploaded'].includes(signature_method)) {
+    return res.status(400).json({ error: 'Signature graphique manquante (dessinée ou importée requise)' });
+  }
+  // 3 acceptances obligatoires
+  if (!acceptances?.lecture || !acceptances?.pouvoir || !acceptances?.eidas) {
+    return res.status(400).json({ error: 'Toutes les cases d\'engagement doivent être cochées' });
   }
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -134,7 +152,7 @@ async function handleSignContract(req, res) {
   // Vérifier si déjà signé (même ct_id + token)
   const { data: existing } = await sb
     .from('novalem_signatures')
-    .select('signer_name, signed_at')
+    .select('signer_name, signer_fonction, signed_at')
     .eq('ct_id', ct_id)
     .eq('token', token)
     .maybeSingle();
@@ -143,22 +161,32 @@ async function handleSignContract(req, res) {
     return res.status(409).json({
       error: 'Contrat déjà signé',
       signer_name: existing.signer_name,
+      signer_fonction: existing.signer_fonction,
       signed_at: existing.signed_at,
       reference: ref,
     });
   }
 
-  // Enregistrer la signature
+  // Enregistrer la signature avec preuves juridiques complètes
   const { error: insertErr } = await sb.from('novalem_signatures').insert({
-    co_id:        co_id || null,
+    co_id:               co_id || null,
     ct_id,
     token,
-    co_name:      co_name || null,
-    signer_name:  signer_name.trim(),
-    signer_email: signer_email || null,
-    signer_ip:    ip,
+    co_name:             co_name || null,
+    signer_name:         signer_name.trim(),
+    signer_fonction:     signer_fonction.trim(),
+    signer_email:        signer_email || null,
+    signer_ip:           ip,
     signed_at,
-    status:       'signé',
+    status:              'signé',
+    signature_image:     signature_image,
+    signature_method:    signature_method,
+    user_agent:          user_agent || req.headers['user-agent'] || null,
+    contract_hash:       contract_hash || null,
+    acceptance_lecture:  !!acceptances?.lecture,
+    acceptance_pouvoir:  !!acceptances?.pouvoir,
+    acceptance_eidas:    !!acceptances?.eidas,
+    audit_log:           audit_log || {},
   });
 
   if (insertErr) {
@@ -190,14 +218,21 @@ async function handleSignContract(req, res) {
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888;width:130px">Client</td><td style="padding:8px 10px;font-weight:700">${co_name || co_id || '—'}</td></tr>
       <tr><td style="padding:8px 10px;color:#888">Signataire</td><td style="padding:8px 10px;font-weight:700">${signer_name}</td></tr>
-      <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888">Email</td><td style="padding:8px 10px">${signer_email || '—'}</td></tr>
-      <tr><td style="padding:8px 10px;color:#888">Date & heure</td><td style="padding:8px 10px">${dt} (Paris)</td></tr>
-      <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888">IP</td><td style="padding:8px 10px;font-family:monospace;font-size:11px">${ip}</td></tr>
+      <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888">Fonction</td><td style="padding:8px 10px;font-weight:700">${signer_fonction}</td></tr>
+      <tr><td style="padding:8px 10px;color:#888">Email</td><td style="padding:8px 10px">${signer_email || '—'}</td></tr>
+      <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888">Date & heure</td><td style="padding:8px 10px">${dt} (Paris)</td></tr>
+      <tr><td style="padding:8px 10px;color:#888">IP</td><td style="padding:8px 10px;font-family:monospace;font-size:11px">${ip}</td></tr>
+      <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888">Mode signature</td><td style="padding:8px 10px">${signature_method === 'drawn' ? 'Dessinée à la main' : 'Image importée'}</td></tr>
       <tr><td style="padding:8px 10px;color:#888">Référence</td><td style="padding:8px 10px;font-family:monospace;font-size:12px;color:#C9891A;font-weight:700">${ref}</td></tr>
     </table>
+    ${signature_image ? `
+    <div style="margin-top:14px;padding:12px;background:#F8F5EF;border-radius:6px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">Signature graphique</div>
+      <img src="${signature_image}" alt="Signature" style="max-width:100%;max-height:80px;display:block;margin:0 auto">
+    </div>` : ''}
     <p style="margin:16px 0 0;font-size:12px;color:#888">Prochaine étape : ouvrez le CRM → fiche client → onglet Contrats → Vérifier signature → transmettez les coordonnées du candidat.</p>
   </div>
-  <div style="background:#F8F5EF;padding:10px 24px;border-top:1px solid #E8E4DC;font-size:10px;color:#aaa">NOVALEM · Signature électronique simple eIDAS · ${ref}</div>
+  <div style="background:#F8F5EF;padding:10px 24px;border-top:1px solid #E8E4DC;font-size:10px;color:#aaa">NOVALEM · Signature électronique eIDAS simple · ${ref}</div>
 </div></body></html>`;
 
     await fetch('https://api.resend.com/emails', {
@@ -219,15 +254,21 @@ async function handleSignContract(req, res) {
   <div style="background:#1A1614;padding:16px 24px"><div style="font-size:17px;font-weight:900;color:#fff">NOVA<span style="color:#C9891A">LEM</span></div><div style="font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;margin-top:1px">CONFIRMATION DE SIGNATURE</div></div>
   <div style="padding:22px 24px">
     <p style="font-size:14px;font-weight:700;margin-bottom:14px">Bonjour ${signer_name},</p>
-    <p style="font-size:13px;line-height:1.7;margin-bottom:16px">Nous confirmons avoir reçu votre signature électronique du <strong>Contrat Cadre de Recrutement NOVALEM</strong>.</p>
+    <p style="font-size:13px;line-height:1.7;margin-bottom:16px">Nous confirmons avoir reçu votre signature électronique du <strong>Contrat Cadre de Recrutement NOVALEM</strong> en qualité de <strong>${signer_fonction}</strong>${co_name ? ' de ' + co_name : ''}.</p>
     <div style="background:#F8F5EF;border-radius:6px;padding:14px;margin-bottom:16px">
       <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#C9891A;margin-bottom:8px">Certificat de signature</div>
       <table style="width:100%;font-size:12px;border-collapse:collapse">
         <tr><td style="padding:4px 0;color:#666;width:110px">Signataire</td><td style="font-weight:700">${signer_name}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">Fonction</td><td>${signer_fonction}</td></tr>
         <tr><td style="padding:4px 0;color:#666">Date</td><td>${dt}</td></tr>
         <tr><td style="padding:4px 0;color:#666">Référence</td><td style="font-family:monospace;color:#C9891A;font-weight:700">${ref}</td></tr>
         <tr><td style="padding:4px 0;color:#666">Valeur légale</td><td>Signature simple — eIDAS (UE) n°910/2014</td></tr>
       </table>
+      ${signature_image ? `
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #E8E4DC">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px">Votre signature</div>
+        <img src="${signature_image}" alt="Signature" style="max-width:100%;max-height:60px;display:block">
+      </div>` : ''}
     </div>
     <p style="font-size:12px;color:#888;line-height:1.65">NOVALEM vous contactera très prochainement avec les coordonnées du candidat pour organiser l'entretien. <strong>Conservez cet email comme preuve de signature.</strong></p>
   </div>
