@@ -2,206 +2,614 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Signature contrat — NOVALEM</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Signature électronique — NOVALEM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@500;600;700&family=Caveat:wght@400;500;600;700&family=Allison&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#F5F3EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 16px}
+:root {
+ --bg: #F5F3EF;
+ --surface: #FFFFFF;
+ --surface-2: #F8F5EF;
+ --ink: #1A1614;
+ --ink-soft: #4A4540;
+ --mu: #888482;
+ --mu-soft: #BBB6B0;
+ --border: #E8E4DC;
+ --border-strong: #D0C8BC;
+ --gold: #C9891A;
+ --gold-soft: rgba(201,137,26,.08);
+ --gold-strong: #B07810;
+ --green: #2DA160;
+ --green-soft: #E8F7EE;
+ --red: #D14545;
+ --red-soft: #FBEAEA;
+ --shadow: 0 4px 32px rgba(0,0,0,.08);
+}
 
-.card{background:#fff;border-radius:14px;box-shadow:0 4px 32px rgba(0,0,0,.10);width:100%;max-width:520px;overflow:hidden}
+@media (prefers-color-scheme: dark) {
+ :root {
+  --bg: #0E0C0A;
+  --surface: #1A1614;
+  --surface-2: #221D1A;
+  --ink: #F2EFE8;
+  --ink-soft: #C5BEB4;
+  --mu: #7A7570;
+  --mu-soft: #564F48;
+  --border: #2D2622;
+  --border-strong: #3D342E;
+  --gold: #D89A2A;
+  --gold-soft: rgba(216,154,42,.12);
+  --gold-strong: #E8AB3A;
+  --green: #4FD68A;
+  --green-soft: rgba(79,214,138,.12);
+  --red: #E76060;
+  --red-soft: rgba(231,96,96,.12);
+  --shadow: 0 4px 32px rgba(0,0,0,.5);
+ }
+}
 
-/* Header */
-.hd{background:#1A1614;padding:22px 28px}
-.hd-logo{font-size:24px;font-weight:900;color:#fff;letter-spacing:-.5px}
-.hd-logo span{color:#C9891A}
-.hd-sub{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); }
+body {
+ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+ color: var(--ink);
+ min-height: 100vh;
+ padding: 28px 16px;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ -webkit-font-smoothing: antialiased;
+ line-height: 1.5;
+}
 
-/* Corps */
-.body{padding:28px 28px}
+.card {
+ background: var(--surface);
+ border-radius: 16px;
+ box-shadow: var(--shadow);
+ width: 100%;
+ max-width: 580px;
+ overflow: hidden;
+ border: 1px solid var(--border);
+}
 
-/* Blocs contrat */
-.contract-block{border:1px solid #E8E4DC;border-radius:10px;padding:16px 18px;margin-bottom:18px}
-.contract-name{font-family:'Segoe UI',sans-serif;font-weight:700;font-size:17px;color:#1A1614;margin-bottom:3px}
-.contract-siret{font-size:12px;color:#999;margin-bottom:3px}
-.contract-date{font-size:11px;color:#bbb}
+.hd {
+ background: linear-gradient(180deg, var(--ink) 0%, #261F1B 100%);
+ padding: 22px 28px;
+ position: relative;
+}
+@media (prefers-color-scheme: dark) {
+ .hd { background: linear-gradient(180deg, #2A2420 0%, #1A1614 100%); }
+}
+.hd-logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+.hd-logo span { color: var(--gold); }
+.hd-sub { font-size: 9px; color: rgba(255,255,255,.42); letter-spacing: 2.5px; text-transform: uppercase; margin-top: 4px; font-weight: 500; }
+.hd-secure {
+ position: absolute; top: 22px; right: 28px;
+ display: flex; align-items: center; gap: 6px;
+ font-size: 10px; color: rgba(255,255,255,.6);
+ letter-spacing: .5px; font-weight: 500;
+}
+.hd-secure svg { width: 12px; height: 12px; }
 
-/* Grille tarifaire */
-.tg-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#999;margin-bottom:10px}
-.tg{background:#F8F5EF;border-radius:8px;overflow:hidden;margin-bottom:12px}
-.tg-head{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;background:#1A1614;padding:8px 12px;font-size:10px;color:rgba(255,255,255,.6);text-align:center}
-.tg-head span:first-child{text-align:left}
-.tg-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;padding:9px 12px;border-top:1px solid #E8E4DC;font-size:13px;text-align:center;align-items:center}
-.tg-row span:first-child{font-weight:700;text-align:left;color:#1A1614}
-.tg-row span{color:#C9891A;font-weight:700}
+.body { padding: 26px 28px; }
 
-/* Options */
-.opt{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #F0EDE8;font-size:13px;color:#333}
-.opt:last-child{border-bottom:none}
-.opt-check{width:18px;height:18px;background:#C9891A;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff;font-weight:700}
-.opt-frais{color:#bbb;font-size:12px}
+.sect { margin-bottom: 22px; }
+.sect-title {
+ font-size: 10px; font-weight: 700;
+ text-transform: uppercase; letter-spacing: .12em;
+ color: var(--mu); margin-bottom: 11px;
+}
 
-/* Séparateur */
-.sep{height:1px;background:#F0EDE8;margin:20px 0}
+.parties { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; margin-bottom: 16px; }
+.party {
+ background: var(--surface-2);
+ border: 1px solid var(--border);
+ border-radius: 10px;
+ padding: 12px 14px;
+}
+.party-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--mu); margin-bottom: 4px; }
+.party-name { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.party-sub { font-size: 11px; color: var(--mu); margin-top: 3px; }
+.parties-and {
+ display: flex; align-items: center; justify-content: center;
+ font-size: 10px; font-weight: 700;
+ text-transform: uppercase; letter-spacing: .15em; color: var(--mu);
+}
 
-/* Formulaire */
-.label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-.inp{width:100%;padding:11px 14px;border:1.5px solid #E8E4DC;border-radius:8px;font-size:14px;color:#1A1614;outline:none;transition:border .15s;background:#fff}
-.inp:focus{border-color:#C9891A}
-.fgrp{margin-bottom:14px}
-.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.tg { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.tg-head {
+ display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr;
+ background: var(--ink); padding: 9px 14px;
+ font-size: 9px; color: rgba(255,255,255,.65); text-align: center;
+ letter-spacing: .08em; font-weight: 600; text-transform: uppercase;
+}
+.tg-head span:first-child { text-align: left; }
+.tg-row {
+ display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr;
+ padding: 11px 14px; border-top: 1px solid var(--border);
+ font-size: 14px; text-align: center; align-items: center;
+}
+.tg-row span:first-child { font-weight: 600; text-align: left; color: var(--ink); }
+.tg-row span { color: var(--gold); font-weight: 700; }
 
-/* Checkbox */
-.cbl{display:flex;align-items:flex-start;gap:11px;cursor:pointer;padding:12px 14px;border:1.5px solid #E8E4DC;border-radius:9px;transition:border .15s;margin-bottom:20px}
-.cbl:hover{border-color:#C9891A}
-.cbl.on{border-color:#C9891A;background:rgba(201,137,26,.04)}
-.cb{width:20px;height:20px;border-radius:5px;border:2px solid #D0C8BC;background:#fff;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.cbl.on .cb{background:#C9891A;border-color:#C9891A}
-.cb-check{display:none;color:#fff;font-size:13px;font-weight:900}
-.cbl.on .cb-check{display:block}
-.cl{font-size:12px;color:#666;line-height:1.6}
+.adv-list { margin-top: 12px; }
+.adv {
+ display: flex; align-items: flex-start; gap: 10px;
+ padding: 11px 14px;
+ background: var(--gold-soft);
+ border: 1px solid rgba(201,137,26,.18);
+ border-radius: 8px; margin-bottom: 7px;
+ font-size: 13px; color: var(--ink-soft); line-height: 1.45;
+}
+@media (prefers-color-scheme: dark) {
+ .adv { border-color: rgba(216,154,42,.25); }
+}
+.adv-icon { color: var(--gold); flex-shrink: 0; margin-top: 1px; }
+.adv strong { color: var(--ink); font-weight: 700; }
 
-/* Bouton */
-.btn-sign{width:100%;padding:16px;background:#C9891A;color:#fff;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;letter-spacing:.02em;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-sign:hover:not(:disabled){background:#B37A16}
-.btn-sign:disabled{opacity:.45;cursor:not-allowed}
-.btn-sign .sp{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.notice {
+ display: flex; align-items: flex-start; gap: 11px;
+ padding: 13px 15px;
+ background: var(--surface-2);
+ border: 1px solid var(--border);
+ border-left: 3px solid var(--gold);
+ border-radius: 8px;
+ font-size: 12.5px; line-height: 1.6; color: var(--ink-soft);
+}
+.notice-icon { color: var(--gold); flex-shrink: 0; margin-top: 2px; }
+.notice strong { color: var(--ink); font-weight: 700; }
 
-/* Erreur */
-.err{color:#e53935;font-size:12px;margin-top:8px;display:none;padding:8px 12px;background:rgba(229,57,53,.07);border-radius:6px;border:1px solid rgba(229,57,53,.2)}
+.label { font-size: 11px; font-weight: 600; color: var(--ink-soft); margin-bottom: 5px; }
+.label-required::after { content: ' *'; color: var(--gold); }
+.inp {
+ width: 100%; padding: 11px 14px;
+ border: 1.5px solid var(--border); border-radius: 9px;
+ font-size: 14px; color: var(--ink); background: var(--surface);
+ font-family: inherit; transition: border-color .15s, box-shadow .15s; outline: none;
+}
+.inp::placeholder { color: var(--mu-soft); }
+.inp:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.fgrp { margin-bottom: 12px; }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 
-/* Écrans état */
-.screen{display:none}
-.screen.active{display:block}
+.sig-preview {
+ background: var(--surface-2); border: 1px solid var(--border);
+ border-radius: 10px; padding: 18px 20px; margin-bottom: 12px;
+ text-align: center; min-height: 70px;
+ display: flex; align-items: center; justify-content: center;
+}
+.sig-preview-text {
+ font-family: 'Dancing Script', cursive;
+ font-size: 32px; font-weight: 600; color: var(--gold); line-height: 1;
+}
+.sig-preview-text.font-caveat { font-family: 'Caveat', cursive; font-size: 34px; }
+.sig-preview-text.font-allison { font-family: 'Allison', cursive; font-size: 38px; }
+.sig-preview-empty {
+ font-family: 'Inter', sans-serif;
+ font-size: 11px; color: var(--mu); font-style: italic; font-weight: 400;
+}
+.sig-font-picker { display: flex; gap: 6px; justify-content: center; margin-top: 9px; }
+.sig-font-btn {
+ padding: 4px 10px; background: var(--surface);
+ border: 1px solid var(--border); border-radius: 6px;
+ font-size: 11px; color: var(--mu); cursor: pointer; transition: all .12s;
+}
+.sig-font-btn:hover { color: var(--ink); border-color: var(--border-strong); }
+.sig-font-btn.on { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); font-weight: 600; }
 
-/* Succès */
-.success-icon{width:64px;height:64px;background:rgba(45,212,160,.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
-.success-title{font-family:'Segoe UI',sans-serif;font-weight:700;font-size:20px;color:#1A1614;text-align:center;margin-bottom:8px}
-.success-sub{font-size:13px;color:#888;text-align:center;line-height:1.7;margin-bottom:20px}
-.proof-box{background:#F8F5EF;border-radius:10px;padding:16px}
-.pr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #EEE;font-size:12px}
-.pr:last-child{border-bottom:none}
-.pk{color:#999}
-.pv{font-weight:600;color:#1A1614;font-family:monospace}
+.sig-warning {
+ display: flex; align-items: flex-start; gap: 8px;
+ padding: 9px 12px; background: var(--surface-2); border-radius: 7px;
+ font-size: 11.5px; color: var(--ink-soft); margin: 12px 0; line-height: 1.5;
+}
+.sig-warning strong { color: var(--ink); }
+.sig-warning-icon { color: var(--gold); flex-shrink: 0; margin-top: 1px; }
 
-/* Footer */
-.footer{margin-top:20px;font-size:11px;color:#bbb;text-align:center;line-height:1.8}
-.footer a{color:#C9891A;text-decoration:none}
+.sig-tabs {
+ display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+ border: 1px solid var(--border); border-radius: 9px;
+ overflow: hidden; margin-bottom: 12px; background: var(--surface);
+}
+.sig-tab {
+ padding: 11px 12px; text-align: center;
+ font-size: 13px; font-weight: 600; color: var(--mu);
+ cursor: pointer; background: var(--surface-2); transition: all .15s;
+ display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.sig-tab:first-child { border-right: 1px solid var(--border); }
+.sig-tab:hover { color: var(--ink); }
+.sig-tab.on { background: var(--surface); color: var(--gold); }
+.sig-tab svg { width: 15px; height: 15px; }
 
-/* Écran erreur */
-.err-icon{font-size:40px;text-align:center;margin-bottom:12px}
-.err-msg{font-size:13px;color:#888;text-align:center;line-height:1.7}
+.sig-canvas-wrap {
+ position: relative; background: var(--surface);
+ border: 1.5px dashed var(--border-strong); border-radius: 9px;
+ overflow: hidden; aspect-ratio: 3 / 1; cursor: crosshair;
+}
+.sig-canvas-wrap.has-sig { border-style: solid; border-color: var(--gold); }
+#sig-canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.sig-placeholder {
+ position: absolute; inset: 0;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 12px; color: var(--mu-soft); pointer-events: none; font-style: italic;
+}
+.sig-placeholder.hidden { display: none; }
+.sig-actions { display: flex; gap: 8px; margin-top: 8px; }
+.sig-action-btn {
+ flex: 1; padding: 8px 10px;
+ background: var(--surface-2); border: 1px solid var(--border);
+ border-radius: 7px; font-size: 12px; color: var(--ink-soft);
+ cursor: pointer; transition: all .12s;
+ display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.sig-action-btn:hover { border-color: var(--gold); color: var(--gold); }
+.sig-action-btn svg { width: 13px; height: 13px; }
+
+.sig-upload {
+ background: var(--surface); border: 1.5px dashed var(--border-strong);
+ border-radius: 9px; padding: 24px 16px; text-align: center;
+ cursor: pointer; transition: all .15s; aspect-ratio: 3 / 1;
+ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+}
+.sig-upload:hover, .sig-upload.drag-over { border-color: var(--gold); background: var(--gold-soft); }
+.sig-upload-icon { color: var(--gold); }
+.sig-upload-text { font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+.sig-upload-hint { font-size: 11px; color: var(--mu); }
+.sig-upload-preview {
+ display: none; aspect-ratio: 3 / 1;
+ background: var(--surface); border: 1.5px solid var(--gold);
+ border-radius: 9px; padding: 12px; position: relative;
+}
+.sig-upload-preview img {
+ max-width: 100%; max-height: 100%;
+ margin: 0 auto; display: block; object-fit: contain;
+ mix-blend-mode: multiply;
+}
+@media (prefers-color-scheme: dark) {
+ .sig-upload-preview img { mix-blend-mode: screen; filter: invert(0.85); }
+}
+.sig-upload-remove {
+ position: absolute; top: 6px; right: 6px;
+ background: var(--red); color: #fff; border: none;
+ border-radius: 5px; padding: 4px 8px; font-size: 11px;
+ cursor: pointer; font-weight: 600;
+}
+#sig-file { display: none; }
+
+.cb-list { margin: 18px 0 6px; }
+.cbl {
+ display: flex; align-items: flex-start; gap: 11px;
+ cursor: pointer; padding: 12px 14px;
+ border: 1.5px solid var(--border); border-radius: 9px;
+ transition: all .15s; margin-bottom: 8px; background: var(--surface);
+}
+.cbl:hover { border-color: var(--border-strong); }
+.cbl.on { border-color: var(--gold); background: var(--gold-soft); }
+.cb {
+ width: 20px; height: 20px;
+ border-radius: 6px; border: 2px solid var(--border-strong);
+ background: var(--surface); flex-shrink: 0; margin-top: 1px;
+ display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.cbl.on .cb { background: var(--gold); border-color: var(--gold); }
+.cb-check { display: none; color: #fff; font-size: 13px; font-weight: 800; }
+.cbl.on .cb-check { display: block; }
+.cl { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
+.cl strong { color: var(--ink); font-weight: 700; }
+
+.btn-sign {
+ width: 100%; padding: 16px;
+ background: var(--gold); color: #fff;
+ font-size: 15px; font-weight: 700;
+ border: none; border-radius: 10px; cursor: pointer;
+ letter-spacing: .02em; transition: background .15s, transform .08s;
+ display: flex; align-items: center; justify-content: center; gap: 9px;
+ font-family: inherit; margin-top: 18px;
+}
+.btn-sign:hover:not(:disabled) { background: var(--gold-strong); }
+.btn-sign:active:not(:disabled) { transform: scale(.98); }
+.btn-sign:disabled { opacity: .35; cursor: not-allowed; }
+.btn-sign .sp {
+ width: 16px; height: 16px;
+ border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+ border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.err {
+ color: var(--red); font-size: 12.5px;
+ margin-top: 10px; display: none;
+ padding: 10px 13px; background: var(--red-soft);
+ border-radius: 7px; border: 1px solid rgba(209,69,69,.25);
+}
+
+.legal {
+ margin-top: 14px; padding: 12px 14px;
+ background: var(--surface-2); border-radius: 7px;
+ font-size: 10.5px; color: var(--mu); line-height: 1.6;
+}
+.legal strong { color: var(--ink-soft); }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+.success-icon {
+ width: 72px; height: 72px;
+ background: var(--green-soft); border-radius: 50%;
+ display: flex; align-items: center; justify-content: center;
+ margin: 0 auto 18px; color: var(--green);
+}
+.success-title {
+ font-weight: 700; font-size: 22px;
+ color: var(--ink); text-align: center; margin-bottom: 8px;
+}
+.success-sub {
+ font-size: 13px; color: var(--ink-soft);
+ text-align: center; line-height: 1.7; margin-bottom: 22px;
+}
+.success-sub strong { color: var(--ink); }
+.proof-box {
+ background: var(--surface-2); border-radius: 10px;
+ padding: 18px; border: 1px solid var(--border);
+}
+.proof-title {
+ font-size: 10px; font-weight: 700;
+ text-transform: uppercase; letter-spacing: .12em;
+ color: var(--gold); margin-bottom: 12px;
+}
+.pr {
+ display: flex; justify-content: space-between;
+ padding: 7px 0; border-bottom: 1px solid var(--border);
+ font-size: 12px;
+}
+.pr:last-child { border-bottom: none; }
+.pk { color: var(--mu); }
+.pv { font-weight: 600; color: var(--ink); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+
+.footer {
+ margin-top: 22px; font-size: 11px;
+ color: var(--mu); text-align: center;
+ line-height: 1.8; max-width: 580px;
+}
+.footer a { color: var(--gold); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+.footer-eidas { font-size: 10px; color: var(--mu-soft); margin-top: 6px; }
+
+.ico { display: inline-flex; vertical-align: middle; }
+.ico svg { display: block; }
+
+@media (max-width: 500px) {
+ .body { padding: 22px 20px; }
+ .hd { padding: 18px 20px; }
+ .hd-secure { display: none; }
+ .frow { grid-template-columns: 1fr; }
+ .parties { grid-template-columns: 1fr; }
+ .parties-and { padding: 4px 0; }
+}
 </style>
 </head>
 <body>
 
 <div class="card">
+
  <div class="hd">
   <div class="hd-logo">NOVA<span>LEM</span></div>
-  <div class="hd-sub">Recrutement BTP · CDI</div>
+  <div class="hd-sub">Signature électronique sécurisée</div>
+  <div class="hd-secure">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+   eIDAS
+  </div>
  </div>
 
- <!-- LOADING -->
- <div id="vload" class="screen active" style="padding:40px;text-align:center;color:#bbb">
-  <div style="width:32px;height:32px;border:2px solid #E8E4DC;border-top-color:#C9891A;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
-  <div style="font-size:13px">Chargement…</div>
+ <div id="vload" class="screen active" style="padding:50px;text-align:center;color:var(--mu)">
+  <div style="width:34px;height:34px;border:2.5px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px"></div>
+  <div style="font-size:13px">Chargement du contrat…</div>
  </div>
 
- <!-- FORMULAIRE DE SIGNATURE -->
  <div id="vform" class="screen">
   <div class="body">
 
-   <!-- Bloc client -->
-   <div class="contract-block">
-    <div class="contract-name" id="cn">Contrat cadre NOVALEM</div>
-    <div class="contract-siret" id="cs"></div>
-    <div class="contract-date" id="hd"></div>
+   <div class="sect">
+    <div class="sect-title">Parties au contrat</div>
+    <div class="parties">
+     <div class="party">
+      <div class="party-label">Cabinet</div>
+      <div class="party-name">NOVALEM</div>
+      <div class="party-sub">Recrutement BTP</div>
+     </div>
+     <div class="parties-and">et</div>
+     <div class="party">
+      <div class="party-label">Client</div>
+      <div class="party-name" id="cn">—</div>
+      <div class="party-sub" id="cs">—</div>
+     </div>
+    </div>
+    <div class="party-sub" id="hd" style="text-align:center;margin-top:8px"></div>
    </div>
 
-   <!-- Grille tarifaire -->
-   <div id="tg">
-    <div class="tg-title">Conditions tarifaires</div>
+   <div class="sect" id="tg-wrap">
+    <div class="sect-title">Conditions tarifaires négociées</div>
     <div class="tg">
      <div class="tg-head"><span>Profil</span><span>&lt; 5 ans</span><span>5–15 ans</span><span>&gt; 15 ans</span></div>
      <div id="tr"></div>
     </div>
+    <div class="adv-list" id="advantages-list"></div>
    </div>
 
-   <div class="sep"></div>
-
-   <!-- Formulaire -->
-   <div class="tg-title" style="margin-bottom:14px">Votre identité</div>
-
-   <div class="frow">
-    <div>
-     <div class="label">Prénom *</div>
-     <input class="inp" id="sp" placeholder="Jean" oninput="upd()">
-    </div>
-    <div>
-     <div class="label">Nom *</div>
-     <input class="inp" id="sn" placeholder="Dupont" oninput="upd()">
+   <div class="sect">
+    <div class="notice">
+     <span class="notice-icon ico">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+     </span>
+     <div>Le <strong>contrat complet</strong> vous a été envoyé en pièce jointe de l'email de signature. Merci d'en prendre connaissance dans son intégralité avant de signer. La signature engage juridiquement votre entreprise selon les termes du document reçu.</div>
     </div>
    </div>
 
-   <div class="fgrp">
-    <div class="label">Email professionnel</div>
-    <input class="inp" id="se" type="email" placeholder="jean.dupont@entreprise.fr">
+   <div class="sect">
+    <div class="sect-title">Identité du signataire</div>
+    <div class="frow">
+     <div>
+      <div class="label label-required">Prénom</div>
+      <input class="inp" id="sp" placeholder="Jean" autocomplete="given-name" oninput="upd()">
+     </div>
+     <div>
+      <div class="label label-required">Nom</div>
+      <input class="inp" id="sn" placeholder="Dupont" autocomplete="family-name" oninput="upd()">
+     </div>
+    </div>
+    <div class="fgrp">
+     <div class="label label-required">Fonction dans l'entreprise</div>
+     <input class="inp" id="sf" placeholder="Gérant, Directeur Général, DRH…" autocomplete="organization-title" oninput="upd()">
+    </div>
+    <div class="fgrp">
+     <div class="label">Email professionnel</div>
+     <input class="inp" id="se" type="email" placeholder="jean.dupont@entreprise.fr" autocomplete="email">
+    </div>
    </div>
 
-   <label class="cbl" id="cbl" onclick="tog()">
-    <div class="cb"><span class="cb-check">✓</span></div>
-    <div class="cl">J'ai lu et j'accepte les conditions du contrat ci-dessus. Je reconnais que cette signature électronique a la même valeur juridique qu'une signature manuscrite.</div>
-   </label>
+   <div class="sect">
+    <div class="sect-title">Votre signature</div>
+
+    <div class="sig-preview">
+     <span id="sig-preview-text" class="sig-preview-empty">Saisissez votre nom ci-dessus</span>
+    </div>
+    <div class="sig-font-picker" id="sig-font-picker" style="display:none">
+     <div class="sig-font-btn on" data-font="dancing">Dancing</div>
+     <div class="sig-font-btn" data-font="caveat">Caveat</div>
+     <div class="sig-font-btn" data-font="allison">Allison</div>
+    </div>
+
+    <div class="sig-warning">
+     <span class="sig-warning-icon ico">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+     </span>
+     <div>La signature stylisée ci-dessus est <strong>indicative</strong>. Pour valider, vous devez <strong>dessiner votre signature</strong> ou <strong>importer une image</strong> de votre signature ci-dessous.</div>
+    </div>
+
+    <div class="sig-tabs">
+     <div class="sig-tab on" data-tab="draw">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      Dessiner
+     </div>
+     <div class="sig-tab" data-tab="upload">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importer image
+     </div>
+    </div>
+
+    <div id="mode-draw">
+     <div class="sig-canvas-wrap" id="sig-canvas-wrap">
+      <canvas id="sig-canvas"></canvas>
+      <div class="sig-placeholder" id="sig-placeholder">Dessinez ici avec votre doigt ou votre souris</div>
+     </div>
+     <div class="sig-actions">
+      <div class="sig-action-btn" onclick="clearSignature()">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+       Effacer
+      </div>
+     </div>
+    </div>
+
+    <div id="mode-upload" style="display:none">
+     <div class="sig-upload" id="sig-upload-zone" onclick="document.getElementById('sig-file').click()">
+      <div class="sig-upload-icon ico">
+       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="sig-upload-text">Cliquez ou glissez une image</div>
+      <div class="sig-upload-hint">PNG, JPG · 5 Mo max · Fond clair recommandé</div>
+     </div>
+     <div class="sig-upload-preview" id="sig-upload-preview">
+      <img id="sig-upload-img" alt="Signature">
+      <button class="sig-upload-remove" onclick="removeUpload()">Supprimer</button>
+     </div>
+     <input type="file" id="sig-file" accept="image/png,image/jpeg" onchange="handleFile(this.files[0])">
+    </div>
+
+   </div>
+
+   <div class="sect">
+    <div class="sect-title">Engagements légaux</div>
+    <div class="cb-list">
+
+     <label class="cbl" data-cb="lecture">
+      <div class="cb"><span class="cb-check">✓</span></div>
+      <div class="cl">Je certifie avoir lu et accepté <strong>l'intégralité du contrat</strong> reçu par email.</div>
+     </label>
+
+     <label class="cbl" data-cb="pouvoir">
+      <div class="cb"><span class="cb-check">✓</span></div>
+      <div class="cl">Je certifie avoir <strong>le pouvoir d'engager juridiquement</strong> l'entreprise mentionnée ci-dessus.</div>
+     </label>
+
+     <label class="cbl" data-cb="eidas">
+      <div class="cb"><span class="cb-check">✓</span></div>
+      <div class="cl">Je reconnais la valeur juridique de cette signature électronique selon le <strong>Règlement eIDAS (UE) n°910/2014</strong> et les <strong>articles 1366 et 1367 du Code civil</strong>.</div>
+     </label>
+
+    </div>
+   </div>
 
    <button class="btn-sign" id="btn" onclick="dosign()" disabled>
-    ✍ Signer le contrat
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+    Signer le contrat
    </button>
+
+   <div class="legal">
+    <strong>Données archivées lors de la signature :</strong> votre identité (nom, prénom, fonction, email), votre signature graphique, votre adresse IP, votre navigateur, la date et l'heure exactes, ainsi qu'une empreinte numérique du contrat. Ces données constituent la preuve juridique de votre engagement et sont conservées 10 ans conformément à la réglementation.
+   </div>
 
    <div class="err" id="er"></div>
   </div>
  </div>
 
- <!-- SUCCÈS -->
  <div id="vok" class="screen">
-  <div class="body">
-   <div class="success-icon">✅</div>
-   <div class="success-title">Contrat signé !</div>
+  <div class="body" style="padding:34px 28px">
+   <div class="success-icon">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+   </div>
+   <div class="success-title">Contrat signé</div>
    <div class="success-sub">
-    Merci <strong id="okn"></strong>. Votre signature a bien été enregistrée.<br>
-    Un email de confirmation vous a été envoyé. NOVALEM vous contactera très prochainement avec les coordonnées du candidat.
+    Merci <strong id="okn"></strong>. Votre signature a bien été enregistrée. Un email de confirmation avec le contrat contre-signé vous a été envoyé. <strong>NOVALEM vous contactera très prochainement</strong> avec les coordonnées du candidat.
    </div>
    <div class="proof-box">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#C9891A;margin-bottom:10px">Certificat de signature</div>
+    <div class="proof-title">Certificat de signature</div>
     <div id="okp"></div>
    </div>
   </div>
  </div>
 
- <!-- DÉJÀ SIGNÉ -->
  <div id="val" class="screen">
-  <div class="body" style="text-align:center">
-   <div style="font-size:36px;margin-bottom:12px">📋</div>
-   <div style="font-weight:700;font-size:16px;margin-bottom:6px">Déjà signé</div>
-   <div class="success-sub">Ce contrat a déjà été signé électroniquement.</div>
-   <div class="proof-box" id="alp"></div>
+  <div class="body" style="padding:34px 28px;text-align:center">
+   <div style="width:64px;height:64px;background:var(--gold-soft);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--gold)">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 16 12"/></svg>
+   </div>
+   <div style="font-weight:700;font-size:18px;color:var(--ink);margin-bottom:8px">Contrat déjà signé</div>
+   <div class="success-sub" style="margin-bottom:18px">Ce contrat a déjà été signé électroniquement par votre entreprise. Aucune action supplémentaire n'est nécessaire.</div>
+   <div class="proof-box">
+    <div class="proof-title">Détails de la signature</div>
+    <div id="alp"></div>
+   </div>
   </div>
  </div>
 
- <!-- ERREUR -->
  <div id="verr" class="screen">
-  <div class="body" style="text-align:center;padding:40px 28px">
-   <div class="err-icon">⚠️</div>
-   <div style="font-weight:700;font-size:15px;margin-bottom:10px">Lien invalide</div>
-   <div class="err-msg" id="em">Ce lien de signature est invalide ou a expiré. Contactez NOVALEM.</div>
+  <div class="body" style="text-align:center;padding:50px 28px">
+   <div style="width:64px;height:64px;background:var(--red-soft);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--red)">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+   </div>
+   <div style="font-weight:700;font-size:18px;color:var(--ink);margin-bottom:10px">Lien invalide</div>
+   <div style="font-size:13px;color:var(--ink-soft);line-height:1.7" id="em">Ce lien de signature est invalide ou a expiré. Merci de contacter NOVALEM.</div>
   </div>
  </div>
 
 </div>
 
 <div class="footer">
- <strong style="color:#C9891A">NOVALEM</strong> — Cabinet de recrutement BTP<br>
- <a href="mailto:contact@novalem-recrutement.fr">contact@novalem-recrutement.fr</a> · 06 58 21 20 96<br>
- <a href="https://novalem-recrutement.fr">novalem-recrutement.fr</a>
+ <strong style="color:var(--gold)">NOVALEM</strong> — Cabinet de recrutement BTP<br>
+ <a href="mailto:contact@novalem-recrutement.fr">contact@novalem-recrutement.fr</a> · 06 58 21 20 96 · <a href="https://novalem-recrutement.fr">novalem-recrutement.fr</a>
+ <div class="footer-eidas">Signature électronique conforme au Règlement (UE) n°910/2014 (eIDAS) et aux articles 1366-1367 du Code civil français</div>
 </div>
 
 <script>
@@ -213,7 +621,18 @@ var TOKEN  = q.get('t');
 var CO_NAME = decodeURIComponent(q.get('n') || '');
 var CT = null;
 
-// Décoder les données pipe-séparées : nom|siret|nc1|nc2|nc3|c1|c2|c3|taux_geste|opt3070|garantie|date|frais
+var auditLog = {
+ opened_at: new Date().toISOString(),
+ started_signing_at: null,
+ validated_at: null,
+};
+
+var sigMode = 'draw';
+var sigData = null;
+var sigFont = 'dancing';
+var uploadedImage = null;
+var acceptances = { lecture: false, pouvoir: false, eidas: false };
+
 try {
  var d = q.get('d') || '';
  if (d && d.indexOf('|') >= 0) {
@@ -234,11 +653,28 @@ try {
  }
 } catch(e) { CT = null; }
 
-var agreed = false;
+async function hashContract() {
+ var content = JSON.stringify({
+  co_name: CO_NAME || (CT && CT.nom),
+  ct_id: CT_ID,
+  tarifs: CT && CT.tarifs,
+  taux: CT && CT.taux,
+  opt3070: CT && CT.opt3070,
+  garantie: CT && CT.garantie,
+  frais: CT && CT.frais,
+  date: CT && CT.date,
+ });
+ try {
+  var enc = new TextEncoder().encode(content);
+  var hashBuffer = await crypto.subtle.digest('SHA-256', enc);
+  var hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+ } catch(e) { return null; }
+}
 
 function show(id) {
  ['vload','vform','vok','val','verr'].forEach(function(v) {
-  document.getElementById(v).style.display = v === id ? '' : 'none';
+  document.getElementById(v).classList.toggle('active', v === id);
  });
 }
 
@@ -246,69 +682,269 @@ function fmt(n) {
  return String(parseFloat(n || 0)).replace('.', ',') + ' %';
 }
 
-function tog() {
- agreed = !agreed;
- document.getElementById('cbl').className = 'cbl' + (agreed ? ' on' : '');
- upd();
-}
-
 function upd() {
  var prenom = (document.getElementById('sp').value || '').trim();
  var nom    = (document.getElementById('sn').value || '').trim();
- document.getElementById('btn').disabled = !(prenom.length >= 1 && nom.length >= 1 && agreed);
+ var fonction = (document.getElementById('sf').value || '').trim();
+
+ var preview = document.getElementById('sig-preview-text');
+ var picker = document.getElementById('sig-font-picker');
+ if (prenom || nom) {
+  preview.textContent = (prenom + ' ' + nom).trim();
+  preview.className = 'sig-preview-text font-' + sigFont;
+  picker.style.display = 'flex';
+ } else {
+  preview.textContent = 'Saisissez votre nom ci-dessus';
+  preview.className = 'sig-preview-empty';
+  picker.style.display = 'none';
+ }
+
+ var ok = prenom.length >= 1
+       && nom.length >= 1
+       && fonction.length >= 2
+       && sigData !== null
+       && acceptances.lecture
+       && acceptances.pouvoir
+       && acceptances.eidas;
+
+ if (ok && !auditLog.started_signing_at) {
+  auditLog.started_signing_at = new Date().toISOString();
+ }
+
+ document.getElementById('btn').disabled = !ok;
 }
 
-function phtml(d) {
- var dt = d.signed_at
-  ? new Date(d.signed_at).toLocaleString('fr-FR', {
-   day:'2-digit', month:'long', year:'numeric',
-   hour:'2-digit', minute:'2-digit'
+document.querySelectorAll('.sig-font-btn').forEach(function(btn) {
+ btn.addEventListener('click', function() {
+  document.querySelectorAll('.sig-font-btn').forEach(function(b) { b.classList.remove('on'); });
+  btn.classList.add('on');
+  sigFont = btn.dataset.font;
+  upd();
+ });
+});
+
+document.querySelectorAll('.sig-tab').forEach(function(tab) {
+ tab.addEventListener('click', function() {
+  document.querySelectorAll('.sig-tab').forEach(function(t) { t.classList.remove('on'); });
+  tab.classList.add('on');
+  sigMode = tab.dataset.tab;
+  document.getElementById('mode-draw').style.display = sigMode === 'draw' ? '' : 'none';
+  document.getElementById('mode-upload').style.display = sigMode === 'upload' ? '' : 'none';
+  if (sigMode === 'draw') {
+   removeUpload();
+   if (canvasIsEmpty()) sigData = null;
+  } else {
+   clearSignature();
+  }
+  upd();
+ });
+});
+
+document.querySelectorAll('.cbl').forEach(function(cb) {
+ cb.addEventListener('click', function(e) {
+  e.preventDefault();
+  var key = cb.dataset.cb;
+  acceptances[key] = !acceptances[key];
+  cb.classList.toggle('on', acceptances[key]);
+  upd();
+ });
+});
+
+var canvas, ctx, isDrawing = false, lastX = 0, lastY = 0;
+
+function initCanvas() {
+ canvas = document.getElementById('sig-canvas');
+ var wrap = document.getElementById('sig-canvas-wrap');
+ var rect = wrap.getBoundingClientRect();
+ var dpr = window.devicePixelRatio || 1;
+ canvas.width = rect.width * dpr;
+ canvas.height = rect.height * dpr;
+ ctx = canvas.getContext('2d');
+ ctx.scale(dpr, dpr);
+ ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#1A1614';
+ ctx.lineWidth = 2.2;
+ ctx.lineCap = 'round';
+ ctx.lineJoin = 'round';
+ ctx.fillStyle = 'transparent';
+
+ canvas.addEventListener('pointerdown', startDraw);
+ canvas.addEventListener('pointermove', draw);
+ canvas.addEventListener('pointerup', endDraw);
+ canvas.addEventListener('pointerout', endDraw);
+}
+
+function getPos(e) {
+ var rect = canvas.getBoundingClientRect();
+ return { x: (e.clientX - rect.left), y: (e.clientY - rect.top) };
+}
+
+function startDraw(e) {
+ e.preventDefault();
+ isDrawing = true;
+ var pos = getPos(e);
+ lastX = pos.x; lastY = pos.y;
+ document.getElementById('sig-placeholder').classList.add('hidden');
+ try { canvas.setPointerCapture(e.pointerId); } catch(_) {}
+}
+
+function draw(e) {
+ if (!isDrawing) return;
+ e.preventDefault();
+ var pos = getPos(e);
+ ctx.beginPath();
+ ctx.moveTo(lastX, lastY);
+ ctx.lineTo(pos.x, pos.y);
+ ctx.stroke();
+ lastX = pos.x; lastY = pos.y;
+}
+
+function endDraw(e) {
+ if (!isDrawing) return;
+ isDrawing = false;
+ try { if (e && e.pointerId !== undefined) canvas.releasePointerCapture(e.pointerId); } catch(_) {}
+ if (!canvasIsEmpty()) {
+  sigData = canvas.toDataURL('image/png');
+  document.getElementById('sig-canvas-wrap').classList.add('has-sig');
+  upd();
+ }
+}
+
+function canvasIsEmpty() {
+ if (!ctx) return true;
+ var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+ for (var i = 3; i < pixels.length; i += 4) { if (pixels[i] !== 0) return false; }
+ return true;
+}
+
+function clearSignature() {
+ if (!ctx) return;
+ ctx.clearRect(0, 0, canvas.width, canvas.height);
+ sigData = null;
+ document.getElementById('sig-placeholder').classList.remove('hidden');
+ document.getElementById('sig-canvas-wrap').classList.remove('has-sig');
+ upd();
+}
+
+function handleFile(file) {
+ if (!file) return;
+ if (!/^image\/(png|jpe?g)$/i.test(file.type)) {
+  alert('Format non supporté. Utilisez PNG ou JPG.'); return;
+ }
+ if (file.size > 5 * 1024 * 1024) {
+  alert('Fichier trop volumineux. Maximum 5 Mo.'); return;
+ }
+ var reader = new FileReader();
+ reader.onload = function(e) {
+  uploadedImage = e.target.result;
+  sigData = e.target.result;
+  document.getElementById('sig-upload-img').src = uploadedImage;
+  document.getElementById('sig-upload-zone').style.display = 'none';
+  document.getElementById('sig-upload-preview').style.display = 'block';
+  upd();
+ };
+ reader.readAsDataURL(file);
+}
+
+function removeUpload() {
+ uploadedImage = null;
+ if (sigMode === 'upload') sigData = null;
+ document.getElementById('sig-upload-img').src = '';
+ document.getElementById('sig-upload-zone').style.display = 'flex';
+ document.getElementById('sig-upload-preview').style.display = 'none';
+ document.getElementById('sig-file').value = '';
+ upd();
+}
+
+var dropZone = null;
+function initDropZone() {
+ dropZone = document.getElementById('sig-upload-zone');
+ ['dragenter', 'dragover'].forEach(function(ev) {
+  dropZone.addEventListener(ev, function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+ });
+ ['dragleave', 'drop'].forEach(function(ev) {
+  dropZone.addEventListener(ev, function(e) { e.preventDefault(); dropZone.classList.remove('drag-over'); });
+ });
+ dropZone.addEventListener('drop', function(e) {
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+ });
+}
+
+function phtml(data) {
+ var dt = data.signed_at
+  ? new Date(data.signed_at).toLocaleString('fr-FR', {
+   day: '2-digit', month: 'long', year: 'numeric',
+   hour: '2-digit', minute: '2-digit'
    }) : '—';
- return '<div class="pr"><span class="pk">Signataire</span><span class="pv">' + (d.signer_name || '—') + '</span></div>'
+ return '<div class="pr"><span class="pk">Signataire</span><span class="pv">' + (data.signer_name || '—') + '</span></div>'
+  + (data.signer_fonction ? '<div class="pr"><span class="pk">Fonction</span><span class="pv">' + data.signer_fonction + '</span></div>' : '')
   + '<div class="pr"><span class="pk">Date &amp; heure</span><span class="pv">' + dt + '</span></div>'
-  + '<div class="pr"><span class="pk">Référence</span><span class="pv">' + (d.reference || '—') + '</span></div>'
-  + '<div class="pr"><span class="pk">Valeur légale</span><span class="pv">Signature simple eIDAS</span></div>';
+  + '<div class="pr"><span class="pk">Référence</span><span class="pv">' + (data.reference || '—') + '</span></div>'
+  + '<div class="pr"><span class="pk">Valeur juridique</span><span class="pv">eIDAS simple</span></div>';
 }
 
 function renderForm() {
  show('vform');
- var coName = CO_NAME || (CT && CT.nom) || '';
- document.getElementById('cn').textContent = coName || 'Contrat cadre NOVALEM';
+
+ var coName = CO_NAME || (CT && CT.nom) || 'Client';
+ document.getElementById('cn').textContent = coName;
+
  if (CT && CT.siret) document.getElementById('cs').textContent = 'SIRET : ' + CT.siret;
- if (CT && CT.date)  document.getElementById('hd').textContent = CT.date + ' · BTP · CDI';
+ else document.getElementById('cs').textContent = '—';
+
+ if (CT && CT.date) {
+  document.getElementById('hd').textContent = 'Contrat cadre de recrutement BTP · ' + CT.date;
+ } else {
+  document.getElementById('hd').textContent = 'Contrat cadre de recrutement BTP';
+ }
 
  if (CT && CT.tarifs) {
   var t = CT.tarifs;
-  var html = ''
-   + '<div class="tg-row"><span>Non-cadre</span><span>' + fmt(t.nc1) + '</span><span>' + fmt(t.nc2) + '</span><span>' + fmt(t.nc3) + '</span></div>'
+  document.getElementById('tr').innerHTML =
+   '<div class="tg-row"><span>Non-cadre</span><span>' + fmt(t.nc1) + '</span><span>' + fmt(t.nc2) + '</span><span>' + fmt(t.nc3) + '</span></div>'
    + '<div class="tg-row"><span>Cadre</span><span>' + fmt(t.c1) + '</span><span>' + fmt(t.c2) + '</span><span>' + fmt(t.c3) + '</span></div>';
 
-  // Options cochées
-  var opts = [];
-  if (CT.taux)                opts.push({ text: 'Geste commercial : ' + CT.taux + ' % pour le 1er recrutement', frais: false });
-  if (CT.opt3070)             opts.push({ text: 'Règlement 30 / 70 %', frais: false });
-  if (CT.garantie)            opts.push({ text: 'Garantie de remplacement 3 mois', frais: false });
-  if (CT.frais && CT.frais>0) opts.push({ text: 'Frais de dossier : ' + CT.frais + ' € HT', frais: true });
+  var adv = [];
+  if (CT.taux) {
+   adv.push({
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    text: 'Geste commercial : <strong>' + CT.taux + '%</strong> pour le 1er recrutement (au lieu du taux standard).'
+   });
+  }
+  if (CT.garantie) {
+   adv.push({
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    text: '<strong>Garantie de remplacement 3 mois</strong> : si le candidat quitte son poste durant les 90 jours, NOVALEM s\'engage à le remplacer.'
+   });
+  }
+  if (CT.opt3070) {
+   adv.push({
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+    text: '<strong>Paiement échelonné 30/70</strong> : 30% à la signature de la promesse d\'embauche, 70% à la prise de poste effective.'
+   });
+  }
 
-  opts.forEach(function(o) {
-   html += '<div class="opt' + (o.frais ? ' opt-frais' : '') + '">'
-    + '<div class="opt-check">' + (o.frais ? '·' : '✓') + '</div>'
-    + o.text
-    + '</div>';
-  });
-
-  document.getElementById('tr').innerHTML = html;
+  if (adv.length > 0) {
+   var advHTML = '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin:14px 0 8px">Avantages négociés</div>';
+   adv.forEach(function(a) {
+    advHTML += '<div class="adv"><span class="adv-icon ico">' + a.icon + '</span><div>' + a.text + '</div></div>';
+   });
+   document.getElementById('advantages-list').innerHTML = advHTML;
+  }
  } else {
-  document.getElementById('tg').style.display = 'none';
+  document.getElementById('tg-wrap').style.display = 'none';
  }
+
+ setTimeout(function() { initCanvas(); initDropZone(); }, 50);
 }
 
 async function dosign() {
- var prenom = (document.getElementById('sp').value || '').trim();
- var nom    = (document.getElementById('sn').value || '').trim();
- var email  = (document.getElementById('se').value || '').trim();
- var name   = prenom + ' ' + nom;
- if (!prenom || !nom) return;
+ var prenom   = (document.getElementById('sp').value || '').trim();
+ var nom      = (document.getElementById('sn').value || '').trim();
+ var fonction = (document.getElementById('sf').value || '').trim();
+ var email    = (document.getElementById('se').value || '').trim();
+ var name     = prenom + ' ' + nom;
+
+ if (!prenom || !nom || !fonction || !sigData) return;
 
  var btn = document.getElementById('btn');
  var er  = document.getElementById('er');
@@ -316,54 +952,84 @@ async function dosign() {
  btn.innerHTML = '<div class="sp"></div> Enregistrement…';
  er.style.display = 'none';
 
+ auditLog.validated_at = new Date().toISOString();
+ var contract_hash = await hashContract();
+
  try {
   var r = await fetch(API + '/api/jobs', {
    method: 'POST',
    headers: { 'Content-Type': 'application/json' },
    body: JSON.stringify({
-    action:       'sign_contract',
-    co_id:        CO_ID,
-    ct_id:        CT_ID,
-    token:        TOKEN,
-    signer_name:  name,
-    signer_email: email || null,
-    co_name:      CO_NAME || (CT && CT.nom) || null,
+    action:           'sign_contract',
+    co_id:            CO_ID,
+    ct_id:            CT_ID,
+    token:            TOKEN,
+    signer_name:      name,
+    signer_fonction:  fonction,
+    signer_email:     email || null,
+    co_name:          CO_NAME || (CT && CT.nom) || null,
+    signature_image:  sigData,
+    signature_method: sigMode === 'draw' ? 'drawn' : 'uploaded',
+    user_agent:       navigator.userAgent,
+    contract_hash:    contract_hash,
+    audit_log:        auditLog,
+    acceptances:      acceptances,
    }),
   });
-  var d = await r.json();
+  var resp = await r.json();
 
   if (r.status === 409) {
    show('val');
-   document.getElementById('alp').innerHTML = phtml(d);
+   document.getElementById('alp').innerHTML = phtml(resp);
    return;
   }
-  if (!r.ok || !d.success) {
-   er.textContent = d.error || 'Erreur. Réessayez.';
+  if (!r.ok || !resp.success) {
+   er.textContent = resp.error || 'Erreur lors de l\'enregistrement. Veuillez réessayer.';
    er.style.display = 'block';
    btn.disabled = false;
-   btn.innerHTML = '✍ Signer le contrat';
+   btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg> Signer le contrat';
    return;
   }
 
   show('vok');
   document.getElementById('okn').textContent = prenom;
-  document.getElementById('okp').innerHTML = phtml(d);
+  document.getElementById('okp').innerHTML = phtml({
+   signer_name: name,
+   signer_fonction: fonction,
+   signed_at: resp.signed_at,
+   reference: resp.reference,
+  });
 
  } catch(e) {
-  er.textContent = 'Erreur réseau. Vérifiez votre connexion.';
+  er.textContent = 'Erreur réseau. Vérifiez votre connexion internet et réessayez.';
   er.style.display = 'block';
   btn.disabled = false;
-  btn.innerHTML = '✍ Signer le contrat';
+  btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg> Signer le contrat';
  }
 }
 
-// Init
 if (!CO_ID || !CT_ID || !TOKEN) {
  show('verr');
- document.getElementById('em').textContent = 'Lien incomplet ou invalide. Contactez NOVALEM.';
+ document.getElementById('em').textContent = 'Ce lien de signature est incomplet ou invalide. Merci de contacter NOVALEM.';
 } else {
  renderForm();
 }
+
+var resizeTimer;
+window.addEventListener('resize', function() {
+ clearTimeout(resizeTimer);
+ resizeTimer = setTimeout(function() {
+  if (canvas && sigMode === 'draw') {
+   var prevData = sigData;
+   initCanvas();
+   if (prevData) {
+    var img = new Image();
+    img.onload = function() { ctx.drawImage(img, 0, 0); };
+    img.src = prevData;
+   }
+  }
+ }, 200);
+});
 </script>
 </body>
 </html>
