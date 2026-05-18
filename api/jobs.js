@@ -9,7 +9,12 @@ function getSB() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
   if (!url || !key) throw new Error('SUPABASE_URL ou SUPABASE_ANON_KEY manquant');
-  return createClient(url, key);
+  // Realtime désactivé : aucune API serverless n'en a besoin, et ça évite
+  // le warning "Node.js 20 detected without native WebSocket support".
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    realtime: { disabled: true },
+  });
 }
 
 const CORS = {
