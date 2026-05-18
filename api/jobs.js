@@ -123,6 +123,7 @@ async function handleSignContract(req, res) {
     signer_name, signer_fonction, signer_email, co_name,
     signature_image, signature_method,
     user_agent, contract_hash, audit_log, acceptances,
+    signed_pdf,
   } = req.body || {};
 
   // ── Validations ──
@@ -194,6 +195,38 @@ async function handleSignContract(req, res) {
     return res.status(500).json({ error: 'Erreur enregistrement signature: ' + insertErr.message });
   }
 
+  // ── Archivage du PDF contre-signé dans Supabase Storage ──
+  let pdfUrl = null;
+  if (signed_pdf) {
+    try {
+      const pdfBuffer = Buffer.from(signed_pdf, 'base64');
+      const fileName = `contrat-signe-${ref}-${Date.now()}.pdf`;
+      const { error: upErr } = await sb.storage
+        .from('contrats-signes')
+        .upload(fileName, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+      if (!upErr) {
+        const { data: pub } = sb.storage.from('contrats-signes').getPublicUrl(fileName);
+        pdfUrl = pub?.publicUrl || null;
+        // Enregistrer l'URL dans la ligne de signature
+        if (pdfUrl) {
+          await sb.from('novalem_signatures')
+            .update({ pdf_url: pdfUrl })
+            .eq('ct_id', ct_id).eq('token', token);
+        }
+      } else {
+        console.warn('[sign] PDF storage error:', upErr.message);
+      }
+    } catch (e) {
+      console.warn('[sign] PDF archive exception:', e.message);
+    }
+  }
+
+  // Préparer la pièce jointe PDF pour les emails
+  const pdfAttachment = signed_pdf ? [{
+    filename: `Contrat-signe-${ref}.pdf`,
+    content: signed_pdf,
+  }] : [];
+
   // Envoyer les emails de notification
   const RESEND_KEY   = process.env.RESEND_API_KEY;
   // Email de notification : toujours contact@novalem (pro), CRM_USER_EMAIL en copie si différent
@@ -243,6 +276,7 @@ async function handleSignContract(req, res) {
         to: EXTRA_NOTIFY ? [NOVALEM_EMAIL, EXTRA_NOTIFY] : [NOVALEM_EMAIL],
         subject: `✅ Contrat signé — ${co_name || 'Client'} (${ref})`,
         html: htmlNovalem,
+        attachments: pdfAttachment,
       })
     }).catch(e => console.warn('[sign] email novalem:', e.message));
 
@@ -283,6 +317,7 @@ async function handleSignContract(req, res) {
           to: [signer_email],
           subject: `Confirmation de signature — Contrat NOVALEM (${ref})`,
           html: htmlClient,
+          attachments: pdfAttachment,
         })
       }).catch(e => console.warn('[sign] email client:', e.message));
     }
