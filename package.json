@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Novalem CRM — Cabinet de recrutement",
   "private": true,
-  "engines": { "node": "20" },
+  "engines": { "node": "22.x" },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "imapflow": "^1.0.162",
     "mailparser": "^3.7.1"
   }
-}  
+}
