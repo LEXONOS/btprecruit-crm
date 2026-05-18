@@ -21,6 +21,7 @@ module.exports = async (req, res) => {
 
   const admin = createClient(process.env.SUPABASE_URL, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    realtime: { disabled: true },
   });
 
   if (action === 'refuser') {
