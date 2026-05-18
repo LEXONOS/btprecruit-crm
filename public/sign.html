@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@500;600;700&family=Caveat:wght@400;500;600;700&family=Allison&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
  --bg: #F5F3EF;
@@ -937,6 +938,190 @@ function renderForm() {
  setTimeout(function() { initCanvas(); initDropZone(); }, 50);
 }
 
+// ════════════════════════════════════════════════════════════════
+// GÉNÉRATION DU PDF DU CONTRAT CONTRE-SIGNÉ
+// Le PDF reprend les conditions + une page "cartouche de signature"
+// avec la signature graphique, l'identité et les preuves juridiques.
+// ════════════════════════════════════════════════════════════════
+function generateSignedPDF(meta) {
+ try {
+  var jsPDFLib = window.jspdf;
+  if (!jsPDFLib) return null;
+  var doc = new jsPDFLib.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  var W = 210, ML = 18, MR = 18;
+  var gold = [201, 137, 26], ink = [26, 22, 20], grey = [90, 90, 90], soft = [245, 243, 239];
+
+  doc.setFillColor(ink[0], ink[1], ink[2]);
+  doc.rect(0, 0, W, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('NOVALEM', ML, 17);
+  doc.setTextColor(gold[0], gold[1], gold[2]);
+  doc.setFontSize(8);
+  doc.text('CABINET DE RECRUTEMENT BTP', ML, 23);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.text('CONTRAT SIGNE', W - MR, 17, { align: 'right' });
+  doc.setTextColor(180, 180, 180);
+  doc.setFontSize(7.5);
+  doc.text('Ref. ' + (meta.reference || '-'), W - MR, 23, { align: 'right' });
+
+  var y = 46;
+
+  doc.setTextColor(ink[0], ink[1], ink[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('Contrat Cadre de Recrutement', ML, y);
+  y += 9;
+
+  doc.setFillColor(soft[0], soft[1], soft[2]);
+  doc.roundedRect(ML, y, W - ML - MR, 26, 2, 2, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(grey[0], grey[1], grey[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ENTRE', ML + 6, y + 7);
+  doc.text('ET', ML + 6, y + 17);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(ink[0], ink[1], ink[2]);
+  doc.setFontSize(9);
+  doc.text('NOVALEM - Cabinet de recrutement BTP', ML + 24, y + 7);
+  doc.text((meta.co_name || 'Client') + (meta.co_siret ? '  -  SIRET ' + meta.co_siret : ''), ML + 24, y + 17);
+  y += 34;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(ink[0], ink[1], ink[2]);
+  doc.text('CONDITIONS TARIFAIRES NEGOCIEES', ML, y);
+  y += 6;
+
+  if (meta.tarifs) {
+   var t = meta.tarifs;
+   doc.setFillColor(ink[0], ink[1], ink[2]);
+   doc.rect(ML, y, W - ML - MR, 8, 'F');
+   doc.setTextColor(255, 255, 255);
+   doc.setFontSize(7.5);
+   doc.setFont('helvetica', 'bold');
+   var colW = (W - ML - MR) / 4;
+   doc.text('Profil', ML + 4, y + 5.3);
+   doc.text('< 5 ans', ML + colW + colW / 2, y + 5.3, { align: 'center' });
+   doc.text('5-15 ans', ML + 2 * colW + colW / 2, y + 5.3, { align: 'center' });
+   doc.text('> 15 ans', ML + 3 * colW + colW / 2, y + 5.3, { align: 'center' });
+   y += 8;
+   var rows = [['Non-cadre', t.nc1, t.nc2, t.nc3], ['Cadre', t.c1, t.c2, t.c3]];
+   rows.forEach(function(r) {
+    doc.setFillColor(soft[0], soft[1], soft[2]);
+    doc.rect(ML, y, W - ML - MR, 8, 'F');
+    doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(r[0], ML + 4, y + 5.3);
+    doc.setTextColor(gold[0], gold[1], gold[2]);
+    for (var i = 1; i <= 3; i++) {
+     doc.text(String(r[i]).replace('.', ',') + ' %', ML + i * colW + colW / 2, y + 5.3, { align: 'center' });
+    }
+    y += 8;
+   });
+   y += 6;
+  }
+
+  var opts = [];
+  if (meta.taux) opts.push('Geste commercial 1er recrutement : ' + meta.taux + ' %');
+  if (meta.garantie) opts.push('Garantie de remplacement 3 mois');
+  if (meta.opt3070) opts.push('Reglement echelonne 30 / 70 %');
+  if (meta.frais && meta.frais > 0) opts.push('Frais d\'inscription : ' + meta.frais + ' EUR HT');
+  if (opts.length) {
+   doc.setFont('helvetica', 'bold');
+   doc.setFontSize(9);
+   doc.setTextColor(ink[0], ink[1], ink[2]);
+   doc.text('OPTIONS', ML, y);
+   y += 6;
+   doc.setFont('helvetica', 'normal');
+   doc.setFontSize(8.5);
+   opts.forEach(function(o) {
+    doc.setTextColor(gold[0], gold[1], gold[2]);
+    doc.text('-', ML + 2, y);
+    doc.setTextColor(grey[0], grey[1], grey[2]);
+    doc.text(o, ML + 7, y);
+    y += 6;
+   });
+   y += 4;
+  }
+
+  doc.setFillColor(soft[0], soft[1], soft[2]);
+  doc.roundedRect(ML, y, W - ML - MR, 14, 2, 2, 'F');
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.setTextColor(grey[0], grey[1], grey[2]);
+  doc.text('Ce document atteste de la signature electronique du contrat. Les clauses completes', ML + 5, y + 6);
+  doc.text('figurent dans le contrat de prestation transmis par email lors de la demande de signature.', ML + 5, y + 10.5);
+  y += 22;
+
+  doc.setDrawColor(gold[0], gold[1], gold[2]);
+  doc.setLineWidth(0.5);
+  var cartH = 78;
+  doc.roundedRect(ML, y, W - ML - MR, cartH, 2, 2, 'S');
+
+  doc.setFillColor(gold[0], gold[1], gold[2]);
+  doc.rect(ML, y, W - ML - MR, 9, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('SIGNATURE ELECTRONIQUE - CERTIFICAT', ML + 5, y + 6);
+
+  var cy = y + 17;
+  doc.setFontSize(8);
+
+  function line(label, val) {
+   doc.setTextColor(grey[0], grey[1], grey[2]);
+   doc.setFont('helvetica', 'normal');
+   doc.text(label, ML + 6, cy);
+   doc.setTextColor(ink[0], ink[1], ink[2]);
+   doc.setFont('helvetica', 'bold');
+   doc.text(String(val || '-'), ML + 48, cy);
+   cy += 6.5;
+  }
+  line('Signataire', meta.signer_name);
+  line('Fonction', meta.signer_fonction);
+  line('Date et heure', meta.signed_at_fr);
+  line('Adresse IP', meta.ip || '-');
+  line('Reference', meta.reference);
+  line('Valeur juridique', 'Signature simple - eIDAS (UE) 910/2014');
+
+  if (meta.signature_image) {
+   try {
+    var sigX = ML + 108, sigY = y + 14, sigW = 64, sigH = 28;
+    doc.setDrawColor(210, 200, 188);
+    doc.setLineWidth(0.3);
+    doc.rect(sigX, sigY, sigW, sigH, 'S');
+    doc.addImage(meta.signature_image, 'PNG', sigX + 2, sigY + 2, sigW - 4, sigH - 4, undefined, 'FAST');
+    doc.setFontSize(6.5);
+    doc.setTextColor(grey[0], grey[1], grey[2]);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Signature de ' + (meta.signer_name || ''), sigX, sigY + sigH + 4);
+   } catch (e) { /* image invalide */ }
+  }
+
+  if (meta.contract_hash) {
+   doc.setFontSize(6);
+   doc.setTextColor(150, 150, 150);
+   doc.setFont('courier', 'normal');
+   doc.text('Empreinte SHA-256 : ' + meta.contract_hash, ML + 6, y + cartH - 5);
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  doc.text('NOVALEM - contact@novalem-recrutement.fr - 06 58 21 20 96 - novalem-recrutement.fr', W / 2, 285, { align: 'center' });
+  doc.text('Document conserve 10 ans - Conforme aux articles 1366-1367 du Code civil', W / 2, 289, { align: 'center' });
+
+  return doc.output('datauristring').split(',')[1] || null;
+ } catch (e) {
+  console.warn('PDF generation error:', e);
+  return null;
+ }
+}
+
 async function dosign() {
  var prenom   = (document.getElementById('sp').value || '').trim();
  var nom      = (document.getElementById('sn').value || '').trim();
@@ -954,6 +1139,26 @@ async function dosign() {
 
  auditLog.validated_at = new Date().toISOString();
  var contract_hash = await hashContract();
+
+ // Générer le PDF du contrat contre-signé
+ var nowFr = new Date().toLocaleString('fr-FR', {
+  day: '2-digit', month: 'long', year: 'numeric',
+  hour: '2-digit', minute: '2-digit'
+ });
+ var signed_pdf = generateSignedPDF({
+  co_name:          CO_NAME || (CT && CT.nom) || 'Client',
+  co_siret:         CT && CT.siret,
+  reference:        'NV-' + (CT_ID || '').slice(0, 8).toUpperCase(),
+  signer_name:      name,
+  signer_fonction:  fonction,
+  signed_at_fr:     nowFr,
+  contract_hash:    contract_hash,
+  tarifs:           CT && CT.tarifs,
+  taux:             CT && CT.taux,
+  garantie:         CT && CT.garantie,
+  opt3070:          CT && CT.opt3070,
+  frais:            CT && CT.frais,
+ });
 
  try {
   var r = await fetch(API + '/api/jobs', {
@@ -974,6 +1179,7 @@ async function dosign() {
     contract_hash:    contract_hash,
     audit_log:        auditLog,
     acceptances:      acceptances,
+    signed_pdf:       signed_pdf,
    }),
   });
   var resp = await r.json();
