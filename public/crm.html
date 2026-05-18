@@ -7649,10 +7649,48 @@ function renderRep(){
 
 let _contractCoId = null;
 
+// ── Validation SIRET (14 chiffres + algorithme de Luhn) ──
+function isValidSiret(siret) {
+ if (!siret) return false;
+ const s = String(siret).replace(/\s/g, '');
+ if (!/^\d{14}$/.test(s)) return false;
+ let sum = 0;
+ for (let i = 0; i < 14; i++) {
+  let d = parseInt(s[i], 10);
+  if (i % 2 === 0) { d *= 2; if (d > 9) d -= 9; }
+  sum += d;
+ }
+ return sum % 10 === 0;
+}
+
+// ── Saisie SIRET en temps réel : valide + sauvegarde + active boutons ──
+function _onSiretInput(val) {
+ const co = coById(_contractCoId); if (!co) return;
+ const clean = String(val).replace(/\s/g, '');
+ co.siret = clean;
+ const ok = isValidSiret(clean);
+ const badge = document.getElementById('ct-siret-badge');
+ const btnP = document.getElementById('ct-btn-preview');
+ const btnS = document.getElementById('ct-btn-send');
+ if (badge) {
+  badge.textContent = ok ? '✓ Valide' : (clean.length === 14 ? '✗ Clé invalide' : '✗ Requis');
+  badge.style.color = ok ? 'var(--ac5)' : 'var(--ac3)';
+ }
+ [btnP, btnS].forEach(b => {
+  if (!b) return;
+  b.disabled = !ok;
+  b.style.opacity = ok ? '' : '.4';
+  b.style.cursor = ok ? '' : 'not-allowed';
+ });
+ if (ok) save();
+}
+
 function openContractModal(coId) {
  _contractCoId = coId;
  const co = coById(coId); if (!co) return;
  const ct = co._contract_draft || {};
+ const siretRaw = (co.siret || '').replace(/\s/g, '');
+ const siretOk = isValidSiret(siretRaw);
 
  openMo('📄 Contrat — ' + esc(co.name), `
   <div style="max-height:68vh;overflow-y:auto;padding-right:2px">
@@ -7663,6 +7701,22 @@ function openContractModal(coId) {
    </div>
    ${co.email?`<span style="font-size:10px;color:var(--ac5)">${esc(co.email)}</span>`:'<span style="font-size:10px;color:var(--ac3)">⚠ Email manquant</span>'}
   </div>
+
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">SIRET du client <span style="color:var(--ac3)">obligatoire</span></div>
+  <div style="background:var(--s3);border:1px solid ${siretOk?'var(--bd)':'var(--ac3)'};border-radius:var(--r2);padding:11px 13px;margin-bottom:14px">
+   <div style="display:flex;align-items:center;gap:8px">
+    <input id="ct-siret" type="text" inputmode="numeric" maxlength="17" value="${esc(co.siret||'')}" placeholder="123 456 789 00012"
+     style="flex:1;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.5px;padding:7px 10px"
+     oninput="_onSiretInput(this.value)">
+    <span id="ct-siret-badge" style="font-size:10px;font-weight:700;white-space:nowrap;color:${siretOk?'var(--ac5)':'var(--ac3)'}">${siretOk?'✓ Valide':'✗ Requis'}</span>
+   </div>
+   <div style="display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px">
+    <span style="font-size:10px;color:var(--mu)">14 chiffres — identifie juridiquement l'entreprise sur le contrat</span>
+    <a href="https://annuaire-entreprises.data.gouv.fr/rechercher?terme=${encodeURIComponent(co.name||'')}" target="_blank" rel="noopener"
+     style="font-size:10px;color:var(--ac);text-decoration:none;white-space:nowrap;font-weight:600">🔍 Chercher le SIRET ↗</a>
+   </div>
+  </div>
+
   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Grille tarifaire</div>
   <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:14px">
    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;background:var(--s2);padding:7px 12px;gap:4px">
@@ -7719,8 +7773,8 @@ function openContractModal(coId) {
   </div>
   </div>`,
   '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
-  '<button class="btn bg" onclick="previewContract(\'' + coId + '\')">👁 Aperçu contrat</button>' +
-  '<button class="btn bp" onclick="sendContractEmail(\'' + coId + '\')">📧 Envoyer au client</button>'
+  '<button class="btn bg" id="ct-btn-preview" onclick="previewContract(\'' + coId + '\')"' + (siretOk?'':' disabled style="opacity:.4;cursor:not-allowed"') + '>👁 Aperçu contrat</button>' +
+  '<button class="btn bp" id="ct-btn-send" onclick="sendContractEmail(\'' + coId + '\')"' + (siretOk?'':' disabled style="opacity:.4;cursor:not-allowed"') + '>📧 Envoyer au client</button>'
  );
  setTimeout(() => {
   const sl = document.getElementById('ct-frais-slider');
@@ -7916,6 +7970,7 @@ function sendContractEmail(coId, encodedData) {
  if(!data) return;
  const co=coById(coId);if(!co)return;
  if(!co.email){toast('Email client manquant — ajoutez-le dans la fiche','e');return;}
+ if(!isValidSiret(co.siret)){toast('SIRET invalide ou manquant — renseignez-le avant l\'envoi','e');return;}
 
  // Sauvegarder le draft négocié
  co._contract_draft={
