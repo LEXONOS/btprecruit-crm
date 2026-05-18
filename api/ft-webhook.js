@@ -51,7 +51,9 @@ module.exports = async function handler(req, res) {
     };
 
     // Charger la DB actuelle depuis Supabase
-    const sb = createClient(supabaseUrl, supabaseKey);
+    const sb = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }, realtime: { disabled: true }
+    });
     const { data: rows, error: loadErr } = await sb
       .from('crm_data').select('data').eq('id', 1).maybeSingle();
 
