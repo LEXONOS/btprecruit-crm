@@ -1499,7 +1499,7 @@ function rDash(){
 
  // Notif contrat signé non acquittée
  const cn=DB._contract_notif;
- const contractBanner=cn?'<div style="background:rgba(45,212,160,.1);border:1px solid rgba(45,212,160,.3);border-left:3px solid var(--green);border-radius:var(--r2);padding:13px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px"><span style="font-size:20px">&#x2705;</span><div style="flex:1"><div style="font-family:Syne,sans-serif;font-weight:700;font-size:13px;color:var(--green)">Contrat sign&eacute; !</div><div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(cn.coName||'Client')+' &mdash; sign&eacute; par '+esc(cn.signer||'&mdash;')+'</div></div><button class="btn bg bxs" onclick="dismissContractNotif()" style="font-size:10px">&#x2715;</button>&nbsp;<button class="btn bp bxs" onclick="goToSignedContract()">Voir &rarr;</button></div>':'';
+ const contractBanner=cn?'<div style="background:rgba(45,212,160,.1);border:1px solid rgba(45,212,160,.3);border-left:3px solid var(--green);border-radius:var(--r2);padding:13px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="goToSignedContract()"><span style="font-size:20px">&#x2705;</span><div style="flex:1"><div style="font-family:Syne,sans-serif;font-weight:700;font-size:13px;color:var(--green)">Contrat sign&eacute; &mdash; envoyer le contact candidat</div><div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(cn.coName||'Client')+' a sign&eacute;'+(cn.signer?' ('+esc(cn.signer)+')':'')+' &middot; cliquez pour valider le placement</div></div><button class="btn bg bxs" onclick="event.stopPropagation();dismissContractNotif()" style="font-size:10px">&#x2715;</button>&nbsp;<button class="btn bp bxs" onclick="event.stopPropagation();goToSignedContract()">Valider &rarr;</button></div>':'';
 
  const priorityBanner=topAlert?`
  <div class="priority-action ${topAlert.color==='var(--ac3)'?'':' warn'}" onclick="${topAlert.act}" style="cursor:pointer;margin-bottom:12px">
@@ -7717,6 +7717,18 @@ function openContractModal(coId) {
    </div>
   </div>
 
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Candidat concerné <span style="color:var(--mu2)">recommandé</span></div>
+  <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);padding:9px 12px;margin-bottom:14px">
+   ${(()=>{
+     const cl=candidatsForClient(coId);
+     if(!cl.length) return '<div style="font-size:10px;color:var(--mu)">Aucun candidat lié à un besoin de ce client. Vous pourrez l\'associer après la signature.</div>';
+     const cur=(ct.candidat_id)||cl[0].id;
+     return '<select id="ct-candidat" style="width:100%;font-size:12px;padding:6px 8px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--tx)">'
+      +cl.map(c=>{const ln=c.linked_need?nById(c.linked_need):null;return '<option value="'+c.id+'"'+(c.id===cur?' selected':'')+'>'+esc(c.name)+(ln?' — '+esc(ln.title):'')+'</option>';}).join('')
+      +'</select><div style="font-size:9px;color:var(--mu2);margin-top:4px">Affiché automatiquement dans la pop-up de validation à la signature</div>';
+   })()}
+  </div>
+
   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Grille tarifaire</div>
   <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:14px">
    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;background:var(--s2);padding:7px 12px;gap:4px">
@@ -7808,6 +7820,7 @@ function _getContractData(coId) {
   opt3070:   !!(document.getElementById('ct-3070')?.checked),
   garantie:  !!(document.getElementById('ct-garantie')?.checked),
   frais:     parseInt(document.getElementById('ct-frais')?.value || 0),
+  candidat_id: document.getElementById('ct-candidat')?.value || (co._contract_draft && co._contract_draft.candidat_id) || null,
   date_str:  dateStr,
   ref:       Math.random().toString(36).slice(2,12).toUpperCase(),
   user_name: nom, user_email: email, user_phone: tel,
@@ -7945,7 +7958,7 @@ function previewContract(coId) {
  const data = _getContractData(coId); if(!data) return;
  const co = coById(coId);
  if(co){
-  co._contract_draft={nc1:data.nc1,nc2:data.nc2,nc3:data.nc3,c1:data.c1,c2:data.c2,c3:data.c3,geste:data.geste,geste_val:data.geste_val,opt3070:data.opt3070,garantie:data.garantie,frais:data.frais};
+  co._contract_draft={nc1:data.nc1,nc2:data.nc2,nc3:data.nc3,c1:data.c1,c2:data.c2,c3:data.c3,geste:data.geste,geste_val:data.geste_val,opt3070:data.opt3070,garantie:data.garantie,frais:data.frais,candidat_id:data.candidat_id};
   save();
  }
  toast('Génération du contrat…','i');
@@ -7978,7 +7991,7 @@ function sendContractEmail(coId, encodedData) {
   c1:data.c1,c2:data.c2,c3:data.c3,
   geste:data.geste,geste_val:data.geste_val,
   opt3070:data.opt3070,garantie:data.garantie,
-  frais:data.frais,sent_at:now_()
+  frais:data.frais,candidat_id:data.candidat_id,sent_at:now_()
  };
  save();
 
@@ -8753,11 +8766,175 @@ function renderContractTab(co) {
 }
 
 // ── Helpers notif contrat signé ───────────────────
+
+// Trouve les candidats liés à un client (via besoins → linked_need)
+// Priorise ceux en cours de process (presented/interview/dossier)
+function candidatsForClient(coId) {
+ const needIds = DB.needs.filter(n => n.company_id === coId).map(n => n.id);
+ if (!needIds.length) return [];
+ const cands = DB.candidates.filter(c => c.linked_need && needIds.includes(c.linked_need));
+ // Tri : les plus avancés dans le process d'abord
+ const rank = { presented: 0, interview: 1, dossier: 2, precal: 3, new: 4, entrant: 5, placed: 6, ko: 7 };
+ return cands.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9));
+}
+
 function goToSignedContract() {
- const cn=DB._contract_notif; if(!cn) return;
- UI.ptab=4;
- go('clients');
- setTimeout(()=>openCoPanel(cn.coId),80);
+ const cn = DB._contract_notif; if (!cn) return;
+ openContractValidationModal(cn.coId);
+}
+
+// ════════════════════════════════════════════════════════════════
+// POP-UP DE VALIDATION POST-SIGNATURE
+// S'ouvre au clic sur la notif "Contrat signé". Guide le scout :
+// 1. Confirme que le contrat est bien signé (récap)
+// 2. Affiche AUTOMATIQUEMENT le candidat concerné
+// 3. Permet d'envoyer le contact du candidat au client en 1 clic
+// ════════════════════════════════════════════════════════════════
+function openContractValidationModal(coId) {
+ const co = coById(coId);
+ if (!co) { toast('Client introuvable', 'e'); return; }
+ const sig = co._contract_signed || {};
+ const cn = DB._contract_notif || {};
+ const cands = candidatsForClient(coId);
+
+ // Candidat pré-sélectionné : celui mémorisé sur le contrat, sinon le plus avancé
+ let preselId = (co._contract_draft && co._contract_draft.candidat_id) || cn.candId || null;
+ if (!preselId && cands.length) preselId = cands[0].id;
+
+ const sigDate = sig.signed_at
+  ? new Date(sig.signed_at).toLocaleString('fr-FR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  : '—';
+
+ // Bloc récap signature
+ const recapHtml = `
+  <div style="background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.25);border-radius:var(--r2);padding:14px 16px;margin-bottom:16px">
+   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <span style="font-size:18px">&#x2705;</span>
+    <span style="font-family:Syne,sans-serif;font-weight:700;font-size:13px;color:var(--green)">Contrat signé électroniquement</span>
+   </div>
+   <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:11px">
+    <span style="color:var(--mu)">Client</span><span style="font-weight:600">${esc(co.name)}</span>
+    <span style="color:var(--mu)">Signataire</span><span style="font-weight:600">${esc(sig.signer_name||cn.signer||'—')}</span>
+    <span style="color:var(--mu)">Date</span><span>${sigDate}</span>
+    <span style="color:var(--mu)">Référence</span><span style="font-family:'DM Mono',monospace;color:var(--ac)">${esc(sig.ref||'—')}</span>
+   </div>
+  </div>`;
+
+ // Bloc sélection candidat
+ let candHtml;
+ if (!cands.length) {
+  candHtml = `
+   <div style="background:var(--s3);border:1px solid var(--ac3);border-radius:var(--r2);padding:14px 16px;font-size:11px;color:var(--mu)">
+    ⚠ Aucun candidat n'est lié à un besoin de ce client. Liez d'abord un candidat à un besoin de <strong>${esc(co.name)}</strong> pour pouvoir transmettre son contact.
+   </div>`;
+ } else {
+  candHtml = `
+   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px">Candidat concerné</div>
+   <div style="display:flex;flex-direction:column;gap:6px">
+    ${cands.map(c => {
+      const cat = getCat(c.cat);
+      const ln = c.linked_need ? nById(c.linked_need) : null;
+      const checked = c.id === preselId;
+      return `<label style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--s3);border:1.5px solid ${checked?'var(--ac)':'var(--bd)'};border-radius:var(--r2);cursor:pointer" onclick="_selectValidCand('${c.id}')">
+        <input type="radio" name="valid-cand" value="${c.id}" ${checked?'checked':''} style="accent-color:var(--ac);width:15px;height:15px;flex-shrink:0">
+        <div style="flex:1">
+         <div style="font-size:12px;font-weight:600">${esc(c.name)}</div>
+         <div style="font-size:10px;color:var(--mu)">${ln?esc(ln.title):'Sans besoin'} ${c.phone?' · '+esc(c.phone):''}</div>
+        </div>
+        <span class="tag ${cat.cls} fs9">${cat.l}</span>
+       </label>`;
+    }).join('')}
+   </div>`;
+ }
+
+ openMo('Valider le placement — ' + esc(co.name), `
+  <div style="max-height:64vh;overflow-y:auto;padding-right:2px">
+   ${recapHtml}
+   ${candHtml}
+   ${cands.length ? `<div style="margin-top:14px;font-size:11px;color:var(--mu);line-height:1.55;background:var(--s2);border-radius:var(--r2);padding:11px 13px">
+    En cliquant sur <strong>« Envoyer le contact au client »</strong>, NOVALEM transmet les coordonnées du candidat sélectionné à ${esc(co.name)}. Le candidat passera au statut <strong>Placé</strong>.
+   </div>` : ''}
+  </div>`,
+  '<button class="btn bg" onclick="dismissContractNotif();closeMo()">Plus tard</button>' +
+  (cands.length
+    ? '<button class="btn bg" onclick="closeMo();UI.ptab=4;go(\'clients\');setTimeout(()=>openCoPanel(\''+coId+'\'),80)">Voir la fiche client</button>' +
+      '<button class="btn bp" id="valid-send-btn" onclick="sendCandidateContactToClient(\''+coId+'\')">📨 Envoyer le contact au client</button>'
+    : '<button class="btn bp" onclick="closeMo();go(\'cands\')">Aller aux candidats</button>')
+ );
+}
+
+function _selectValidCand(candId) {
+ document.querySelectorAll('input[name="valid-cand"]').forEach(r => {
+  const lbl = r.closest('label');
+  const on = r.value === candId;
+  r.checked = on;
+  if (lbl) lbl.style.borderColor = on ? 'var(--ac)' : 'var(--bd)';
+ });
+}
+
+// Envoie le contact du candidat au client + passe le candidat en "placé"
+function sendCandidateContactToClient(coId) {
+ const co = coById(coId);
+ if (!co) return;
+ const sel = document.querySelector('input[name="valid-cand"]:checked');
+ if (!sel) { toast('Sélectionnez un candidat', 'w'); return; }
+ const cand = cById(sel.value);
+ if (!cand) { toast('Candidat introuvable', 'e'); return; }
+
+ // Marquer le candidat comme placé
+ cand.status = 'placed';
+ cand.updated = now_();
+ cand.placed_at = now_();
+ cand.placed_company = co.id;
+
+ // Historiser côté client
+ addTimeline(co.id, 'status', '📨 Contact transmis : ' + cand.name + ' (placement)', null);
+
+ // Acquitter la notif
+ delete DB._contract_notif;
+ if (co._contract_signed) co._contract_signed.contact_sent = true;
+
+ save();
+ badges();
+ closeMo();
+ toast('✅ ' + cand.name + ' placé chez ' + co.name, 's');
+
+ // Proposer d'ouvrir l'email pré-rempli vers le client
+ setTimeout(() => {
+  openMo('Contact transmis ✅', `
+   <div style="text-align:center;padding:8px 4px">
+    <div style="font-size:38px;margin-bottom:10px">🎉</div>
+    <div style="font-family:Syne,sans-serif;font-weight:700;font-size:15px;margin-bottom:6px">${esc(cand.name)} est placé !</div>
+    <div style="font-size:12px;color:var(--mu);line-height:1.6;margin-bottom:4px">
+     Le placement est enregistré. Tu peux maintenant envoyer un email à <strong>${esc(co.name)}</strong> avec les coordonnées du candidat.
+    </div>
+   </div>`,
+   '<button class="btn bg" onclick="closeMo()">Fermer</button>' +
+   (co.email ? '<button class="btn bp" onclick="closeMo();_emailContactToClient(\''+coId+'\',\''+cand.id+'\')">📧 Rédiger l\'email au client</button>' : '')
+  );
+ }, 350);
+
+ if (UI.view === 'dash') rDash();
+}
+
+// Ouvre un email pré-rempli pour transmettre le contact du candidat au client
+function _emailContactToClient(coId, candId) {
+ const co = coById(coId), cand = cById(candId);
+ if (!co || !cand) return;
+ const prenom = co.contact ? co.contact.split(' ')[0] : '';
+ const subj = 'Coordonnées de votre candidat — ' + cand.name;
+ const body = `Bonjour ${prenom || ''},\n\n`
+  + `Suite à la signature de notre contrat, voici les coordonnées du candidat retenu :\n\n`
+  + `- Nom : ${cand.name}\n`
+  + (cand.phone ? `- Téléphone : ${cand.phone}\n` : '')
+  + (cand.email ? `- Email : ${cand.email}\n` : '')
+  + `\nVous pouvez le contacter directement pour organiser la suite. Je reste disponible pour tout accompagnement.\n\n`
+  + `Bien à vous,\nLouis RENAULT — NOVALEM`;
+ const mailto = 'mailto:' + encodeURIComponent(co.email)
+  + '?subject=' + encodeURIComponent(subj)
+  + '&body=' + encodeURIComponent(body);
+ window.open(mailto, '_blank');
+ toast('Email pré-rempli ouvert', 'i');
 }
 
 function dismissContractNotif() {
@@ -8779,7 +8956,9 @@ function startSignaturePolling() {
     const {data}=await sb.from('novalem_signatures').select('signer_name,signed_at,ct_id').eq('co_id',co.id).order('signed_at',{ascending:false}).limit(1).maybeSingle();
     if(data&&data.signer_name){
      co._contract_signed={signer_name:data.signer_name,signed_at:data.signed_at,ref:'NV-'+(data.ct_id||'').slice(0,8).toUpperCase()};
-     DB._contract_notif={coId:co.id,coName:co.name,signer:data.signer_name,at:data.signed_at};
+     const _cands=candidatsForClient(co.id);
+     const _candId=(co._contract_draft&&co._contract_draft.candidat_id)||(_cands[0]&&_cands[0].id)||null;
+     DB._contract_notif={coId:co.id,coName:co.name,signer:data.signer_name,at:data.signed_at,candId:_candId};
      addTimeline(co.id,'status','&#x2705; Contrat sign&eacute; par '+data.signer_name,null);
      save();badges();
      if(UI.view==='dash')rDash();
@@ -8811,18 +8990,16 @@ async function checkContractSignature(coId) {
     signed_at:   data.signed_at,
     ref:         'NV-' + (data.ct_id || '').slice(0,8).toUpperCase(),
    };
-   save();
-   openCoPanel(coId);
-   UI.ptab = 4;
-   openCoPanel(coId);
-   toast('✅ Contrat signé par ' + data.signer_name, 's');
-   // Ajouter dans timeline
+   const _cands = candidatsForClient(coId);
+   const _candId = (co._contract_draft && co._contract_draft.candidat_id) || (_cands[0] && _cands[0].id) || null;
+   DB._contract_notif = { coId, coName: co.name, signer: data.signer_name, at: data.signed_at, candId: _candId };
    addTimeline(coId, 'status', '✅ Contrat signé par ' + data.signer_name, null);
-   // Notif dashboard
-   DB._contract_notif = { coId, coName: co.name, signer: data.signer_name, at: data.signed_at };
    save();
    badges();
-   if (UI.view === 'dash') rDash();
+   toast('✅ Contrat signé par ' + data.signer_name, 's');
+   closeMo();
+   // Ouvrir directement la pop-up de validation
+   setTimeout(() => openContractValidationModal(coId), 120);
   } else {
    toast('Pas encore signé', 'w');
   }
