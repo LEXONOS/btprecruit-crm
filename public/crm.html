@@ -8109,11 +8109,52 @@ function checkPendingKoEmails(){
 // FACTURATION — Suivi des honoraires et paiements
 // ═══════════════════════════════════════════════════════
 
+// ── Numérotation séquentielle ROBUSTE ──
+// Basée sur un compteur persistant par année (jamais de doublon même après suppression).
 function getInvoiceNumber(){
  const year=new Date().getFullYear();
- const existing=(DB.invoices||[]).filter(inv=>inv.invoice_number&&inv.invoice_number.includes(String(year)));
- const seq=existing.length+1;
- return`NOVALEM-${year}-${String(seq).padStart(3,'0')}`;
+ DB._invoice_seq=DB._invoice_seq||{};
+ // Si pas encore de compteur pour l'année, on l'initialise au max existant
+ if(!DB._invoice_seq[year]){
+  let max=0;
+  (DB.invoices||[]).forEach(inv=>{
+   if(inv.invoice_number){
+    const m=inv.invoice_number.match(new RegExp('NOVALEM-'+year+'-(\\d+)'));
+    if(m){const n=parseInt(m[1],10);if(n>max)max=n;}
+   }
+  });
+  DB._invoice_seq[year]=max;
+ }
+ DB._invoice_seq[year]++;
+ return`NOVALEM-${year}-${String(DB._invoice_seq[year]).padStart(3,'0')}`;
+}
+
+// ── Auto-calcul du taux d'honoraires depuis le contrat signé ──
+// Lit la grille négociée dans co._contract_draft et sélectionne la bonne
+// case selon le statut (cadre/non-cadre) et l'expérience du candidat.
+function computeHonoraireRate(co, isCadre, expYears){
+ const ct=co&&co._contract_draft;
+ // Pas de contrat → taux par défaut configuré
+ if(!ct){
+  return{rate:Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18),source:'défaut',tranche:''};
+ }
+ // Tranche d'expérience : <5 ans / 5-15 ans / >15 ans
+ let tIdx,tLabel;
+ if(expYears<5){tIdx=1;tLabel='moins de 5 ans';}
+ else if(expYears<=15){tIdx=2;tLabel='5 à 15 ans';}
+ else{tIdx=3;tLabel='plus de 15 ans';}
+ const key=(isCadre?'c':'nc')+tIdx;
+ const rate=Number(ct[key]);
+ if(!rate||isNaN(rate)){
+  return{rate:Number(localStorage.getItem(uKey('btp_taux_hon'))||18),source:'défaut',tranche:tLabel};
+ }
+ return{
+  rate,
+  source:'contrat signé',
+  tranche:tLabel,
+  isCadre,
+  geste:ct.geste?Number(ct.geste_val||0):0,
+ };
 }
 
 function rFacturation(){
@@ -8157,8 +8198,11 @@ function rFacturation(){
  <div class="kpi" style="cursor:pointer" onclick="UI.invFilter='overdue';rFacturation()"><div class="kpi-v ac3">${fM(Math.round(totOverdue))}</div><div class="kpi-l">En retard</div></div>
  <div class="kpi" style="cursor:pointer" onclick="openInvoiceForm()"><div class="kpi-v" style="color:var(--mu)">${invs.filter(i=>i.status==='draft').length}</div><div class="kpi-l">Brouillons</div></div>
  </div>
- <div class="vtabs" style="margin-bottom:14px">
+ <div class="vtabs" style="margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
  ${filters.map(f=>`<div class="vt ${filter===f.id?'act':''}" onclick="UI.invFilter='${f.id}';rFacturation()">${f.l}</div>`).join('')}
+ <div style="flex:1"></div>
+ <button class="btn bg bxs" onclick="openInvoiceSettings()" title="Coordonnées légales">⚙ Coordonnées</button>
+ <button class="btn bp bxs" onclick="openInvoiceForm()">+ Facture</button>
  </div>
  ${visible.length?`
  <table class="tbl">
@@ -8214,67 +8258,171 @@ function openInvoicePanel(id){
  ${inv.notes?`<div class="sl">Notes</div><div class="notebox">${esc(inv.notes)}</div>`:''}
  <div class="sl mt12">Récapitulatif</div>
  <div class="notebox fs10" style="line-height:1.9">${esc(inv.invoice_number||'')} · ${co?esc(co.name):'?'}<br>Placement de ${cand?esc(cand.name):'?'}<br>Honoraires ${taux}% × ${fM(inv.salary)} = <strong style="color:var(--ac)">${fM(inv.amount)}</strong><br>${inv.due_date?`Échéance ${fD(inv.due_date)}`:''}</div>`,
- `${inv.status==='draft'?`<button class="btn bi bsm" onclick="markInvoiceSent('${id}')">Envoyée</button>`:''}
- ${['sent','overdue'].includes(inv.status)?`<button class="btn bp bsm" onclick="markInvoicePaid('${id}')">Payée</button>`:''}
- <button class="btn bg bsm" onclick="editInvoiceNotes('${id}')"></button>
- <button class="btn bd_ bsm" onclick="deleteInvoice('${id}')"></button>`
+ `<button class="btn bp bsm" onclick="generateInvoicePDF('${id}')">📄 Télécharger le PDF</button>
+ ${co&&co.email?`<button class="btn bi bsm" onclick="emailInvoiceToClient('${id}')">📧 Envoyer au client</button>`:''}
+ ${inv.status==='draft'?`<button class="btn bg bsm" onclick="markInvoiceSent('${id}')">Marquer envoyée</button>`:''}
+ ${['sent','overdue'].includes(inv.status)?`<button class="btn bp bsm" onclick="markInvoicePaid('${id}')">Marquer payée ✓</button>`:''}
+ <button class="btn bg bsm" onclick="editInvoiceNotes('${id}')">Notes</button>
+ <button class="btn bd_ bsm" onclick="deleteInvoice('${id}')">Supprimer</button>`
 );
 }
 
 function openInvoiceForm(candId){
- const cands=DB.candidates.filter(c=>c.status==='placed');
- const candOpts=cands.map(c=>{const n=c.linked_need?DB.needs.find(nd=>nd.id===c.linked_need):null;const co=n?coById(n.company_id):null;return`<option value="${c.id}" ${c.id===candId?'selected':''}>${esc(c.name)}${co?' — '+esc(co.name):''}`;}).join('');
- openMo('+ Nouvelle facture',`
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Candidat placé *</span>
- <select id="nif-cand" onchange="updateInvoicePreview()">${cands.length?`<option value="">— Choisir —</option>${candOpts}`:`<option value="">Aucun candidat placé</option>`}</select>
- </div>
- <div class="fgrp"><span class="lbl">Salaire brut annuel (€) *</span><input id="nif-sal" type="number" placeholder="45000" oninput="updateInvoicePreview()"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="nif-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5" oninput="updateInvoicePreview()"></div>
- <div class="fgrp ff" id="nif-preview" style="background:rgba(207,224,70,.07);border:1px solid rgba(207,224,70,.2);border-radius:3px;padding:10px 12px;text-align:center;display:none">
- <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</div>
- <div style="font-size:10px;color:var(--mu)">Montant honoraires HT</div>
- </div>
- <div class="fgrp ff"><span class="lbl">Notes</span><textarea id="nif-notes" style="min-height:50px" placeholder="Informations complémentaires…"></textarea></div>
- </div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button>
- <button class="btn bp" onclick="saveInvoiceForm()">Créer la facture</button>`
-);
- if(candId){const c=cById(candId);if(c?.salary)setTimeout(()=>{const el=document.getElementById('nif-sal');if(el){el.value=c.salary;updateInvoicePreview();}},80);}
+ const cands=DB.candidates.filter(c=>['presented','placed'].includes(c.status));
+ if(!cands.length){
+  openMo('+ Nouvelle facture',`<div style="text-align:center;padding:24px 12px;color:var(--mu)">
+   <div style="font-size:32px;margin-bottom:10px">📋</div>
+   <div style="font-size:12px;line-height:1.6">Aucun candidat présenté ou placé pour le moment.<br>Une facture se crée à partir d'un placement confirmé.</div>
+  </div>`,'<button class="btn bg" onclick="closeMo()">Fermer</button>');
+  return;
+ }
+ const candOpts=cands.map(c=>{
+  const n=c.linked_need?DB.needs.find(nd=>nd.id===c.linked_need):null;
+  const co=n?coById(n.company_id):null;
+  return`<option value="${c.id}" ${c.id===candId?'selected':''}>${esc(c.name)}${co?' — '+esc(co.name):''}</option>`;
+ }).join('');
+ openMo('+ Nouvelle facture d\u0027honoraires',`
+  <div class="fg">
+   <div class="fgrp ff"><span class="lbl">Candidat placé *</span>
+    <select id="nif-cand" onchange="_invCandChanged()">
+     <option value="">— Choisir le candidat —</option>${candOpts}
+    </select>
+   </div>
+   <div id="nif-contract-info" style="display:none;font-size:10px;padding:8px 11px;border-radius:var(--r2);margin-bottom:10px"></div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="fgrp"><span class="lbl">Statut du candidat *</span>
+     <select id="nif-cadre" onchange="_invResetTaux()">
+      <option value="0">Non-cadre</option>
+      <option value="1">Cadre</option>
+     </select>
+    </div>
+    <div class="fgrp"><span class="lbl">Expérience (années) *</span>
+     <input id="nif-exp" type="number" min="0" placeholder="6" oninput="_invResetTaux()">
+    </div>
+   </div>
+   <div class="fgrp"><span class="lbl">Salaire brut annuel négocié (€) *</span>
+    <input id="nif-sal" type="number" placeholder="39000" oninput="_invRecalc()">
+   </div>
+   <div class="fgrp"><span class="lbl">Taux honoraires appliqué (%)</span>
+    <div style="display:flex;gap:8px;align-items:center">
+     <input id="nif-taux" type="number" step="0.5" style="flex:1" oninput="_invRecalc(true)">
+     <button class="btn bg bxs" onclick="_invResetTaux()" title="Recalculer depuis le contrat">↻ Auto</button>
+    </div>
+    <div id="nif-taux-src" style="font-size:9px;color:var(--mu2);margin-top:3px"></div>
+   </div>
+   <div class="fgrp ff" id="nif-preview" style="background:rgba(207,224,70,.07);border:1px solid rgba(207,224,70,.22);border-radius:var(--r2);padding:13px 14px;display:none">
+    <div id="nif-preview-detail" style="font-size:10.5px;color:var(--mu);line-height:1.85;margin-bottom:8px"></div>
+    <div style="border-top:1px solid var(--bd);padding-top:8px;display:flex;justify-content:space-between;align-items:baseline">
+     <span style="font-size:11px;color:var(--mu)">Montant honoraires HT</span>
+     <span id="nif-preview-amt" style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--ac)">—</span>
+    </div>
+   </div>
+   <div class="fgrp ff"><span class="lbl">Date de prise de poste</span>
+    <input id="nif-prise-poste" type="date">
+   </div>
+   <div class="fgrp ff"><span class="lbl">Notes (optionnel)</span>
+    <textarea id="nif-notes" style="min-height:44px" placeholder="Précisions sur la prestation…"></textarea>
+   </div>
+  </div>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button>
+   <button class="btn bp" onclick="saveInvoiceForm()">Créer la facture</button>`
+ );
+ if(candId){setTimeout(()=>_invCandChanged(),60);}
 }
 
-function updateInvoicePreview(){
+function _invCandChanged(){
+ const candId=document.getElementById('nif-cand')?.value;
+ const info=document.getElementById('nif-contract-info');
+ if(!candId){if(info)info.style.display='none';return;}
+ const c=cById(candId);if(!c)return;
+ const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const co=need?coById(need.company_id):null;
+ if(c.salary){const el=document.getElementById('nif-sal');if(el)el.value=c.salary;}
+ if(info){
+  info.style.display='block';
+  if(co&&co._contract_signed){
+   info.style.background='rgba(61,224,154,.1)';info.style.color='var(--ac2)';
+   info.innerHTML=`✅ Contrat signé avec <strong>${esc(co.name)}</strong> — le taux est lu automatiquement depuis la grille négociée.`;
+  }else if(co&&co._contract_draft){
+   info.style.background='rgba(224,152,58,.1)';info.style.color='var(--ac4)';
+   info.innerHTML=`⚠ Contrat préparé pour <strong>${esc(co.name)}</strong> mais pas encore signé. Grille utilisée à titre indicatif.`;
+  }else{
+   info.style.background='var(--s3)';info.style.color='var(--mu)';
+   info.innerHTML=`ℹ️ Aucun contrat enregistré${co?' pour '+esc(co.name):''}. Taux par défaut — ajustez si besoin.`;
+  }
+ }
+ _invResetTaux();
+}
+
+function _invResetTaux(){
+ const candId=document.getElementById('nif-cand')?.value;
+ if(!candId)return;
+ const c=cById(candId);if(!c)return;
+ const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const co=need?coById(need.company_id):null;
+ const isCadre=document.getElementById('nif-cadre')?.value==='1';
+ const exp=Number(document.getElementById('nif-exp')?.value||0);
+ const r=computeHonoraireRate(co,isCadre,exp);
+ const tx=document.getElementById('nif-taux');
+ if(tx)tx.value=r.rate;
+ const src=document.getElementById('nif-taux-src');
+ if(src)src.textContent='Taux '+r.rate+'% — '+r.source+(r.tranche?' · tranche '+r.tranche:'');
+ _invRecalc();
+}
+
+function _invRecalc(manualTaux){
  const sal=Number(document.getElementById('nif-sal')?.value||0);
- const taux=Number(document.getElementById('nif-taux')?.value||18);
- const prev=document.getElementById('nif-preview');if(!prev)return;
- if(sal>0){prev.style.display='block';const amt=Math.round(sal*taux/100);prev.children[0].textContent=fM(amt);prev.children[1].textContent=`= ${sal.toLocaleString('fr-FR')}€ × ${taux}%`;}
- else prev.style.display='none';
-}
-
-function createInvoiceFromModal(candId){
- const sal=Number(document.getElementById('inv-sal')?.value||0);
- const taux=Number(document.getElementById('inv-taux')?.value||18);
- if(!sal){toast('Salaire requis','e');return;}
- _createInvoice(candId,sal,taux,'');closeMo();
+ const taux=Number(document.getElementById('nif-taux')?.value||0);
+ const prev=document.getElementById('nif-preview');
+ if(!prev)return;
+ const src=document.getElementById('nif-taux-src');
+ if(manualTaux&&src)src.textContent='Taux '+taux+'% — ajusté manuellement';
+ if(sal>0&&taux>0){
+  prev.style.display='block';
+  const amt=Math.round(sal*taux/100);
+  document.getElementById('nif-preview-detail').innerHTML=
+   `Salaire brut annuel : <strong>${sal.toLocaleString('fr-FR')} €</strong><br>`
+   +`Taux honoraires : <strong>${String(taux).replace('.',',')} %</strong><br>`
+   +`Calcul : ${sal.toLocaleString('fr-FR')} € × ${String(taux).replace('.',',')} %`;
+  document.getElementById('nif-preview-amt').textContent=fM(amt);
+ }else{
+  prev.style.display='none';
+ }
 }
 
 function saveInvoiceForm(){
  const candId=document.getElementById('nif-cand')?.value;
  const sal=Number(document.getElementById('nif-sal')?.value||0);
- const taux=Number(document.getElementById('nif-taux')?.value||18);
- if(!candId||!sal){toast('Candidat et salaire requis','e');return;}
- _createInvoice(candId,sal,taux,document.getElementById('nif-notes')?.value||'');closeMo();
+ const taux=Number(document.getElementById('nif-taux')?.value||0);
+ const exp=Number(document.getElementById('nif-exp')?.value||0);
+ const isCadre=document.getElementById('nif-cadre')?.value==='1';
+ const prisePoste=document.getElementById('nif-prise-poste')?.value||'';
+ const notes=document.getElementById('nif-notes')?.value||'';
+ if(!candId){toast('Choisissez un candidat','e');return;}
+ if(!sal){toast('Salaire brut requis','e');return;}
+ if(!taux){toast('Taux honoraires requis','e');return;}
+ _createInvoice(candId,sal,taux,notes,{exp,isCadre,prisePoste});
+ closeMo();
 }
 
-function _createInvoice(candId,salary,taux,notes){
+function _createInvoice(candId,salary,taux,notes,extra){
  DB.invoices=DB.invoices||[];
+ extra=extra||{};
  const c=cById(candId);
  const need=c?.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
  const co=need?coById(need.company_id):null;
  const amount=Math.round(Number(salary)*taux/100);
  const today=new Date().toISOString().split('T')[0];
  const due=new Date();due.setDate(due.getDate()+30);
- const inv={id:uid(),invoice_number:getInvoiceNumber(),cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,salary:Number(salary),taux,amount,status:'draft',invoice_date:today,due_date:due.toISOString().split('T')[0],paid_date:null,notes,created:now_(),updated:now_()};
+ const inv={
+  id:uid(),invoice_number:getInvoiceNumber(),
+  cand_id:candId,company_id:co?.id||null,need_id:need?.id||null,
+  salary:Number(salary),taux,amount,
+  exp_years:extra.exp||0,is_cadre:!!extra.isCadre,prise_poste:extra.prisePoste||'',
+  status:'draft',invoice_date:today,
+  due_date:due.toISOString().split('T')[0],paid_date:null,
+  notes,created:now_(),updated:now_()
+ };
  DB.invoices.unshift(inv);save();
  if(UI.view==='facturation')rFacturation();
  badges();toast(`Facture ${inv.invoice_number} créée — ${fM(amount)}`,'s');
@@ -8305,6 +8453,239 @@ function editInvoiceNotes(id){
 function deleteInvoice(id){
  if(!confirm('Supprimer cette facture ?'))return;
  DB.invoices=(DB.invoices||[]).filter(i=>i.id!==id);save();closePanel();if(UI.view==='facturation')rFacturation();badges();toast('Supprimé','w');
+}
+
+// ── Infos légales de l'émetteur (NOVALEM) — paramétrables ──
+function getNovalemLegal(){
+ return{
+  nom:    localStorage.getItem('nv_legal_nom')    || 'NOVALEM',
+  gerant: localStorage.getItem('nv_legal_gerant') || 'Louis RENAULT',
+  adresse:localStorage.getItem('nv_legal_adresse')|| '',
+  cp:     localStorage.getItem('nv_legal_cp')     || '',
+  ville:  localStorage.getItem('nv_legal_ville')  || '',
+  siret:  localStorage.getItem('nv_legal_siret')  || '',
+  ape:    localStorage.getItem('nv_legal_ape')    || '7810Z',
+  email:  localStorage.getItem('nv_legal_email')  || 'contact@novalem-recrutement.fr',
+  tel:    localStorage.getItem('nv_legal_tel')    || '06 58 21 20 96',
+  iban:   localStorage.getItem('nv_legal_iban')   || '',
+ };
+}
+
+// ── Modale paramètres légaux facturation ──
+function openInvoiceSettings(){
+ const L=getNovalemLegal();
+ openMo('Coordonnées de facturation NOVALEM',`
+  <div style="font-size:11px;color:var(--mu);margin-bottom:14px;line-height:1.55">
+   Ces informations figureront sur toutes vos factures. Elles sont <strong>obligatoires légalement</strong>. À remplir une seule fois.
+  </div>
+  <div class="fg">
+   <div class="fgrp ff"><span class="lbl">Dénomination *</span><input id="nvl-nom" value="${esc(L.nom)}" placeholder="NOVALEM"></div>
+   <div class="fgrp ff"><span class="lbl">Gérant / Exploitant *</span><input id="nvl-gerant" value="${esc(L.gerant)}" placeholder="Louis RENAULT"></div>
+   <div class="fgrp ff"><span class="lbl">Adresse *</span><input id="nvl-adresse" value="${esc(L.adresse)}" placeholder="Numéro et rue"></div>
+   <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
+    <div class="fgrp"><span class="lbl">Code postal *</span><input id="nvl-cp" value="${esc(L.cp)}" placeholder="97110"></div>
+    <div class="fgrp"><span class="lbl">Ville *</span><input id="nvl-ville" value="${esc(L.ville)}" placeholder="Pointe-à-Pitre"></div>
+   </div>
+   <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+    <div class="fgrp"><span class="lbl">SIRET *</span><input id="nvl-siret" value="${esc(L.siret)}" placeholder="14 chiffres"></div>
+    <div class="fgrp"><span class="lbl">Code APE</span><input id="nvl-ape" value="${esc(L.ape)}" placeholder="7810Z"></div>
+   </div>
+   <div class="fgrp ff"><span class="lbl">IBAN (pour le règlement)</span><input id="nvl-iban" value="${esc(L.iban)}" placeholder="FR76 ..."></div>
+  </div>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button>
+   <button class="btn bp" onclick="saveInvoiceSettings()">Enregistrer</button>`
+ );
+}
+function saveInvoiceSettings(){
+ const g=id=>document.getElementById(id)?.value?.trim()||'';
+ localStorage.setItem('nv_legal_nom',g('nvl-nom'));
+ localStorage.setItem('nv_legal_gerant',g('nvl-gerant'));
+ localStorage.setItem('nv_legal_adresse',g('nvl-adresse'));
+ localStorage.setItem('nv_legal_cp',g('nvl-cp'));
+ localStorage.setItem('nv_legal_ville',g('nvl-ville'));
+ localStorage.setItem('nv_legal_siret',g('nvl-siret'));
+ localStorage.setItem('nv_legal_ape',g('nvl-ape'));
+ localStorage.setItem('nv_legal_iban',g('nvl-iban'));
+ closeMo();
+ toast('Coordonnées enregistrées ✓','s');
+}
+
+// ════════════════════════════════════════════════════════════════
+// GÉNÉRATEUR PDF — Facture d'honoraires conforme à la réglementation
+// française (Code de commerce L441 + CGI). Micro-entreprise, franchise TVA.
+// ════════════════════════════════════════════════════════════════
+function generateInvoicePDF(invId){
+ const inv=(DB.invoices||[]).find(i=>i.id===invId);
+ if(!inv){toast('Facture introuvable','e');return;}
+ const jsPDFLib=window.jspdf;
+ if(!jsPDFLib){toast('jsPDF non chargé, réessayez','w');return;}
+
+ const L=getNovalemLegal();
+ // Vérif des mentions légales minimales
+ if(!L.siret||!L.adresse||!L.ville){
+  toast('Complétez d\u0027abord vos coordonnées de facturation','w');
+  setTimeout(openInvoiceSettings,300);
+  return;
+ }
+
+ const co=coById(inv.company_id);
+ const cand=cById(inv.cand_id);
+ const need=inv.need_id?DB.needs.find(n=>n.id===inv.need_id):null;
+ const doc=new jsPDFLib.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+ const W=210,ML=18,MR=18;
+ const gold=[201,137,26],ink=[26,22,20],grey=[90,90,90],soft=[245,243,239];
+ const eur=n=>Number(n||0).toLocaleString('fr-FR')+' EUR';
+
+ // ── En-tête ──
+ doc.setFillColor(ink[0],ink[1],ink[2]);
+ doc.rect(0,0,W,30,'F');
+ doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(19);
+ doc.text('NOVALEM',ML,16);
+ doc.setTextColor(gold[0],gold[1],gold[2]);doc.setFontSize(7.5);
+ doc.text('CABINET DE RECRUTEMENT BTP',ML,22);
+ doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');
+ doc.text('FACTURE',W-MR,15,{align:'right'});
+ doc.setFontSize(8);doc.setTextColor(200,200,200);doc.setFont('helvetica','normal');
+ doc.text(inv.invoice_number||'—',W-MR,21,{align:'right'});
+
+ let y=42;
+
+ // ── Émetteur / Client ──
+ const boxW=(W-ML-MR-8)/2;
+ doc.setFillColor(soft[0],soft[1],soft[2]);
+ doc.roundedRect(ML,y,boxW,40,2,2,'F');
+ doc.roundedRect(ML+boxW+8,y,boxW,40,2,2,'F');
+
+ doc.setFontSize(7);doc.setTextColor(grey[0],grey[1],grey[2]);doc.setFont('helvetica','bold');
+ doc.text('ÉMETTEUR',ML+5,y+7);
+ doc.text('CLIENT',ML+boxW+13,y+7);
+ doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(ink[0],ink[1],ink[2]);
+
+ let ey=y+13;
+ doc.setFont('helvetica','bold');doc.text(L.nom,ML+5,ey);doc.setFont('helvetica','normal');
+ ey+=4.5;doc.setFontSize(7.5);doc.setTextColor(grey[0],grey[1],grey[2]);
+ doc.text(L.gerant,ML+5,ey);ey+=4;
+ doc.text(L.adresse,ML+5,ey);ey+=4;
+ doc.text(L.cp+' '+L.ville,ML+5,ey);ey+=4;
+ doc.text('SIRET '+L.siret,ML+5,ey);ey+=4;
+ doc.text('APE '+L.ape+'  ·  '+L.tel,ML+5,ey);
+
+ let cy=y+13;
+ doc.setFontSize(8.5);doc.setTextColor(ink[0],ink[1],ink[2]);doc.setFont('helvetica','bold');
+ doc.text(co?co.name:'Client',ML+boxW+13,cy);doc.setFont('helvetica','normal');
+ cy+=4.5;doc.setFontSize(7.5);doc.setTextColor(grey[0],grey[1],grey[2]);
+ if(co&&co.address){doc.text(String(co.address).slice(0,42),ML+boxW+13,cy);cy+=4;}
+ if(co&&co.city){doc.text(co.city,ML+boxW+13,cy);cy+=4;}
+ if(co&&co.siret){doc.text('SIRET '+co.siret,ML+boxW+13,cy);cy+=4;}
+ if(co&&co.contact){doc.text(co.contact,ML+boxW+13,cy);cy+=4;}
+
+ y+=48;
+
+ // ── Métadonnées facture ──
+ doc.setFontSize(8);doc.setTextColor(grey[0],grey[1],grey[2]);
+ const exDate=inv.prise_poste||inv.invoice_date;
+ doc.text('Date de facture : '+fD(inv.invoice_date),ML,y);
+ doc.text('Date d\u0027exécution : '+fD(exDate),ML+70,y);
+ doc.text('Échéance : '+fD(inv.due_date),ML+140,y);
+ y+=10;
+
+ // ── Tableau prestation ──
+ doc.setFillColor(ink[0],ink[1],ink[2]);
+ doc.rect(ML,y,W-ML-MR,9,'F');
+ doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','bold');
+ doc.text('DÉSIGNATION',ML+4,y+5.8);
+ doc.text('BASE',ML+108,y+5.8,{align:'right'});
+ doc.text('TAUX',ML+138,y+5.8,{align:'right'});
+ doc.text('MONTANT HT',W-MR-4,y+5.8,{align:'right'});
+ y+=9;
+
+ const poste=need?need.title:(cand&&cand.role)||'poste non précisé';
+ doc.setFillColor(soft[0],soft[1],soft[2]);
+ doc.rect(ML,y,W-ML-MR,20,'F');
+ doc.setTextColor(ink[0],ink[1],ink[2]);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+ doc.text('Honoraires de recrutement',ML+4,y+7);
+ doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(grey[0],grey[1],grey[2]);
+ doc.text('Placement de '+(cand?cand.name:'—')+' — '+poste,ML+4,y+12.5);
+ doc.text((inv.is_cadre?'Cadre':'Non-cadre')+' · '+(inv.exp_years||0)+' ans d\u0027expérience',ML+4,y+17);
+ doc.setTextColor(ink[0],ink[1],ink[2]);doc.setFontSize(8.5);
+ doc.text(eur(inv.salary),ML+108,y+11,{align:'right'});
+ doc.text(String(inv.taux).replace('.',',')+' %',ML+138,y+11,{align:'right'});
+ doc.setFont('helvetica','bold');
+ doc.text(eur(inv.amount),W-MR-4,y+11,{align:'right'});
+ y+=28;
+
+ // ── Totaux ──
+ const tbX=W-MR-72;
+ doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(grey[0],grey[1],grey[2]);
+ doc.text('Total HT',tbX,y);
+ doc.setTextColor(ink[0],ink[1],ink[2]);doc.text(eur(inv.amount),W-MR-4,y,{align:'right'});
+ y+=6;
+ doc.setTextColor(grey[0],grey[1],grey[2]);doc.setFontSize(7.5);
+ doc.text('TVA non applicable, art. 293 B du CGI',tbX,y);
+ y+=8;
+ doc.setFillColor(gold[0],gold[1],gold[2]);
+ doc.roundedRect(tbX-4,y-5,W-MR-(tbX-4),11,1.5,1.5,'F');
+ doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+ doc.text('NET À PAYER',tbX,y+1.5);
+ doc.text(eur(inv.amount),W-MR-4,y+1.5,{align:'right'});
+ y+=16;
+
+ // ── Conditions de règlement (mentions légales obligatoires) ──
+ doc.setDrawColor(220,214,205);doc.setLineWidth(0.3);
+ doc.line(ML,y,W-MR,y);y+=7;
+ doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(ink[0],ink[1],ink[2]);
+ doc.text('CONDITIONS DE RÈGLEMENT',ML,y);y+=5;
+ doc.setFont('helvetica','normal');doc.setTextColor(grey[0],grey[1],grey[2]);doc.setFontSize(7);
+ const cond=[
+  'Paiement à 30 jours à compter de la date de facture'+(L.iban?', par virement.':'.'),
+  L.iban?('IBAN : '+L.iban):'',
+  'Pénalités de retard : taux directeur BCE majoré de 10 points. Indemnité forfaitaire pour frais de',
+  'recouvrement : 40 EUR (art. L441-10 et D441-5 du Code de commerce). Pas d\u0027escompte pour paiement anticipé.',
+ ].filter(Boolean);
+ cond.forEach(line=>{doc.text(line,ML,y);y+=4;});
+ y+=3;
+
+ if(inv.notes){
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(ink[0],ink[1],ink[2]);
+  doc.text('NOTES',ML,y);y+=4.5;
+  doc.setFont('helvetica','normal');doc.setTextColor(grey[0],grey[1],grey[2]);doc.setFontSize(7);
+  doc.splitTextToSize(inv.notes,W-ML-MR).forEach(l=>{doc.text(l,ML,y);y+=4;});
+ }
+
+ // ── Pied de page ──
+ doc.setFontSize(6.5);doc.setTextColor(150,150,150);doc.setFont('helvetica','normal');
+ doc.text(L.nom+' — '+L.gerant+' · SIRET '+L.siret+' · APE '+L.ape,W/2,280,{align:'center'});
+ doc.text('Dispensé d\u0027immatriculation au RCS et au RM · Micro-entreprise · TVA non applicable art. 293 B du CGI',W/2,284,{align:'center'});
+ doc.text(L.email+' · '+L.tel,W/2,288,{align:'center'});
+
+ doc.save((inv.invoice_number||'facture')+'.pdf');
+ toast('Facture PDF générée ✓','s');
+}
+
+// Ouvre un email pré-rempli pour transmettre la facture au client
+function emailInvoiceToClient(invId){
+ const inv=(DB.invoices||[]).find(i=>i.id===invId);
+ if(!inv)return;
+ const co=coById(inv.company_id);
+ const cand=cById(inv.cand_id);
+ if(!co||!co.email){toast('Email du client manquant','e');return;}
+ const prenom=co.contact?co.contact.split(' ')[0]:'';
+ const subj='Facture '+(inv.invoice_number||'')+' — NOVALEM';
+ const body=`Bonjour ${prenom||''},\n\n`
+  +`Veuillez trouver ci-joint la facture ${inv.invoice_number} relative au placement de ${cand?cand.name:'votre candidat'}.\n\n`
+  +`Montant : ${Number(inv.amount).toLocaleString('fr-FR')} EUR (TVA non applicable).\n`
+  +`Échéance de règlement : ${fD(inv.due_date)}.\n\n`
+  +`Nous vous remercions de votre confiance et restons à votre disposition.\n\n`
+  +`Bien à vous,\nLouis RENAULT — NOVALEM\ncontact@novalem-recrutement.fr — 06 58 21 20 96`;
+ // D'abord générer le PDF (le client le joindra), puis ouvrir le mail
+ generateInvoicePDF(invId);
+ setTimeout(()=>{
+  const mailto='mailto:'+encodeURIComponent(co.email)
+   +'?subject='+encodeURIComponent(subj)
+   +'&body='+encodeURIComponent(body);
+  window.open(mailto,'_blank');
+  toast('PDF téléchargé — joignez-le à l\u0027email','i');
+ },600);
 }
 
 // ═══════════════════════════════════════════════════════
