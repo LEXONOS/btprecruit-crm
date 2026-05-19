@@ -387,7 +387,6 @@ function frToGwada(h){let g=h-_getTimezoneOffsetFR();if(g<0)g+=24;return g;}
 function gwadaToFr(h){let f=h+_getTimezoneOffsetFR();if(f>=24)f-=24;return f;}
 function _formatTz(date,tz){return new Intl.DateTimeFormat('fr-FR',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date);}
 function _tickClocks(){
-  if(currentUserId()!=='louis')return;
   const now=new Date();
   const frEl=document.getElementById('clock-fr');
   const gwEl=document.getElementById('clock-gwada');
