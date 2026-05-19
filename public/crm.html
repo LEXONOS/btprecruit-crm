@@ -8576,7 +8576,11 @@ function generateInvoicePDF(invId){
  cy+=4.5;doc.setFontSize(7.5);doc.setTextColor(grey[0],grey[1],grey[2]);
  if(co&&co.address){doc.text(String(co.address).slice(0,42),ML+boxW+13,cy);cy+=4;}
  if(co&&co.city){doc.text(co.city,ML+boxW+13,cy);cy+=4;}
- if(co&&co.siret){doc.text('SIRET '+co.siret,ML+boxW+13,cy);cy+=4;}
+ if(co&&co.siret){
+  const sirenCli=String(co.siret).replace(/\s/g,'').slice(0,9);
+  doc.text('SIREN '+sirenCli,ML+boxW+13,cy);cy+=4;
+  doc.text('SIRET '+co.siret,ML+boxW+13,cy);cy+=4;
+ }
  if(co&&co.contact){doc.text(co.contact,ML+boxW+13,cy);cy+=4;}
 
  y+=48;
@@ -8587,7 +8591,10 @@ function generateInvoicePDF(invId){
  doc.text('Date de facture : '+fD(inv.invoice_date),ML,y);
  doc.text('Date d\u0027exécution : '+fD(exDate),ML+70,y);
  doc.text('Échéance : '+fD(inv.due_date),ML+140,y);
- y+=10;
+ y+=5;
+ doc.setFontSize(7);doc.setTextColor(grey[0],grey[1],grey[2]);
+ doc.text('Nature de l\u0027opération : prestation de services',ML,y);
+ y+=8;
 
  // ── Tableau prestation ──
  doc.setFillColor(ink[0],ink[1],ink[2]);
