@@ -226,11 +226,20 @@ async function handleSignContract(req, res) {
     }
   }
 
-  // Préparer la pièce jointe PDF pour les emails
+  // Préparer les pièces jointes pour les emails
+  // - Le PDF du contrat contre-signé
+  // - La signature en image inline (CID) car Gmail bloque les images base64 dans <img src>
+  const sigB64 = (signature_image || '').split(',')[1] || '';
+  const sigAttachment = sigB64 ? [{
+    filename: 'signature.png',
+    content: sigB64,
+    content_id: 'signature-novalem',
+  }] : [];
   const pdfAttachment = signed_pdf ? [{
     filename: `Contrat-signe-${ref}.pdf`,
     content: signed_pdf,
   }] : [];
+  const allAttachments = [...pdfAttachment, ...sigAttachment];
 
   // Envoyer les emails de notification
   const RESEND_KEY   = process.env.RESEND_API_KEY;
@@ -263,10 +272,10 @@ async function handleSignContract(req, res) {
       <tr style="background:#F8F5EF"><td style="padding:8px 10px;color:#888">Mode signature</td><td style="padding:8px 10px">${signature_method === 'drawn' ? 'Dessinée à la main' : 'Image importée'}</td></tr>
       <tr><td style="padding:8px 10px;color:#888">Référence</td><td style="padding:8px 10px;font-family:monospace;font-size:12px;color:#C9891A;font-weight:700">${ref}</td></tr>
     </table>
-    ${signature_image ? `
+    ${sigB64 ? `
     <div style="margin-top:14px;padding:12px;background:#F8F5EF;border-radius:6px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">Signature graphique</div>
-      <img src="${signature_image}" alt="Signature" style="max-width:100%;max-height:80px;display:block;margin:0 auto">
+      <img src="cid:signature-novalem" alt="Signature" style="max-width:100%;max-height:80px;display:block;margin:0 auto">
     </div>` : ''}
     <p style="margin:16px 0 0;font-size:12px;color:#888">Prochaine étape : ouvrez le CRM → fiche client → onglet Contrats → Vérifier signature → transmettez les coordonnées du candidat.</p>
   </div>
@@ -281,7 +290,7 @@ async function handleSignContract(req, res) {
         to: EXTRA_NOTIFY ? [NOVALEM_EMAIL, EXTRA_NOTIFY] : [NOVALEM_EMAIL],
         subject: `✅ Contrat signé — ${co_name || 'Client'} (${ref})`,
         html: htmlNovalem,
-        attachments: pdfAttachment,
+        attachments: allAttachments,
       })
     }).catch(e => console.warn('[sign] email novalem:', e.message));
 
@@ -303,10 +312,10 @@ async function handleSignContract(req, res) {
         <tr><td style="padding:4px 0;color:#666">Référence</td><td style="font-family:monospace;color:#C9891A;font-weight:700">${ref}</td></tr>
         <tr><td style="padding:4px 0;color:#666">Valeur légale</td><td>Signature simple — eIDAS (UE) n°910/2014</td></tr>
       </table>
-      ${signature_image ? `
+      ${sigB64 ? `
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid #E8E4DC">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px">Votre signature</div>
-        <img src="${signature_image}" alt="Signature" style="max-width:100%;max-height:60px;display:block">
+        <img src="cid:signature-novalem" alt="Signature" style="max-width:100%;max-height:60px;display:block">
       </div>` : ''}
     </div>
     <p style="font-size:12px;color:#888;line-height:1.65">NOVALEM vous contactera très prochainement avec les coordonnées du candidat pour organiser l'entretien. <strong>Conservez cet email comme preuve de signature.</strong></p>
@@ -322,7 +331,7 @@ async function handleSignContract(req, res) {
           to: [signer_email],
           subject: `Confirmation de signature — Contrat NOVALEM (${ref})`,
           html: htmlClient,
-          attachments: pdfAttachment,
+          attachments: allAttachments,
         })
       }).catch(e => console.warn('[sign] email client:', e.message));
     }
