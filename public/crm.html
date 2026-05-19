@@ -475,6 +475,7 @@ select option{background:var(--s2)}
 /* ── ENTRETIEN BANNER ───────────────────────────────── */
 .entretien-now{background:var(--blue-dim);border:1px solid var(--blue-border);border-left:3px solid var(--blue);border-radius:var(--r2);padding:13px 15px;margin-bottom:14px;display:flex;align-items:center;gap:12px;animation:slideDown .3s ease}
 @keyframes slideDown{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes slideInNotif{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
 .entretien-time{font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--blue);min-width:60px;letter-spacing:.04em}
 .entretien-info{flex:1}
 .entretien-name{font-family:'Syne',sans-serif;font-weight:700;font-size:13px}
@@ -7625,7 +7626,9 @@ function renderRep(){
 }
 (async()=>{
  await load(); // localStorage immédiat + Supabase en arrière-plan
- setTimeout(startSignaturePolling, 5000); // Démarrer le polling signatures
+ setTimeout(startSignaturePolling, 2000); // Démarrer le polling signatures
+ // Si un contrat signé n'a pas encore été acquitté, afficher la notif flottante
+ setTimeout(()=>{ if(DB._contract_notif) showFloatingContractNotif(); }, 2500);
  checkPendingKoEmails(); // Vérifier les emails KO en attente
  setInterval(checkPendingKoEmails, 3600000); // Revérifier toutes les heures
  rDash();
@@ -8943,30 +8946,82 @@ function dismissContractNotif() {
  if(UI.view==='dash') rDash();
 }
 
-// Polling automatique signatures (toutes les 2min si contrats en attente)
-let _sigPollTimer=null;
+// ════════════════════════════════════════════════════════════════
+// POLLING SIGNATURES — vérifie toutes les 20s si un contrat envoyé
+// a été signé. Ne s'arrête jamais (passe en veille si rien à suivre).
+// Affiche une notification flottante visible sur TOUS les écrans.
+// ════════════════════════════════════════════════════════════════
+let _sigPollTimer = null;
+
+async function _checkPendingSignatures() {
+ const pending = DB.companies.filter(co => co._contract_draft && co._contract_draft.sent_at && !co._contract_signed);
+ if (!pending.length) return;
+ const sb = getSB();
+ if (!sb) return;
+ for (const co of pending) {
+  try {
+   const { data } = await sb.from('novalem_signatures')
+    .select('signer_name,signed_at,ct_id')
+    .eq('co_id', co.id)
+    .order('signed_at', { ascending: false })
+    .limit(1).maybeSingle();
+   if (data && data.signer_name) {
+    co._contract_signed = { signer_name: data.signer_name, signed_at: data.signed_at, ref: 'NV-' + (data.ct_id || '').slice(0, 8).toUpperCase() };
+    const _cands = candidatsForClient(co.id);
+    const _candId = (co._contract_draft && co._contract_draft.candidat_id) || (_cands[0] && _cands[0].id) || null;
+    DB._contract_notif = { coId: co.id, coName: co.name, signer: data.signer_name, at: data.signed_at, candId: _candId };
+    addTimeline(co.id, 'status', '&#x2705; Contrat sign&eacute; par ' + data.signer_name, null);
+    save(); badges();
+    if (UI.view === 'dash') rDash();
+    showFloatingContractNotif();  // notif flottante sur n'importe quel écran
+    toast('&#x2705; ' + co.name + ' a sign&eacute; le contrat !', 's');
+   }
+  } catch (e) { /* silencieux */ }
+ }
+}
+
 function startSignaturePolling() {
- if(_sigPollTimer) return;
- _sigPollTimer=setInterval(async()=>{
-  const pending=DB.companies.filter(co=>co._contract_draft&&co._contract_draft.sent_at&&!co._contract_signed);
-  if(!pending.length){clearInterval(_sigPollTimer);_sigPollTimer=null;return;}
-  const sb=getSB();if(!sb)return;
-  for(const co of pending){
-   try{
-    const {data}=await sb.from('novalem_signatures').select('signer_name,signed_at,ct_id').eq('co_id',co.id).order('signed_at',{ascending:false}).limit(1).maybeSingle();
-    if(data&&data.signer_name){
-     co._contract_signed={signer_name:data.signer_name,signed_at:data.signed_at,ref:'NV-'+(data.ct_id||'').slice(0,8).toUpperCase()};
-     const _cands=candidatsForClient(co.id);
-     const _candId=(co._contract_draft&&co._contract_draft.candidat_id)||(_cands[0]&&_cands[0].id)||null;
-     DB._contract_notif={coId:co.id,coName:co.name,signer:data.signer_name,at:data.signed_at,candId:_candId};
-     addTimeline(co.id,'status','&#x2705; Contrat sign&eacute; par '+data.signer_name,null);
-     save();badges();
-     if(UI.view==='dash')rDash();
-     toast('&#x2705; '+co.name+' a sign&eacute; le contrat !','s');
-    }
-   }catch(e){}
-  }
- },120000); // 2 minutes
+ if (_sigPollTimer) return;
+ // Vérification immédiate au démarrage
+ _checkPendingSignatures();
+ // Puis toutes les 20 secondes — le timer ne s'arrête jamais
+ _sigPollTimer = setInterval(_checkPendingSignatures, 20000);
+}
+
+// ── Notification flottante (visible sur tous les écrans du CRM) ──
+function showFloatingContractNotif() {
+ const cn = DB._contract_notif;
+ if (!cn) return;
+ // Évite les doublons
+ const old = document.getElementById('floating-contract-notif');
+ if (old) old.remove();
+
+ const el = document.createElement('div');
+ el.id = 'floating-contract-notif';
+ el.style.cssText = 'position:fixed;top:18px;right:18px;z-index:99999;max-width:340px;'
+  + 'background:var(--s2,#1a1a1a);border:1px solid rgba(45,212,160,.4);border-left:3px solid var(--green,#2dd4a0);'
+  + 'border-radius:12px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.4);'
+  + 'animation:slideInNotif .35s cubic-bezier(.16,1,.3,1);cursor:pointer';
+ el.onclick = function (e) {
+  if (e.target.closest('.fcn-close')) return;
+  el.remove();
+  goToSignedContract();
+ };
+ el.innerHTML = '<div style="display:flex;align-items:flex-start;gap:10px">'
+  + '<span style="font-size:20px;flex-shrink:0">&#x2705;</span>'
+  + '<div style="flex:1">'
+  + '<div style="font-family:Syne,sans-serif;font-weight:700;font-size:12.5px;color:var(--green,#2dd4a0)">Contrat sign&eacute; !</div>'
+  + '<div style="font-size:11px;color:var(--mu,#999);margin-top:3px;line-height:1.45">'
+  + esc(cn.coName || 'Client') + (cn.signer ? ' &mdash; ' + esc(cn.signer) : '')
+  + '<br><span style="color:var(--green,#2dd4a0);font-weight:600">Cliquez pour valider le placement &rarr;</span></div>'
+  + '</div>'
+  + '<button class="fcn-close" onclick="document.getElementById(\'floating-contract-notif\').remove()" '
+  + 'style="background:none;border:none;color:var(--mu,#999);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0">&#x2715;</button>'
+  + '</div>';
+ document.body.appendChild(el);
+
+ // Auto-masquage après 30s (la bannière dashboard reste, elle)
+ setTimeout(() => { const n = document.getElementById('floating-contract-notif'); if (n) n.remove(); }, 30000);
 }
 
 // Vérifier si le contrat a été signé (polling Supabase)
