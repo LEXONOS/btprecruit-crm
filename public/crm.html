@@ -8855,7 +8855,7 @@ function openContractValidationModal(coId) {
    ${recapHtml}
    ${candHtml}
    ${cands.length ? `<div style="margin-top:14px;font-size:11px;color:var(--mu);line-height:1.55;background:var(--s2);border-radius:var(--r2);padding:11px 13px">
-    En cliquant sur <strong>« Envoyer le contact au client »</strong>, NOVALEM transmet les coordonnées du candidat sélectionné à ${esc(co.name)}. Le candidat passera au statut <strong>Placé</strong>.
+    En cliquant sur <strong>« Envoyer le contact au client »</strong>, NOVALEM transmet les coordonnées du candidat sélectionné à ${esc(co.name)}. Le candidat passera au statut <strong>Présenté client</strong> (entretien à organiser). Le placement sera confirmé seulement après le retour positif de l'entreprise.
    </div>` : ''}
   </div>`,
   '<button class="btn bg" onclick="dismissContractNotif();closeMo()">Plus tard</button>' +
@@ -8875,7 +8875,9 @@ function _selectValidCand(candId) {
  });
 }
 
-// Envoie le contact du candidat au client + passe le candidat en "placé"
+// Envoie le contact du candidat au client.
+// Le candidat passe en "Présenté client" (entretien client à venir) — PAS "Placé".
+// Le placement n'aura lieu que si l'entreprise valide après l'entretien.
 function sendCandidateContactToClient(coId) {
  const co = coById(coId);
  if (!co) return;
@@ -8884,32 +8886,34 @@ function sendCandidateContactToClient(coId) {
  const cand = cById(sel.value);
  if (!cand) { toast('Candidat introuvable', 'e'); return; }
 
- // Marquer le candidat comme placé
- cand.status = 'placed';
+ // Le candidat est présenté au client (entretien à venir), pas placé
+ cand.status = 'presented';
  cand.updated = now_();
- cand.placed_at = now_();
- cand.placed_company = co.id;
+ cand.presented_at = now_();
+ cand.presented_company = co.id;
 
  // Historiser côté client
- addTimeline(co.id, 'status', '📨 Contact transmis : ' + cand.name + ' (placement)', null);
+ addTimeline(co.id, 'status', '📨 Contact transmis : ' + cand.name + ' — entretien client à venir', null);
 
  // Acquitter la notif
  delete DB._contract_notif;
  if (co._contract_signed) co._contract_signed.contact_sent = true;
+ const fn = document.getElementById('floating-contract-notif');
+ if (fn) fn.remove();
 
  save();
  badges();
  closeMo();
- toast('✅ ' + cand.name + ' placé chez ' + co.name, 's');
+ toast('✅ Contact de ' + cand.name + ' transmis à ' + co.name, 's');
 
  // Proposer d'ouvrir l'email pré-rempli vers le client
  setTimeout(() => {
   openMo('Contact transmis ✅', `
    <div style="text-align:center;padding:8px 4px">
-    <div style="font-size:38px;margin-bottom:10px">🎉</div>
-    <div style="font-family:Syne,sans-serif;font-weight:700;font-size:15px;margin-bottom:6px">${esc(cand.name)} est placé !</div>
+    <div style="font-size:38px;margin-bottom:10px">📨</div>
+    <div style="font-family:Syne,sans-serif;font-weight:700;font-size:15px;margin-bottom:6px">${esc(cand.name)} présenté à ${esc(co.name)}</div>
     <div style="font-size:12px;color:var(--mu);line-height:1.6;margin-bottom:4px">
-     Le placement est enregistré. Tu peux maintenant envoyer un email à <strong>${esc(co.name)}</strong> avec les coordonnées du candidat.
+     Le candidat passe en <strong>« Présenté client »</strong>. Envoie maintenant un email à ${esc(co.name)} avec ses coordonnées pour qu'ils organisent l'entretien. Le placement sera confirmé après leur retour.
     </div>
    </div>`,
    '<button class="btn bg" onclick="closeMo()">Fermer</button>' +
@@ -8925,14 +8929,17 @@ function _emailContactToClient(coId, candId) {
  const co = coById(coId), cand = cById(candId);
  if (!co || !cand) return;
  const prenom = co.contact ? co.contact.split(' ')[0] : '';
+ const poste = (cand.linked_need && nById(cand.linked_need)) ? nById(cand.linked_need).title : (cand.poste || cand.title || 'le poste');
  const subj = 'Coordonnées de votre candidat — ' + cand.name;
  const body = `Bonjour ${prenom || ''},\n\n`
-  + `Suite à la signature de notre contrat, voici les coordonnées du candidat retenu :\n\n`
+  + `Nous vous remercions de votre confiance et sommes ravis de vous compter parmi les partenaires de NOVALEM.\n\n`
+  + `Suite à la signature de notre contrat, voici les coordonnées du candidat retenu pour ${poste} :\n\n`
   + `- Nom : ${cand.name}\n`
   + (cand.phone ? `- Téléphone : ${cand.phone}\n` : '')
   + (cand.email ? `- Email : ${cand.email}\n` : '')
-  + `\nVous pouvez le contacter directement pour organiser la suite. Je reste disponible pour tout accompagnement.\n\n`
-  + `Bien à vous,\nLouis RENAULT — NOVALEM`;
+  + `\nLe candidat est informé de votre intérêt pour son profil et attend votre prise de contact. Vous pouvez le contacter directement pour organiser l'entretien.\n\n`
+  + `Nous restons en attente de la date d'entretien convenue afin de suivre le bon déroulement de la procédure. N'hésitez pas à nous contacter pour tout accompagnement.\n\n`
+  + `Bien à vous,\nLouis RENAULT — NOVALEM\ncontact@novalem-recrutement.fr — 06 58 21 20 96`;
  const mailto = 'mailto:' + encodeURIComponent(co.email)
   + '?subject=' + encodeURIComponent(subj)
   + '&body=' + encodeURIComponent(body);
