@@ -1279,7 +1279,7 @@ if (!raw) { location.href = '/'; }
 let U = null;
 try {
   U = JSON.parse(raw);
-  if (!U || !U.ts || (Date.now() - U.ts) > 8 * 3600000) {
+  if (!U || !U.ts || (Date.now() - U.ts) > 24 * 3600000) {
     sessionStorage.removeItem('novalem_user');
     location.href = '/';
   }
