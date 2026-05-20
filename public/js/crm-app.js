@@ -1235,204 +1235,393 @@ async function aiExtractCVSplit(candId){
 }
 
 // ═══════════════════════════════════════════════════════════
-// MODAL AJOUT CANDIDAT VIA CV
+// MODAL AJOUT CANDIDAT VIA CV — Batch upload + extraction IA
 // ═══════════════════════════════════════════════════════════
+// Modèle IA centralisé pour extraction CV (Haiku 4.5 = rapide & économique)
+const CV_AI_MODEL='claude-haiku-4-5-20251001';
+const CV_AI_MAX_TOKENS=600;
+const CV_AI_CONCURRENCY=3;          // nb de CV analysés en parallèle (évite rate limit)
+const CV_MAX_SIZE=5*1024*1024;      // 5 MB
+const CV_ALLOWED_TYPES=['application/pdf','image/jpeg','image/png','image/jpg'];
+// Durée d'animation perçue par CV (toujours constante quelle que soit la vitesse réelle de l'API)
+const CV_ANIM_DURATION_MS=4200;
+
+// Prompt unique factorisé — toujours mêmes champs retournés
+const CV_PROMPT=`Analyse ce CV. Réponds UNIQUEMENT par un objet JSON valide, sans markdown ni texte autour.
+Schéma exact:
+{"nom":"","prenom":"","email":"","telephone":"","poste_actuel":"","poste_cible":"","salaire_actuel":"","disponibilite":"","mobilite":"","experience_annees":"","notes_synthese":""}
+Règles:
+- telephone: 10 chiffres collés (ex: "0612345678") ou format international sans espaces
+- salaire_actuel: entier annuel brut en € (ex: 42000) ou "" si absent
+- experience_annees: entier ou ""
+- disponibilite: phrase courte (ex: "Immédiate", "Sous 1 mois")
+- mobilite: zones (ex: "National", "Île-de-France")
+- notes_synthese: 2 phrases max, vue recruteur BTP
+- Si info absente: chaîne vide "". Aucun null.`;
+
 function openAddCVModal(){
- openMo('+ Ajouter un candidat via CV',`
+ const apiOk=!!getApiKey();
+ openMo('Ajouter des candidats via CV',`
  <div class="info-box mb12">
- Uploadez le CV du candidat → l'IA analyse et remplit automatiquement la fiche.
- ${!getApiKey()?`<br><strong style="color:var(--ac4)">! Configurez d'abord votre clé IA dans · Paramètres pour l'extraction automatique.</strong>`:''}
+ Glissez 1 ou plusieurs CV → l'IA analyse chaque fichier et crée les fiches candidat automatiquement.
+ ${!apiOk?`<br><strong style="color:var(--ac4)">! Configurez d'abord votre clé IA dans · Paramètres pour l'extraction automatique.</strong>`:''}
  </div>
 
- <!-- Zone de drop / upload -->
- <div id="cv-dropzone" style="border:2px dashed var(--bd2);border-radius:6px;padding:32px 20px;text-align:center;cursor:pointer;transition:.15s;margin-bottom:14px"
- onclick="document.getElementById('cv-file-input').click()"
- ondragover="event.preventDefault();this.style.borderColor='var(--ac)'"
- ondragleave="this.style.borderColor='var(--bd2)'"
- ondrop="handleCvDrop(event)">
- <div style="font-size:36px;margin-bottom:8px"></div>
- <div style="font-size:12px;font-weight:600;margin-bottom:4px">Cliquez ou glissez le CV ici</div>
- <div class="fs10 mu_">PDF, JPG, PNG — max 5 MB</div>
- <input type="file" id="cv-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleCvFileSelected(event)">
- </div>
-
- <!-- Preview + état -->
- <div id="cv-add-status" style="display:none">
- <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;margin-bottom:12px">
- <span style="font-size:20px"></span>
- <div style="flex:1">
- <div id="cv-add-filename" class="fs11 bold"></div>
- <div id="cv-add-state" class="fs10 mu_">Prêt à analyser</div>
- </div>
- <button class="btn bd_ bxs" onclick="resetCvAdd()">×</button>
- </div>
- </div>
-
- <!-- Résultat IA -->
- <div id="cv-add-result" style="display:none">
- <div class="sl">Informations extraites <span class="ai-badge">IA</span></div>
- <div class="fg mt6">
- <div class="fgrp"><span class="lbl">Nom complet *</span><input id="ca-name" placeholder="Nom Prénom"></div>
- <div class="fgrp"><span class="lbl">Téléphone</span><input id="ca-phone" placeholder="06XXXXXXXX"></div>
- <div class="fgrp"><span class="lbl">Email</span><input id="ca-email" placeholder="email@domaine.fr"></div>
- <div class="fgrp"><span class="lbl">Salaire souhaité (€/an)</span><input id="ca-sal" type="number" placeholder="42000"></div>
- <div class="fgrp"><span class="lbl">Disponibilité</span><input id="ca-avail" placeholder="Immédiate / sous 1 mois"></div>
- <div class="fgrp"><span class="lbl">Mobilité</span><input id="ca-mob" placeholder="National, Rhône-Alpes…"></div>
- <div class="fgrp ff"><span class="lbl">Rattacher à une annonce</span>
- <select id="ca-post">
- <option value="">— Aucune annonce sélectionnée —</option>
+ <!-- Sélection annonce / catégorie par défaut (appliquée à tous les CV du batch) -->
+ <div class="fg" style="margin-bottom:14px">
+ <div class="fgrp ff"><span class="lbl">Rattacher tous les CV à une annonce (optionnel)</span>
+ <select id="cv-batch-post">
+ <option value="">— Aucune annonce —</option>
  ${DB.posts.filter(p=>p.status==='active').map(p=>`<option value="${p.id}">${esc(p.title)}</option>`).join('')}
  </select>
  </div>
- <div class="fgrp ff"><span class="lbl">Notes (optionnel)</span><textarea id="ca-notes" style="min-height:50px" placeholder="Informations complémentaires…"></textarea></div>
  </div>
+
+ <!-- Zone de drop / upload multi-fichiers -->
+ <div id="cv-dropzone"
+  style="border:2px dashed var(--bd2);border-radius:var(--r2);padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:14px;background:var(--s2)"
+  onclick="document.getElementById('cv-file-input').click()"
+  ondragover="event.preventDefault();this.style.borderColor='var(--ac)';this.style.background='var(--ac-dim)'"
+  ondragleave="this.style.borderColor='var(--bd2)';this.style.background='var(--s2)'"
+  ondrop="handleCvDrop(event)">
+ <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:-.2px;margin-bottom:6px">Cliquez ou glissez vos CV ici</div>
+ <div class="fs10 mu_">PDF, JPG, PNG · max 5 Mo par fichier · sélection multiple autorisée</div>
+ <input type="file" id="cv-file-input" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none" onchange="handleCvFileSelected(event)">
+ </div>
+
+ <!-- Zone de progression batch -->
+ <div id="cv-batch-progress" style="display:none">
+ <!-- Barre globale -->
+ <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+ <div style="display:flex;align-items:center;gap:8px">
+ <span class="ai-badge">IA</span>
+ <span class="fs11 bold" id="cv-batch-title">Analyse en cours…</span>
+ </div>
+ <span class="fs10 mu_" id="cv-batch-count">0 / 0</span>
+ </div>
+ <div class="cvb-globalbar">
+ <div class="cvb-globalfill" id="cv-batch-global-fill" style="width:0%"></div>
+ </div>
+
+ <!-- Liste des fichiers -->
+ <div id="cv-batch-list" style="margin-top:14px;display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;padding-right:2px"></div>
+
+ <!-- Résumé final -->
+ <div id="cv-batch-summary" style="display:none;margin-top:14px;padding:12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2)"></div>
  </div>`,
+ `<button class="btn bg" onclick="closeMo()">Fermer</button>
+ <button id="cv-batch-add-more" class="btn bg" style="display:none" onclick="document.getElementById('cv-file-input').click()">+ Ajouter d'autres CV</button>`
+ );
 
- `<button class="btn bg" onclick="closeMo()">Annuler</button>
- <button id="cv-add-validate-btn" class="btn bp" style="display:none" onclick="validateAddCV()">✓ Créer le candidat</button>`
-);
-
- // Store file data in module-level var
- window._cvAddFile=null;
+ // State du batch — sera réinitialisé à chaque ouverture
+ window._cvBatch={files:[],done:0,errors:0,running:false};
 }
 
 function handleCvDrop(event){
  event.preventDefault();
- document.getElementById('cv-dropzone').style.borderColor='var(--bd2)';
- const file=event.dataTransfer.files[0];
- if(file)processCvFile(file);
+ const dz=document.getElementById('cv-dropzone');
+ if(dz){dz.style.borderColor='var(--bd2)';dz.style.background='var(--s2)';}
+ const files=Array.from(event.dataTransfer.files||[]);
+ if(files.length)enqueueCvFiles(files);
 }
 function handleCvFileSelected(event){
- const file=event.target.files[0];
- if(file)processCvFile(file);
-}
-function resetCvAdd(){
- window._cvAddFile=null;
- document.getElementById('cv-add-status').style.display='none';
- document.getElementById('cv-add-result').style.display='none';
- document.getElementById('cv-add-validate-btn').style.display='none';
- document.getElementById('cv-dropzone').style.display='block';
+ const files=Array.from(event.target.files||[]);
+ if(files.length)enqueueCvFiles(files);
+ event.target.value=''; // permet de re-uploader le même fichier
 }
 
-function processCvFile(file){
- if(file.size>5*1024*1024){toast('Fichier trop lourd (max 5MB)','e');return;}
- const allowed=['application/pdf','image/jpeg','image/png','image/jpg'];
- if(!allowed.includes(file.type)){toast('Format non supporté — PDF ou image uniquement','e');return;}
-
- document.getElementById('cv-dropzone').style.display='none';
- document.getElementById('cv-add-status').style.display='block';
- document.getElementById('cv-add-filename').textContent=file.name;
- document.getElementById('cv-add-state').textContent='Lecture du fichier…';
-
- const reader=new FileReader();
- reader.onload=(e)=>{
- window._cvAddFile={name:file.name,type:file.type,size:formatSize(file.size),data:e.target.result,date:now_()};
-
- if(getApiKey()){
- document.getElementById('cv-add-state').textContent=' Analyse IA en cours…';
- extractCVForNewCandidate(window._cvAddFile);
- } else {
- document.getElementById('cv-add-state').textContent='✓ Fichier prêt — complétez les infos manuellement';
- showCvAddForm({});
- }
- };
- reader.readAsDataURL(file);
-}
-
-async function extractCVForNewCandidate(cvFile){
- const key=getApiKey();
- const base64=cvFile.data.split(',')[1]||cvFile.data;
- try{
- const resp=await fetch('https://api.anthropic.com/v1/messages',{
- method:'POST',
- headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
- body:JSON.stringify({
- model:'claude-sonnet-4-6',
- max_tokens:800,
- messages:[{role:'user',content:[
- {type:cvFile.type==='application/pdf'?'document':'image',source:{type:'base64',media_type:cvFile.type,data:base64}},
- {type:'text',text:`Analyse ce CV et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown.
-{"nom":"","prenom":"","email":"","telephone":"","poste_actuel":"","poste_cible":"","salaire_actuel":"","disponibilite":"","mobilite":"","notes_synthese":""}
-- telephone: format 06XXXXXXXX, sans espaces
-- salaire_actuel: nombre entier en euros annuels (ex: 42000), "" si absent
-- disponibilite: texte court (ex: "Immédiate", "Sous 1 mois")
-- notes_synthese: 2-3 phrases résumant le profil pour un recruteur BTP
-- Mettre "" si info absente`}
- ]}]
- })
+// ── Ajoute des fichiers à la queue et lance le traitement ─────────
+function enqueueCvFiles(rawFiles){
+ if(!window._cvBatch)window._cvBatch={files:[],done:0,errors:0,running:false};
+ const batch=window._cvBatch;
+ const rejected=[];
+ rawFiles.forEach(f=>{
+  if(f.size>CV_MAX_SIZE){rejected.push(`${f.name} (>5Mo)`);return;}
+  if(!CV_ALLOWED_TYPES.includes(f.type)){rejected.push(`${f.name} (format invalide)`);return;}
+  batch.files.push({
+   id:'cvb_'+Math.random().toString(36).slice(2,9),
+   file:f,
+   name:f.name,
+   type:f.type,
+   size:formatSize(f.size),
+   status:'queued',   // queued | reading | analyzing | done | error
+   progress:0,        // 0..100 (animation perçue)
+   candId:null,
+   extracted:null,
+   error:null
+  });
  });
- if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${resp.status}`);}
+ if(rejected.length)toast(`${rejected.length} fichier(s) ignoré(s) : ${rejected.slice(0,2).join(', ')}${rejected.length>2?'…':''}`,'w');
+ if(!batch.files.length)return;
+ // Bascule UI : cache dropzone, montre progress
+ const dz=document.getElementById('cv-dropzone');if(dz)dz.style.display='none';
+ const prog=document.getElementById('cv-batch-progress');if(prog)prog.style.display='block';
+ const addBtn=document.getElementById('cv-batch-add-more');if(addBtn)addBtn.style.display='inline-flex';
+ renderCvBatchList();
+ if(!batch.running)runCvBatch();
+}
+
+// ── Rendu de la liste des fichiers (cartes) ──────────────────────
+function renderCvBatchList(){
+ const list=document.getElementById('cv-batch-list');if(!list)return;
+ const batch=window._cvBatch;if(!batch)return;
+ list.innerHTML=batch.files.map(f=>cvBatchCardHtml(f)).join('');
+ updateCvBatchGlobal();
+}
+function cvBatchCardHtml(f){
+ const statusMap={
+  queued:    {label:'En file',     cls:'cvb-queue',    icon:'·'},
+  reading:   {label:'Lecture',     cls:'cvb-read',     icon:'·'},
+  analyzing: {label:'Analyse IA',  cls:'cvb-ai',       icon:'IA'},
+  done:      {label:'Ajouté',      cls:'cvb-done',     icon:'✓'},
+  error:     {label:'Échec',       cls:'cvb-error',    icon:'!'}
+ };
+ const s=statusMap[f.status]||statusMap.queued;
+ const click=f.status==='done'&&f.candId?`onclick="closeMo();openEntrantSplit('${f.candId}')" style="cursor:pointer"`:'';
+ return `<div class="cvb-card ${s.cls}" data-id="${f.id}" ${click} title="${f.status==='done'?'Ouvrir la fiche candidat':''}">
+  <div class="cvb-ico">${s.icon}</div>
+  <div class="cvb-info">
+   <div class="cvb-name" title="${esc(f.name)}">${esc(f.name)}</div>
+   <div class="cvb-sub">
+    <span class="cvb-status">${s.label}${f.error?` — ${esc(f.error).slice(0,60)}`:''}</span>
+    ${f.status==='done'&&f.extracted?.nom?`<span class="cvb-extracted">→ ${esc([f.extracted.prenom,f.extracted.nom].filter(Boolean).join(' '))}</span>`:''}
+   </div>
+   <div class="cvb-bar"><div class="cvb-fill" data-fill="${f.id}" style="width:${f.progress}%"></div></div>
+  </div>
+  <div class="cvb-pct" data-pct="${f.id}">${Math.round(f.progress)}%</div>
+ </div>`;
+}
+
+// ── Mise à jour visuelle ─────────────────────────────────────────
+// Tick de progression (60 fps) : on ne touche QUE la largeur de barre + le %
+function tickCvFileUI(f){
+ const fill=document.querySelector(`.cvb-card[data-id="${f.id}"] .cvb-fill`);
+ const pct=document.querySelector(`.cvb-card[data-id="${f.id}"] .cvb-pct`);
+ if(fill)fill.style.width=f.progress+'%';
+ if(pct)pct.textContent=Math.round(f.progress)+'%';
+ updateCvBatchGlobal();
+}
+// Changement de statut : on remplace la carte entière (couleurs, icône, label)
+function updateCvFileUI(f){
+ const card=document.querySelector(`.cvb-card[data-id="${f.id}"]`);
+ if(card)card.outerHTML=cvBatchCardHtml(f);
+ updateCvBatchGlobal();
+}
+
+function updateCvBatchGlobal(){
+ const batch=window._cvBatch;if(!batch)return;
+ const total=batch.files.length||1;
+ const sum=batch.files.reduce((a,f)=>a+(f.progress||0),0);
+ const pct=Math.round(sum/total);
+ const fill=document.getElementById('cv-batch-global-fill');
+ if(fill)fill.style.width=pct+'%';
+ const count=document.getElementById('cv-batch-count');
+ if(count)count.textContent=`${batch.done+batch.errors} / ${total}`;
+ const title=document.getElementById('cv-batch-title');
+ if(title){
+  if(batch.done+batch.errors>=total){
+   title.textContent=batch.errors?`Terminé — ${batch.done} ajouté${batch.done>1?'s':''}, ${batch.errors} échec${batch.errors>1?'s':''}`:`Terminé — ${batch.done} candidat${batch.done>1?'s':''} ajouté${batch.done>1?'s':''}`;
+  } else {
+   title.textContent='Analyse en cours…';
+  }
+ }
+}
+
+// ── Animation de progression — toujours ~CV_ANIM_DURATION_MS quelle que soit la vitesse réelle de l'API
+// Plan : 0 → 15 % (lecture, ~10 % de la durée), 15 → 88 % (IA, easeOutCubic), 88 → 100 % (sauvegarde, ~3 %)
+function animateCvProgress(f,onTick){
+ const start=performance.now();
+ const totalMs=CV_ANIM_DURATION_MS;
+ // easeOutCubic — démarre vite, ralentit en fin → ressenti satisfaisant
+ const ease=t=>1-Math.pow(1-t,3);
+ let stopped=false;
+ function tick(now){
+  if(stopped)return;
+  const elapsed=now-start;
+  const t=Math.min(elapsed/totalMs,1);
+  // Si la requête API est revenue → on accélère le finish ; sinon on plafonne à 88 %
+  const cap=f._apiDone?100:88;
+  const eased=ease(t);
+  const target=Math.min(eased*cap,cap);
+  // Lecture : 0 → 15 % sur les premiers 10 % de la durée (boost initial)
+  const readBoost=t<.10?(t/.10)*15:15;
+  f.progress=Math.max(f.progress,Math.min(Math.max(readBoost,target),100));
+  if(typeof onTick==='function')onTick(f);
+  if(f.progress>=100||(stopped))return;
+  requestAnimationFrame(tick);
+ }
+ requestAnimationFrame(tick);
+ return ()=>{stopped=true;};
+}
+
+// ── Boucle principale : traite la queue avec concurrence ─────────
+async function runCvBatch(){
+ const batch=window._cvBatch;if(!batch)return;
+ batch.running=true;
+ const workers=Array.from({length:CV_AI_CONCURRENCY},()=>processCvWorker());
+ await Promise.all(workers);
+ batch.running=false;
+ finalizeCvBatch();
+}
+
+async function processCvWorker(){
+ const batch=window._cvBatch;
+ while(true){
+  const f=batch.files.find(x=>x.status==='queued');
+  if(!f)return;
+  await processOneCvFile(f);
+ }
+}
+
+// ── Traite un seul CV : lecture → IA → création candidat ─────────
+async function processOneCvFile(f){
+ const batch=window._cvBatch;
+ // Animation lancée dès le départ — utilise le tick léger (60 fps)
+ const stopAnim=animateCvProgress(f,(file)=>tickCvFileUI(file));
+ try{
+  // 1) Lecture en base64
+  f.status='reading';updateCvFileUI(f);
+  const dataUrl=await readFileAsDataURL(f.file);
+  f._dataUrl=dataUrl;
+
+  // 2) Appel IA (parallèle à l'animation)
+  f.status='analyzing';updateCvFileUI(f);
+  const extracted=await callCvExtractionApi(f.type,dataUrl);
+  f._apiDone=true; // l'animation va alors filer vers 100 %
+  f.extracted=extracted;
+
+  // 3) Création du candidat
+  const candId=createCandidateFromCv(f,extracted);
+  f.candId=candId;
+
+  // Force la fin de l'animation à 100 %
+  f.progress=100;f.status='done';updateCvFileUI(f);
+  batch.done++;updateCvBatchGlobal();
+ }catch(err){
+  console.error('CV batch error',f.name,err);
+  f._apiDone=true;
+  f.error=err.message||'Erreur inconnue';
+  f.status='error';
+  f.progress=100;
+  updateCvFileUI(f);
+  batch.errors++;updateCvBatchGlobal();
+ }finally{
+  stopAnim();
+ }
+}
+
+function readFileAsDataURL(file){
+ return new Promise((res,rej)=>{
+  const r=new FileReader();
+  r.onload=e=>res(e.target.result);
+  r.onerror=()=>rej(new Error('Lecture fichier échouée'));
+  r.readAsDataURL(file);
+ });
+}
+
+// ── Appel IA centralisé — toujours mêmes champs, modèle économique ─
+async function callCvExtractionApi(mediaType,dataUrl){
+ const key=getApiKey();
+ if(!key)throw new Error('Clé API manquante (Paramètres)');
+ const base64=dataUrl.split(',')[1]||dataUrl;
+ const blockType=mediaType==='application/pdf'?'document':'image';
+ const resp=await fetch('https://api.anthropic.com/v1/messages',{
+  method:'POST',
+  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
+  body:JSON.stringify({
+   model:CV_AI_MODEL,
+   max_tokens:CV_AI_MAX_TOKENS,
+   messages:[{role:'user',content:[
+    {type:blockType,source:{type:'base64',media_type:mediaType,data:base64}},
+    {type:'text',text:CV_PROMPT}
+   ]}]
+  })
+ });
+ if(!resp.ok){
+  const e=await resp.json().catch(()=>({}));
+  throw new Error(e.error?.message||`HTTP ${resp.status}`);
+ }
  const data=await resp.json();
  const raw=data.content?.[0]?.text||'{}';
  const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
- const extracted=JSON.parse(clean);
- document.getElementById('cv-add-state').textContent='Extraction IA terminée — vérifiez et complétez';
- showCvAddForm(extracted);
- }catch(err){
- document.getElementById('cv-add-state').textContent='! Extraction IA échouée — remplissez manuellement';
- toast('Extraction IA: '+err.message,'w');
- showCvAddForm({});
- }
+ try{return JSON.parse(clean);}
+ catch(e){throw new Error('JSON IA invalide');}
 }
 
-function showCvAddForm(extracted){
- const fullName=[extracted.prenom,extracted.nom].filter(Boolean).join(' ').trim();
- document.getElementById('ca-name').value=fullName||'';
- document.getElementById('ca-phone').value=extracted.telephone||'';
- document.getElementById('ca-email').value=extracted.email||'';
- document.getElementById('ca-sal').value=extracted.salaire_actuel||'';
- document.getElementById('ca-avail').value=extracted.disponibilite||'';
- document.getElementById('ca-mob').value=extracted.mobilite||'';
- document.getElementById('ca-notes').value=extracted.notes_synthese||'';
- document.getElementById('cv-add-result').style.display='block';
- document.getElementById('cv-add-validate-btn').style.display='inline-flex';
-}
-
-function validateAddCV(){
- const name=document.getElementById('ca-name')?.value.trim();
- if(!name){toast('Le nom est requis','e');return;}
+// ── Crée la fiche candidat depuis l'extraction ───────────────────
+function createCandidateFromCv(f,extracted){
  const n=now_();
- const postId=document.getElementById('ca-post')?.value||null;
+ const postId=document.getElementById('cv-batch-post')?.value||null;
  const postObj=postId?DB.posts.find(p=>p.id===postId):null;
- // Find best cat from post or default
+
+ // Catégorie : depuis l'annonce, sinon depuis le poste extrait, sinon défaut
  let cat='go';
  if(postObj)cat=postObj.cat||'go';
-
- const c={
- id:uid(),
- name,
- phone:document.getElementById('ca-phone')?.value||'',
- email:document.getElementById('ca-email')?.value||'',
- salary:document.getElementById('ca-sal')?.value||'',
- avail:document.getElementById('ca-avail')?.value||'',
- mobility:document.getElementById('ca-mob')?.value||'',
- notes_pre:document.getElementById('ca-notes')?.value||'',
- cat,
- role:postObj?postObj.title:'',
- post_id:postId||null,
- source:postObj?`Annonce: ${postObj.title}`:'Ajout manuel',
- status:'entrant',
- docs:[],
- pepite:false,
- cv_extracted:true,
- created:n,
- updated:n,
- };
-
- // Attach the CV file
- if(window._cvAddFile){
- c.docs=[{id:'cv',name:window._cvAddFile.name,size:window._cvAddFile.size,date:window._cvAddFile.date,type:window._cvAddFile.type,file:window._cvAddFile.data}];
+ const targetRole=extracted.poste_cible||extracted.poste_actuel||'';
+ let matchedRole='';
+ if(targetRole&&Array.isArray(BTP_CATS)){
+  const allJobs=BTP_CATS.flatMap(c=>(c.jobs||[]).map(j=>({j,cat:c.id})));
+  const m=allJobs.find(({j})=>j.toLowerCase().includes(targetRole.toLowerCase().slice(0,10)));
+  if(m){matchedRole=m.j;if(!postObj)cat=m.cat;}
  }
 
+ const fullName=[extracted.prenom,extracted.nom].filter(Boolean).join(' ').trim()||f.name.replace(/\.[^.]+$/,'');
+ const synth=extracted.notes_synthese?`[IA] ${extracted.notes_synthese}`:'';
+
+ const c={
+  id:uid(),
+  name:fullName,
+  phone:extracted.telephone||'',
+  email:extracted.email||'',
+  salary:extracted.salaire_actuel||'',
+  avail:extracted.disponibilite||'',
+  mobility:extracted.mobilite||'',
+  notes_pre:synth,
+  cat,
+  role:postObj?postObj.title:(matchedRole||targetRole||''),
+  post_id:postId||null,
+  source:postObj?`Annonce: ${postObj.title}`:'Import CV (batch)',
+  status:'entrant',
+  docs:[{
+   id:'cv',
+   name:f.name,
+   size:f.size,
+   date:n,
+   type:f.type,
+   file:f._dataUrl
+  }],
+  pepite:false,
+  cv_extracted:extracted,
+  created:n,
+  updated:n,
+ };
  DB.candidates.unshift(c);
+ return c.id;
+}
+
+// ── Finalisation : sauvegarde, refresh, résumé ───────────────────
+function finalizeCvBatch(){
+ const batch=window._cvBatch;if(!batch)return;
  save();
- closeMo();
  rCands();
  badges();
- window._cvAddFile=null;
- toast(`${name} ajouté ✓ — cliquez pour voir le profil complet`,'s');
- // Auto-open split view after a moment
- setTimeout(()=>openEntrantSplit(c.id),350);
+
+ const sumEl=document.getElementById('cv-batch-summary');
+ if(sumEl){
+  const okList=batch.files.filter(f=>f.status==='done');
+  const errList=batch.files.filter(f=>f.status==='error');
+  sumEl.style.display='block';
+  sumEl.innerHTML=`
+   <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Résumé du batch</span>
+   </div>
+   <div class="fs11" style="line-height:1.7">
+    <div><span style="color:var(--green)">✓ ${okList.length} candidat${okList.length>1?'s':''} ajouté${okList.length>1?'s':''}</span>${errList.length?` &nbsp;·&nbsp; <span style="color:var(--red)">! ${errList.length} échec${errList.length>1?'s':''}</span>`:''}</div>
+    ${okList.length?`<div class="fs10 mu_" style="margin-top:4px">Cliquez sur une carte pour ouvrir la fiche du candidat.</div>`:''}
+   </div>`;
+ }
+ if(batch.done>0)toast(`${batch.done} candidat${batch.done>1?'s':''} ajouté${batch.done>1?'s':''} ✓`,'s');
+ if(batch.errors>0&&batch.done===0)toast(`${batch.errors} CV n'ont pas pu être traités`,'e');
 }
 
 // ── TAB 2 : PIPELINE ───────────────────────────────────
@@ -5095,18 +5284,7 @@ async function aiExtractCV(candId){
  content:[
  {type:mediaType==='application/pdf'?'document':'image',
  source:{type:'base64',media_type:mediaType,data:base64Data}},
- {type:'text',text:`Analyse ce CV et extrais les informations suivantes. Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication.
-Format attendu:
-{"nom":"","prenom":"","email":"","telephone":"","poste_actuel":"","poste_cible":"","salaire_actuel":"","disponibilite":"","mobilite":"","competences_cles":"","experience_annees":"","notes_synthese":""}
-
-Règles:
-- telephone: format 06XXXXXXXX ou +33XXXXXXXXX, sans espaces
-- salaire_actuel: nombre brut annuel en euros seulement (ex: 42000), "" si pas trouvé
-- experience_annees: nombre entier (ex: 7)
-- disponibilite: texte court (ex: "Immédiate", "Sous 1 mois", "Sous 3 mois")
-- mobilite: zones géographiques (ex: "Île-de-France", "National", "Rhône-Alpes")
-- notes_synthese: 2-3 phrases résumant le profil pour un recruteur BTP
-- Si une info est absente, mettre ""`}
+ {type:'text',text:CV_PROMPT}
  ]
  }];
  } else {
@@ -5119,7 +5297,7 @@ Règles:
  const resp=await fetch('https://api.anthropic.com/v1/messages',{
  method:'POST',
  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
- body:JSON.stringify({model:'claude-opus-4-6',max_tokens:800,messages})
+ body:JSON.stringify({model:CV_AI_MODEL,max_tokens:CV_AI_MAX_TOKENS,messages})
  });
 
  if(!resp.ok){
