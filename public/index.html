@@ -2,257 +2,376 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1">
 <title>Novalem — Connexion</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-:root{
-  --bg:#09090a;--s1:#111112;--s2:#18181a;--s3:#202022;
-  --bd:#2a2a2e;--bd2:#38383d;
-  --tx:#f0f0ec;--mu:#8c8c84;--mu2:#4a4a44;
-  --ac:#c8e040;--green:#2dd4a0;--red:#f04b4b;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html{font-size:13px;-webkit-font-smoothing:antialiased}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body{
-  font-family:'DM Mono',monospace;
-  background:var(--bg);color:var(--tx);
-  min-height:100vh;display:flex;align-items:center;justify-content:center;
-  position:relative;overflow:hidden;
+  font-family:'Inter','-apple-system','SF Pro Display',sans-serif;
+  background:#f5f3ef;color:#0a0a0c;
+  font-feature-settings:'cv11','ss01','ss03';
+  letter-spacing:-0.011em;
 }
 
-.bg-grid{
-  position:absolute;inset:0;
-  background-image:
-    linear-gradient(rgba(200,224,64,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200,224,64,.025) 1px, transparent 1px);
-  background-size:48px 48px;
-  pointer-events:none;
-}
-.bg-glow{
-  position:absolute;width:600px;height:600px;border-radius:50%;
-  background:radial-gradient(circle, rgba(45,212,160,.05) 0%, transparent 65%);
-  top:50%;left:50%;transform:translate(-50%,-50%);
-  pointer-events:none;
-}
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* FOND ANIMÉ : aurore boréale douce + grain subtil  */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.stage{position:fixed;inset:0;overflow:hidden;z-index:0}
+.aurora{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(80px);opacity:.55;will-change:transform}
+.aurora.a1{background:radial-gradient(circle,#e8a820 0%,transparent 65%);top:-25%;left:-15%;animation:drift1 28s ease-in-out infinite alternate}
+.aurora.a2{background:radial-gradient(circle,#f0c870 0%,transparent 65%);bottom:-25%;right:-15%;animation:drift2 32s ease-in-out infinite alternate}
+.aurora.a3{background:radial-gradient(circle,#d4b890 0%,transparent 70%);top:30%;right:20%;width:45vmax;height:45vmax;opacity:.35;animation:drift3 36s ease-in-out infinite alternate}
+@keyframes drift1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(8vmax,4vmax) scale(1.15)}}
+@keyframes drift2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-6vmax,-3vmax) scale(1.12)}}
+@keyframes drift3{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-4vmax,5vmax) scale(.9)}}
 
+.grain{position:absolute;inset:-50%;width:200%;height:200%;opacity:.04;pointer-events:none;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:grain 8s steps(8) infinite}
+@keyframes grain{0%,100%{transform:translate(0,0)}10%{transform:translate(-2%,-5%)}20%{transform:translate(-7%,2%)}30%{transform:translate(5%,-8%)}40%{transform:translate(-3%,7%)}50%{transform:translate(8%,2%)}60%{transform:translate(-7%,-3%)}70%{transform:translate(4%,8%)}80%{transform:translate(-5%,-2%)}90%{transform:translate(6%,-5%)}}
+
+.cursor-glow{position:fixed;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(232,168,32,.18) 0%,transparent 60%);pointer-events:none;transform:translate(-50%,-50%);z-index:1;mix-blend-mode:multiply;opacity:0;transition:opacity .6s ease}
+.cursor-glow.on{opacity:1}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CONTENEUR PRINCIPAL                              */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.shell{position:relative;z-index:2;height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CARTE GLASSMORPHISM                              */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .card{
-  position:relative;z-index:1;
-  width:100%;max-width:360px;
-  padding:0 20px;
-  animation:fadeUp .4s cubic-bezier(.2,.8,.3,1);
+  width:100%;max-width:420px;
+  background:rgba(255,253,250,.55);
+  backdrop-filter:blur(40px) saturate(140%);
+  -webkit-backdrop-filter:blur(40px) saturate(140%);
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:28px;
+  padding:40px 38px 32px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 0 0 1px rgba(255,255,255,.4) inset,
+    0 30px 60px -20px rgba(80,60,20,.18),
+    0 18px 40px -18px rgba(80,60,20,.12);
+  position:relative;
+  animation:cardIn .9s cubic-bezier(.2,.9,.25,1.1) both;
 }
-@keyframes fadeUp{
-  from{opacity:0;transform:translateY(16px)}
-  to{opacity:1;transform:translateY(0)}
-}
-
-.logo{text-align:center;margin-bottom:36px}
-.logo-mark{
-  font-family:'Syne',sans-serif;font-weight:800;
-  font-size:30px;letter-spacing:-.5px;color:var(--tx);
-}
-.logo-mark span{color:var(--ac)}
-.logo-sub{
-  font-size:10px;color:var(--mu2);
-  letter-spacing:.22em;text-transform:uppercase;margin-top:5px;
-}
-
-.box{
-  background:var(--s1);
-  border:1px solid var(--bd2);
-  border-radius:12px;
-  padding:28px 24px 24px;
-  box-shadow:0 8px 40px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3);
-}
-.box-title{
-  font-family:'Syne',sans-serif;font-weight:700;font-size:16px;
-  margin-bottom:4px;
-}
-.box-sub{
-  font-size:10px;color:var(--mu);margin-bottom:22px;
+@keyframes cardIn{
+  0%{opacity:0;transform:translateY(20px) scale(.96);filter:blur(8px)}
+  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
 }
 
-.field{margin-bottom:14px}
-.field-label{
-  display:block;font-size:10px;text-transform:uppercase;
-  letter-spacing:.14em;color:var(--mu);margin-bottom:7px;
-}
-.field-input{
-  width:100%;background:var(--s2);border:1px solid var(--bd2);
-  border-radius:8px;padding:11px 14px;color:var(--tx);
-  font-family:'DM Mono',monospace;font-size:13px;
-  outline:none;transition:border-color .15s;
-}
-.field-input::placeholder{color:var(--mu2)}
-.field-input:focus{border-color:rgba(200,224,64,.4)}
+/* highlight subtil sur le haut de la carte (effet verre) */
+.card::before{content:'';position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,1),transparent);border-radius:1px}
 
-.btn-submit{
-  width:100%;padding:13px;margin-top:6px;
-  background:var(--ac);color:#1a2000;
-  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
-  border:none;border-radius:8px;cursor:pointer;
-  transition:all .15s;letter-spacing:.02em;
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* HEADER : logo + sous-titre                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand-mark{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,#0a0a0c 0%,#2a2620 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Instrument Serif',serif;font-size:18px;font-style:italic;color:#f5f3ef;
+  box-shadow:0 4px 12px rgba(10,10,12,.25),0 1px 0 rgba(255,255,255,.4) inset;
 }
-.btn-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
-.btn-submit:active{transform:scale(.98)}
-.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+.brand-name{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.brand-name span{color:#b08418;font-weight:500}
 
-.msg{
-  text-align:center;font-size:11px;
-  margin:10px 0 0;height:16px;
-  transition:all .2s;color:transparent;
+h1{
+  font-family:'Instrument Serif',serif;
+  font-weight:400;font-size:36px;line-height:1.05;
+  letter-spacing:-.02em;color:#0a0a0c;
+  margin-top:22px;margin-bottom:6px;
 }
-.msg.err{color:var(--red)}
-.msg.ok_{color:var(--green)}
+h1 em{font-style:italic;color:#b08418}
+.subtitle{font-size:13.5px;color:#5a5650;font-weight:400;letter-spacing:-.005em;margin-bottom:28px}
 
-.loader{display:none;text-align:center;padding:16px 0}
-.loader-ring{
-  width:28px;height:28px;
-  border:2px solid var(--bd2);border-top-color:var(--green);
-  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* TAB SWITCHER : Connexion ↔ Créer un compte       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.tabs{
+  display:flex;background:rgba(0,0,0,.04);border-radius:12px;padding:4px;
+  margin-bottom:24px;position:relative;
 }
+.tab{
+  flex:1;border:none;background:transparent;padding:9px 12px;
+  font-family:inherit;font-size:13px;font-weight:500;color:#5a5650;
+  letter-spacing:-.005em;cursor:pointer;border-radius:9px;
+  transition:color .25s ease;position:relative;z-index:2;
+}
+.tab.on{color:#0a0a0c}
+.tab-indicator{
+  position:absolute;top:4px;bottom:4px;width:calc(50% - 4px);
+  background:#fffdf8;border-radius:9px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  transition:transform .35s cubic-bezier(.4,.0,.2,1);
+}
+.tabs.signup .tab-indicator{transform:translateX(100%)}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CHAMPS FORMULAIRE                                */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.field{margin-bottom:14px;position:relative}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.row .field{margin-bottom:0}
+
+.label{
+  display:block;font-size:11.5px;color:#7a7670;font-weight:500;
+  letter-spacing:.01em;margin-bottom:6px;padding-left:2px;
+}
+
+.input{
+  width:100%;padding:13px 15px;
+  background:rgba(255,253,250,.65);
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:11px;
+  font-family:inherit;font-size:14px;color:#0a0a0c;font-weight:400;
+  letter-spacing:-.005em;
+  transition:all .2s ease;
+  -webkit-appearance:none;appearance:none;
+}
+.input::placeholder{color:#a8a39a;font-weight:400}
+.input:hover{border-color:rgba(0,0,0,.16);background:rgba(255,253,250,.8)}
+.input:focus{
+  outline:none;
+  border-color:rgba(176,132,24,.5);
+  background:#fffdf8;
+  box-shadow:
+    0 0 0 4px rgba(232,168,32,.08),
+    0 4px 12px rgba(80,60,20,.06);
+}
+.input.err{border-color:#c44545;background:rgba(196,69,69,.04)}
+.input.err:focus{box-shadow:0 0 0 4px rgba(196,69,69,.1)}
+
+/* champ mot de passe avec œil */
+.field.pwd{position:relative}
+.field.pwd .input{padding-right:42px}
+.toggle-pwd{
+  position:absolute;right:4px;top:24px;
+  width:32px;height:32px;border:none;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:#7a7670;
+  border-radius:8px;transition:all .15s ease;
+}
+.toggle-pwd:hover{color:#0a0a0c;background:rgba(0,0,0,.04)}
+.toggle-pwd svg{width:16px;height:16px}
+
+/* aide / contraintes */
+.hint{font-size:11px;color:#8a8680;margin-top:5px;padding-left:2px;letter-spacing:-.003em}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* BOUTON SUBMIT                                    */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.submit{
+  width:100%;margin-top:18px;padding:14px;
+  background:#0a0a0c;color:#fffdf8;
+  border:none;border-radius:12px;
+  font-family:inherit;font-size:14px;font-weight:500;letter-spacing:-.005em;
+  cursor:pointer;
+  transition:all .2s ease;
+  position:relative;overflow:hidden;
+  box-shadow:0 4px 14px rgba(10,10,12,.16),0 1px 0 rgba(255,255,255,.1) inset;
+}
+.submit:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(10,10,12,.22),0 1px 0 rgba(255,255,255,.1) inset}
+.submit:active{transform:translateY(0)}
+.submit:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:0 2px 8px rgba(10,10,12,.12)}
+.submit .spinner{display:none;width:14px;height:14px;border:1.5px solid rgba(255,253,248,.3);border-top-color:#fffdf8;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:-2px}
+.submit.loading .spinner{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loader-txt{font-size:11px;color:var(--green)}
 
-.link-join{
-  display:block;text-align:center;margin-top:16px;
-  font-size:11px;color:var(--mu);text-decoration:none;
-  transition:color .15s;
+/* shimmer subtil */
+.submit::before{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);transform:skewX(-20deg);transition:left .6s ease}
+.submit:hover::before{left:130%}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* MESSAGE D'ERREUR / SUCCÈS                        */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.msg{
+  margin-top:14px;padding:10px 14px;
+  font-size:12.5px;border-radius:10px;
+  display:none;align-items:flex-start;gap:8px;line-height:1.5;
+  animation:msgIn .25s ease;
 }
-.link-join:hover{color:var(--ac)}
+.msg.show{display:flex}
+.msg.err{background:rgba(196,69,69,.08);color:#9a3535;border:1px solid rgba(196,69,69,.18)}
+.msg.ok{background:rgba(78,142,90,.1);color:#3d6b48;border:1px solid rgba(78,142,90,.2)}
+.msg svg{width:14px;height:14px;flex-shrink:0;margin-top:1px}
+@keyframes msgIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
-.footer{
-  text-align:center;margin-top:20px;
-  font-size:9px;color:var(--mu2);
-  letter-spacing:.1em;text-transform:uppercase;
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* FOOTER                                           */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.foot{margin-top:24px;text-align:center;font-size:11px;color:#8a8680;letter-spacing:.005em}
+.foot .dot{margin:0 8px;color:#c8c2b8}
+
+/* loader plein écran après succès */
+.loader-wrap{display:none;text-align:center;padding:30px 0 20px;animation:msgIn .4s ease}
+.loader-wrap.show{display:block}
+.loader-ring{display:inline-block;width:40px;height:40px;border:2px solid rgba(176,132,24,.15);border-top-color:#b08418;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:18px}
+.loader-txt{font-family:'Instrument Serif',serif;font-size:22px;font-style:italic;color:#0a0a0c;font-weight:400;letter-spacing:-.015em}
+.loader-sub{font-size:12px;color:#7a7670;margin-top:6px}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* PANNEAUX (animation entre Connexion / Création)  */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.panels{position:relative}
+.panel{display:none;animation:panelIn .35s ease both}
+.panel.on{display:block}
+@keyframes panelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* RESPONSIVE                                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media(max-width:480px){
+  .card{padding:32px 26px 26px;border-radius:24px}
+  h1{font-size:30px}
+  .row{grid-template-columns:1fr;gap:0}
+  .row .field{margin-bottom:14px}
+  .row .field:last-child{margin-bottom:0}
 }
 
-/* ═══ NOVALEM LOGIN — PREMIUM ANIMATIONS ═══ */
-
-/* Floating ambient orbs */
-.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;will-change:transform}
-.orb-1{width:700px;height:700px;background:radial-gradient(circle,rgba(200,224,64,.07) 0%,transparent 65%);filter:blur(90px);top:-220px;left:-180px;animation:orbFloat1 22s ease-in-out infinite}
-.orb-2{width:600px;height:600px;background:radial-gradient(circle,rgba(45,212,160,.06) 0%,transparent 65%);filter:blur(110px);bottom:-180px;right:-120px;animation:orbFloat2 28s ease-in-out infinite}
-.orb-3{width:420px;height:420px;background:radial-gradient(circle,rgba(91,141,239,.045) 0%,transparent 65%);filter:blur(75px);top:38%;left:52%;animation:orbFloat3 19s ease-in-out infinite}
-@keyframes orbFloat1{0%,100%{transform:translate(0,0)}33%{transform:translate(80px,-50px)}66%{transform:translate(-40px,65px)}}
-@keyframes orbFloat2{0%,100%{transform:translate(0,0)}40%{transform:translate(-70px,40px)}80%{transform:translate(55px,-65px)}}
-@keyframes orbFloat3{0%,100%{transform:translate(0,0)}50%{transform:translate(-90px,55px)}}
-
-/* Grid slow drift */
-.bg-grid{animation:gridDrift 55s linear infinite}
-@keyframes gridDrift{from{background-position:0 0,0 0}to{background-position:48px 48px,48px 48px}}
-
-/* Central glow pulse */
-.bg-glow{animation:glowPulse 6s ease-in-out infinite}
-@keyframes glowPulse{0%,100%{opacity:.6;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}}
-
-/* Cursor spotlight */
-.cursor-spotlight{position:fixed;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(200,224,64,.032) 0%,transparent 60%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);transition:left .18s linear,top .18s linear;will-change:left,top}
-
-/* Card entrance — 3D from top */
-.card{animation:cardEntrance .7s cubic-bezier(.16,1,.3,1) .05s both}
-@keyframes cardEntrance{from{opacity:0;transform:translateY(30px) scale(.965)}to{opacity:1;transform:none}}
-.logo{animation:fadeSlide .55s cubic-bezier(.16,1,.3,1) both}
-.box{animation:fadeSlide .55s cubic-bezier(.16,1,.3,1) .08s both}
-.link-join{animation:fadeSlide .45s cubic-bezier(.16,1,.3,1) .18s both}
-.footer{animation:fadeSlide .45s cubic-bezier(.16,1,.3,1) .24s both}
-@keyframes fadeSlide{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-
-/* Logo mark pulsing glow */
-.logo-mark{animation:logoGlow 5s ease-in-out infinite}
-@keyframes logoGlow{0%,100%{text-shadow:none}50%{text-shadow:0 0 40px rgba(200,224,64,.14)}}
-
-/* Input enhanced focus */
-.field-input{transition:border-color .2s,box-shadow .25s,background .15s}
-.field-input:focus{border-color:rgba(200,224,64,.6);box-shadow:0 0 0 3px rgba(200,224,64,.07),0 2px 16px rgba(0,0,0,.25);background:var(--s3)}
-.field{transition:transform .15s}
-.field:has(.field-input:focus){transform:translateX(2px)}
-.field:has(.field-input:focus) .field-label{color:rgba(200,224,64,.85);transition:color .2s}
-
-/* Button premium */
-.btn-submit{position:relative;overflow:hidden;transition:all .25s cubic-bezier(.16,1,.3,1)}
-.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(200,224,64,.38),0 4px 14px rgba(200,224,64,.18)}
-.btn-submit::before{content:'';position:absolute;top:0;left:-115%;width:80%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),transparent);transform:skewX(-25deg)}
-.btn-submit:hover::before{left:130%;transition:left .55s ease}
-
-/* Ripple */
-.ripple-el{position:absolute;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);animation:rippleAnim .7s ease-out forwards;pointer-events:none}
-@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
-
-/* Error shake */
-@keyframes shakeErr{0%,100%{transform:translateX(0)}14%{transform:translateX(-10px)}28%{transform:translateX(10px)}42%{transform:translateX(-8px)}56%{transform:translateX(8px)}70%{transform:translateX(-4px)}84%{transform:translateX(4px)}}
-.shake{animation:shakeErr .52s cubic-bezier(.36,.07,.19,.97)}
-
-/* Loader ring glow */
-.loader-ring{border-color:rgba(45,212,160,.14);border-top-color:var(--green);box-shadow:0 0 14px rgba(45,212,160,.2)}
-
-/* Box shine edge */
-.box{position:relative;overflow:hidden}
-.box::after{content:'';position:absolute;top:0;left:-200%;width:100%;height:100%;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.025) 50%,transparent 60%);pointer-events:none;animation:boxShine 8s ease-in-out infinite 2s}
-@keyframes boxShine{0%{left:-200%}40%,100%{left:200%}}
+/* respect prefers-reduced-motion */
+@media(prefers-reduced-motion:reduce){
+  .aurora,.grain{animation:none}
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
 </style>
 </head>
 <body>
-<div class="bg-grid"></div>
-<div class="bg-glow"></div>
-<div class="orb orb-1"></div>
-<div class="orb orb-2"></div>
-<div class="orb orb-3"></div>
-<div class="cursor-spotlight" id="cursor-spotlight"></div>
 
-<div class="card">
-  <div class="logo">
-    <div class="logo-mark">Nova<span>lem</span></div>
-    <div class="logo-sub">Cabinet de recrutement · BTP</div>
-  </div>
+<!-- Fond animé -->
+<div class="stage" aria-hidden="true">
+  <div class="aurora a1"></div>
+  <div class="aurora a2"></div>
+  <div class="aurora a3"></div>
+  <div class="grain"></div>
+</div>
+<div class="cursor-glow" id="glow" aria-hidden="true"></div>
 
-  <div class="box">
-    <div class="box-title">Connexion</div>
-    <div class="box-sub">Espace privé — accès sur invitation</div>
+<div class="shell">
+  <div class="card" role="dialog" aria-labelledby="title">
 
+    <!-- Logo + nom -->
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-name">Nova<span>lem</span></div>
+    </div>
+
+    <!-- Bloc visible quand on est en mode formulaire -->
     <div id="form-wrap">
-      <form id="login-form" onsubmit="login(event)" autocomplete="on">
-        <div class="field">
-          <label class="field-label" for="prenom">Prénom</label>
-          <input class="field-input" id="prenom" type="text" placeholder="Louis"
-            autocomplete="given-name" required>
-        </div>
-        <div class="field">
-          <label class="field-label" for="nom">Nom</label>
-          <input class="field-input" id="nom" type="text" placeholder="Renault"
-            autocomplete="family-name" required>
-        </div>
-        <div class="field">
-          <label class="field-label" for="password">Mot de passe</label>
-          <input class="field-input" id="password" type="password" placeholder="••••••••"
-            autocomplete="current-password" required>
-        </div>
-        <div class="msg" id="msg"></div>
-        <button type="submit" class="btn-submit" id="btn-submit">Se connecter</button>
-      </form>
+      <h1 id="title">Bienvenue <em>à nouveau</em>.</h1>
+      <p class="subtitle" id="subtitle">Connectez-vous pour accéder à votre espace.</p>
+
+      <!-- Tabs : Connexion / Créer un compte -->
+      <div class="tabs" id="tabs" role="tablist">
+        <div class="tab-indicator" aria-hidden="true"></div>
+        <button type="button" class="tab on" data-panel="signin" role="tab" aria-selected="true">Connexion</button>
+        <button type="button" class="tab"     data-panel="signup" role="tab" aria-selected="false">Créer un compte</button>
+      </div>
+
+      <div class="panels">
+
+        <!-- ───────── PANEL CONNEXION ───────── -->
+        <form class="panel on" id="panel-signin" data-name="signin" autocomplete="on" novalidate>
+          <div class="row">
+            <div class="field">
+              <label class="label" for="si-prenom">Prénom</label>
+              <input class="input" id="si-prenom" name="given-name" type="text" autocomplete="given-name" placeholder="Martin" required>
+            </div>
+            <div class="field">
+              <label class="label" for="si-nom">Nom</label>
+              <input class="input" id="si-nom" name="family-name" type="text" autocomplete="family-name" placeholder="Dupont" required>
+            </div>
+          </div>
+          <div class="field pwd">
+            <label class="label" for="si-pwd">Mot de passe</label>
+            <input class="input" id="si-pwd" type="password" autocomplete="current-password" placeholder="••••••••" required>
+            <button type="button" class="toggle-pwd" data-target="si-pwd" aria-label="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button type="submit" class="submit" id="btn-signin">
+            <span class="spinner"></span><span class="lbl">Se connecter</span>
+          </button>
+        </form>
+
+        <!-- ───────── PANEL CRÉATION COMPTE ───────── -->
+        <form class="panel" id="panel-signup" data-name="signup" autocomplete="on" novalidate>
+          <div class="row">
+            <div class="field">
+              <label class="label" for="su-prenom">Prénom</label>
+              <input class="input" id="su-prenom" name="given-name" type="text" autocomplete="given-name" placeholder="Martin" required>
+            </div>
+            <div class="field">
+              <label class="label" for="su-nom">Nom</label>
+              <input class="input" id="su-nom" name="family-name" type="text" autocomplete="family-name" placeholder="Dupont" required>
+            </div>
+          </div>
+          <div class="field pwd">
+            <label class="label" for="su-pwd">Mot de passe</label>
+            <input class="input" id="su-pwd" type="password" autocomplete="new-password" placeholder="Minimum 8 caractères" required minlength="8">
+            <button type="button" class="toggle-pwd" data-target="su-pwd" aria-label="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <div class="hint">8 caractères minimum, dont au moins 1 chiffre.</div>
+          </div>
+          <div class="field pwd">
+            <label class="label" for="su-pwd2">Confirmer le mot de passe</label>
+            <input class="input" id="su-pwd2" type="password" autocomplete="new-password" placeholder="••••••••" required>
+            <button type="button" class="toggle-pwd" data-target="su-pwd2" aria-label="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button type="submit" class="submit" id="btn-signup">
+            <span class="spinner"></span><span class="lbl">Envoyer la demande d'accès</span>
+          </button>
+          <div class="hint" style="text-align:center;margin-top:10px">Votre demande sera validée manuellement par un superviseur.</div>
+        </form>
+
+      </div>
+
+      <!-- Message global d'état -->
+      <div class="msg" id="msg" role="alert" aria-live="polite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="msg-txt"></span>
+      </div>
     </div>
 
-    <div class="loader" id="loader">
+    <!-- Bloc visible quand on charge -->
+    <div class="loader-wrap" id="loader">
       <div class="loader-ring"></div>
-      <div class="loader-txt" id="loader-txt">Connexion en cours...</div>
+      <div class="loader-txt" id="loader-txt">Bienvenue</div>
+      <div class="loader-sub">Chargement de votre espace…</div>
     </div>
-  </div>
 
-  <a href="/rejoindre" class="link-join">Pas encore de compte ? Demander l'accès →</a>
-  <div class="footer">Novalem &copy; 2026 &middot; Accès privé</div>
+    <div class="foot">
+      Novalem &copy; 2026 <span class="dot">·</span> Accès privé <span class="dot">·</span> Recrutement BTP
+    </div>
+
+  </div>
 </div>
 
 <script>
-const SUPABASE_URL = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
+'use strict';
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CONFIG SUPABASE (inchangée)                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const SUPABASE_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
 const HUB_URL = '/hub';
+const SESSION_MAX_MS = 24 * 3600000;
 
-let sb;
+let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) {}
 
-// Normalize prénom/nom → email
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* HELPERS                                          */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function toEmail(prenom, nom) {
   function clean(s) {
     return s.toLowerCase()
@@ -262,44 +381,110 @@ function toEmail(prenom, nom) {
   return clean(prenom) + '.' + clean(nom) + '@novalem.internal';
 }
 
-function setMsg(txt, cls) {
-  const el = document.getElementById('msg');
-  el.textContent = txt;
-  el.className = 'msg ' + (cls || '');
+function showMsg(txt, kind) {
+  const m = document.getElementById('msg');
+  document.getElementById('msg-txt').textContent = txt;
+  m.classList.remove('err','ok');
+  if (kind) m.classList.add(kind);
+  m.classList.add('show');
+}
+function hideMsg() { document.getElementById('msg').classList.remove('show'); }
+
+function setLoading(btn, on) {
+  if (!btn) return;
+  btn.classList.toggle('loading', !!on);
+  btn.disabled = !!on;
 }
 
-function setLoading(on, name) {
-  document.getElementById('form-wrap').style.display = on ? 'none' : 'block';
-  const loader = document.getElementById('loader');
-  loader.style.display = on ? 'block' : 'none';
-  if (on && name) document.getElementById('loader-txt').textContent = 'Bonjour ' + name + '...';
+function showFinalLoader(name) {
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('loader').classList.add('show');
+  if (name) document.getElementById('loader-txt').textContent = 'Bonjour ' + name;
 }
 
-async function login(e) {
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* TAB SWITCHER                                     */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const TABS = document.getElementById('tabs');
+TABS.addEventListener('click', (e) => {
+  const tab = e.target.closest('.tab');
+  if (!tab || tab.classList.contains('on')) return;
+  const target = tab.dataset.panel;
+
+  // bascule indicateur
+  TABS.classList.toggle('signup', target === 'signup');
+
+  // bascule onglets
+  TABS.querySelectorAll('.tab').forEach(t => {
+    const on = t === tab;
+    t.classList.toggle('on', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+
+  // bascule panels
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('on', p.dataset.name === target);
+  });
+
+  // header dynamique
+  const h1 = document.getElementById('title');
+  const sub = document.getElementById('subtitle');
+  if (target === 'signup') {
+    h1.innerHTML = 'Rejoignez <em>l\u2019équipe</em>.';
+    sub.textContent = 'Créez votre compte. Un superviseur validera votre accès.';
+  } else {
+    h1.innerHTML = 'Bienvenue <em>à nouveau</em>.';
+    sub.textContent = 'Connectez-vous pour accéder à votre espace.';
+  }
+  hideMsg();
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* TOGGLE PASSWORD VISIBILITY                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.querySelectorAll('.toggle-pwd').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CONNEXION                                        */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.getElementById('panel-signin').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!sb) { setMsg('Client Supabase non disponible', 'err'); return; }
+  if (!sb) { showMsg('Service indisponible. Réessayez dans un instant.', 'err'); return; }
 
-  const prenom   = document.getElementById('prenom').value.trim();
-  const nom      = document.getElementById('nom').value.trim();
-  const password = document.getElementById('password').value;
-  if (!prenom || !nom || !password) return;
+  const prenom = document.getElementById('si-prenom').value.trim();
+  const nom    = document.getElementById('si-nom').value.trim();
+  const pwd    = document.getElementById('si-pwd').value;
 
-  const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
-  setMsg('', '');
-
-  const email = toEmail(prenom, nom);
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    btn.disabled = false;
-    setMsg('Identifiants incorrects', 'err');
+  // validation locale
+  document.getElementById('si-prenom').classList.toggle('err', !prenom);
+  document.getElementById('si-nom').classList.toggle('err', !nom);
+  document.getElementById('si-pwd').classList.toggle('err', !pwd);
+  if (!prenom || !nom || !pwd) {
+    showMsg('Veuillez remplir tous les champs.', 'err');
     return;
   }
 
-  setLoading(true, prenom);
+  const btn = document.getElementById('btn-signin');
+  setLoading(btn, true);
+  hideMsg();
 
-  // Récupère le profil depuis public.users
+  const email = toEmail(prenom, nom);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+
+  if (error) {
+    setLoading(btn, false);
+    document.getElementById('si-pwd').classList.add('err');
+    showMsg('Identifiants incorrects. Vérifiez votre nom et votre mot de passe.', 'err');
+    return;
+  }
+
+  // récup profil
   let profile = null;
   try {
     const { data: p } = await sb.from('users')
@@ -310,7 +495,7 @@ async function login(e) {
   } catch(e) {}
 
   const displayName = (profile?.prenom || prenom) + ' ' + (profile?.nom || nom);
-  const initials = (profile?.avatar_initials) ||
+  const initials = profile?.avatar_initials ||
     ((prenom[0] || '') + (nom[0] || '')).toUpperCase();
 
   sessionStorage.setItem('novalem_user', JSON.stringify({
@@ -322,110 +507,127 @@ async function login(e) {
     ts:       Date.now(),
   }));
 
-  window.location.href = HUB_URL;
-}
+  showFinalLoader(profile?.prenom || prenom);
+  setTimeout(() => { window.location.href = HUB_URL; }, 400);
+});
 
-/* === NOVALEM LOGIN — PREMIUM ANIMATIONS JS === */
-(function(){
-  // Cursor spotlight
-  const spotlight = document.getElementById('cursor-spotlight');
-  document.addEventListener('mousemove', e => {
-    spotlight.style.left = e.clientX + 'px';
-    spotlight.style.top = e.clientY + 'px';
-  });
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CRÉATION DE COMPTE (demande d'accès)              */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.getElementById('panel-signup').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!sb) { showMsg('Service indisponible. Réessayez dans un instant.', 'err'); return; }
 
-  // Ripple + magnetic on submit button
-  const btn = document.getElementById('btn-submit');
-  btn.addEventListener('pointerdown', function(e) {
-    const rect = this.getBoundingClientRect();
-    const ripple = document.createElement('span');
-    ripple.className = 'ripple-el';
-    const size = Math.max(rect.width, rect.height);
-    Object.assign(ripple.style, {
-      width: size + 'px', height: size + 'px',
-      left: (e.clientX - rect.left - size / 2) + 'px',
-      top: (e.clientY - rect.top - size / 2) + 'px',
-    });
-    this.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 750);
-  });
+  const prenom = document.getElementById('su-prenom').value.trim();
+  const nom    = document.getElementById('su-nom').value.trim();
+  const pwd    = document.getElementById('su-pwd').value;
+  const pwd2   = document.getElementById('su-pwd2').value;
 
-  btn.addEventListener('mousemove', function(e) {
-    const rect = this.getBoundingClientRect();
-    const x = (e.clientX - rect.left - rect.width / 2) * .09;
-    const y = (e.clientY - rect.top - rect.height / 2) * .09;
-    this.style.transform = `translateY(-2px) translate(${x}px,${y}px)`;
-  });
-  btn.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  // validation locale
+  const inp = (id) => document.getElementById(id);
+  ['su-prenom','su-nom','su-pwd','su-pwd2'].forEach(id => inp(id).classList.remove('err'));
+  let ok = true;
+  if (!prenom)         { inp('su-prenom').classList.add('err'); ok = false; }
+  if (!nom)            { inp('su-nom').classList.add('err'); ok = false; }
+  if (!pwd || pwd.length < 8) { inp('su-pwd').classList.add('err'); ok = false; }
+  if (pwd !== pwd2)    { inp('su-pwd2').classList.add('err'); ok = false; }
+  if (!/\d/.test(pwd)) { inp('su-pwd').classList.add('err'); ok = false; }
 
-  // Shake inputs on error
-  const msgEl = document.getElementById('msg');
-  new MutationObserver(() => {
-    if (msgEl.classList.contains('err') && msgEl.textContent.trim()) {
-      document.querySelectorAll('.field-input').forEach(inp => {
-        inp.classList.remove('shake');
-        void inp.offsetWidth;
-        inp.classList.add('shake');
-      });
-    }
-  }).observe(msgEl, { attributes: true, characterData: true, childList: true });
-
-  // Magnetic link-join
-  const linkJoin = document.querySelector('.link-join');
-  if (linkJoin) {
-    linkJoin.addEventListener('mousemove', function(e) {
-      const rect = this.getBoundingClientRect();
-      const x = (e.clientX - rect.left - rect.width / 2) * .12;
-      const y = (e.clientY - rect.top - rect.height / 2) * .12;
-      this.style.transform = `translate(${x}px,${y}px)`;
-    });
-    linkJoin.addEventListener('mouseleave', function() { this.style.transform = ''; });
+  if (!ok) {
+    if (pwd && pwd2 && pwd !== pwd2)     { showMsg('Les mots de passe ne correspondent pas.', 'err'); return; }
+    if (pwd && pwd.length < 8)           { showMsg('Mot de passe : minimum 8 caractères.', 'err'); return; }
+    if (pwd && !/\d/.test(pwd))          { showMsg('Mot de passe : au moins un chiffre requis.', 'err'); return; }
+    showMsg('Veuillez remplir tous les champs.', 'err');
+    return;
   }
+
+  const btn = document.getElementById('btn-signup');
+  setLoading(btn, true);
+  hideMsg();
+
+  const { error } = await sb.from('demandes_acces').insert({
+    prenom,
+    nom,
+    password_hash: pwd,
+    statut: 'en_attente',
+  });
+
+  setLoading(btn, false);
+
+  if (error) {
+    showMsg('Erreur lors de l\'envoi : ' + (error.message || 'inconnue'), 'err');
+    return;
+  }
+
+  // succès : on remplit le formulaire de connexion, on bascule, on affiche le succès
+  document.getElementById('si-prenom').value = prenom;
+  document.getElementById('si-nom').value = nom;
+  document.querySelector('.tab[data-panel="signin"]').click();
+  showMsg('Demande envoyée. Vous recevrez votre accès une fois validée par un superviseur.', 'ok');
+  // reset des champs création
+  ['su-pwd','su-pwd2'].forEach(id => { document.getElementById(id).value = ''; });
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CURSOR GLOW (effet halo qui suit la souris)      */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+(function(){
+  const glow = document.getElementById('glow');
+  let raf = null;
+  document.addEventListener('mousemove', (e) => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      glow.style.left = e.clientX + 'px';
+      glow.style.top  = e.clientY + 'px';
+      glow.classList.add('on');
+      raf = null;
+    });
+  });
+  document.addEventListener('mouseleave', () => glow.classList.remove('on'));
 })();
 
-// Session existante → redirect
-// Durée max d'auto-connexion : 24h. Au-delà, on déconnecte explicitement.
-const SESSION_MAX_MS = 24 * 3600000;
-
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* AUTO-REDIRECT SI SESSION VALIDE < 24h            */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 (async function checkSession() {
   const stored = sessionStorage.getItem('novalem_user');
   if (stored) {
     try {
       const u = JSON.parse(stored);
-      if (u?.ts && (Date.now() - u.ts) < SESSION_MAX_MS) {
+      if (u && u.ts && (Date.now() - u.ts) < SESSION_MAX_MS) {
         window.location.href = HUB_URL;
         return;
       }
     } catch(e) {}
     sessionStorage.removeItem('novalem_user');
   }
-  // Vérifie aussi la session Supabase
+
   if (sb) {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (session) {
-        // Âge réel de la session Supabase (issued_at). Au-delà de 24h → logout forcé.
-        const issuedSec = session.user?.last_sign_in_at
+        // Âge réel de la session Supabase. Au-delà de 24h → logout forcé.
+        const issued = session.user?.last_sign_in_at
           ? new Date(session.user.last_sign_in_at).getTime()
           : (session.expires_at ? session.expires_at * 1000 - 3600000 : 0);
-        if (issuedSec && (Date.now() - issuedSec) > SESSION_MAX_MS) {
+        if (issued && (Date.now() - issued) > SESSION_MAX_MS) {
           await sb.auth.signOut().catch(() => {});
-          return; // reste sur la page de login
+          return;
         }
         const { data: profile } = await sb.from('users')
           .select('role, nom, prenom, avatar_initials, avatar_color')
           .eq('id', session.user.id)
           .single();
-        const parts = session.user.email.split('@')[0].split('.');
+        const parts  = session.user.email.split('@')[0].split('.');
         const prenom = profile?.prenom || parts[0] || '';
         const nom    = profile?.nom    || parts[1] || '';
         sessionStorage.setItem('novalem_user', JSON.stringify({
           id:       session.user.id,
           name:     (prenom + ' ' + nom).trim(),
           role:     profile?.role || 'scout',
-          initials: profile?.avatar_initials || (prenom[0] + nom[0]).toUpperCase(),
+          initials: profile?.avatar_initials || ((prenom[0]||'') + (nom[0]||'')).toUpperCase(),
           color:    profile?.avatar_color || '#c8e040',
-          ts:       issuedSec || Date.now(),
+          ts:       issued || Date.now(),
         }));
         window.location.href = HUB_URL;
       }
