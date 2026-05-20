@@ -1056,7 +1056,7 @@ if (!rawUser) { window.location.href = '/'; }
 let CURRENT_USER = null;
 try {
   const u = JSON.parse(rawUser);
-  if (!u || !u.ts || (Date.now() - u.ts) > 8*3600000) {
+  if (!u || !u.ts || (Date.now() - u.ts) > 24*3600000) {
     sessionStorage.removeItem('novalem_user'); window.location.href='/';
   } else CURRENT_USER = u;
 } catch(e){ window.location.href='/'; }
