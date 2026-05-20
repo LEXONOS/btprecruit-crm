@@ -384,12 +384,15 @@ async function login(e) {
 })();
 
 // Session existante → redirect
+// Durée max d'auto-connexion : 24h. Au-delà, on déconnecte explicitement.
+const SESSION_MAX_MS = 24 * 3600000;
+
 (async function checkSession() {
   const stored = sessionStorage.getItem('novalem_user');
   if (stored) {
     try {
       const u = JSON.parse(stored);
-      if (u?.ts && (Date.now() - u.ts) < 8 * 3600000) {
+      if (u?.ts && (Date.now() - u.ts) < SESSION_MAX_MS) {
         window.location.href = HUB_URL;
         return;
       }
@@ -401,6 +404,14 @@ async function login(e) {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (session) {
+        // Âge réel de la session Supabase (issued_at). Au-delà de 24h → logout forcé.
+        const issuedSec = session.user?.last_sign_in_at
+          ? new Date(session.user.last_sign_in_at).getTime()
+          : (session.expires_at ? session.expires_at * 1000 - 3600000 : 0);
+        if (issuedSec && (Date.now() - issuedSec) > SESSION_MAX_MS) {
+          await sb.auth.signOut().catch(() => {});
+          return; // reste sur la page de login
+        }
         const { data: profile } = await sb.from('users')
           .select('role, nom, prenom, avatar_initials, avatar_color')
           .eq('id', session.user.id)
@@ -414,7 +425,7 @@ async function login(e) {
           role:     profile?.role || 'scout',
           initials: profile?.avatar_initials || (prenom[0] + nom[0]).toUpperCase(),
           color:    profile?.avatar_color || '#c8e040',
-          ts:       Date.now(),
+          ts:       issuedSec || Date.now(),
         }));
         window.location.href = HUB_URL;
       }
