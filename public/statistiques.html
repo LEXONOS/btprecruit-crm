@@ -242,7 +242,7 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
 // Auth
 const raw = sessionStorage.getItem('novalem_user');
 if (!raw) window.location.href = '/';
-try { const u = JSON.parse(raw); if (!u||!u.ts||(Date.now()-u.ts)>8*3600000){sessionStorage.removeItem('novalem_user');window.location.href='/';}} catch(e){window.location.href='/';}
+try { const u = JSON.parse(raw); if (!u||!u.ts||(Date.now()-u.ts)>24*3600000){sessionStorage.removeItem('novalem_user');window.location.href='/';}} catch(e){window.location.href='/';}
 
 const SUPA_URL = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
