@@ -167,7 +167,7 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
 // Auth check
 const raw = sessionStorage.getItem('novalem_user');
 if (!raw) window.location.href = '/';
-try { const u = JSON.parse(raw); if (!u||!u.ts||(Date.now()-u.ts)>8*3600000){sessionStorage.removeItem('novalem_user');window.location.href='/';}} catch(e){window.location.href='/';}
+try { const u = JSON.parse(raw); if (!u||!u.ts||(Date.now()-u.ts)>24*3600000){sessionStorage.removeItem('novalem_user');window.location.href='/';}} catch(e){window.location.href='/';}
 
 const CONTACTS = {
   team: [
