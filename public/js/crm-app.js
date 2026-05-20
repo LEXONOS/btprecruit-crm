@@ -8226,6 +8226,9 @@ function initUserBadge(){
   // Hide admin link for non-admins (but keep it accessible since data is shared)
   const adminLink=document.getElementById('um-admin-link');
   // Both can see reporting
+  // Horloges FR/Gwada : réservées à Louis uniquement
+  const clocks=document.getElementById('dual-clocks');
+  if(clocks)clocks.style.display=/louis/i.test(u.name||'')?'flex':'none';
 }
 
 function toggleUserMenu(){
