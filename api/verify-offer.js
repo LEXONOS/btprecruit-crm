@@ -2,9 +2,16 @@
 // Vérifie la conformité légale d'une annonce avant publication
 // POST /api/verify-offer  { title, body, location, salary, cat }
 
-const { verifyOffer } = require('./france-travail.js');
+const { verifyOffer, localLegalCheck } = require('./_lib/france-travail.js');
+
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept',
+};
 
 module.exports = async function handler(req, res) {
+  Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST uniquement' });
 
@@ -17,9 +24,8 @@ module.exports = async function handler(req, res) {
     const result = await verifyOffer(post);
     return res.status(200).json(result);
   } catch (err) {
-    // En cas d'erreur API, on fait la vérification locale
-    const { localLegalCheck } = require('./france-travail.js');
+    // En cas d'erreur API (JCMO bêta indispo, credentials manquants…) → check local
     const local = localLegalCheck(post);
-    return res.status(200).json({ ...local, fallback: true });
+    return res.status(200).json({ ...local, fallback: true, fallbackReason: err.message });
   }
 };
