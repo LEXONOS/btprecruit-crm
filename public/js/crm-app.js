@@ -5474,8 +5474,8 @@ const BOARD_CONFIG={
  'France Travail':{
  url:'https://www.pole-emploi.fr/employeur/vos-recrutements/publier-une-offre.html',
  deeplink:(p)=>`https://www.francetravail.fr/employeur`,
- canAutopost:false,
- tip:'Connexion espace employeur requise. Copier/coller l\'annonce générée.'
+ canAutopost:true,
+ tip:'Publication automatique via API officielle (vérification JCMO incluse).'
  },
  'Indeed':{
  url:'https://employers.indeed.com/p/post-job',
@@ -5605,22 +5605,49 @@ function unmarkBoard(postId,board){
 // Appel vers le backend Vercel (France Travail auto-post)
 async function autoPostToBoard(postId,board){
  const p=DB.posts.find(x=>x.id===postId);if(!p)return;
- const apiBase=getApiBase();if(!apiBase)return;
+ const apiBase=getApiBase();if(!apiBase){toast('Mode local — déployez sur Vercel pour publier','w');return;}
  const btn=document.getElementById('pub-btn-'+board.replace(/\s/g,''));
- if(btn){btn.textContent='⏳…';btn.disabled=true;}
+ const originalLabel=btn?btn.textContent:'';
+ if(btn){btn.textContent='⏳ Vérif JCMO…';btn.disabled=true;}
+
  try{
- const resp=await fetch(`${apiBase}/api/post-job`,{
- method:'POST',
- headers:{'Content-Type':'application/json'},
- body:JSON.stringify({board,post:{title:p.title,location:p.location,salary:p.salary,body:p.body,cat:p.cat}})
- });
- if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error||`HTTP ${resp.status}`);}
- const result=await resp.json();
- markBoardPublished(postId,board);
- toast(`Publié sur ${board} — Réf: ${result.reference||'OK'}`,'s');
+  if(btn)btn.textContent='⏳ Publication…';
+  const resp=await fetch(`${apiBase}/api/post-job`,{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({board,post:{title:p.title,location:p.location,salary:p.salary,body:p.body,cat:p.cat}})
+  });
+  const result=await resp.json().catch(()=>({}));
+
+  // 422 = annonce non conforme (JCMO a bloqué)
+  if(resp.status===422){
+   if(btn){btn.textContent=originalLabel||'Poster auto';btn.disabled=false;}
+   const issues=(result.issues||[]).join('\n• ');
+   toast(`Publication bloquée — corrigez l'annonce :\n• ${issues}`,'e');
+   // Stocke pour affichage dans le panneau
+   p.jcmo_issues=result.issues||[];p.jcmo_ok=false;save();
+   setTimeout(()=>openPublishPanel(postId),300);
+   return;
+  }
+  if(!resp.ok){
+   throw new Error(result.error||`HTTP ${resp.status}`);
+  }
+
+  // Succès : stocke la référence officielle et l'URL
+  p.published_on=p.published_on||[];
+  if(!p.published_on.includes(board))p.published_on.push(board);
+  p.ft_reference=result.reference||null;
+  p.ft_url=result.url||null;
+  p.ft_published_at=result.publishedAt||new Date().toISOString();
+  p.status='active';
+  p.updated=now_();
+  save();rPosts();
+  setTimeout(()=>openPublishPanel(postId),300);
+  toast(`Publié sur ${board} ✓ — Réf: ${result.reference||'OK'}`,'s');
+
  }catch(err){
- if(btn){btn.textContent=' Poster auto';btn.disabled=false;}
- toast(`Erreur ${board}: ${err.message}`,'e');
+  if(btn){btn.textContent=originalLabel||'Poster auto';btn.disabled=false;}
+  toast(`Erreur ${board}: ${err.message}`,'e');
  }
 }
 
