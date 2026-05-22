@@ -62,9 +62,8 @@ module.exports = async function handler(req, res) {
   if (action === 'get_booking')     return handleGetBooking(req, res);
   if (action === 'book_slot')       return handleBookSlot(req, res);
 
-  // ══ France Travail — PUBLIC (appelé depuis le CRM authentifié côté client) ══
+  // ══ France Travail — vérification JCMO seulement (la publication est manuelle) ══
   if (action === 'verify_offer')    return handleVerifyOffer(req, res);
-  if (action === 'post_job')        return handlePostJob(req, res);
 
   // ══ Actions CRM authentifiées ══════════════════════════════════
   const secret = req.headers['x-crm-secret'];
@@ -743,38 +742,6 @@ async function handleVerifyOffer(req, res) {
   } catch (err) {
     const local = localLegalCheck(post);
     return res.status(200).json({ ...local, fallback: true, fallbackReason: err.message });
-  }
-}
-
-async function handlePostJob(req, res) {
-  const { board, post, skipJcmo } = req.body || {};
-  if (!board) return res.status(400).json({ error: 'board requis' });
-  if (!post?.title || !post?.body) return res.status(400).json({ error: 'post.title et post.body requis' });
-  if (board !== 'France Travail') {
-    return res.status(400).json({ error: `Publication automatique non disponible pour "${board}". Utilisez le lien direct.` });
-  }
-  if (!process.env.FRANCE_TRAVAIL_CLIENT_ID || !process.env.FRANCE_TRAVAIL_CLIENT_SECRET) {
-    return res.status(500).json({ error: 'FRANCE_TRAVAIL_CLIENT_ID / SECRET manquants dans Vercel → Environment Variables' });
-  }
-  const { postToFranceTravail, verifyOffer, localLegalCheck } = require('./_lib/france-travail.js');
-  try {
-    if (!skipJcmo) {
-      let jcmo;
-      try { jcmo = await verifyOffer(post); }
-      catch (e) { jcmo = localLegalCheck(post); }
-      const blockingIssues = (jcmo.issues || []).filter(i => i.startsWith('⚠'));
-      if (blockingIssues.length > 0) {
-        return res.status(422).json({ error: 'Annonce non conforme — corrigez avant publication', issues: jcmo.issues, source: jcmo.source });
-      }
-    }
-    const result = await postToFranceTravail(post);
-    return res.status(200).json({
-      reference: result.reference, url: result.url, message: result.message,
-      board: 'France Travail', publishedAt: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.error('post_job error:', err);
-    return res.status(500).json({ error: err.message || 'Erreur publication France Travail' });
   }
 }
 
