@@ -3744,10 +3744,10 @@ async function verifyPostJCMO(postId){
  let result;
  if(apiBase){
  // Appel API Vercel
- const resp=await fetch(`${apiBase}/api/verify-offer`,{
+ const resp=await fetch(`${apiBase}/api/jobs`,{
  method:'POST',
  headers:{'Content-Type':'application/json'},
- body:JSON.stringify({title:p.title,body:p.body,location:p.location,salary:p.salary,cat:p.cat})
+ body:JSON.stringify({action:'verify_offer',post:{title:p.title,body:p.body,location:p.location,salary:p.salary,cat:p.cat}})
  });
  result=await resp.json();
  } else {
@@ -5636,10 +5636,10 @@ async function autoPostToBoard(postId,board){
 
  try{
   if(btn)btn.textContent='⏳ Publication…';
-  const resp=await fetch(`${apiBase}/api/post-job`,{
+  const resp=await fetch(`${apiBase}/api/jobs`,{
    method:'POST',
    headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({board,post:{title:p.title,location:p.location,salary:p.salary,body:p.body,cat:p.cat}})
+   body:JSON.stringify({action:'post_job',board,post:{title:p.title,location:p.location,salary:p.salary,body:p.body,cat:p.cat}})
   });
   const result=await resp.json().catch(()=>({}));
 
