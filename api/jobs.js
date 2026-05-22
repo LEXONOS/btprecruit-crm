@@ -431,6 +431,14 @@ async function handleSubmitDossier(req, res) {
               cand._dossier_ref = ref;
               cand._dossier_signed_at = sig.signed_at;
               cand._dossier_notif_seen = false;
+              // Données complètes du dossier (pour affichage CRM + contrôle de réf)
+              cand._dossier_data = {
+                pro, admin,
+                competences: comp,
+                experiences: dossier.experiences || [],
+                self_employed: !!(dossier.experiences && dossier.experiences.length===0)
+              };
+              cand.experiences = dossier.experiences || [];
 
               // Ajouter dans la liste docs
               cand.docs = cand.docs || [];
