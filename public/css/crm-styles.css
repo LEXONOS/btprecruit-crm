@@ -826,3 +826,37 @@ select option{background:var(--s2)}
 /* Désactive animations si user a choisi mode instantané */
 [data-anim="instant"] .cvb-globalfill,
 [data-anim="instant"] .cvb-card.cvb-ai .cvb-ico{animation:none}
+
+/* ═══════════════════════════════════════════════════════
+   AUTO-BOOKING — disponibilités récurrentes + invitation
+   ═══════════════════════════════════════════════════════ */
+.dispo-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.dispo-day{display:grid;grid-template-columns:90px 1fr;gap:10px;align-items:start;padding:10px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2)}
+.dispo-day-name{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--tx);padding-top:4px}
+.dispo-day-wins{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:26px;grid-column:2}
+.dispo-day-add{grid-column:2;display:flex;align-items:center;gap:6px;margin-top:6px}
+.dispo-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;background:var(--ac-dim);color:var(--ac);border:1px solid var(--ac-border);border-radius:99px;font-size:11px;font-weight:600}
+.dispo-chip-x{cursor:pointer;font-size:13px;line-height:1;opacity:.7;transition:opacity .15s}
+.dispo-chip-x:hover{opacity:1}
+.dispo-empty{font-size:10px;color:var(--mu2);font-style:italic}
+.dispo-mini{padding:4px 6px;font-size:11px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit}
+.dispo-dash{color:var(--mu);font-size:11px}
+.dispo-add-btn{padding:4px 10px;font-size:11px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);cursor:pointer;font-family:inherit;transition:all .15s}
+.dispo-add-btn:hover{border-color:var(--ac);color:var(--ac)}
+
+.dispo-preview-wrap{padding:12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2)}
+.dispo-preview-hd{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--ac2);margin-bottom:8px}
+.dispo-preview-count{font-size:10px;color:var(--mu);font-weight:400}
+.dispo-preview-list{display:flex;flex-wrap:wrap;gap:5px}
+.dispo-prev-chip{padding:3px 8px;background:var(--green-dim);color:var(--green);border:1px solid var(--green-border);border-radius:var(--r);font-size:10px}
+
+/* Invitation — sélection créneaux */
+.inv-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:340px;overflow-y:auto;padding-right:2px}
+.inv-day{padding:10px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2)}
+.inv-day-h{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;color:var(--tx);margin-bottom:8px;text-transform:capitalize}
+.inv-day-slots{display:flex;flex-wrap:wrap;gap:6px}
+.inv-slot{padding:6px 12px;font-size:12px;font-weight:600;font-family:inherit;background:var(--s3);border:1.5px solid var(--bd);border-radius:99px;color:var(--mu);cursor:pointer;transition:all .15s}
+.inv-slot:hover{border-color:var(--ac);color:var(--ac)}
+.inv-slot.on{background:var(--ac);border-color:var(--ac);color:#0a0a08;box-shadow:0 0 10px rgba(200,224,64,.35)}
+.inv-foot-count{font-size:11px;color:var(--mu);text-align:right;font-variant-numeric:tabular-nums}
+.inv-foot-count #inv-count{color:var(--ac);font-weight:700}
