@@ -874,3 +874,33 @@ select option{background:var(--s2)}
 .inv-edit-toggle{background:none;border:1px solid var(--bd);color:var(--ac);font-size:10px;padding:3px 9px;border-radius:99px;cursor:pointer;font-family:inherit;transition:all .15s}
 .inv-edit-toggle:hover{border-color:var(--ac);background:var(--ac-dim)}
 .inv-prev-edit{width:100%;min-height:240px;background:#fff;color:#1a1a1a;border:1px solid var(--bd);border-radius:var(--r2);padding:14px 16px;font-size:12.5px;line-height:1.6;font-family:inherit;resize:vertical}
+
+/* ═══════════════════════════════════════════════════════
+   CONNECTION GATE — verrouille le CRM jusqu'à connexion
+   ═══════════════════════════════════════════════════════ */
+#conn-gate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center}
+.cg-bg{position:absolute;inset:0;background:radial-gradient(circle at 50% 35%,#15140f 0%,#0a0a08 70%)}
+.cg-box{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:min(92vw,400px);padding:0 20px;animation:cgIn .4s cubic-bezier(.22,.61,.36,1)}
+@keyframes cgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.cg-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;letter-spacing:-1px;color:#fff}
+.cg-logo span{color:var(--ac)}
+.cg-sub{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:4px;margin-bottom:28px}
+
+/* Loader animé */
+.cg-loader{width:200px;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;position:relative}
+.cg-bar{position:absolute;height:100%;width:40%;background:linear-gradient(90deg,transparent,var(--ac),#e6f562,var(--ac),transparent);border-radius:99px;animation:cgSlide 1.15s ease-in-out infinite}
+@keyframes cgSlide{0%{left:-40%}100%{left:100%}}
+.cg-status{margin-top:16px;font-size:12px;color:rgba(255,255,255,.55);font-family:'DM Mono',monospace;letter-spacing:.02em}
+
+/* Formulaire de connexion */
+.cg-card{width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:22px 22px 24px;backdrop-filter:blur(8px)}
+.cg-card-t{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fff;margin-bottom:4px}
+.cg-card-d{font-size:11px;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:18px}
+.cg-field{margin-bottom:12px}
+.cg-field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.4);margin-bottom:5px}
+.cg-field input{width:100%;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:13px;padding:10px 12px;font-family:inherit;transition:border-color .15s}
+.cg-field input:focus{outline:none;border-color:var(--ac)}
+.cg-btn{width:100%;margin-top:6px;background:var(--ac);color:#0a0a08;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:12px;cursor:pointer;transition:all .15s}
+.cg-btn:hover{background:#e6f562}
+.cg-btn:disabled{opacity:.6;cursor:default}
+.cg-err{color:#ff6b5e;font-size:11px;margin-top:10px;min-height:14px;text-align:center}
