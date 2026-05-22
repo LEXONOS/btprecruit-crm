@@ -127,6 +127,15 @@ textarea.inp{resize:vertical;min-height:70px}
 /* Badge étape */
 .step-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--mu2,#aaa);margin-bottom:14px}
 .step-n{background:#F0EDE8;border-radius:10px;padding:2px 8px;font-weight:700;color:#888}
+
+/* Réservation créneau */
+.bk-day{margin-bottom:14px}
+.bk-day-h{font-size:11px;font-weight:700;color:#1A1614;margin-bottom:8px;text-transform:capitalize}
+.bk-slots{display:flex;flex-wrap:wrap;gap:8px}
+.bk-slot{padding:10px 16px;font-size:13px;font-weight:600;font-family:inherit;background:#fff;border:1.5px solid #E8E4DC;border-radius:10px;color:#555;cursor:pointer;transition:.15s}
+.bk-slot:hover{border-color:#C9891A;color:#C9891A}
+.bk-slot.sel{background:#C9891A;border-color:#C9891A;color:#fff;box-shadow:0 3px 10px rgba(201,137,26,.3)}
+.bk-loading{text-align:center;padding:24px;color:#aaa;font-size:12px}
 </style>
 </head>
 <body>
@@ -442,6 +451,24 @@ textarea.inp{resize:vertical;min-height:70px}
  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px">Documents à joindre</div>
  <div style="font-size:11px;color:#aaa;margin-bottom:14px" id="docs-hint">Les documents obligatoires sont déterminés automatiquement selon vos réponses.</div>
 
+ <!-- Réassurance discrète — interlocuteur humain joignable -->
+ <div id="reassure" style="display:none;background:#FBF9F5;border:1px solid #ECE7DE;border-radius:10px;padding:13px 15px;margin-bottom:18px">
+  <div style="display:flex;align-items:center;gap:11px">
+   <div id="reassure-av" style="width:38px;height:38px;border-radius:50%;background:#1A1614;color:#C9891A;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0"></div>
+   <div style="flex:1;min-width:0">
+    <div style="font-size:12px;color:#3a342f;line-height:1.5">
+     Votre dossier est suivi par <strong id="reassure-name" style="color:#1A1614"></strong>.
+    </div>
+    <div style="font-size:11px;color:#8a837b;margin-top:2px">
+     Une question avant de transmettre vos pièces ? <span id="reassure-phone-wrap">Appelez directement le <a id="reassure-phone" href="#" style="color:#C9891A;font-weight:600;text-decoration:none"></a>.</span>
+    </div>
+   </div>
+  </div>
+  <div style="font-size:10.5px;color:#a39c93;margin-top:10px;line-height:1.6;padding-top:10px;border-top:1px solid #ECE7DE">
+   Vos pièces servent uniquement à constituer votre dossier et le présenter aux entreprises qui recrutent. Transmission chiffrée, aucune revente, suppression sur simple demande — conformément au RGPD.
+  </div>
+ </div>
+
  <!-- Upload CV — toujours obligatoire -->
  <div class="fgrp">
   <label class="lbl">CV <span class="req">*</span> — Obligatoire</label>
@@ -536,14 +563,38 @@ textarea.inp{resize:vertical;min-height:70px}
  </div>
 </div>
 
+<!-- ═══════════ RÉSERVATION CRÉNEAU (si invitation booking) ═══════════ -->
+<div id="s-book" class="screen">
+ <div style="text-align:center;margin-bottom:6px">
+  <div style="font-size:34px;margin-bottom:6px">📅</div>
+  <div class="sec-title" style="font-size:18px">Dernière étape — votre entretien</div>
+  <div class="sec-sub" id="book-intro">Choisissez le créneau qui vous arrange. L'entretien dure environ 45 minutes, en visioconférence.</div>
+ </div>
+ <div class="err-banner" id="errBook"></div>
+ <div id="book-slots" style="margin-top:16px"></div>
+ <div class="btn-nav" style="margin-top:18px">
+  <button class="btn-primary" id="btn-book" onclick="confirmBooking()" disabled style="width:100%">
+   Confirmer mon créneau
+  </button>
+ </div>
+ <div style="font-size:10.5px;color:#a39c93;text-align:center;margin-top:12px;line-height:1.6">
+  Un imprévu ? Vous pourrez convenir d'un autre horaire directement avec votre interlocuteur.
+ </div>
+</div>
+
 <!-- ═══════════ SUCCÈS ═══════════ -->
 <div id="s-ok" class="screen">
  <div class="success-wrap">
   <div class="success-icon">✅</div>
   <div class="success-title">Dossier validé !</div>
-  <div class="success-sub">
+  <div class="success-sub" id="ok-sub">
    Merci <strong id="ok-name"></strong>. Votre dossier de candidature a été transmis à l'équipe NOVALEM.<br>
    Vous recevrez une confirmation par email. Nous vous contacterons très prochainement.
+  </div>
+  <div id="ok-rdv" style="display:none;background:#F0FBF4;border:1px solid #BFE9CE;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#16924f;margin-bottom:6px">Votre entretien est confirmé</div>
+   <div id="ok-rdv-when" style="font-size:14px;font-weight:700;color:#14532d"></div>
+   <div id="ok-rdv-note" style="font-size:11px;color:#3f6b4f;margin-top:4px">Un email de confirmation avec le lien de connexion vous sera envoyé.</div>
   </div>
   <div class="proof-box">
    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#C9891A;margin-bottom:10px">Récapitulatif</div>
@@ -578,6 +629,40 @@ var uploadedFiles = {};
 var qp = new URLSearchParams(location.search);
 CAND_ID = qp.get('cid') || null;
 var candName = qp.get('n') ? decodeURIComponent(qp.get('n')) : '';
+var BOOK_TOKEN = qp.get('bk') || null;   // présent si invitation auto-booking
+var BOOK_DATA = null;                     // {slots, recruiter, status, picked}
+var BOOK_PICK = null;                     // créneau sélectionné par le candidat
+
+// Si invitation booking : charger les créneaux + interlocuteur
+if (BOOK_TOKEN && CAND_ID) {
+ loadBookingData();
+}
+
+async function loadBookingData(){
+ try{
+  var r = await fetch(API+'/api/book?cid='+encodeURIComponent(CAND_ID)+'&bk='+encodeURIComponent(BOOK_TOKEN));
+  if(!r.ok) return;
+  BOOK_DATA = await r.json();
+  // Réassurance : afficher l'interlocuteur réel
+  if(BOOK_DATA.recruiter && BOOK_DATA.recruiter.name){
+   var rn = BOOK_DATA.recruiter.name, rp = (BOOK_DATA.recruiter.phone||'').trim();
+   var box = document.getElementById('reassure');
+   if(box){
+    box.style.display = '';
+    document.getElementById('reassure-name').textContent = rn;
+    var initials = rn.split(/\s+/).map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase();
+    document.getElementById('reassure-av').textContent = initials || 'N';
+    if(rp){
+     var a = document.getElementById('reassure-phone');
+     a.textContent = rp;
+     a.href = 'tel:'+rp.replace(/[^0-9+]/g,'');
+    } else {
+     document.getElementById('reassure-phone-wrap').textContent = 'Votre interlocuteur reste joignable par retour d\'email.';
+    }
+   }
+  }
+ }catch(e){ /* silencieux — le dossier reste soumissible sans booking */ }
+}
 
 // Mettre à jour la signature preview en temps réel
 ['f-prenom','f-nom'].forEach(function(id){
@@ -921,7 +1006,13 @@ async function submitDossier(){
   // Succès — masquer le formulaire définitivement, bloquer tout retour
   window._dossierSubmitting = true; // rester bloqué
   window._dossierDone = true;
-  showSuccess(dossier);
+  window._dossierData = dossier;
+  // Si invitation booking active → proposer le choix du créneau avant le succès final
+  if (BOOK_TOKEN && BOOK_DATA && BOOK_DATA.status !== 'booked' && (BOOK_DATA.slots||[]).length) {
+   showBookingStep();
+  } else {
+   showSuccess(dossier);
+  }
 
  } catch(e) {
   btn.disabled = false;
@@ -941,7 +1032,7 @@ function fileToBase64(file){
  });
 }
 
-function showSuccess(d){
+function showSuccess(d, booked){
  // Masquer tous les écrans, désactiver navigation arrière
  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
  document.getElementById('s-ok').classList.add('active');
@@ -953,6 +1044,18 @@ function showSuccess(d){
 
  var nom = d.identite.prenom+' '+d.identite.nom;
  document.getElementById('ok-name').textContent = d.identite.prenom;
+
+ // Si un créneau a été réservé → l'afficher + adapter le message
+ if(booked){
+  var DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  var MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  var bd = new Date(booked.dt);
+  var when = DAYS[bd.getDay()]+' '+bd.getDate()+' '+MONTHS[bd.getMonth()]+' à '+booked.h+'h00';
+  document.getElementById('ok-rdv-when').textContent = when;
+  document.getElementById('ok-rdv').style.display = '';
+  var sub = document.getElementById('ok-sub');
+  if(sub) sub.innerHTML = 'Merci <strong>'+escHtml(d.identite.prenom)+'</strong>. Votre dossier est transmis et votre entretien est réservé.';
+ }
 
  var dt = new Date(d.signature.signed_at).toLocaleString('fr-FR',{
   day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'
@@ -973,6 +1076,83 @@ function showSuccess(d){
 
  // Stocker pour le PDF
  window._dossierId = d;
+}
+
+// ═══════════ RÉSERVATION DE CRÉNEAU ═══════════
+function showBookingStep(){
+ document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+ document.getElementById('s-book').classList.add('active');
+ document.getElementById('prog-bar').style.display='none';
+ window.scrollTo({top:0,behavior:'smooth'});
+
+ var slots = (BOOK_DATA.slots||[]).filter(function(s){ return new Date(s.dt).getTime() > Date.now(); });
+ var wrap = document.getElementById('book-slots');
+
+ if(!slots.length){
+  // Plus de créneau dispo → succès direct avec note
+  showSuccess(window._dossierData);
+  return;
+ }
+
+ // Grouper par jour
+ var byDay = {};
+ slots.forEach(function(s){ (byDay[s.dateStr]=byDay[s.dateStr]||[]).push(s); });
+ var DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+ var MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+ var html = Object.keys(byDay).map(function(ds){
+  var d = new Date(ds+'T00:00:00');
+  var head = DAYS[d.getDay()]+' '+d.getDate()+' '+MONTHS[d.getMonth()];
+  var chips = byDay[ds].map(function(s){
+   return '<button class="bk-slot" data-dt="'+s.dt+'" onclick="pickSlot(this,\''+s.dt+'\')">'+s.h+'h–'+(s.h+1)+'h</button>';
+  }).join('');
+  return '<div class="bk-day"><div class="bk-day-h">'+head+'</div><div class="bk-slots">'+chips+'</div></div>';
+ }).join('');
+ wrap.innerHTML = html;
+}
+
+function pickSlot(btn, dt){
+ document.querySelectorAll('.bk-slot').forEach(function(b){ b.classList.remove('sel'); });
+ btn.classList.add('sel');
+ var s = (BOOK_DATA.slots||[]).find(function(x){ return x.dt===dt; });
+ BOOK_PICK = s || null;
+ document.getElementById('btn-book').disabled = !BOOK_PICK;
+}
+
+async function confirmBooking(){
+ if(!BOOK_PICK) return;
+ var btn = document.getElementById('btn-book');
+ btn.disabled = true;
+ btn.innerHTML = '<span class="spinner"></span> Confirmation…';
+ document.getElementById('errBook').style.display = 'none';
+
+ try{
+  var r = await fetch(API+'/api/book', {
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body: JSON.stringify({ cid: CAND_ID, bk: BOOK_TOKEN, picked: BOOK_PICK })
+  });
+  var data = await r.json();
+  if(!r.ok || !data.success){
+   // créneau déjà pris entre-temps → recharger
+   if(r.status===409){
+    document.getElementById('errBook').textContent = 'Ce créneau vient d\'être réservé. Choisissez-en un autre.';
+    document.getElementById('errBook').style.display = '';
+    BOOK_DATA = await (await fetch(API+'/api/book?cid='+encodeURIComponent(CAND_ID)+'&bk='+encodeURIComponent(BOOK_TOKEN))).json();
+    showBookingStep();
+    btn.innerHTML = 'Confirmer mon créneau';
+    return;
+   }
+   throw new Error(data.error||'Erreur');
+  }
+  // Succès → écran final avec le RDV confirmé
+  showSuccess(window._dossierData, BOOK_PICK);
+ }catch(e){
+  btn.disabled = false;
+  btn.innerHTML = 'Confirmer mon créneau';
+  document.getElementById('errBook').textContent = 'Erreur réseau. Réessayez.';
+  document.getElementById('errBook').style.display = '';
+ }
 }
 
 function downloadDossierPDF(){
