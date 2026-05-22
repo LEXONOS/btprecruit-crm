@@ -868,3 +868,9 @@ select option{background:var(--s2)}
 .inv-prev-v{color:var(--tx);flex:1;word-break:break-word}
 .inv-prev-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:6px}
 .inv-prev-mail{background:#fff;color:#1a1a1a;border:1px solid var(--bd);border-radius:var(--r2);padding:16px 18px;font-size:12.5px;line-height:1.65;max-height:300px;overflow-y:auto;font-family:-apple-system,'Segoe UI',Arial,sans-serif}
+
+/* Edition email invitation */
+.inv-subject-inp{flex:1;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-size:11px;padding:4px 8px;font-family:inherit}
+.inv-edit-toggle{background:none;border:1px solid var(--bd);color:var(--ac);font-size:10px;padding:3px 9px;border-radius:99px;cursor:pointer;font-family:inherit;transition:all .15s}
+.inv-edit-toggle:hover{border-color:var(--ac);background:var(--ac-dim)}
+.inv-prev-edit{width:100%;min-height:240px;background:#fff;color:#1a1a1a;border:1px solid var(--bd);border-radius:var(--r2);padding:14px 16px;font-size:12.5px;line-height:1.6;font-family:inherit;resize:vertical}
