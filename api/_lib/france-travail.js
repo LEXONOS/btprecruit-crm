@@ -1,8 +1,16 @@
-// api/lib/france-travail.js
-// Intégration complète France Travail :
-// - Offres d'emploi v2 : publier, gérer
-// - JCMO : vérification légale avant publication
-// - La Bonne Boite v2 : prospects à fort potentiel de recrutement
+// api/_lib/france-travail.js — NOVALEM (nettoyée Sprint 1)
+// ─────────────────────────────────────────────────────────────────
+// Intégrations France Travail conservées :
+//   ✓ verifyOffer (JCMO — vérif légale officielle, beta)
+//   ✓ localLegalCheck (fallback local, marche toujours)
+//   ✓ searchOffres (recherche offres BTP — veille / sourcing)
+//   ✓ findBonnesBoites (prospects à fort potentiel recrutement)
+//
+// Supprimé : postToFranceTravail
+//   L'API "Offres d'emploi v2" est en lecture seule.
+//   Publication = manuelle via entreprise.francetravail.fr (gratuit).
+//   On insère un lien CTA vers notre formulaire dans le texte de l'annonce.
+// ─────────────────────────────────────────────────────────────────
 
 const BTP_TO_ROME = {
   go:'F1201', so:'F1101', be:'F1106', vrd:'F1302', hse:'H1502', mgmt:'F1201',
@@ -34,43 +42,8 @@ async function getToken(scope) {
 }
 
 // ════════════════════════════════════════════════════════
-// 1. OFFRES D'EMPLOI v2
+// 1. RECHERCHE OFFRES — pour veille concurrentielle / sourcing
 // ════════════════════════════════════════════════════════
-
-// Publier une annonce
-async function postToFranceTravail(post) {
-  const token = await getToken('api_offresdemploiv2 o2dsoffre');
-  const offre = {
-    intitule:      post.title,
-    description:   post.body,
-    typeContrat:   'CDI',
-    natureContrat: 'E1',
-    experienceExige: 'E',
-    romeCode:      BTP_TO_ROME[post.cat] || 'F1201',
-    lieuTravail:   { libelle: post.location || 'France' },
-    salaire:       post.salary ? { libelle: post.salary, commentaire: 'Selon profil' } : undefined,
-    entreprise:    { description: 'Cabinet de recrutement spécialisé BTP — BTPRecruit' },
-  };
-  Object.keys(offre).forEach(k => offre[k] === undefined && delete offre[k]);
-
-  const resp = await fetch('https://api.francetravail.io/partenaire/offresdemploi/v2/offres', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify(offre)
-  });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Publication FT (${resp.status}): ${txt}`);
-  }
-  const result = await resp.json();
-  return {
-    reference: result.id || 'OK',
-    url: result.origineOffre?.urlOrigine || null,
-    message: `Publié sur France Travail${result.id ? ` — Réf: ${result.id}` : ''}`
-  };
-}
-
-// Rechercher des offres BTP (pour veille concurrentielle ou récupérer candidats)
 async function searchOffres({ motsCles, romeCode, commune, rayon = 30, nbResultats = 20 }) {
   const token = await getToken('api_offresdemploiv2');
   const params = new URLSearchParams({ range: `0-${nbResultats - 1}` });
@@ -104,25 +77,23 @@ async function verifyOffer(post) {
     body: JSON.stringify(body)
   });
 
-  // JCMO est en bêta — si l'endpoint exact diffère, on renvoie un résultat de fallback
-  if (!resp.ok) {
-    // Fallback : analyse basique locale
-    return localLegalCheck(post);
-  }
+  // JCMO est en bêta — si l'endpoint exact diffère, on renvoie un fallback
+  if (!resp.ok) return localLegalCheck(post);
+
   const result = await resp.json();
   return {
-    ok: result.conformite ?? result.valid ?? true,
-    issues: result.anomalies || result.issues || [],
-    score: result.score || null,
+    ok:     result.conformite ?? result.valid ?? true,
+    issues: result.anomalies  || result.issues || [],
+    score:  result.score || null,
     source: 'jcmo_api'
   };
 }
 
-// Vérification légale locale (fallback si JCMO bêta indisponible)
+// Vérification légale locale (fallback fiable, indépendant du beta JCMO)
 function localLegalCheck(post) {
   const issues = [];
-  const body = (post.body || '').toLowerCase();
-  const title = (post.title || '').toLowerCase();
+  const body   = (post.body  || '').toLowerCase();
+  const title  = (post.title || '').toLowerCase();
 
   // Mentions discriminatoires interdites
   const forbidden = ['jeune', 'dynamique', 'moins de', 'plus de', 'ans minimum', 'ans maximum',
@@ -148,7 +119,7 @@ function localLegalCheck(post) {
   }
 
   return {
-    ok: issues.filter(i => i.startsWith('⚠️')).length === 0,
+    ok:     issues.filter(i => i.startsWith('⚠️')).length === 0,
     issues,
     source: 'local_check'
   };
@@ -166,10 +137,8 @@ async function findBonnesBoites({ rome, commune, distance = 30, nbResultats = 20
     distance,
     page_size:    nbResultats,
   });
-  // Supprimer les params vides
   [...params.entries()].forEach(([k, v]) => { if (!v) params.delete(k); });
 
-  // Alternative : recherche par département
   if (!commune?.lat && commune?.dept) {
     params.set('departement', commune.dept);
   }
@@ -183,28 +152,25 @@ async function findBonnesBoites({ rome, commune, distance = 30, nbResultats = 20
   }
   const data = await resp.json();
 
-  // Normaliser le résultat
   const companies = (data.companies || data.results || []).map(c => ({
-    name:          c.name || c.label,
-    siret:         c.siret,
-    address:       c.address || c.city,
-    naf:           c.naf,
-    size:          c.headcount_text || c.headcount,
-    score:         c.stars || c.hiring_rate,
-    url:           c.url || null,
-    phone:         c.phone || null,
-    email:         c.email || null,
+    name:    c.name || c.label,
+    siret:   c.siret,
+    address: c.address || c.city,
+    naf:     c.naf,
+    size:    c.headcount_text || c.headcount,
+    score:   c.stars || c.hiring_rate,
+    url:     c.url || null,
+    phone:   c.phone || null,
+    email:   c.email || null,
   }));
 
   return { companies, total: data.total || companies.length };
 }
 
 module.exports = {
-  postToFranceTravail,
   searchOffres,
   verifyOffer,
   localLegalCheck,
   findBonnesBoites,
+  BTP_TO_ROME,
 };
-
-
