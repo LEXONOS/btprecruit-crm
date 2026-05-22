@@ -860,3 +860,11 @@ select option{background:var(--s2)}
 .inv-slot.on{background:var(--ac);border-color:var(--ac);color:#0a0a08;box-shadow:0 0 10px rgba(200,224,64,.35)}
 .inv-foot-count{font-size:11px;color:var(--mu);text-align:right;font-variant-numeric:tabular-nums}
 .inv-foot-count #inv-count{color:var(--ac);font-weight:700}
+
+/* Aperçu invitation — preview mail avant envoi direct */
+.inv-prev-meta{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2);padding:10px 12px;margin-bottom:12px}
+.inv-prev-row{display:flex;gap:10px;font-size:11px;padding:3px 0}
+.inv-prev-k{color:var(--mu);min-width:64px;font-weight:600}
+.inv-prev-v{color:var(--tx);flex:1;word-break:break-word}
+.inv-prev-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:6px}
+.inv-prev-mail{background:#fff;color:#1a1a1a;border:1px solid var(--bd);border-radius:var(--r2);padding:16px 18px;font-size:12.5px;line-height:1.65;max-height:300px;overflow-y:auto;font-family:-apple-system,'Segoe UI',Arial,sans-serif}
