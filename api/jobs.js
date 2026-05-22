@@ -647,12 +647,27 @@ async function handleGetBooking(req, res) {
     if (cand.booking.token !== bk) return res.status(403).json({ error: 'Lien invalide ou expiré' });
     const now = Date.now();
     const slots = (cand.booking.slots || []).filter(s => new Date(s.dt).getTime() > now);
+    // Données de pré-remplissage issues de la fiche / extraction CV
+    const ex = cand.cv_extracted || {};
+    const fullName = cand.name || '';
+    const parts = fullName.trim().split(/\s+/);
+    const prefill = {
+      prenom: ex.prenom || (parts.length > 1 ? parts[0] : ''),
+      nom:    ex.nom    || (parts.length > 1 ? parts.slice(1).join(' ') : fullName),
+      email:  cand.email || ex.email || '',
+      tel:    cand.phone || ex.telephone || '',
+      poste:  cand.role || ex.poste_cible || ex.poste_actuel || '',
+      mobilite: cand.mobility || ex.mobilite || '',
+      salaire:  cand.salary || ex.salaire_actuel || '',
+      experience_annees: ex.experience_annees || '',
+    };
     return res.status(200).json({
       candName: cand.name || '',
       status: cand.booking.status || 'sent',
       picked: cand.booking.picked || null,
       recruiter: cand.booking.recruiter || { name: 'Votre interlocuteur Novalem', phone: '' },
       slots,
+      prefill,
     });
   } catch (e) {
     console.error('get_booking error:', e);
@@ -678,13 +693,29 @@ async function handleBookSlot(req, res) {
     if (new Date(picked.dt).getTime() <= Date.now()) {
       return res.status(400).json({ error: 'Créneau expiré, choisissez-en un autre' });
     }
+    // Lien visio généré côté serveur (le candidat le reçoit immédiatement)
+    const visioLink = 'https://meet.jit.si/novalem-' + Math.random().toString(36).slice(2, 10);
+
     cand.booking.status        = 'booked';
     cand.booking.picked        = { dateStr: picked.dateStr, h: picked.h, dt: picked.dt, label: picked.label || '' };
     cand.booking.booked_at     = new Date().toISOString();
+    cand.booking.visio_link    = visioLink;
     cand.booking._agenda_added = false;
     cand.booking_notif_seen    = false;
+    cand.visio_link            = visioLink;
+    cand.int_date_planned      = picked.dateStr;
+    cand.int_time              = picked.h + ':00';
+
     await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', rowId);
-    return res.status(200).json({ success: true, picked: cand.booking.picked, recruiter: cand.booking.recruiter || null });
+
+    // Email de confirmation au candidat (avec lien visio) — best effort, n'échoue pas la résa
+    try {
+      await sendBookingConfirmation(cand, picked, visioLink);
+    } catch (mailErr) {
+      console.error('booking confirmation email error:', mailErr);
+    }
+
+    return res.status(200).json({ success: true, picked: cand.booking.picked, visio_link: visioLink, recruiter: cand.booking.recruiter || null });
   } catch (e) {
     console.error('book_slot error:', e);
     return res.status(500).json({ error: e.message });
@@ -737,4 +768,58 @@ async function handlePostJob(req, res) {
     console.error('post_job error:', err);
     return res.status(500).json({ error: err.message || 'Erreur publication France Travail' });
   }
+}
+
+// ── Email de confirmation d'entretien au candidat (avec lien visio) ──
+async function sendBookingConfirmation(cand, picked, visioLink) {
+  const RESEND_KEY = process.env.RESEND_API_KEY;
+  const SENDER_EMAIL = process.env.SENDER_EMAIL || 'contact@novalem-recrutement.fr';
+  if (!RESEND_KEY || !cand.email) return;
+
+  const DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const d = new Date(picked.dt);
+  const whenStr = `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} à ${picked.h}h00`;
+  const firstN = (cand.name || '').split(' ')[0] || '';
+  const recruiterName = cand.booking?.recruiter?.name || 'L\'équipe Novalem';
+  const recruiterPhone = cand.booking?.recruiter?.phone || '';
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#F5F3EF;font-family:Arial,Helvetica,sans-serif;color:#1A1614">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07)">
+    <div style="background:#1A1614;padding:20px 32px">
+      <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-0.5px">NOVA<span style="color:#C9891A">LEM</span></div>
+      <div style="font-size:9px;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase;margin-top:2px">Recrutement BTP · CDI</div>
+    </div>
+    <div style="padding:28px 32px;font-size:14px;line-height:1.7;color:#2a2a2a">
+      <p style="margin:0 0 12px 0">Bonjour ${firstN},</p>
+      <p style="margin:0 0 16px 0">Votre dossier a bien été reçu et votre entretien est <strong>confirmé</strong>. Voici les détails :</p>
+      <div style="background:#F0FBF4;border:1px solid #BFE9CE;border-radius:8px;padding:16px 18px;margin:0 0 20px 0">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#16924f;margin-bottom:6px">Entretien visioconférence</div>
+        <div style="font-size:17px;font-weight:700;color:#14532d">${whenStr}</div>
+      </div>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${visioLink}" style="display:inline-block;background:#C9891A;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px">Rejoindre l'entretien →</a>
+      </div>
+      <p style="margin:0 0 6px 0;font-size:13px;color:#555">Lien direct : <a href="${visioLink}" style="color:#C9891A">${visioLink}</a></p>
+      <p style="margin:16px 0 0 0;font-size:13px;color:#555">Merci de vous connecter 2-3 minutes avant l'heure prévue, dans un endroit calme avec une bonne connexion. ${recruiterPhone ? `En cas d'imprévu, appelez le ${recruiterPhone}.` : ''}</p>
+      <p style="margin:16px 0 0 0">À très vite,<br><strong>${recruiterName}</strong>${recruiterPhone ? '<br>' + recruiterPhone : ''}</p>
+    </div>
+    <div style="background:#F8F5EF;padding:16px 32px;border-top:1px solid #E8E4DC;font-size:11px;color:#888;line-height:1.7">
+      <strong style="color:#C9891A">NOVALEM</strong> — Cabinet de recrutement BTP<br>
+      contact@novalem-recrutement.fr
+    </div>
+  </div>
+</body></html>`;
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: `${recruiterName} — NOVALEM <${SENDER_EMAIL}>`,
+      to: cand.email,
+      subject: `Entretien confirmé — ${whenStr}`,
+      html,
+    }),
+  });
 }
