@@ -612,6 +612,11 @@ function computeAlerts(){
  if(c._dossier_validated&&!c._dossier_notif_seen){
    a.push({color:'var(--ac2)',msg:'&#x2705; Dossier validé — '+c.name+' — prêt à envoyer en anonyme',act:"openCandPanel('"+c.id+"')"});
   }
+  if(c.booking&&c.booking.status==='booked'&&c.booking.picked&&c.booking_notif_seen===false){
+   const bp=c.booking.picked;
+   const bw=new Date(bp.dt).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' à '+bp.h+'h';
+   a.push({color:'var(--ac2)',msg:'&#x1F4C5; '+c.name+' a validé son dossier — entretien réservé le '+bw,act:"openEntrantSplit('"+c.id+"')"});
+  }
   if(c.status==='entrant'&&daysDiff(c.created)>2) a.push({color:'var(--ac4)',msg:`Entrant sans action (${daysDiff(c.created)}j) : ${c.name}`,act:`switchCandTab('trier');go('cands');openEntrantSplit('${c.id}')`});
  if(c.status==='precal'&&daysDiff(c.updated)>5&&!c.int_date_planned) a.push({color:'var(--ac6)',msg:`Entretien non planifié (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
  if(c.status==='dossier'&&daysDiff(c.updated)>2) a.push({color:'var(--ac3)',msg:`Dossier sans retour (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
@@ -1068,6 +1073,7 @@ function rDossiers(){
 
 function openEntrantSplit(id){
  const c=cById(id);if(!c)return;
+ if(c.booking&&c.booking.status==='booked'&&c.booking_notif_seen===false){c.booking_notif_seen=true;save();badges();}
  const cat=getCat(c.cat);
  const hasCv=!!(c.docs||[]).find(d=>d.id==='cv'&&d.file);
  const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
@@ -5698,6 +5704,29 @@ let AI_PANEL_OPEN=false;
 
 // ── Templates ────────────────────────────────────────
 const EMAIL_TPLS={
+  invitation_booking:{
+    label:'Invitation entretien (auto-booking)',
+    to:(c)=>c.email||'',
+    subject:()=>'Votre entretien Novalem — réservez votre créneau',
+    body:(c,nom,tel)=>{
+      const firstN=(c.name||'').split(' ')[0]||'';
+      const link=(typeof getApiBase==='function'&&getApiBase()||'https://novalem-crm.vercel.app')+'/dossier.html?cid='+encodeURIComponent(c.id||'')+(c.booking&&c.booking.token?('&bk='+c.booking.token):'')+'&n='+encodeURIComponent(c.name||'');
+      return `Bonjour ${firstN},
+
+Suite à notre échange, je souhaite organiser un entretien${c.role?(' pour le poste de '+c.role):''}.
+
+Pour avancer, complétez votre dossier de candidature et choisissez directement le créneau qui vous convient :
+
+[Compléter mon dossier et choisir mon créneau](${link})
+
+---
+**Vos données sont en sécurité.** Novalem est un cabinet de recrutement déclaré. Les informations transmises servent uniquement à constituer votre dossier et à le présenter aux entreprises qui recrutent. Jamais revendues, conformément au RGPD.
+
+À très vite,
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement BTP`;
+    }
+  },
   precal:{
     label:'Confirmation précal + dossier',
     to:(c)=>c.email||'',
