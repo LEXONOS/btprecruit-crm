@@ -640,7 +640,10 @@ if (BOOK_TOKEN && CAND_ID) {
 
 async function loadBookingData(){
  try{
-  var r = await fetch(API+'/api/book?cid='+encodeURIComponent(CAND_ID)+'&bk='+encodeURIComponent(BOOK_TOKEN));
+  var r = await fetch(API+'/api/jobs', {
+   method:'POST', headers:{'Content-Type':'application/json'},
+   body: JSON.stringify({ action:'get_booking', cid:CAND_ID, bk:BOOK_TOKEN })
+  });
   if(!r.ok) return;
   BOOK_DATA = await r.json();
   // Réassurance : afficher l'interlocuteur réel
@@ -1127,10 +1130,10 @@ async function confirmBooking(){
  document.getElementById('errBook').style.display = 'none';
 
  try{
-  var r = await fetch(API+'/api/book', {
+  var r = await fetch(API+'/api/jobs', {
    method:'POST',
    headers:{'Content-Type':'application/json'},
-   body: JSON.stringify({ cid: CAND_ID, bk: BOOK_TOKEN, picked: BOOK_PICK })
+   body: JSON.stringify({ action:'book_slot', cid: CAND_ID, bk: BOOK_TOKEN, picked: BOOK_PICK })
   });
   var data = await r.json();
   if(!r.ok || !data.success){
@@ -1138,7 +1141,7 @@ async function confirmBooking(){
    if(r.status===409){
     document.getElementById('errBook').textContent = 'Ce créneau vient d\'être réservé. Choisissez-en un autre.';
     document.getElementById('errBook').style.display = '';
-    BOOK_DATA = await (await fetch(API+'/api/book?cid='+encodeURIComponent(CAND_ID)+'&bk='+encodeURIComponent(BOOK_TOKEN))).json();
+    BOOK_DATA = await (await fetch(API+'/api/jobs', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'get_booking',cid:CAND_ID,bk:BOOK_TOKEN})})).json();
     showBookingStep();
     btn.innerHTML = 'Confirmer mon créneau';
     return;
