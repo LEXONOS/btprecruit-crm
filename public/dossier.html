@@ -136,6 +136,29 @@ textarea.inp{resize:vertical;min-height:70px}
 .bk-slot:hover{border-color:#C9891A;color:#C9891A}
 .bk-slot.sel{background:#C9891A;border-color:#C9891A;color:#fff;box-shadow:0 3px 10px rgba(201,137,26,.3)}
 .bk-loading{text-align:center;padding:24px;color:#aaa;font-size:12px}
+
+/* Expériences professionnelles & références */
+.exp-block{background:#fff;border:1px solid #E8E4DC;border-radius:8px;padding:12px 13px;margin-bottom:10px}
+.exp-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#C9891A;margin-bottom:10px}
+.exp-del{background:none;border:none;color:#c0392b;font-size:11px;cursor:pointer;text-decoration:underline;padding:0}
+.exp-motifs{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.exp-motif{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#555;background:#FBF9F5;border:1px solid #ECE7DE;border-radius:6px;padding:5px 9px;cursor:pointer}
+.exp-motif input{accent-color:#C9891A}
+
+/* ── RESPONSIVE — remplissable au téléphone ── */
+@media (max-width:560px){
+ .frow{grid-template-columns:1fr !important;gap:0 !important}
+ .check-grid{grid-template-columns:1fr !important}
+ .screen{padding:18px 14px !important}
+ .sec-title{font-size:17px !important}
+ .bk-slots{gap:6px}
+ .bk-slot{flex:1 1 calc(50% - 6px);text-align:center}
+ .radio-group{flex-direction:column}
+ .radio-btn{width:100%}
+ .inp,.btn-primary,.btn-secondary{font-size:16px} /* >=16px évite le zoom auto iOS */
+ .btn-nav{flex-direction:column-reverse;gap:8px}
+ .btn-nav button{width:100%}
+}
 </style>
 </head>
 <body>
@@ -427,6 +450,20 @@ textarea.inp{resize:vertical;min-height:70px}
   <textarea id="f-notes" class="inp" placeholder="Tout élément que vous souhaitez nous communiquer : projet de formation, contraintes particulières, points forts…" style="min-height:80px"></textarea>
  </div>
 
+ <div class="sep"></div>
+
+ <!-- ── Expériences professionnelles & références ── -->
+ <div style="background:#1A1614;color:#fff;padding:8px 12px;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:4px">
+  Expériences professionnelles &amp; références
+ </div>
+ <div style="background:#FBF9F5;border:1px solid #ECE7DE;border-top:none;border-radius:0 0 8px 8px;padding:14px 14px 4px;margin-bottom:6px">
+  <div style="font-size:11px;color:#8a837b;margin-bottom:14px;line-height:1.6">
+   Renseignez vos dernières expériences significatives. Les contacts de référents peuvent être vérifiés par NOVALEM <strong>avec votre accord</strong>.
+  </div>
+  <div id="exp-container"></div>
+  <button type="button" id="btn-add-exp" class="btn-secondary" style="width:100%;margin-top:6px;font-size:12px" onclick="addExperience()">+ Ajouter une expérience</button>
+ </div>
+
  <div class="btn-nav">
   <button class="btn-secondary" onclick="goStep(3)">← Retour</button>
   <button class="btn-primary" onclick="goStep(5)">Continuer →</button>
@@ -664,7 +701,29 @@ async function loadBookingData(){
     }
    }
   }
+  // Pré-remplissage depuis la fiche candidat / extraction CV
+  applyPrefill(BOOK_DATA.prefill || {});
  }catch(e){ /* silencieux — le dossier reste soumissible sans booking */ }
+}
+
+// Pré-remplit les champs déjà connus (nom, prénom, email, tél, poste, mobilité, salaire, expérience)
+function applyPrefill(pf){
+ if(!pf) return;
+ var set = function(id, val){ var el=document.getElementById(id); if(el && val && !el.value){ el.value = val; } };
+ set('f-prenom', pf.prenom);
+ set('f-nom',    pf.nom);
+ set('f-email',  pf.email);
+ set('f-tel',    pf.tel);
+ set('f-poste',  pf.poste);
+ set('f-mob',    pf.mobilite);
+ set('f-sal-act',pf.salaire);
+ // Expérience → présélectionne le bon bouton radio
+ var yrs = parseInt(pf.experience_annees);
+ if(!isNaN(yrs)){
+  var v = yrs < 5 ? 'moins5' : (yrs <= 15 ? '5a15' : 'plus15');
+  if(typeof setRadio==='function') setRadio('exp', v);
+ }
+ updateSigPreview();
 }
 
 // Mettre à jour la signature preview en temps réel
@@ -681,13 +740,11 @@ function updateSigPreview(){
 
 function setRadio(group, val){
  radioValues[group] = val;
- document.querySelectorAll('#rg-'+group+' .radio-btn').forEach(function(btn){
-  btn.classList.toggle('sel', btn.textContent.includes(val) || btn.getAttribute('onclick')?.includes("'"+val+"'"));
- });
- // Corriger : marquer par onclick
+ // Match exact sur la paire (group, val) pour éviter que 'ue' (nom du groupe)
+ // ne sélectionne les 3 boutons. On cible le 2e argument précisément.
  document.querySelectorAll('#rg-'+group+' .radio-btn').forEach(function(btn){
   var oc = btn.getAttribute('onclick')||'';
-  btn.classList.toggle('sel', oc.includes("'"+val+"'"));
+  btn.classList.toggle('sel', oc.indexOf("'"+group+"','"+val+"'") !== -1);
  });
 }
 
@@ -974,6 +1031,7 @@ async function submitDossier(){
    langues:  document.getElementById('f-langues')?.value||'',
    notes:    document.getElementById('f-notes')?.value||'',
   },
+  experiences: collectExperiences(),
   signature: {
    signed_at: new Date().toISOString(),
    signed_by: document.getElementById('f-prenom').value.trim()+' '+document.getElementById('f-nom').value.trim(),
@@ -1034,6 +1092,64 @@ function fileToBase64(file){
   r.readAsDataURL(file);
  });
 }
+
+// ═══════════ EXPÉRIENCES PROFESSIONNELLES & RÉFÉRENCES ═══════════
+var EXP_COUNT = 0;
+var EXP_MAX = 5;
+function addExperience(data){
+ if(EXP_COUNT >= EXP_MAX) return;
+ data = data || {};
+ var idx = EXP_COUNT++;
+ var wrap = document.createElement('div');
+ wrap.className = 'exp-block';
+ wrap.id = 'exp-'+idx;
+ wrap.innerHTML =
+  '<div class="exp-head"><span>Expérience '+(idx+1)+'</span>'+
+   (idx>0?'<button type="button" class="exp-del" onclick="removeExperience('+idx+')">Retirer</button>':'')+'</div>'+
+  '<div class="frow">'+
+   '<div><label class="lbl">Société</label><input class="inp exp-f" data-f="societe" value="'+escAttr(data.societe)+'"></div>'+
+   '<div><label class="lbl">Fonction occupée</label><input class="inp exp-f" data-f="fonction" value="'+escAttr(data.fonction)+'"></div>'+
+  '</div>'+
+  '<div class="frow">'+
+   '<div><label class="lbl">Type de contrat</label><input class="inp exp-f" data-f="contrat" placeholder="CDI, CDD, Intérim…" value="'+escAttr(data.contrat)+'"></div>'+
+   '<div><label class="lbl">Période (de / à)</label><input class="inp exp-f" data-f="periode" placeholder="2019 → 2023" value="'+escAttr(data.periode)+'"></div>'+
+  '</div>'+
+  '<label class="lbl" style="margin-top:8px">Motif de fin de contrat</label>'+
+  '<div class="exp-motifs" data-f="motif">'+
+   ['Fin de contrat / CDD','Démission','Licenciement','Rupture conventionnelle','Autre'].map(function(m){
+     return '<label class="exp-motif"><input type="radio" name="motif-'+idx+'" value="'+m+'"'+(data.motif===m?' checked':'')+'> '+m+'</label>';
+   }).join('')+
+  '</div>'+
+  '<div style="font-size:10px;color:#a39c93;margin:10px 0 6px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Référent (contrôle de référence)</div>'+
+  '<div class="frow">'+
+   '<div><label class="lbl">Nom du supérieur hiérarchique</label><input class="inp exp-f" data-f="ref_nom" value="'+escAttr(data.ref_nom)+'"></div>'+
+   '<div><label class="lbl">Sa fonction</label><input class="inp exp-f" data-f="ref_fonction" value="'+escAttr(data.ref_fonction)+'"></div>'+
+  '</div>'+
+  '<div class="fgrp"><label class="lbl">Téléphone du référent</label><input class="inp exp-f" data-f="ref_tel" type="tel" placeholder="06…" value="'+escAttr(data.ref_tel)+'"></div>';
+ document.getElementById('exp-container').appendChild(wrap);
+ var btn = document.getElementById('btn-add-exp');
+ if(btn) btn.style.display = (EXP_COUNT >= EXP_MAX) ? 'none' : '';
+}
+function removeExperience(idx){
+ var el = document.getElementById('exp-'+idx);
+ if(el) el.remove();
+ var btn = document.getElementById('btn-add-exp');
+ if(btn) btn.style.display = '';
+}
+function collectExperiences(){
+ var out = [];
+ document.querySelectorAll('.exp-block').forEach(function(block){
+  var e = {};
+  block.querySelectorAll('.exp-f').forEach(function(inp){ e[inp.getAttribute('data-f')] = inp.value.trim(); });
+  var motif = block.querySelector('.exp-motifs input:checked');
+  e.motif = motif ? motif.value : '';
+  if(e.societe || e.fonction) out.push(e);
+ });
+ return out;
+}
+function escAttr(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+// Démarrer avec 1 bloc expérience
+addExperience();
 
 function showSuccess(d, booked){
  // Masquer tous les écrans, désactiver navigation arrière
