@@ -320,19 +320,44 @@ function renderInvPreview(c){
 
     <div class="inv-prev-meta">
       <div class="inv-prev-row"><span class="inv-prev-k">À</span><span class="inv-prev-v">${esc(c.email)}</span></div>
-      <div class="inv-prev-row"><span class="inv-prev-k">Objet</span><span class="inv-prev-v">${esc(p.subject||'Votre entretien Novalem — réservez votre créneau')}</span></div>
+      <div class="inv-prev-row"><span class="inv-prev-k">Objet</span><input id="inv-subject" class="inv-subject-inp" value="${esc(p.subject||'Votre entretien Novalem — réservez votre créneau')}"></div>
       <div class="inv-prev-row"><span class="inv-prev-k">Créneaux</span><span class="inv-prev-v">${p.slots.length} proposé(s)</span></div>
     </div>
 
-    <div class="inv-prev-label">Aperçu du message</div>
-    <div class="inv-prev-mail">${bodyHtml}</div>
+    <div class="inv-prev-label" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Message</span>
+      <button class="inv-edit-toggle" id="inv-edit-toggle" onclick="invToggleEdit()">✎ Modifier le texte</button>
+    </div>
+    <div class="inv-prev-mail" id="inv-prev-rendered">${bodyHtml}</div>
+    <textarea class="inv-prev-edit" id="inv-prev-edit" style="display:none">${esc(p.body)}</textarea>
+    <div class="fs10 mu_" id="inv-edit-hint" style="display:none;margin-top:5px">Le lien <code>[texte](url)</code> deviendra un bouton dans l'email. Cliquez sur "Aperçu" pour vérifier le rendu.</div>
 
     ${!canSendDirect?`<div class="info-box" style="margin-top:10px">Mode local : l'envoi automatique nécessite le déploiement Vercel. Le lien sera copié à la place.</div>`:''}`,
     `<button class="btn bg" onclick="closeMo()">Annuler</button>
-     <button class="btn bg" onclick="startInvitation('${c.id}')">← Modifier les créneaux</button>
+     <button class="btn bg" onclick="startInvitation('${c.id}')">← Créneaux</button>
      <button class="btn bp" id="inv-send-btn" onclick="invSendNow('${c.id}')">${canSendDirect?'✉️ Envoyer maintenant':'Copier le lien'}</button>`
   );
 }
+
+// Bascule aperçu ↔ édition du texte
+window.invToggleEdit = function(){
+  const rendered = document.getElementById('inv-prev-rendered');
+  const editor = document.getElementById('inv-prev-edit');
+  const toggle = document.getElementById('inv-edit-toggle');
+  const hint = document.getElementById('inv-edit-hint');
+  const editing = editor.style.display !== 'none';
+  if(editing){
+    // Repasser en aperçu → sauvegarder le texte modifié
+    window._invPending.body = editor.value;
+    rendered.innerHTML = invBodyToHtml(editor.value);
+    rendered.style.display = ''; editor.style.display = 'none'; hint.style.display='none';
+    toggle.textContent = '✎ Modifier le texte';
+  } else {
+    rendered.style.display = 'none'; editor.style.display = ''; hint.style.display='';
+    toggle.textContent = '👁 Aperçu';
+    editor.focus();
+  }
+};
 
 // Transforme le corps texte en HTML d'aperçu (bouton CTA + retours ligne)
 function invBodyToHtml(body){
@@ -349,6 +374,11 @@ function invBodyToHtml(body){
 window.invSendNow = async function(candId){
   const c = cById(candId); if(!c) return;
   const p = window._invPending; if(!p){ toast('Session expirée, recommencez','e'); return; }
+  // Capter les modifications éventuelles (si en cours d'édition) + objet
+  const editor = document.getElementById('inv-prev-edit');
+  if(editor && editor.style.display !== 'none') p.body = editor.value;
+  const subj = document.getElementById('inv-subject');
+  if(subj && subj.value.trim()) p.subject = subj.value.trim();
   const apiBase = getApiBase();
   const btn = document.getElementById('inv-send-btn');
 
@@ -404,27 +434,40 @@ function commitBooking(c, p){
 }
 
 function buildInvitationEmail({firstN, link, slots, nom, tel, role}){
-  const slotLines = slots.map(s=>'   • '+s.label).join('\n');
+  // Résumé lisible des créneaux : on ne liste PAS toutes les heures.
+  // On indique la période couverte + nombre d'options, le choix se fait sur la page.
+  const summary = slotPeriodSummary(slots);
   const sig = nom + (tel?('\n'+tel):'') + '\nNovalem — Cabinet de recrutement BTP';
   return `Bonjour ${firstN},
 
 Suite à notre échange, je souhaite organiser un entretien${role?(' pour le poste de '+role):''}.
 
-Pour avancer, je vous invite à compléter votre dossier de candidature et à choisir directement le créneau d'entretien qui vous convient, en cliquant sur le lien ci-dessous :
+Pour avancer, complétez votre dossier de candidature et choisissez directement le créneau qui vous convient — tout se fait en quelques minutes :
 
-[Compléter mon dossier et réserver mon créneau](${link})
+[Compléter mon dossier et choisir mon créneau](${link})
 
-Créneaux actuellement proposés :
-${slotLines}
+${summary}
 
-─────────────────────────
-Vos données sont en sécurité
-─────────────────────────
-Novalem est un cabinet de recrutement déclaré. Les informations et documents que vous transmettez (pièce d'identité, justificatifs) servent uniquement à constituer votre dossier de candidature et à le présenter aux entreprises qui recrutent. Ils ne sont jamais revendus ni partagés à des tiers, conformément au RGPD. Vous pouvez à tout moment demander leur suppression.
+---
+**Vos données sont en sécurité.** Novalem est un cabinet de recrutement déclaré. Les informations et documents transmis servent uniquement à constituer votre dossier et à le présenter aux entreprises qui recrutent. Ils ne sont jamais revendus, conformément au RGPD — suppression possible sur simple demande.
 
 À très vite,
 
 ${sig}`;
+}
+
+// Résume la période des créneaux proposés sans tout lister
+function slotPeriodSummary(slots){
+  if(!slots || !slots.length) return 'Plusieurs créneaux vous seront proposés.';
+  const dates = slots.map(s=> new Date(s.dt)).sort((a,b)=>a-b);
+  const first = dates[0], last = dates[dates.length-1];
+  const days = new Set(slots.map(s=>s.dateStr)).size;
+  const hasMorning = slots.some(s=>s.h<13);
+  const hasAfternoon = slots.some(s=>s.h>=13);
+  const moment = hasMorning && hasAfternoon ? 'matin et après-midi' : (hasMorning ? 'en matinée' : 'en après-midi');
+  const fmt = d=> d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  if(days<=1) return `Créneaux disponibles le ${fmt(first)} (${moment}).`;
+  return `${slots.length} créneaux disponibles entre le ${fmt(first)} et le ${fmt(last)} (${moment}). Choisissez celui qui vous arrange.`;
 }
 
 // ── Détection des réservations entrantes (notif côté recruteur) ────
@@ -434,9 +477,9 @@ function scanBookings(){
   let changed=false;
   (DB.candidates||[]).forEach(c=>{
     if(c.booking && c.booking.status==='booked' && c.booking.picked && !c.booking._agenda_added){
-      // Créer l'événement agenda automatiquement
+      // Lien visio : priorité au lien généré côté serveur (déjà envoyé au candidat)
       const p = c.booking.picked;
-      const link = c.visio_link || genJitsiLink();
+      const link = c.booking.visio_link || c.visio_link || genJitsiLink();
       c.visio_link = link;
       c.int_date_planned = p.dateStr;
       c.int_time = p.h+':00';
@@ -452,11 +495,15 @@ function scanBookings(){
         created:(typeof now_==='function'?now_():new Date().toISOString())
       });
       c.booking._agenda_added = true;
+      c.booking_notif_seen = (c.booking_notif_seen===false ? false : false); // garde non-vu pour l'alerte CRM
       c.status = (c.status==='dossier'?'interview':c.status);
+      // Toast immédiat si le CRM est ouvert au moment de la détection
+      const when = new Date(p.dt).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' à '+p.h+'h';
+      if(typeof toast==='function') toast(`📅 ${c.name} a réservé son entretien — ${when}`,'s');
       changed=true;
     }
   });
-  if(changed && typeof save==='function'){ save(); if(typeof badges==='function') badges(); }
+  if(changed && typeof save==='function'){ save(); if(typeof badges==='function') badges(); if(typeof computeAlerts==='function'){try{computeAlerts();}catch(e){}} if(UI && UI.view==='dash' && typeof rDash==='function'){try{rDash();}catch(e){}} }
 }
 // Scan au chargement + après chaque sync cloud (toutes les 30s)
 window.addEventListener('load', ()=> setTimeout(scanBookings, 1500));
