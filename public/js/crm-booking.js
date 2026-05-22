@@ -265,63 +265,143 @@ window.invToggle = function(key){
   if(cnt) cnt.textContent = Object.keys(window._invSel).length;
 };
 
-// ── Étape 3 : génère le token, stocke le booking, prépare l'email ──
+// ── Étape 3 : génère le token, stocke le booking, montre l'aperçu ──
 window.invProceedEmail = function(candId){
   const c = cById(candId); if(!c) return;
   const sel = Object.values(window._invSel||{});
   if(!sel.length){ toast('Sélectionnez au moins un créneau','e'); return; }
+  if(!c.email){ toast('Ce candidat n\'a pas d\'email — ajoutez-le sur sa fiche','e'); return; }
   sel.sort((a,b)=> a.dt<b.dt?-1:1);
 
   // Token de réservation (lien sécurisé, non devinable)
   const token = 'bk_'+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6);
-
-  // Coordonnées recruteur (pour la réassurance côté candidat)
   const rNom = localStorage.getItem(_ukey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Votre interlocuteur Novalem';
   const rTel = localStorage.getItem(_ukey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
 
-  c.booking = {
+  // On prépare le booking en mémoire (sauvegardé seulement à l'envoi confirmé)
+  window._invPending = {
+    candId,
     token,
-    status: 'sent',                       // sent → booked
     slots: sel.map(s=>({dateStr:s.dateStr,h:s.h,dt:s.dt,label:s.label})),
-    sent_at: new Date().toISOString(),
-    picked: null,
     recruiter: { name: rNom, phone: rTel }
   };
-  c.status = 'dossier';                    // en attente dossier + réservation
-  c.invite_method = 'email';
-  c.updated = (typeof now_==='function'?now_():new Date().toISOString());
-  save();
 
-  // Construire le lien candidat
+  // Construire le lien candidat + corps du mail (aperçu = exactement ce qui sera envoyé)
   const base = (getApiBase() || 'https://novalem-crm.vercel.app');
   const link = base+'/dossier.html?cid='+encodeURIComponent(c.id)+'&bk='+encodeURIComponent(token)+'&n='+encodeURIComponent(c.name);
-
-  // Signature recruteur
-  const nom = localStorage.getItem(_ukey('btp_user_name'))||localStorage.getItem('btp_user_name')||'L\'équipe Novalem';
-  const tel = localStorage.getItem(_ukey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
   const firstN = (c.name||'').split(' ')[0];
+  const subject = 'Votre entretien Novalem — réservez votre créneau';
+  const emailBody = buildInvitationEmail({firstN, link, slots:window._invPending.slots, nom:rNom, tel:rTel, role:c.role});
 
-  const emailBody = buildInvitationEmail({firstN, link, slots:c.booking.slots, nom, tel, role:c.role});
+  window._invPending.subject = emailBody && subject;
+  window._invPending.body = emailBody;
+  window._invPending.link = link;
 
-  closeMo();
+  renderInvPreview(c);
+};
 
-  // Ouvrir le composer email pré-rempli (réutilise l'infra existante)
-  try{
-    EM = {to:c.email||'', subject:'Votre entretien Novalem — réservez votre créneau', body:emailBody, candId:candId, coId:null, tplKey:null};
-    EM_VIEW = 'compose';
-    EM_RECIPIENTS = c.email?[{email:c.email,name:c.name,type:'cand',entityId:candId}]:[];
-    window._pendingAttachment = null;
-    go('emails');
-    setTimeout(()=>{ if(typeof _emInitRecipients==='function') _emInitRecipients(); },100);
-    toast('Email d\'invitation prêt — vérifiez et envoyez','i');
-  }catch(e){
-    // fallback : copier le lien
-    navigator.clipboard?.writeText(link);
-    toast('Lien de réservation copié dans le presse-papier','i');
+// ── Aperçu du mail (rendu fidèle) + bouton Envoyer direct ─────────
+function renderInvPreview(c){
+  const p = window._invPending;
+  const apiBase = getApiBase();
+  const canSendDirect = !!apiBase; // en prod Vercel → envoi auto via Resend
+
+  // Rendu visuel du corps : on transforme [texte](url) en bouton, sauts de ligne en <br>
+  const bodyHtml = invBodyToHtml(p.body);
+
+  openMo('Vérifier et envoyer — '+esc(c.name), `
+    <div class="steps">
+      <div class="step"><div class="step-dot done">1</div><span class="step-l done">Qualifier</span></div>
+      <div class="step-arr">→</div>
+      <div class="step"><div class="step-dot done">2</div><span class="step-l done">Créneaux</span></div>
+      <div class="step-arr">→</div>
+      <div class="step"><div class="step-dot cur">3</div><span class="step-l cur">Envoyer</span></div>
+    </div>
+
+    <div class="inv-prev-meta">
+      <div class="inv-prev-row"><span class="inv-prev-k">À</span><span class="inv-prev-v">${esc(c.email)}</span></div>
+      <div class="inv-prev-row"><span class="inv-prev-k">Objet</span><span class="inv-prev-v">${esc(p.subject||'Votre entretien Novalem — réservez votre créneau')}</span></div>
+      <div class="inv-prev-row"><span class="inv-prev-k">Créneaux</span><span class="inv-prev-v">${p.slots.length} proposé(s)</span></div>
+    </div>
+
+    <div class="inv-prev-label">Aperçu du message</div>
+    <div class="inv-prev-mail">${bodyHtml}</div>
+
+    ${!canSendDirect?`<div class="info-box" style="margin-top:10px">Mode local : l'envoi automatique nécessite le déploiement Vercel. Le lien sera copié à la place.</div>`:''}`,
+    `<button class="btn bg" onclick="closeMo()">Annuler</button>
+     <button class="btn bg" onclick="startInvitation('${c.id}')">← Modifier les créneaux</button>
+     <button class="btn bp" id="inv-send-btn" onclick="invSendNow('${c.id}')">${canSendDirect?'✉️ Envoyer maintenant':'Copier le lien'}</button>`
+  );
+}
+
+// Transforme le corps texte en HTML d'aperçu (bouton CTA + retours ligne)
+function invBodyToHtml(body){
+  let h = (body||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // [texte](url) → bouton
+  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+    '<a href="$2" target="_blank" style="display:inline-block;margin:8px 0;padding:9px 16px;background:var(--ac);color:#0a0a08;border-radius:var(--r);font-weight:700;font-size:12px;text-decoration:none">$1</a>');
+  h = h.replace(/\n/g,'<br>');
+  return h;
+}
+
+// ── Envoi direct via Resend (/api/send-email) ─────────────────────
+window.invSendNow = async function(candId){
+  const c = cById(candId); if(!c) return;
+  const p = window._invPending; if(!p){ toast('Session expirée, recommencez','e'); return; }
+  const apiBase = getApiBase();
+  const btn = document.getElementById('inv-send-btn');
+
+  // Mode local : pas d'envoi auto possible → copier le lien
+  if(!apiBase){
+    navigator.clipboard?.writeText(p.link);
+    commitBooking(c, p);
+    closeMo();
+    toast('Lien copié — collez-le au candidat','i');
+    return;
   }
+
+  if(btn){ btn.disabled=true; btn.textContent='Envoi…'; }
+  try{
+    const senderName = (localStorage.getItem(_ukey('btp_user_name'))||localStorage.getItem('btp_user_name')||'NOVALEM');
+    const resp = await fetch(apiBase+'/api/send-email',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ to: c.email, subject: p.subject||'Votre entretien Novalem — réservez votre créneau', body: p.body, from_name: senderName+' — NOVALEM' })
+    });
+    const data = await resp.json().catch(()=>({}));
+    if(!resp.ok || !(data.sent || data.id)){
+      throw new Error(data.error || 'Échec de l\'envoi');
+    }
+    // Succès → on grave le booking sur le candidat
+    commitBooking(c, p);
+    if(btn){ btn.textContent='✓ Envoyé !'; btn.style.background='var(--green)'; btn.style.color='#0a0a08'; }
+    toast(`Invitation envoyée à ${c.email} ✓`,'s');
+    setTimeout(()=>{ closeMo(); }, 1100);
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='✉️ Réessayer'; }
+    toast('Erreur envoi : '+e.message,'e');
+  }
+};
+
+// Grave le booking sur le candidat (statut, agenda en attente, etc.)
+function commitBooking(c, p){
+  c.booking = {
+    token: p.token,
+    status: 'sent',
+    slots: p.slots,
+    sent_at: new Date().toISOString(),
+    picked: null,
+    recruiter: p.recruiter
+  };
+  c.status = 'dossier';
+  c.invite_method = 'email';
+  c.invite_sent_at = (typeof now_==='function'?now_():new Date().toISOString());
+  c.updated = (typeof now_==='function'?now_():new Date().toISOString());
+  save();
   badges();
   if(UI.view==='cands' && typeof rCands==='function') rCands();
-};
+  window._invPending = null;
+}
 
 function buildInvitationEmail({firstN, link, slots, nom, tel, role}){
   const slotLines = slots.map(s=>'   • '+s.label).join('\n');
