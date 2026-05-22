@@ -1730,8 +1730,26 @@ function startPrecal(id){
  </div>
  </div>`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button>
- <button class="btn bp" onclick="savePrecalStep1('${id}')">Valider → Planifier entretien</button>`
+ <button class="btn bg" onclick="savePrecalThenInvite('${id}')" title="Envoyer un email au candidat pour qu'il remplisse son dossier et choisisse lui-même son créneau">✉️ Envoyer invitation</button>
+ <button class="btn bp" onclick="savePrecalStep1('${id}')">📞 Appel → Planifier moi-même</button>`
 );
+}
+// Branche "invitation auto" : sauvegarde la qualif puis ouvre le flux d'invitation (crm-booking.js)
+function savePrecalThenInvite(id){
+ const c=cById(id);if(!c)return;
+ // Réutilise la sauvegarde de la qualification sans enchaîner sur le calendrier manuel
+ c.role=document.getElementById('pre-role').value.trim();
+ c.cat=document.getElementById('pre-cat')?.value||c.cat||'go';
+ c.salary=document.getElementById('pre-sal').value;
+ c.avail=document.getElementById('pre-av').value;
+ c.mobility=document.getElementById('pre-mob').value;
+ c.notes_pre=document.getElementById('pre-notes').value;
+ c.linked_need=document.getElementById('pre-need').value||null;
+ c.pepite=document.getElementById('pre-profile').value==='pepite';
+ c.status='precal';c.updated=now_();
+ save();
+ if(typeof window.startInvitation==='function'){window.startInvitation(id);}
+ else{toast('Module booking non chargé — vérifiez crm-booking.js','e');}
 }
 function savePrecalStep1(id){
  const c=cById(id);if(!c)return;
@@ -5124,6 +5142,12 @@ function openSettings(){
  <input id="set-dossier" value="${esc(dossierUrl)}" placeholder="https://… (Google Drive, Dropbox, etc.)">
  <span style="font-size:10px;color:var(--mu);margin-top:3px">Ce lien sera inclus automatiquement dans les emails de précal</span>
  </div>
+ </div>
+ <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)">
+ <button class="btn bg bsm" onclick="closeMo();setTimeout(()=>openDispoSettings&&openDispoSettings(),80)" style="width:100%">
+ 🗓️ Mes disponibilités d'entretien — créneaux récurrents
+ </button>
+ <span style="font-size:10px;color:var(--mu);margin-top:5px;display:block">Définis une fois, réutilisés pour chaque invitation candidat (auto-booking).</span>
  </div>
  </div>
 
