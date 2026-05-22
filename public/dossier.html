@@ -458,8 +458,12 @@ textarea.inp{resize:vertical;min-height:70px}
  </div>
  <div style="background:#FBF9F5;border:1px solid #ECE7DE;border-top:none;border-radius:0 0 8px 8px;padding:14px 14px 4px;margin-bottom:6px">
   <div style="font-size:11px;color:#8a837b;margin-bottom:14px;line-height:1.6">
-   Renseignez vos dernières expériences significatives. Les contacts de référents peuvent être vérifiés par NOVALEM <strong>avec votre accord</strong>.
+   Renseignez vos dernières expériences significatives. <strong>Au moins un contact de référent (téléphone) est requis</strong> — il pourra être vérifié par NOVALEM avec votre accord.
   </div>
+  <label class="exp-motif" style="margin-bottom:12px;width:100%;box-sizing:border-box">
+   <input type="checkbox" id="f-self-employed" onchange="toggleSelfEmployed()">
+   J'ai été à mon compte / mon propre dirigeant sur les 10 dernières années (pas de référent à fournir)
+  </label>
   <div id="exp-container"></div>
   <button type="button" id="btn-add-exp" class="btn-secondary" style="width:100%;margin-top:6px;font-size:12px" onclick="addExperience()">+ Ajouter une expérience</button>
  </div>
@@ -933,6 +937,15 @@ function validateStep(n){
    document.getElementById('upload-titre').style.display = 'none';
   }
  }
+ if(n===4){
+  var selfEmp = document.getElementById('f-self-employed')?.checked;
+  if(!selfEmp){
+   var exps = collectExperiences();
+   if(!exps.length){ showErr(4,'Renseignez au moins une expérience professionnelle (ou cochez « à mon compte »).'); return false; }
+   var hasRef = exps.some(function(e){ return (e.ref_tel||'').replace(/\D/g,'').length >= 9; });
+   if(!hasRef){ showErr(4,'Au moins un téléphone de référent est obligatoire pour le contrôle de référence (ou cochez « à mon compte »).'); return false; }
+  }
+ }
  if(n===5){
   // CV toujours obligatoire
   if(!uploadedFiles['cv']){ showErr(5,'Veuillez joindre votre CV pour continuer.'); return false; }
@@ -1148,6 +1161,15 @@ function collectExperiences(){
  return out;
 }
 function escAttr(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+// Bascule "à mon compte" : grise/dégrise les blocs expérience
+function toggleSelfEmployed(){
+ var on = document.getElementById('f-self-employed')?.checked;
+ var cont = document.getElementById('exp-container');
+ var btn = document.getElementById('btn-add-exp');
+ if(cont) cont.style.opacity = on ? '.45' : '1';
+ if(cont) cont.style.pointerEvents = on ? 'none' : '';
+ if(btn) btn.style.display = on ? 'none' : '';
+}
 // Démarrer avec 1 bloc expérience
 addExperience();
 
