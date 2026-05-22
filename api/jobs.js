@@ -58,6 +58,14 @@ module.exports = async function handler(req, res) {
     return handleSubmitDossier(req, res);
   }
 
+  // ══ Auto-booking — PUBLIC (lien candidat, protégé par token) ══
+  if (action === 'get_booking')     return handleGetBooking(req, res);
+  if (action === 'book_slot')       return handleBookSlot(req, res);
+
+  // ══ France Travail — PUBLIC (appelé depuis le CRM authentifié côté client) ══
+  if (action === 'verify_offer')    return handleVerifyOffer(req, res);
+  if (action === 'post_job')        return handlePostJob(req, res);
+
   // ══ Actions CRM authentifiées ══════════════════════════════════
   const secret = req.headers['x-crm-secret'];
   if (!secret || secret !== process.env.CRM_SECRET) {
@@ -610,4 +618,123 @@ async function handleSubmitDossier(req, res) {
   }
 
   return res.status(200).json({ success: true, ref, message: 'Dossier reçu' });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTO-BOOKING — créneaux candidat (fusionné depuis book.js)
+// ═══════════════════════════════════════════════════════════════════
+async function findCandidateById(sb, cid) {
+  const { data: rows, error } = await sb.from('crm_data').select('id, data').in('id', [1, 2]);
+  if (error) throw error;
+  for (const row of (rows || [])) {
+    let db;
+    try { db = JSON.parse(row.data || '{}'); } catch (e) { continue; }
+    const cand = (db.candidates || []).find(c => c.id === cid);
+    if (cand) return { rowId: row.id, db, cand };
+  }
+  return { rowId: null, db: null, cand: null };
+}
+
+async function handleGetBooking(req, res) {
+  const { cid, bk } = req.body || {};
+  if (!cid || !bk) return res.status(400).json({ error: 'cid et bk requis' });
+  let sb;
+  try { sb = getSB(); } catch (e) { return res.status(500).json({ error: e.message }); }
+  try {
+    const { cand } = await findCandidateById(sb, cid);
+    if (!cand)         return res.status(404).json({ error: 'Candidat introuvable' });
+    if (!cand.booking) return res.status(404).json({ error: 'Aucune invitation active' });
+    if (cand.booking.token !== bk) return res.status(403).json({ error: 'Lien invalide ou expiré' });
+    const now = Date.now();
+    const slots = (cand.booking.slots || []).filter(s => new Date(s.dt).getTime() > now);
+    return res.status(200).json({
+      candName: cand.name || '',
+      status: cand.booking.status || 'sent',
+      picked: cand.booking.picked || null,
+      recruiter: cand.booking.recruiter || { name: 'Votre interlocuteur Novalem', phone: '' },
+      slots,
+    });
+  } catch (e) {
+    console.error('get_booking error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+async function handleBookSlot(req, res) {
+  const { cid, bk, picked } = req.body || {};
+  if (!cid || !bk || !picked?.dt) return res.status(400).json({ error: 'cid, bk et picked requis' });
+  let sb;
+  try { sb = getSB(); } catch (e) { return res.status(500).json({ error: e.message }); }
+  try {
+    const { rowId, db, cand } = await findCandidateById(sb, cid);
+    if (!cand)         return res.status(404).json({ error: 'Candidat introuvable' });
+    if (!cand.booking) return res.status(404).json({ error: 'Aucune invitation active' });
+    if (cand.booking.token !== bk) return res.status(403).json({ error: 'Lien invalide' });
+    if (cand.booking.status === 'booked' && cand.booking.picked) {
+      return res.status(409).json({ error: 'Un créneau a déjà été réservé', picked: cand.booking.picked });
+    }
+    const valid = (cand.booking.slots || []).some(s => s.dt === picked.dt);
+    if (!valid) return res.status(400).json({ error: 'Créneau non proposé' });
+    if (new Date(picked.dt).getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'Créneau expiré, choisissez-en un autre' });
+    }
+    cand.booking.status        = 'booked';
+    cand.booking.picked        = { dateStr: picked.dateStr, h: picked.h, dt: picked.dt, label: picked.label || '' };
+    cand.booking.booked_at     = new Date().toISOString();
+    cand.booking._agenda_added = false;
+    cand.booking_notif_seen    = false;
+    await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', rowId);
+    return res.status(200).json({ success: true, picked: cand.booking.picked, recruiter: cand.booking.recruiter || null });
+  } catch (e) {
+    console.error('book_slot error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FRANCE TRAVAIL — vérification + publication (fusionné depuis post-job/verify-offer)
+// ═══════════════════════════════════════════════════════════════════
+async function handleVerifyOffer(req, res) {
+  const { post } = req.body || {};
+  if (!post?.title || !post?.body) return res.status(400).json({ error: 'post.title et post.body requis' });
+  const { verifyOffer, localLegalCheck } = require('./_lib/france-travail.js');
+  try {
+    const result = await verifyOffer(post);
+    return res.status(200).json(result);
+  } catch (err) {
+    const local = localLegalCheck(post);
+    return res.status(200).json({ ...local, fallback: true, fallbackReason: err.message });
+  }
+}
+
+async function handlePostJob(req, res) {
+  const { board, post, skipJcmo } = req.body || {};
+  if (!board) return res.status(400).json({ error: 'board requis' });
+  if (!post?.title || !post?.body) return res.status(400).json({ error: 'post.title et post.body requis' });
+  if (board !== 'France Travail') {
+    return res.status(400).json({ error: `Publication automatique non disponible pour "${board}". Utilisez le lien direct.` });
+  }
+  if (!process.env.FRANCE_TRAVAIL_CLIENT_ID || !process.env.FRANCE_TRAVAIL_CLIENT_SECRET) {
+    return res.status(500).json({ error: 'FRANCE_TRAVAIL_CLIENT_ID / SECRET manquants dans Vercel → Environment Variables' });
+  }
+  const { postToFranceTravail, verifyOffer, localLegalCheck } = require('./_lib/france-travail.js');
+  try {
+    if (!skipJcmo) {
+      let jcmo;
+      try { jcmo = await verifyOffer(post); }
+      catch (e) { jcmo = localLegalCheck(post); }
+      const blockingIssues = (jcmo.issues || []).filter(i => i.startsWith('⚠'));
+      if (blockingIssues.length > 0) {
+        return res.status(422).json({ error: 'Annonce non conforme — corrigez avant publication', issues: jcmo.issues, source: jcmo.source });
+      }
+    }
+    const result = await postToFranceTravail(post);
+    return res.status(200).json({
+      reference: result.reference, url: result.url, message: result.message,
+      board: 'France Travail', publishedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('post_job error:', err);
+    return res.status(500).json({ error: err.message || 'Erreur publication France Travail' });
+  }
 }
