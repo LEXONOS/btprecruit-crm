@@ -56,7 +56,7 @@
  </div>
  <span id="tz-diff" style="font-size:9px;color:var(--mu)"></span>
 </div>
-<div id="sync-ind" style="font-size:10px;color:var(--mu2);cursor:default;margin-left:8px;white-space:nowrap" title="Statut synchronisation cloud">· Local</div>
+<div id="sync-ind" onclick="openConnexion()" style="font-size:10px;color:var(--mu2);cursor:pointer;margin-left:8px;white-space:nowrap;padding:4px 10px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;transition:all .15s;user-select:none" title="Connexion cloud" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--bd2)'">○ Connexion</div>
  <!-- User badge -->
  <div id="user-badge" onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:7px;margin-left:10px;padding:4px 10px 4px 6px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;cursor:pointer;transition:all .15s;flex-shrink:0;user-select:none" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd2)'">
   <div id="user-avatar" style="width:22px;height:22px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0a0a08;flex-shrink:0;font-family:'Syne',sans-serif">?</div>
