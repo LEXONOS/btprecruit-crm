@@ -80,7 +80,28 @@ function buildHtml(text, subject) {
     .replace(/>/g, '&gt;');
 
   // Markdown simplifié :
-  // [Texte ->(url) → bouton CTA doré
+  // [Texte](url) (markdown standard) → bouton CTA doré
+  html = html.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+    (_, label, url) => `</p>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${url}" style="
+          display:inline-block;
+          background:#C9891A;
+          color:#ffffff;
+          font-family:Arial,sans-serif;
+          font-size:15px;
+          font-weight:700;
+          text-decoration:none;
+          padding:14px 32px;
+          border-radius:6px;
+          letter-spacing:.3px;
+        ">${label} →</a>
+      </div>
+      <p style="margin:0">`
+  );
+
+  // [Texte ->(url) → bouton CTA doré (ancien format)
   html = html.replace(
     /\[([^\]]+)-&gt;\(([^)]+)\)/g,
     (_, label, url) => `</p>
