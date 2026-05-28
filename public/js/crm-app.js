@@ -92,7 +92,7 @@ function computeUserStats(userId){
     prospectsCalledToday: (DB.companies.filter(c=>c.type==='prospect'&&c.assigned_to===us&&c.timeline&&c.timeline[0]&&c.timeline[0].date&&c.timeline[0].date.startsWith(today))).length,
     candidatsTotal: DB.candidates.filter(c=>c.assigned_to===us).length,
     placed: DB.candidates.filter(c=>c.assigned_to===us&&c.status==='placed').length,
-    agendaToday: DB.agenda.filter(a=>!a.done&&a.date===today&&a.assigned_to===us).length,
+    agendaToday: DB.agenda.filter(a=>!a.done&&isToday(a.date)).length,
   };
 }
 
@@ -440,7 +440,7 @@ function _proposeAgendaItem({type='task',title='',notes='',cand_id=null,co_id=nu
 function _addProposedItem(){
   const p=window._proposedItem;if(!p)return;
   document.getElementById('_agenda-propose-mo')?.remove();
-  DB.agenda.push({id:uid(),type:p.type,title:p.title,date:new Date(p.date).toISOString(),time:p.time,cand_id:p.cand_id||null,comp_id:p.co_id||null,notes:p.notes||'',done:false,created:now_()});
+  DB.agenda.push({id:uid(),type:p.type,title:p.title,date:localDateStr(new Date(p.date)),time:p.time,cand_id:p.cand_id||null,comp_id:p.co_id||null,notes:p.notes||'',done:false,created:now_()});
   save();badges();
   toast(`📅 Agenda : ${p.title}`,'s');
   window._proposedItem=null;
@@ -1936,7 +1936,7 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
  id:uid(),
  type:'visio',
  title:`Entretien visio — ${c.name}`,
- date:new Date(dateStr).toISOString(),
+ date:localDateStr(new Date(dateStr)),
  time:`${h}:00`,
  cand_id:c.id,
  comp_id:null,
@@ -3201,7 +3201,7 @@ function renderAgDay(el,dateStr,showDone){
  const items=DB.agenda.filter(a=>{
  if(!showDone&&a.done)return false;
  if(!a.date)return false;
- return a.date===dateStr||new Date(a.date+'T12:00:00').toDateString()===new Date(dateStr+'T12:00:00').toDateString();
+ return (a.date||'').slice(0,10)===dateStr;
  });
  const noTime=items.filter(a=>!a.time);
  const withTime=items.filter(a=>a.time);
@@ -3295,7 +3295,7 @@ function renderAgWeek(el,dateStr,showDone){
  const evts=DB.agenda.filter(a=>{
  if(!showDone&&a.done)return false;
  if(!a.date||!a.time)return false;
- return a.date===ds&&a.time.startsWith(h);
+ return (a.date||'').slice(0,10)===ds&&(a.time||'').startsWith(h);
  });
  html+=`<div class="wk-cell ${isToday?'today-col':''} ${isNow?'now-hour':''}" 
  onclick="openAgForm(null,null,null,'${ds}','${h}:00')" 
@@ -3317,7 +3317,7 @@ function renderAgWeek(el,dateStr,showDone){
  html+=`<div class="wk-time" style="font-size:9px;color:var(--ac4);border-top:1px solid var(--bd)">All-day</div>`;
  days.forEach(d=>{
  const ds=localDateStr(d);
- const evts=allDay.filter(a=>a.date===ds);
+ const evts=allDay.filter(a=>(a.date||'').slice(0,10)===ds);
  html+=`<div class="wk-cell" onclick="openAgForm(null,null,null,'${ds}')" style="cursor:pointer">
  ${evts.map(a=>`<div class="wk-evt ${a.type}" onclick="event.stopPropagation();openAgPanel('${a.id}')">${esc(a.title)}</div>`).join('')}
  </div>`;
@@ -3350,7 +3350,7 @@ function renderAgMonth(el,dateStr,showDone){
  const isPast=cur<new Date(today+'T12:00:00');
  const evts=DB.agenda.filter(a=>{
  if(!showDone&&a.done)return false;
- return a.date===curStr;
+ return (a.date||'').slice(0,10)===curStr;
  }).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
  const maxShow=3;
  html+=`<div class="mo-day ${isToday?'today':''} ${isPast&&!isToday?'past':''}" 
@@ -4707,7 +4707,7 @@ async function sendFromAIMatch(candId) {
    if(cand.status!=='placed') { cand.status='presented'; cand.updated=now_(); }
    addTimeline(co.id,'profile_sent','Profil envoyé : '+cand.name+' (via IA Match)'+(need?' → '+need.title:''),null);
    addTimeline(cand.id||candId,'profile_sent','Profil envoyé à '+co.name+(need?' → '+need.title:''),null);
-   DB.agenda.push({id:uid(),type:'task',title:'Rappeler '+co.name+' — réception CV '+cand.name,date:new Date(now+3*86400000).toISOString(),time:'09:00',cand_id:candId,comp_id:coId,_profile_followup:true,done:false,created:now_()});
+   DB.agenda.push({id:uid(),type:'task',title:'Rappeler '+co.name+' — réception CV '+cand.name,date:localDateStr(new Date(now+3*86400000)),time:'09:00',cand_id:candId,comp_id:coId,_profile_followup:true,done:false,created:now_()});
   }
  }
  save(); rCands(); badges();
