@@ -1531,7 +1531,7 @@ async function loadSuperviseurRequests() {
   try {
     const { data: demandes, error } = await sb
       .from('demandes_acces')
-      .select('id, prenom, nom, email, created_at')
+      .select('id, prenom, nom, created_at')
       .eq('statut', 'en_attente')
       .order('created_at', { ascending: true });
 
@@ -1573,7 +1573,6 @@ async function loadSuperviseurRequests() {
             <div class="sv-req-info">
               <div class="sv-req-name">${d.prenom || ''} ${d.nom || ''}</div>
               <div class="sv-req-time">Demande envoyée ${when}</div>
-              ${d.email ? `<div class="sv-req-email">${d.email}</div>` : ''}
             </div>
           </div>
           <div class="sv-req-actions">
