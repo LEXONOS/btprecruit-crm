@@ -79,8 +79,38 @@ function currentUserId(){return(window.CURRENT_USER||{}).id||'louis';}
 function currentUserName(){return(window.CURRENT_USER||{}).name||'Louis';}
 function isAdmin(){return(window.CURRENT_USER||{}).role==='admin';}
 
-// Taguer une entité avec l'utilisateur courant
-function tagUser(obj){obj.assigned_to=currentUserId();return obj;}
+// ── Identité stable ──────────────────────────────────────
+// currentUserId() renvoie l'UUID Supabase (id de session). Pour l'attribution
+// lisible et les quelques tests par personne, on dérive un "slug" stable à
+// partir du prénom : "Louis Renault" -> "louis", "Corentin Dupont" -> "corentin".
+// Robuste pour une petite équipe et dégrade proprement si un 3e arrive.
+function userSlug(name){
+  const n=(name!=null?name:currentUserName())||'';
+  return n.trim().split(/\s+/)[0].toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // sans accents
+    .replace(/[^a-z0-9]/g,'') || 'user';
+}
+// Vrai si l'utilisateur connecté est le superviseur (rôle, pas le prénom)
+function isSuperviseur(){return(window.CURRENT_USER||{}).role==='superviseur';}
+
+// Palette d'attribution : couleur stable par auteur (slug)
+function authorColor(slug){
+  const map={louis:'var(--ac4)',corentin:'var(--ac5)'};
+  if(map[slug])return map[slug];
+  // fallback déterministe pour tout autre auteur
+  const pal=['var(--ac4)','var(--ac5)','var(--purple)','var(--orange)','var(--blue)'];
+  let h=0;for(const c of (slug||''))h=(h*31+c.charCodeAt(0))>>>0;
+  return pal[h%pal.length];
+}
+
+// Taguer une entité avec l'utilisateur courant (UUID + slug + nom lisible)
+function tagUser(obj){
+  obj.assigned_to=currentUserId();
+  obj.by=obj.by||currentUserId();
+  obj.by_slug=userSlug();
+  obj.by_name=obj.by_name||currentUserName();
+  return obj;
+}
 
 // Stats d'activité par utilisateur (pour reporting)
 function computeUserStats(userId){
@@ -103,33 +133,86 @@ let UI={view:'dash',ptype:null,pid:null,ptab:0,cands_tab:'trier',agView:'week',a
 // STORAGE — localStorage (cache) + Supabase (cloud sync)
 // ═══════════════════════════════════════════════════════
 
-// ── Config helpers ───────────────────────────────────────
-// Per-user settings key helper
-function uKey(k){return k+'_'+(currentUserId()||'louis');}
-function getSupabaseUrl(){return localStorage.getItem(uKey('btp_sb_url'))||localStorage.getItem('btp_sb_url')||'';}
-function getSupabaseKey(){return localStorage.getItem(uKey('btp_sb_key'))||localStorage.getItem('btp_sb_key')||'';}
-function setSupabaseUrl(v){localStorage.setItem(uKey('btp_sb_url'),v);}
-function setSupabaseKey(v){localStorage.setItem(uKey('btp_sb_key'),v);}
+// ── Modèle "agence" ──────────────────────────────────────
+// Base PARTAGÉE : un seul espace pour Louis + Corentin.
+//   crm_data id=0 → config d'agence partagée (clé Anthropic, taux, objectif CA)
+//   crm_data id=1 → données d'agence partagées (candidats, mandats, agenda…)
+// L'attribution "qui fait quoi" vit dans le JSON (by / by_name sur chaque fiche).
+const AGENCY_DATA_ROW = 1;   // une seule ligne de données, partagée
+const AGENCY_CFG_ROW  = 0;   // une seule ligne de config, partagée
 
-// ── Supabase client (created lazily) ─────────────────────
+// Projet Supabase canonique de Novalem (le même que hub.html / index.html, où
+// tourne déjà l'auth). C'est la source de vérité — pas besoin que Corentin
+// configure quoi que ce soit.
+const NOV_SB_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
+const NOV_SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
+
+// ── Config helpers ───────────────────────────────────────
+// uKey = clés localStorage PERSO (préfixées par utilisateur). On ne garde
+// le préfixe QUE pour le perso (nom, téléphone, thème). Tout le reste est partagé.
+function uKey(k){return k+'_'+(currentUserId()||'louis');}
+
+// Supabase URL/clé : on pointe TOUJOURS sur le projet Novalem canonique.
+// (Les anciens champs localStorage btp_sb_url/btp_sb_key deviennent inutiles ;
+//  on les lit encore en dernier recours pour ne rien casser sur d'anciens postes.)
+function getSupabaseUrl(){return NOV_SB_URL||localStorage.getItem(uKey('btp_sb_url'))||localStorage.getItem('btp_sb_url')||'';}
+function getSupabaseKey(){return NOV_SB_ANON||localStorage.getItem(uKey('btp_sb_key'))||localStorage.getItem('btp_sb_key')||'';}
+function setSupabaseUrl(v){if(v)localStorage.setItem(uKey('btp_sb_url'),v);}
+function setSupabaseKey(v){if(v)localStorage.setItem(uKey('btp_sb_key'),v);}
+
+// ── Config d'agence partagée (crm_data id=0) ─────────────
+// Chargée une fois au démarrage (loadSharedConfig). Les getters lisent ce cache
+// d'abord, puis retombent sur localStorage si le cloud n'a pas encore répondu.
+let NOVCFG = null; // { anthropic_key, taux_hon, obj_ca }
+function cfgGet(key, lsKey, def){
+  if(NOVCFG && NOVCFG[key]!=null && NOVCFG[key]!=='') return NOVCFG[key];
+  if(lsKey){const v=localStorage.getItem(uKey(lsKey))||localStorage.getItem(lsKey); if(v!=null&&v!=='') return v;}
+  return def;
+}
+
+// ── Supabase client ──────────────────────────────────────
+// Un seul client, sur le projet canonique. Plus de client par-utilisateur.
 let _sbClient=null;
-let _sbClientUser=null;
 function getSB(){
- const url=getSupabaseUrl();
- const key=getSupabaseKey();
- if(!url||!key)return null;
  try{
- if(!_sbClient||_sbClient._url!==url){
- _sbClient=window.supabase.createClient(url,key);
- _sbClient._url=url;
+ if(!_sbClient){
+ _sbClient=window.supabase.createClient(NOV_SB_URL,NOV_SB_ANON);
+ _sbClient._url=NOV_SB_URL;
  }
  return _sbClient;
  }catch(e){return null;}
 }
 
-// ── localStorage save (synchronous — always instant) ─────
+// ── Chargement de la config partagée (au démarrage) ──────
+async function loadSharedConfig(){
+  const sb=getSB(); if(!sb)return;
+  try{
+    const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_CFG_ROW).maybeSingle();
+    if(error)throw error;
+    if(data&&data.data){
+      NOVCFG = typeof data.data==='string' ? JSON.parse(data.data) : data.data;
+    }else{
+      NOVCFG = {anthropic_key:'',taux_hon:'18',obj_ca:'10000'};
+    }
+  }catch(e){console.warn('loadSharedConfig:',e);}
+}
+
+// ── Sauvegarde de la config partagée (depuis les Réglages) ─
+async function saveSharedConfig(patch){
+  NOVCFG = Object.assign({anthropic_key:'',taux_hon:'18',obj_ca:'10000'}, NOVCFG||{}, patch||{});
+  const sb=getSB(); if(!sb)return;
+  try{
+    await sb.from('crm_data').upsert(
+      {id:AGENCY_CFG_ROW,data:JSON.stringify(NOVCFG),updated_at:new Date().toISOString()},
+      {onConflict:'id'}
+    );
+  }catch(e){console.warn('saveSharedConfig:',e);}
+}
+
+// ── localStorage save (cache local — toujours instantané) ─
+// Cache partagé sous une clé unique (plus de cache par-utilisateur).
 function saveLocal(){
- try{localStorage.setItem('btpcrm5_'+(currentUserId()||'louis'),JSON.stringify(DB));}catch(e){}
+ try{localStorage.setItem('btpcrm5_agency',JSON.stringify(DB));}catch(e){}
 }
 
 // ── Supabase sync (async background — never blocks UI) ────
@@ -142,8 +225,7 @@ function syncToSupabase(){
   if(!sb)return;
   try{
     const payload=JSON.stringify(DB);
-    const userId=(currentUserId()==='corentin'?2:1);
-    const {error}=await sb.from('crm_data').upsert({id:userId,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
+    const {error}=await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
     if(error)throw error;
     const ind=document.getElementById('sync-ind');
     if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='· Cloud ✓';ind.style.color='var(--green)';}
@@ -396,7 +478,8 @@ function _tickClocks(){
   if(diffEl){const d=_getTimezoneOffsetFR();diffEl.textContent=`+${d}h`;diffEl.title=`France = Gwada +${d}h`;}
 }
 function _updateAgTz(){
-  if(currentUserId()!=='louis')return;
+  // Affichage fuseau France/Gwada réservé au superviseur (Louis, en Guadeloupe)
+  if(!isSuperviseur())return;
   const sel=document.getElementById('af-h');
   const frEl=document.getElementById('ag-tz-fr');
   const gwEl=document.getElementById('ag-tz-gw');
@@ -486,11 +569,11 @@ function save(){
  syncToSupabase();
 }
 
-// ── load() = Supabase si configuré, sinon localStorage ───
+// ── load() = Supabase (projet canonique) + cache localStorage ───
 async function load(){
- // 1. Toujours charger localStorage d'abord (instantané)
+ // 1. Toujours charger le cache local d'abord (instantané)
  try{
- const local=JSON.parse(localStorage.getItem('btpcrm5_'+(currentUserId()||'louis')));
+ const local=JSON.parse(localStorage.getItem('btpcrm5_agency'));
  if(local&&local.candidates)DB=local;
  // Sinon : DB reste vierge (pas de seed). Les données arrivent à la connexion cloud.
  }catch(e){/* DB vierge */}
@@ -498,13 +581,15 @@ async function load(){
  // Mettre à jour l'indicateur de connexion
  if(typeof updateConnIndicator==='function')updateConnIndicator();
 
- // 2. Si Supabase configuré, tenter de charger depuis le cloud
+ // 2. Charger la config d'agence partagée (clé Anthropic, taux, objectif CA)
+ await loadSharedConfig();
+
+ // 3. Charger les données d'agence partagées depuis le cloud
  const sb=getSB();
- if(!sb)return; // Pas configuré — localStorage seul
+ if(!sb)return; // Pas de client — cache local seul
 
  try{
- const userId=(currentUserId()==='corentin'?2:1);
-    const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',userId).maybeSingle();
+    const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',AGENCY_DATA_ROW).maybeSingle();
  if(error)throw error;
  if(data?.data){
  let cloudDB;
@@ -518,8 +603,8 @@ async function load(){
  if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données cloud chargées — '+new Date().toLocaleTimeString('fr-FR');}
  }
  } else {
- // Première connexion Supabase — uploader les données locales
- await sb.from('crm_data').upsert({id:(currentUserId()==='corentin'?2:1),data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
+ // Première connexion — uploader les données locales vers la ligne partagée
+ await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
  const ind=document.getElementById('sync-ind');
  if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données initiales envoyées vers le cloud';}
  }
@@ -539,7 +624,7 @@ const ago=(n)=>new Date(Date.now()-n*86400000).toISOString();
 const inDays=(n)=>new Date(Date.now()+n*86400000).toISOString();
 const fD=(iso)=>{if(!iso)return'—';return new Date(iso).toLocaleDateString('fr-FR');};
 const fM=(n)=>{if(!n&&n!==0)return'—';return Number(n).toLocaleString('fr-FR')+'€';};
-const honor=(s)=>{const taux=Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18)/100;return s?fM(Math.round(Number(s)*taux)):'—';};
+const honor=(s)=>{const taux=Number(getTauxHon())/100;return s?fM(Math.round(Number(s)*taux)):'—';};
 const esc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 // Format phone: 0658212090 → 06 58 21 20 90
 const fPhone=(n)=>{if(!n)return'—';const d=String(n).replace(/\D/g,'');if(d.length===10)return d.match(/.{2}/g).join('\u202f');if(d.length===9)return d.match(/.{2}/g).join('\u202f');return String(n);};
@@ -1822,7 +1907,7 @@ function renderCalMo(candId){
  });
  // Slots
  WEEK_HOURS.forEach(h=>{
- const isLouis=currentUserId()==='louis';
+ const isLouis=isSuperviseur();
     const gwH=isLouis?frToGwada(h):null;
     gridHtml+=`<div class="cal-time" style="flex-direction:column;gap:1px;align-items:center">
       <span style="font-size:11px;font-weight:700">${h}h</span>
@@ -2411,7 +2496,7 @@ function addTimeline(coId, type, note, extra){
  c.timeline=c.timeline||[];
  const uid_curr=currentUserId();
  const uname_curr=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||currentUserName();
- c.timeline.unshift({id:uid(),date:now_(),type,note:note||'',extra:extra||null,by:uid_curr,byName:uname_curr});
+ c.timeline.unshift({id:uid(),date:now_(),type,note:note||'',extra:extra||null,by:uid_curr,byName:uname_curr,by_slug:userSlug()});
  c.updated=now_();
  save();
 }
@@ -2431,7 +2516,7 @@ function renderTimeline(coId){
  <div style="flex:1;min-width:0">
  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
  <span style="font-size:10px;font-weight:600;color:${colors[e.type]||'var(--mu)'}">${({call:'Appel',email:'Email',note:'Note',besoin:'Besoin créé',status:'Statut',nrp:'NRP',nobiz:'Pas de besoin',refused:'Refus cabinet',callback:'À rappeler',accept_cv:'Accepte CV',ko_email:'Email KO envoyé',profile_sent:'Profil envoyé'})[e.type]||e.type}</span>
- ${e.by?`<span style="font-size:9px;padding:1px 6px;border-radius:10px;font-weight:700;background:${e.by==='louis'?'rgba(200,224,64,.15)':'rgba(74,130,224,.15)'};color:${e.by==='louis'?'var(--ac4)':'var(--ac5)'}">${e.byName||e.by}</span>`:''}
+ ${e.by?(()=>{const _ac=authorColor(e.by_slug||userSlug(e.byName||e.by));return `<span style="font-size:9px;padding:1px 6px;border-radius:10px;font-weight:700;background:color-mix(in srgb, ${_ac} 16%, transparent);color:${_ac}">${e.byName||e.by}</span>`;})():''}
  <span style="font-size:9px;color:var(--mu2);margin-left:auto">${fD(e.date)} ${e.date?new Date(e.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</span>
  </div>
  ${e.note?`<div style="font-size:11px;color:var(--mu);line-height:1.5;white-space:pre-wrap">${esc(e.note)}</div>`:''}
@@ -4034,7 +4119,7 @@ function setCS(id,st){
  </div>
  <div class="fg">
  <div class="fgrp"><span class="lbl">Salaire brut annuel (€)</span><input id="inv-sal" type="number" value="${c.salary||''}" placeholder="45000"></div>
- <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18}" step="0.5"></div>
+ <div class="fgrp"><span class="lbl">Taux honoraires (%)</span><input id="inv-taux" type="number" value="${getTauxHon()}" step="0.5"></div>
  </div>
  <div id="inv-preview" style="padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:3px;font-size:13px;text-align:center;margin-top:4px">
  <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--ac)">—</span><br>
@@ -5083,8 +5168,11 @@ function seed(){
 // ═══════════════════════════════════════════════════════
 // SETTINGS & API CONFIG
 // ═══════════════════════════════════════════════════════
-function getApiKey(){return localStorage.getItem(uKey('btp_anthropic_key'))||localStorage.getItem('btp_anthropic_key')||'';}
-function setApiKey(k){localStorage.setItem(uKey('btp_anthropic_key'),k);}
+function getApiKey(){return cfgGet('anthropic_key','btp_anthropic_key','');}
+function setApiKey(k){localStorage.setItem(uKey('btp_anthropic_key'),k);/* miroir local */saveSharedConfig({anthropic_key:k});}
+// Taux honoraires (%) et objectif CA : config d'agence partagée
+function getTauxHon(){return cfgGet('taux_hon','btp_taux_hon','18');}
+function getObjCA(){return cfgGet('obj_ca','btp_obj_ca','10000');}
 
 function openSettings(){
  const apiKey=getApiKey();
@@ -5096,9 +5184,9 @@ function openSettings(){
  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const userEmail=localStorage.getItem('btp_user_email')||'';
  // Objectif CA
- const objCA=localStorage.getItem('btp_obj_ca')||'10000';
+ const objCA=getObjCA();
  // Taux honoraires
- const tauxHon=localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||'18';
+ const tauxHon=getTauxHon();
  // Dossier URL
  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
 
@@ -5176,15 +5264,13 @@ function openSettings(){
  <!-- SUPABASE -->
  <div style="margin-bottom:18px;padding:12px 14px;background:var(--s3);border:1px solid var(--bd);border-radius:3px">
  <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ac2)">· Synchronisation Cloud (Supabase)</div>
- <div class="fg">
- <div class="fgrp ff"><span class="lbl">Project URL</span>
- <input id="set-sburl" value="${esc(sbUrl)}" placeholder="https://xxxx.supabase.co" autocomplete="off">
+ <div style="font-size:11px;color:var(--ac2);display:flex;align-items:center;gap:6px">
+   <span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block"></span>
+   Connecté à l'espace partagé Novalem
  </div>
- <div class="fgrp ff"><span class="lbl">Anon key</span>
- <input id="set-sbkey" type="password" value="${esc(sbKey)}" placeholder="eyJ…" autocomplete="off">
+ <div style="font-size:10px;color:var(--mu);margin-top:6px;line-height:1.5">
+   Louis et Corentin partagent automatiquement la même base et la même config (clé Anthropic, taux, objectif). Rien à saisir ici.
  </div>
- </div>
- ${sbOk?`<div style="font-size:10px;color:var(--ac2);margin-top:4px">Sync cloud actif</div>`:`<div style="font-size:10px;color:var(--mu2);margin-top:4px">Sans config, données locales uniquement</div>`}
  </div>
 
  <!-- EXPORT -->
@@ -5237,8 +5323,7 @@ async function connectCloud(){
  const sb=getSB();
  if(!sb){if(btn){btn.disabled=false;btn.textContent='Connecter';}toast('Connexion impossible — vérifiez les identifiants','e');return;}
  try{
-  const userId=(currentUserId()==='corentin'?2:1);
-  const {data,error}=await sb.from('crm_data').select('data').eq('id',userId).maybeSingle();
+  const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
   if(error)throw error;
   if(data?.data){
    const cloudDB=typeof data.data==='string'?JSON.parse(data.data):data.data;
@@ -5274,7 +5359,7 @@ function updateConnIndicator(){
 }
 
 function saveSettings(){
- // Profil utilisateur
+ // Profil utilisateur (PERSONNEL — chacun le sien, sert à signer ses mails)
  const nom=(document.getElementById('set-nom')?.value||'').trim();
  const tel=(document.getElementById('set-tel')?.value||'').trim();
  const userEmail=(document.getElementById('set-email')?.value||'').trim();
@@ -5282,38 +5367,30 @@ function saveSettings(){
  localStorage.setItem(uKey('btp_user_tel'), tel);
  localStorage.setItem('btp_user_email', userEmail);
 
- // Business
+ // Business (PARTAGÉ — config d'agence, vu par Louis ET Corentin)
  const objCA=(document.getElementById('set-obj-ca')?.value||'10000').trim();
  const taux=(document.getElementById('set-taux')?.value||'18').trim();
  const dossierUrl=(document.getElementById('set-dossier')?.value||'').trim();
- localStorage.setItem('btp_obj_ca', objCA);
- localStorage.setItem(uKey('btp_taux_hon'), taux);
+ localStorage.setItem('btp_obj_ca', objCA);       // miroir local
+ localStorage.setItem(uKey('btp_taux_hon'), taux);// miroir local
  localStorage.setItem('btp_dossier_url', dossierUrl);
 
- // API key
+ // API key (PARTAGÉ)
  const k=document.getElementById('set-apikey')?.value.trim()||'';
- setApiKey(k);
+ localStorage.setItem(uKey('btp_anthropic_key'),k); // miroir local
 
- // Supabase
- const sbUrl=(document.getElementById('set-sburl')?.value||'').trim().replace(/\/$/,'');
- const sbKey=(document.getElementById('set-sbkey')?.value||'').trim();
- setSupabaseUrl(sbUrl);
- setSupabaseKey(sbKey);
+ // Pousser la config partagée vers le cloud (clé Anthropic + taux + objectif CA)
+ saveSharedConfig({anthropic_key:k, taux_hon:taux, obj_ca:objCA});
+
  _sbClient=null;
-
  closeMo();
 
- if(sbUrl&&sbKey){
+ // La base est toujours connectée au projet canonique → on resynchronise.
  const ind=document.getElementById('sync-ind');
  if(ind){ind.textContent='· Connexion…';ind.style.color='var(--ac4)';}
  clearTimeout(_syncTimer);_syncTimer=null;
  syncToSupabase();
- toast('Paramètres enregistrés — sync Supabase en cours…','i');
- } else {
- const ind=document.getElementById('sync-ind');
- if(ind){ind.textContent='· Local';ind.style.color='var(--mu2)';}
- toast('Paramètres enregistrés ✓','s');
- }
+ toast('Paramètres enregistrés — config partagée mise à jour ✓','s');
 }
 
 function exportData(){
@@ -6968,7 +7045,7 @@ function renderRep(){
  ];
 
  // ── Objectif CA mensuel ────────────────────────────────
- const CAObjectif=Number(localStorage.getItem('btp_obj_ca')||10000);
+ const CAObjectif=Number(getObjCA());
  const caMonth=months[months.length-1]?.ca||0;
  const caPct=Math.min(Math.round(caMonth/CAObjectif*100),100);
 
@@ -7213,10 +7290,9 @@ async function gateConnect(){
  // Passer en mode chargement
  showConnGate('loading');
  try{
-  const userId=(currentUserId()==='corentin'?2:1);
   const cgStatus=()=>document.getElementById('cg-status');
   if(cgStatus())cgStatus().textContent='Récupération de vos données…';
-  const {data,error}=await sb.from('crm_data').select('data').eq('id',userId).maybeSingle();
+  const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
   if(error)throw error;
   if(data?.data){
    const cloudDB=typeof data.data==='string'?JSON.parse(data.data):data.data;
@@ -7732,7 +7808,7 @@ function computeHonoraireRate(co, isCadre, expYears){
  const ct=co&&co._contract_draft;
  // Pas de contrat → taux par défaut configuré
  if(!ct){
-  return{rate:Number(localStorage.getItem(uKey('btp_taux_hon'))||localStorage.getItem('btp_taux_hon')||18),source:'défaut',tranche:''};
+  return{rate:Number(getTauxHon()),source:'défaut',tranche:''};
  }
  // Tranche d'expérience : <5 ans / 5-15 ans / >15 ans
  let tIdx,tLabel;
@@ -7742,7 +7818,7 @@ function computeHonoraireRate(co, isCadre, expYears){
  const key=(isCadre?'c':'nc')+tIdx;
  const rate=Number(ct[key]);
  if(!rate||isNaN(rate)){
-  return{rate:Number(localStorage.getItem(uKey('btp_taux_hon'))||18),source:'défaut',tranche:tLabel};
+  return{rate:Number(getTauxHon()),source:'défaut',tranche:tLabel};
  }
  return{
   rate,
