@@ -147,17 +147,25 @@ textarea.inp{resize:vertical;min-height:70px}
 
 /* ── RESPONSIVE — remplissable au téléphone ── */
 @media (max-width:560px){
+ body{padding:14px 10px}
+ .wrap{max-width:100%}
+ .hd{padding:18px 18px}
+ .progress-bar{padding:12px 16px}
  .frow{grid-template-columns:1fr !important;gap:0 !important}
+ .frow-3{grid-template-columns:1fr !important;gap:0 !important}
  .check-grid{grid-template-columns:1fr !important}
  .screen{padding:18px 14px !important}
  .sec-title{font-size:17px !important}
  .bk-slots{gap:6px}
  .bk-slot{flex:1 1 calc(50% - 6px);text-align:center}
  .radio-group{flex-direction:column}
- .radio-btn{width:100%}
- .inp,.btn-primary,.btn-secondary{font-size:16px} /* >=16px évite le zoom auto iOS */
+ .radio-btn{width:100%;text-align:center}
+ .inp,.btn-primary,.btn-secondary,select.inp,textarea.inp{font-size:16px} /* >=16px évite le zoom auto iOS */
  .btn-nav{flex-direction:column-reverse;gap:8px}
  .btn-nav button{width:100%}
+ .rgpd-block{max-height:none}
+ .sig-name{font-size:18px}
+ .pr{font-size:11px}
 }
 </style>
 </head>
