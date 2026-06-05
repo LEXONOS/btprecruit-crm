@@ -3355,8 +3355,16 @@ function renderAgWeek(el,dateStr,showDone){
  const nowH=new Date().getHours();
  const DAYNAMES=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
- let html=`<div style="overflow:auto;height:calc(100vh - 165px)">
- <div class="wk-grid" style="grid-template-columns:44px repeat(7,1fr);min-width:600px">`;
+ // All-day (calculé en amont pour dimensionner la grille proprement)
+ const allDay=DB.agenda.filter(a=>{
+ if(!showDone&&a.done)return false;
+ return a.date&&!a.time&&days.some(d=>localDateStr(d)===a.date);
+ });
+ // Les 14 lignes d'heures se partagent la hauteur dispo → tout tient sans scroll
+ const rowTpl='auto repeat('+HOURS.length+',minmax(0,1fr))'+(allDay.length?' auto':'');
+
+ let html=`<div style="overflow-x:auto;overflow-y:hidden;height:calc(100vh - 150px)">
+ <div class="wk-grid" style="grid-template-columns:44px repeat(7,1fr);grid-template-rows:${rowTpl};min-width:600px;height:100%">`;
 
  // Header
  html+=`<div class="wk-hd" style="background:var(--s1);border-right:1px solid var(--bd)"></div>`;
@@ -3384,7 +3392,7 @@ function renderAgWeek(el,dateStr,showDone){
  });
  html+=`<div class="wk-cell ${isToday?'today-col':''} ${isNow?'now-hour':''}" 
  onclick="openAgForm(null,null,null,'${ds}','${h}:00')" 
- style="cursor:pointer;min-height:44px" 
+ style="cursor:pointer;min-height:0;overflow:hidden" 
  title="${h}h — ${DAYNAMES[di]} ${d.getDate()}">
  ${evts.map(a=>`<div class="wk-evt ${a.type} ${a.done?'done':''}" 
  onclick="event.stopPropagation();openAgPanel('${a.id}')" 
@@ -3393,11 +3401,7 @@ function renderAgWeek(el,dateStr,showDone){
  });
  });
 
- // All-day
- const allDay=DB.agenda.filter(a=>{
- if(!showDone&&a.done)return false;
- return a.date&&!a.time&&days.some(d=>localDateStr(d)===a.date);
- });
+ // All-day (déjà calculé en amont pour la grille)
  if(allDay.length){
  html+=`<div class="wk-time" style="font-size:9px;color:var(--ac4);border-top:1px solid var(--bd)">All-day</div>`;
  days.forEach(d=>{
@@ -7387,7 +7391,7 @@ function openContractModal(coId) {
    </div>
    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px">
     <span style="font-size:10px;color:var(--mu)">14 chiffres — identifie juridiquement l'entreprise sur le contrat</span>
-    <a href="https://annuaire-entreprises.data.gouv.fr/rechercher?terme=${encodeURIComponent(co.name||'')}" target="_blank" rel="noopener"
+    <a href="https://annuaire-entreprises.data.gouv.fr/rechercher?terme=${encodeURIComponent(((co.name||'')+' '+(co.city||'')).trim())}" target="_blank" rel="noopener"
      style="font-size:10px;color:var(--ac);text-decoration:none;white-space:nowrap;font-weight:600">🔍 Chercher le SIRET ↗</a>
    </div>
   </div>
