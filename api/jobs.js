@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
       const sb = getSB();
       const { data: jobs, error } = await sb
         .from('job_postings')
-        .select('id,title,location,contract_type,category:cat,salary_display,experience,reference,description,skills,views_count,applications_count,created_at')
+        .select('id,title,location,contract_type,cat,salary_display,experience,reference,description,skills,views_count,applications_count,created_at')
         .eq('published', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
