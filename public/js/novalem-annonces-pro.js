@@ -242,7 +242,12 @@ Si aucun problème légal, "legal" doit être un tableau vide [].`;
   // 2. BESOINS → ANNONCES (avec interrupteur public / privé par besoin)
   // ════════════════════════════════════════════════════════════════════════
   window.openNeedsToAnnonces = function () {
-    const needs = (window.DB?.needs || []).filter((n) => n.status !== 'closed' && n.status !== 'pourvu');
+    // Un besoin reste "publiable" tant qu'il n'est pas terminé. Le schéma réel
+    // des statuts (cf. openNeedForm) est : open / sent / interview / won / lost.
+    // On exclut les états terminaux (won = placé, lost = perdu) + les anciens
+    // libellés legacy (closed / pourvu) par sécurité.
+    const DONE = ['won', 'lost', 'closed', 'pourvu', 'placed'];
+    const needs = (window.DB?.needs || []).filter((n) => !DONE.includes(n.status));
     const body = needs.length
       ? needs.map((n) => {
           const pub = n.publishable !== false; // public par défaut
