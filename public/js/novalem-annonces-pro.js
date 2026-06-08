@@ -87,6 +87,33 @@
     return out.join('');
   }
 
+  // Markdown → texte propre. Le site public affiche la description en clair
+  // (retours à la ligne simples), sans interpréter le markdown. On retire donc
+  // les **gras**, on transforme "- " en "• ", et on enlève le label "Accroche"
+  // (le chapeau d'accroche n'a pas besoin de titre côté public).
+  function mdToPlain(md) {
+    if (!md) return '';
+    const lines = String(md).replace(/\r/g, '').split('\n');
+    const out = [];
+    let firstHeading = true;
+    const stripBold = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1');
+    for (let raw of lines) {
+      const ln = raw.trim();
+      const h = ln.match(/^\*\*(.+?)\*\*:?\s*$/);            // ligne entièrement en gras = titre de section
+      if (h) {
+        const title = h[1].trim();
+        if (firstHeading && /^accroche$/i.test(title)) { firstHeading = false; continue; }
+        firstHeading = false;
+        if (out.length && out[out.length - 1] !== '') out.push('');  // ligne vide avant un titre
+        out.push(title);
+        continue;
+      }
+      if (/^[-•]\s+/.test(ln)) { out.push('• ' + stripBold(ln.replace(/^[-•]\s+/, ''))); continue; }
+      out.push(stripBold(ln));
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+  }
+
   // Scan anti-discrimination côté client (garde-fou avant publication)
   const DISCRIM = [
     'jeune', 'junior dynamique', 'senior expérimenté', 'moins de', 'plus de',
@@ -521,7 +548,7 @@
       salary_display: p.salary || '',
       experience: p.experience || '',
       reference: p.reference || genRef(p),
-      description: p.body || '',          // ← version SITE anonymisée
+      description: mdToPlain(p.body || ''), // ← version SITE anonymisée, en texte propre (le site l'affiche en clair)
       skills: Array.isArray(p.skills) ? p.skills : [],
     };
     try {
