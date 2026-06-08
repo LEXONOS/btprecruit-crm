@@ -66,7 +66,13 @@ function genJitsiLink(){const id=Math.random().toString(36).slice(2,10);return`h
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let DB={candidates:[],companies:[],needs:[],agenda:[],posts:[],invoices:[],email_rules:[]};
+var DB={candidates:[],companies:[],needs:[],agenda:[],posts:[],invoices:[],email_rules:[]};
+// DB est volontairement déclaré en `var` (et non `let`) pour qu'il soit exposé
+// sur l'objet global `window`. Les modules additifs (novalem-annonces-pro.js,
+// crm-booking.js) lisent `window.DB` ; un `let` au niveau racine d'un script
+// classique reste invisible depuis `window`, ce qui faisait apparaître à tort
+// « Aucun besoin ouvert » dans la passerelle Besoins → Annonces.
+try{ window.DB = DB; }catch(_){}
 
 // ═══════════════════════════════════════════════════════
 // MULTI-USER — contexte utilisateur courant
@@ -574,7 +580,7 @@ async function load(){
  // 1. Toujours charger le cache local d'abord (instantané)
  try{
  const local=JSON.parse(localStorage.getItem('btpcrm5_agency'));
- if(local&&local.candidates)DB=local;
+ if(local&&local.candidates){DB=local;try{window.DB=DB;}catch(_){}}
  // Sinon : DB reste vierge (pas de seed). Les données arrivent à la connexion cloud.
  }catch(e){/* DB vierge */}
 
@@ -597,6 +603,7 @@ async function load(){
  catch(e){throw new Error('JSON cloud invalide');}
  if(cloudDB&&cloudDB.candidates){
  DB=cloudDB;
+ try{window.DB=DB;}catch(_){}
  saveLocal(); // Mettre à jour le cache local
  rDash();badges(); // Refresh UI avec données cloud
  const ind=document.getElementById('sync-ind');
@@ -670,6 +677,9 @@ function greetCo(co){ if(!co) return 'Madame, Monsieur'; return mailGreeting({fu
 // Format phone: 0658212090 → 06 58 21 20 90
 const fPhone=(n)=>{if(!n)return'—';const d=String(n).replace(/\D/g,'');if(d.length===10)return d.match(/.{2}/g).join('\u202f');if(d.length===9)return d.match(/.{2}/g).join('\u202f');return String(n);};
 const getCat=(id)=>BTP_CATS.find(c=>c.id===id)||BTP_CATS[0];
+// Exposé sur window : le module Annonces Pro lit `window.getCat` pour libeller
+// le secteur BTP dans le prompt IA (sinon repli silencieux sur « BTP »).
+try{ window.getCat = getCat; }catch(_){}
 const getCS=(id)=>CAND_ST.find(s=>s.id===id)||CAND_ST[0];
 const getCmpS=(id)=>COMP_ST.find(s=>s.id===id)||COMP_ST[0];
 const getNS=(id)=>[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}].find(s=>s.id===id)||{id:'open',l:'Ouvert'};
@@ -2336,27 +2346,77 @@ function renderProSub() {
  else renderProRefused(el);
 }
 
+// ── RECHERCHE / TRI PROSPECTS — état + utilitaires ─────
+// proQuery / proSortKey sont conservés au niveau module pour survivre aux
+// re-rendus complets (changement d'onglet, sauvegarde, mode sélection…).
+let proQuery = '';
+let proSortKey = 'smart';     // smart | name | city | phone | email | marge_desc | marge_asc
+let _proVisible = [];          // instantané des prospects actifs (re-calculé à chaque rendu complet)
+
+// Normalise une chaîne pour une recherche/un tri tolérants : minuscules,
+// suppression des accents (é/è/ê → e…) et de la ponctuation. Permet à
+// « reiniere » de retrouver « Les Ateliers de la Reinière ».
+function _normTxt(s) {
+ return (s == null ? '' : String(s))
+ .toLowerCase()
+ .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // accents
+ .replace(/[^a-z0-9]+/g, ' ')                         // ponctuation → espace
+ .trim();
+}
+
+// Vrai si chaque mot tapé apparaît quelque part dans les champs du prospect.
+// Recherche sur : raison sociale, ville, téléphone, email, contact, fonction.
+function _proMatch(c, q) {
+ if (!q) return true;
+ const hay = _normTxt([c.name, c.city, c.phone, c.email, c.contact, c.ctitle].filter(Boolean).join(' '));
+ const tokens = _normTxt(q).split(' ').filter(Boolean);
+ return tokens.every(t => hay.includes(t));
+}
+
+// Tri selon proSortKey. Les valeurs vides (ville/email manquants) sont
+// renvoyées en fin de liste pour les tris alphabétiques.
+function _sortPros(arr) {
+ const a = arr.slice();
+ const byText = (k) => (x, y) => {
+ const vx = _normTxt(x[k]), vy = _normTxt(y[k]);
+ if (!vx && vy) return 1;
+ if (vx && !vy) return -1;
+ return vx.localeCompare(vy, 'fr');
+ };
+ switch (proSortKey) {
+ case 'name':  a.sort(byText('name')); break;
+ case 'city':  a.sort(byText('city')); break;
+ case 'phone': a.sort(byText('phone')); break;
+ case 'email': a.sort(byText('email')); break;
+ case 'marge_asc':  a.sort((x, y) => (Number(x.marge) || 0) - (Number(y.marge) || 0)); break;
+ case 'marge_desc': a.sort((x, y) => (Number(y.marge) || 0) - (Number(x.marge) || 0)); break;
+ default: // 'smart' : à rappeler → à appeler → NRP, puis marge décroissante
+ a.sort((x, y) => {
+ const order = { callback: 0, tocall: 1, nrp: 2 };
+ const ox = order[x.status] ?? 3, oy = order[y.status] ?? 3;
+ if (ox !== oy) return ox - oy;
+ return (Number(y.marge) || 0) - (Number(x.marge) || 0);
+ });
+ }
+ return a;
+}
+
 // ── ACTIVE TAB ─────────────────────────────────────────
 function renderProActive(el) {
  const today = new Date(); today.setHours(0, 0, 0, 0);
 
- // Sort: callback today first → tocall (by marge desc) → callback future → nrp
  let pros = DB.companies.filter(c => c.type === 'prospect' && !['nobiz', 'refused'].includes(c.status));
 
- // Apply "NRP → next day" logic: if nrp and next_call_date is today or past, reset to tocall
+ // Logique « NRP → jour suivant » : si NRP et date de rappel atteinte, repasse en à appeler
  pros.forEach(c => {
  if (c.status === 'nrp' && c.next_call_date) {
  const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
  if (nd <= today) { c.status = 'tocall'; c.next_call_date = null; }
  }
- if (c.status === 'callback' && c.next_call_date) {
- const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
- // Only show on or after chosen date
- }
  });
 
- // Filter out future callbacks (not yet due)
- const visible = pros.filter(c => {
+ // Masque les rappels planifiés dans le futur (pas encore dus)
+ _proVisible = pros.filter(c => {
  if (c.status === 'callback' && c.next_call_date) {
  const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
  return nd <= today;
@@ -2364,17 +2424,7 @@ function renderProActive(el) {
  return true;
  });
 
- // Sort: (1) callback due today, (2) tocall sorted by marge desc, (3) nrp
- visible.sort((a, b) => {
- const order = { callback: 0, tocall: 1, nrp: 2 };
- const oa = order[a.status] ?? 3;
- const ob = order[b.status] ?? 3;
- if (oa !== ob) return oa - ob;
- // same status: sort by marge desc
- return (Number(b.marge) || 0) - (Number(a.marge) || 0);
- });
-
- // Count future callbacks (hidden)
+ // Compte les rappels futurs (cachés)
  const futureCallbacks = pros.filter(c => {
  if (c.status === 'callback' && c.next_call_date) {
  const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
@@ -2383,16 +2433,22 @@ function renderProActive(el) {
  return false;
  }).length;
 
- const q = (document.getElementById('pro-q') || {}).value?.toLowerCase() || '';
+ const sortOpts = [
+ { v: 'smart', l: 'Tri : pertinence' },
+ { v: 'name', l: 'Nom (A→Z)' },
+ { v: 'city', l: 'Ville (A→Z)' },
+ { v: 'phone', l: 'Téléphone' },
+ { v: 'email', l: 'Email (A→Z)' },
+ { v: 'marge_desc', l: 'Marge (décroissante)' },
+ { v: 'marge_asc', l: 'Marge (croissante)' },
+ ].map(o => `<option value="${o.v}" ${proSortKey === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
 
- const filtered = visible.filter(c => {
- if (!q) return true;
- return (c.name + ' ' + (c.city || '')).toLowerCase().includes(q);
- });
-
+ // La barre d'outils (dont le champ de recherche) n'est construite qu'une fois ;
+ // seules les lignes du tableau sont rafraîchies à la frappe → le focus est conservé.
  el.innerHTML = `
  <div class="tb" style="margin-top:14px">
- <div class="srch"><input id="pro-q" placeholder="Rechercher…" oninput="renderProSub()"></div>
+ <div class="srch"><input id="pro-q" placeholder="Rechercher (nom, ville, tél, email…)" value="${esc(proQuery)}" oninput="onProSearchInput(this)"></div>
+ <select id="pro-sort" title="Trier les prospects" onchange="onProSortChange(this.value)" style="max-width:185px;flex:0 0 auto">${sortOpts}</select>
  <button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>
  <label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importProsCsv(event)"></label>
  <button class="btn bg bsm" onclick="openBonnesBoites()" title="Trouver des entreprises BTP à fort potentiel via France Travail">Trouver via FT</button>
@@ -2400,19 +2456,55 @@ function renderProActive(el) {
  </div>
  <table class="tbl" id="pro-table">
  <thead><tr>
- <th>Raison sociale</th>
- <th>Téléphone</th>
- <th>Ville</th>
+ <th style="cursor:pointer" onclick="setProSort('name')" title="Trier par nom">Raison sociale</th>
+ <th style="cursor:pointer" onclick="setProSort('phone')" title="Trier par téléphone">Téléphone</th>
+ <th style="cursor:pointer" onclick="setProSort('email')" title="Trier par email">Email</th>
+ <th style="cursor:pointer" onclick="setProSort('city')" title="Trier par ville">Ville</th>
  <th>Statut</th>
  <th style="cursor:pointer" onclick="toggleMargeSort()">Marge ↕</th>
  <th style="width:32px"></th>
  </tr></thead>
- <tbody>
- ${filtered.length ? filtered.map(c => proRow(c)).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:24px">Aucun prospect actif</td></tr>`}
- </tbody>
+ <tbody id="pro-tbody"></tbody>
  </table>`;
 
- if (q) { const qel = document.getElementById('pro-q'); if (qel) qel.value = q; }
+ paintProRows();
+}
+
+// Rafraîchit UNIQUEMENT le corps du tableau (pas la barre d'outils) — appelé à
+// chaque frappe / changement de tri, ce qui évite de détruire le champ de
+// recherche et donc la perte de focus après une lettre.
+function paintProRows() {
+ const tb = document.getElementById('pro-tbody');
+ if (!tb) return;
+ const filtered = _sortPros(_proVisible.filter(c => _proMatch(c, proQuery)));
+ if (filtered.length) {
+ tb.innerHTML = filtered.map(c => proRow(c)).join('');
+ } else {
+ const msg = proQuery
+ ? `Aucun résultat pour « ${esc(proQuery)} »`
+ : 'Aucun prospect actif';
+ tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${msg}</td></tr>`;
+ }
+}
+
+// Saisie dans la recherche : on met à jour l'état puis on repeint les lignes.
+// On ne retouche jamais l'<input>, donc le focus et le curseur restent intacts.
+function onProSearchInput(input) {
+ proQuery = input.value || '';
+ paintProRows();
+}
+
+// Changement de tri via le menu déroulant.
+function onProSortChange(val) {
+ proSortKey = val || 'smart';
+ paintProRows();
+}
+
+// Tri via clic sur un en-tête de colonne (raccourci). Re-rend la barre pour
+// refléter la valeur sélectionnée dans le menu déroulant.
+function setProSort(key) {
+ proSortKey = key;
+ renderProSub();
 }
 
 let _proSelectMode=false;
@@ -2427,6 +2519,7 @@ function proRow(c) {
  ${chk}
  <td><strong>${esc(c.name)}</strong></td>
  <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(c.phone || '—')}</td>
+ <td style="font-size:10px;color:var(--mu);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.email || '')}">${esc(c.email || '—')}</td>
  <td>${esc(c.city || '—')}</td>
  <td><span class="pill ${st.p}">${st.l}</span>${callbackDate}</td>
  <td>${marge}</td>
@@ -2457,12 +2550,10 @@ function deleteSelectedPros(){
 );
 }
 
-let margeSortAsc = false;
+// Clic sur l'en-tête « Marge ↕ » : bascule entre tri décroissant et croissant.
+// Utilise le système de tri unifié (proSortKey) au lieu de réordonner DB.
 function toggleMargeSort() {
- margeSortAsc = !margeSortAsc;
- const pros = DB.companies.filter(c => c.type === 'prospect' && !['nobiz', 'refused'].includes(c.status));
- pros.sort((a, b) => margeSortAsc ? (Number(a.marge) || 0) - (Number(b.marge) || 0) : (Number(b.marge) || 0) - (Number(a.marge) || 0));
- DB.companies = [...pros, ...DB.companies.filter(c => !pros.includes(c))];
+ proSortKey = (proSortKey === 'marge_desc') ? 'marge_asc' : 'marge_desc';
  renderProSub();
 }
 
