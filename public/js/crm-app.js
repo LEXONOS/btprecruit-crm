@@ -626,6 +626,47 @@ const fD=(iso)=>{if(!iso)return'—';return new Date(iso).toLocaleDateString('fr
 const fM=(n)=>{if(!n&&n!==0)return'—';return Number(n).toLocaleString('fr-FR')+'€';};
 const honor=(s)=>{const taux=Number(getTauxHon())/100;return s?fM(Math.round(Number(s)*taux)):'—';};
 const esc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ═══════════════════════════════════════════════════════
+// CIVILITÉ EMAILS — "Monsieur Dupont" / "Madame Dupont"
+// Objectif : dans les mails, utiliser le NOM DE FAMILLE (pas le prénom),
+// précédé de Monsieur/Madame. Si on ne peut pas déterminer le genre de
+// façon fiable, on retombe sur "Madame, Monsieur" (toujours correct, jamais vexant).
+// ═══════════════════════════════════════════════════════
+const _NAMES_F=new Set('marie nathalie isabelle sylvie catherine francoise martine christine monique nicole sandrine valerie veronique stephanie celine julie aurelie emilie laure laura camille manon lea chloe sarah emma clara ines jade louise alice anais elodie audrey amandine marine pauline charlotte juliette justine oceane mathilde melanie caroline laetitia virginie sophie delphine carole patricia brigitte chantal jacqueline annie helene florence corinne sabrina karine severine fanny laurence agnes claire elise marion morgane jessica vanessa elsa lucie eva zoe maelys lina romane jeanne alicia maeva noemie cindy aurore gwendoline solene angelique estelle myriam samira nadia fatima leila yasmine anne agathe apolline maud lou capucine garance ambre maelle rose anna gabrielle margaux flavie lou-anne ophelie pascale dominique-f beatrice colette denise ginette odette suzanne yvette'.split(' '));
+const _NAMES_M=new Set('jean pierre michel andre philippe rene louis alain jacques bernard marcel daniel roger robert claude henri georges paul christian gerard maurice raymond guy joseph francois fernand lucien marc thierry pascal patrick laurent stephane david frederic nicolas sebastien julien olivier vincent christophe bruno eric franck cedric jerome fabrice jonathan kevin anthony alexandre maxime romain thomas antoine quentin theo hugo lucas enzo nathan ethan gabriel raphael arthur jules adam noah leo tom mathis mohamed yanis ismael ayoub bilal sofiane karim mehdi samir mickael cyril damien dimitri florian gaetan gregory loic ludovic remi sylvain teddy valentin william yann mathieu benjamin emmanuel guillaume corentin clement baptiste victor martin simon adrien aurelien xavier herve gilles denis joel fabien gilbert didier serge yves alban regis come jean-claude jean-pierre jean-luc jean-marc jean-michel hadrien gaspard hippolyte come edouard augustin matheo ilyes rayan amine walid abdel'.split(' '));
+function _firstWord(s){return String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().split(/[\s'-]+/).filter(Boolean)[0]||'';}
+// Devine le genre d'après le prénom. Renvoie 'F', 'M' ou null (incertain).
+function guessCivilite(prenom){
+  var p=_firstWord(prenom); if(!p) return null;
+  if(_NAMES_F.has(p)) return 'F';
+  if(_NAMES_M.has(p)) return 'M';
+  return null;
+}
+// Met la 1re lettre de chaque mot du nom en majuscule (Dupont, De La Tour)
+function _capName(s){return String(s||'').trim().split(/\s+/).filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');}
+// Construit la formule d'appel d'un email.
+// opts: {fullName, prenom, nom, civilite}  civilite = 'M' | 'F' | 'Mme' | 'M.' | null
+function mailGreeting(opts){
+  opts=opts||{};
+  var prenom=opts.prenom||'', nom=opts.nom||'', full=opts.fullName||'';
+  if((!prenom||!nom) && full){
+    var parts=String(full).trim().split(/\s+/).filter(Boolean);
+    if(parts.length>=2){ if(!prenom)prenom=parts[0]; if(!nom)nom=parts.slice(1).join(' '); }
+    else if(parts.length===1 && !prenom){ prenom=parts[0]; }
+  }
+  var c=opts.civilite;
+  var g=(c==='F'||c==='Mme')?'F':((c==='M'||c==='M.')?'M':null);
+  if(!g) g=guessCivilite(prenom);
+  var last=_capName(nom);
+  if(g==='F' && last) return 'Madame '+last;
+  if(g==='M' && last) return 'Monsieur '+last;
+  return 'Madame, Monsieur'; // genre indéterminé → formule de politesse neutre, sans prénom
+}
+// Raccourcis pour candidat / contact entreprise
+function greetCand(c){ if(!c) return 'Madame, Monsieur'; return mailGreeting({fullName:c.name,prenom:c.prenom,nom:c.nom,civilite:c.civilite}); }
+function greetCo(co){ if(!co) return 'Madame, Monsieur'; return mailGreeting({fullName:co.contact,prenom:co.contact_prenom,nom:co.contact_nom,civilite:co.civilite}); }
+
 // Format phone: 0658212090 → 06 58 21 20 90
 const fPhone=(n)=>{if(!n)return'—';const d=String(n).replace(/\D/g,'');if(d.length===10)return d.match(/.{2}/g).join('\u202f');if(d.length===9)return d.match(/.{2}/g).join('\u202f');return String(n);};
 const getCat=(id)=>BTP_CATS.find(c=>c.id===id)||BTP_CATS[0];
@@ -731,6 +772,14 @@ function computeAlerts(){
   if(diff<2){
    var co2=coById(ag.comp_id),ca2=cById(ag.cand_id);
    a.push({color:'var(--ac5)',msg:'&#x1F4DE; Rappeler '+(co2?co2.name:'client')+' — réception CV '+(ca2?ca2.name:''),act:"openAgPanel('"+ag.id+"')"});
+  }
+ });
+ // Contrat envoyé non signé → relance urgente à partir de J+2
+ DB.companies.forEach(function(co){
+  var ct=co._contract_draft;
+  if(ct&&ct.sent_at&&!co._contract_signed){
+   var dj=daysDiff(ct.sent_at);
+   if(dj>=2) a.push({color:'var(--ac6)',msg:'&#x26A1; Contrat non signé ('+dj+'j) : '+co.name+' — relancer la signature',act:"UI.ptab=4;openCoPanel('"+co.id+"')"});
   }
  });
  return a;
@@ -1981,7 +2030,7 @@ function proceedToEmail(candId){
  const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'[Votre nom]';
  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
- const firstN=c.name.split(' ')[0];
+ const firstN=greetCand(c);
 
  const emailBody=`Bonjour ${firstN},
 
@@ -4541,7 +4590,7 @@ async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, ke
 
  const userName = localStorage.getItem(uKey('btp_user_name'))||'Louis RENAULT';
  const userPhone = localStorage.getItem(uKey('btp_user_tel'))||'06 58 21 20 96';
- const prenom = co.contact ? co.contact.split(' ')[0] : '';
+ const prenom = greetCo(co);
 
  // Infos profil visibles
  const infoLines = [
@@ -4807,7 +4856,7 @@ async function sendFromAIMatch(candId) {
 
 function sendCV(candId){const c=cById(candId);if(!c)return;openMo('CV anonyme à envoyer',`<div class="mu_ fs11 mb8">Envoyer ce profil anonymisé aux prospects avec besoin ouvert dans la même catégorie.</div>${DB.companies.filter(co=>co.type==='prospect'&&['need','cvsent'].includes(co.status)).map(co=>`<div class="aitem" onclick="markCVSent('${candId}','${co.id}')">${esc(co.name)} <span class="mu_ fs10 ml-auto">${esc(co.city||'')}</span></div>`).join('')||'<div class="mu_ fs11">Aucun prospect avec besoin confirmé</div>'}`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function markCVSent(candId,coId){const co=coById(coId);if(!co)return;co.status='cvsent';co.updated=now_();save();closeMo();toast(`CV envoyé à ${co.name} ✓`,'s');}
-function emailTpl(id){const c=cById(id);if(!c)return;const fn=c.name.split(' ')[0];const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo(' Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier</button>`);}
+function emailTpl(id){const c=cById(id);if(!c)return;const fn=greetCand(c);const tpl=`Bonjour ${fn},\n\nSuite à notre échange, je vous transmets comme convenu :\n\n1. Lien entretien visio : [LIEN VISIO]\n2. Dossier de candidature à compléter et signer : [LIEN DOSSIER]\n\nDocuments à retourner :\n• CV à jour\n• Pièce d'identité (recto/verso)\n• Carte vitale\n• Permis de conduire\n\nN'hésitez pas à me contacter si vous avez des questions.\n\nCordialement,\n[VOTRE NOM] — Novalem`;openMo(' Email dossier candidature',`<textarea style="min-height:200px;font-size:11px;line-height:1.6">${tpl}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier</button>`);}
 function cpTpl(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Copié ✓','i'));}
 function genBoardTexts(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;const txt=`═ FRANCE TRAVAIL ═\nIntitulé: ${p.title}\nLocalisation: ${p.location||'—'}\nType: CDI\nSalaire: ${p.salary||'—'}\n\n${p.body||''}\n\n═ INDEED ═\n${p.title} | ${p.location||''}\n${p.salary||''}\n\n${(p.body||'').slice(0,280)}…\n\n═ LINKEDIN ═\nNous recrutons pour notre client : ${p.title}\n${p.location||'France'} | ${p.salary||'—'}\n\n${p.body||''}`;openMo('Textes adaptés',`<textarea style="min-height:220px;font-size:11px;line-height:1.6">${txt}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier tout</button>`);}
 function togPostSt(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;p.status=p.status==='active'?'closed':'active';p.updated=now_();save();openPostPanel(id);rPosts();toast(`Annonce ${p.status==='active'?'activée':'clôturée'}`,'s');}
@@ -5628,7 +5677,7 @@ function openNobizEmailForm(coId){
 }
 
 function buildNobizEmail(c){
- const fn=c.contact?c.contact.split(' ')[0]:'';
+ const fn=greetCo(c);
  return`Bonjour${fn?' '+fn:''},\n\nSuite à notre échange téléphonique, je vous remercie pour votre temps.\n\nJe me permets de vous faire parvenir une courte présentation de Novalem, cabinet de recrutement spécialisé dans le secteur du BTP.\n\nNous accompagnons les entreprises du bâtiment et des travaux publics dans leurs recrutements CDI : conducteurs de travaux, chefs de chantier, ingénieurs études, profils VRD/HSE, management et encadrement.\n\nSi à l'avenir un besoin de recrutement devait se présenter dans votre structure, n'hésitez pas à revenir vers moi — je serai heureux(se) de vous accompagner.\n\nBonne journée,\n[VOTRE NOM]\nNovalem — Cabinet de recrutement\n[VOTRE TÉLÉPHONE]`;
 }
 function copyNobizEmail(){
@@ -5863,7 +5912,7 @@ const EMAIL_TPLS={
     to:(c)=>c.email||'',
     subject:()=>'Votre entretien Novalem — réservez votre créneau',
     body:(c,nom,tel)=>{
-      const firstN=(c.name||'').split(' ')[0]||'';
+      const firstN=greetCand(c);
       const link=(typeof getApiBase==='function'&&getApiBase()||'https://novalem-crm.vercel.app')+'/dossier.html?cid='+encodeURIComponent(c.id||'')+(c.booking&&c.booking.token?('&bk='+c.booking.token):'')+'&n='+encodeURIComponent(c.name||'');
       return `Bonjour ${firstN},
 
@@ -5885,7 +5934,7 @@ Novalem — Cabinet de recrutement BTP`;
     label:'Confirmation précal + dossier',
     to:(c)=>c.email||'',
     subject:(c)=>`Novalem — Suite à notre échange | ${c.role||'Poste BTP'}`,
-    body:(c,nom,tel)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+    body:(c,nom,tel)=>`Bonjour ${greetCand(c)},
 
 Suite à notre échange téléphonique, je vous confirme notre entretien visio :
 
@@ -5909,7 +5958,7 @@ Novalem — Cabinet de recrutement`
     label:'Relance dossier',
     to:(c)=>c.email||'',
     subject:(c)=>`[Relance] Dossier de candidature — ${(c.name||'').split(' ')[0]||''}`,
-    body:(c,nom,tel)=>`Bonjour ${(c.name||'').split(' ')[0]||''},
+    body:(c,nom,tel)=>`Bonjour ${greetCand(c)},
 
 Je me permets de vous relancer concernant votre dossier de candidature.
 
@@ -7697,8 +7746,7 @@ function sendContractEmail(coId, encodedData) {
 
  // ── EMAIL HTML via buildHtml de l'API ──────────────
  // Syntaxe spéciale : [Texte ->(url) = bouton CTA, > = puce dorée, **gras**
- const prenom = co.contact ? co.contact.split(' ')[0] : '';
- const civPrenom = prenom ? 'M. ' + prenom.toUpperCase() : (co.contact || '');
+ const civPrenom = greetCo(co);
 
  let conditions = '';
  conditions += '> Non-cadre : **' + data.nc1 + ' %** / **' + data.nc2 + ' %** / **' + data.nc3 + ' %** du SBA (selon expérience)\n\n';
@@ -7740,6 +7788,57 @@ function sendContractEmail(coId, encodedData) {
  toast('Email contrat prêt — PDF joint automatiquement','s');
 }
 
+// ── RELANCE SIGNATURE CONTRAT ──────────────────────────────────
+// Ouvre un email de relance pré-rempli (client + lien de signature) pour
+// un contrat déjà envoyé mais pas encore signé. Le lien est reconstruit à
+// partir du contrat négocié mémorisé (co._contract_draft).
+function relanceContract(coId){
+ const co=coById(coId); if(!co){toast('Client introuvable','e');return;}
+ const ct=co._contract_draft;
+ if(!ct){toast('Aucun contrat envoyé pour ce client','e');return;}
+ if(co._contract_signed){toast('Ce contrat est déjà signé ✓','s');return;}
+ if(!co.email){toast('Email client manquant — ajoutez-le dans la fiche','e');return;}
+
+ // Reconstruire l'URL de signature (même format que l'envoi initial)
+ const ctId=uid(),token=uid()+uid();
+ const dateStr=ct.sent_at
+  ? new Date(ct.sent_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})
+  : new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+ const dp=[
+  encodeURIComponent(co.name),encodeURIComponent(co.siret||''),
+  ct.nc1,ct.nc2,ct.nc3,ct.c1,ct.c2,ct.c3,
+  ct.geste?String(ct.geste_val):'',
+  ct.opt3070?'1':'0',ct.garantie?'1':'0',
+  encodeURIComponent(dateStr),ct.frais||''
+ ].join('|');
+ const signUrl='https://novalem-crm.vercel.app/sign.html?co='+encodeURIComponent(coId)
+  +'&ct='+ctId+'&t='+token
+  +'&n='+encodeURIComponent(co.name)
+  +'&d='+encodeURIComponent(dp);
+
+ const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
+ const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'06 58 21 20 96';
+ const greeting=greetCo(co);
+ const sentLabel=ct.sent_at?fD(ct.sent_at):'';
+
+ const body='Bonjour '+greeting+',\n\n'
+  +'Je me permets de revenir vers vous concernant notre proposition professionnelle de recrutement'
+  +(sentLabel?' transmise le '+sentLabel:'')+'.\n\n'
+  +'Le contrat est toujours en attente de votre signature. Celle-ci se fait en ligne, en moins de 30 secondes, sans impression ni scan.\n\n'
+  +'[Signer le contrat NOVALEM ->('+signUrl+')\n\n'
+  +'Dès réception de votre signature, je vous transmets immédiatement les coordonnées du candidat afin que vous puissiez organiser l\'entretien.\n\n'
+  +'Je reste à votre disposition pour toute question.\n\n'
+  +'Bien cordialement,\n**'+nom+'**\n'+tel+'\nNOVALEM — Recrutement BTP\ncontact@novalem-recrutement.fr';
+
+ sessionStorage.removeItem('_contract_email_html'); // l'API reconstruit le HTML depuis le body
+ addTimeline(coId,'email','Relance signature contrat envoyée',null);
+ EM={to:co.email,subject:'Relance — signature du contrat NOVALEM ('+co.name+')',body:body,candId:null,coId:coId,tplKey:null};
+ EM_VIEW='compose';
+ if(typeof closeMo==='function')closeMo();
+ setTimeout(()=>go('emails'),100);
+ toast('Email de relance prêt — vérifiez puis envoyez','s');
+}
+
 
 
 // ═══════════════════════════════════════════════════════
@@ -7749,7 +7848,7 @@ async function sendKoRefusalEmail(cand) {
  if(!cand.email)return;
  const nom  = localStorage.getItem(uKey('btp_user_name'))||'Louis RENAULT';
  const tel  = localStorage.getItem(uKey('btp_user_tel'))||'06 58 21 20 96';
- const prenom = (cand.name||'').split(' ')[0]||'';
+ const prenom = greetCand(cand);
  const body = 'Bonjour '+(prenom||'Madame, Monsieur')+',\n\n'
   + 'Suite à notre échange et après examen attentif de votre candidature, nous avons le regret de vous informer que nous ne sommes pas en mesure de donner une suite favorable à votre dossier à ce stade.\n\n'
   + 'Cette décision ne remet pas en cause la qualité de votre profil. Nous conservons votre candidature dans notre base et reviendrons vers vous si une opportunité correspondant à vos compétences se présente.\n\n'
@@ -8352,7 +8451,7 @@ function emailInvoiceToClient(invId){
  const co=coById(inv.company_id);
  const cand=cById(inv.cand_id);
  if(!co||!co.email){toast('Email du client manquant','e');return;}
- const prenom=co.contact?co.contact.split(' ')[0]:'';
+ const prenom=greetCo(co);
  const subj='Facture '+(inv.invoice_number||'')+' — NOVALEM';
  const body=`Bonjour ${prenom||''},\n\n`
   +`Veuillez trouver ci-joint la facture ${inv.invoice_number} relative au placement de ${cand?cand.name:'votre candidat'}.\n\n`
@@ -8812,6 +8911,7 @@ function renderContractTab(co) {
 
   <!-- Actions -->
   <div style="display:flex;gap:6px;flex-wrap:wrap">
+   ${!signed ? `<button class="btn bp bsm" onclick="relanceContract('${co.id}')">📧 Relancer la signature</button>` : ''}
    <button class="btn bg bsm" onclick="openContractModal('${co.id}')">✎ Modifier / Renvoyer</button>
    <button class="btn bg bsm" onclick="previewContract('${co.id}')">👁 Aperçu PDF</button>
   </div>`;
@@ -8977,7 +9077,7 @@ function sendCandidateContactToClient(coId) {
 function _emailContactToClient(coId, candId) {
  const co = coById(coId), cand = cById(candId);
  if (!co || !cand) return;
- const prenom = co.contact ? co.contact.split(' ')[0] : '';
+ const prenom = greetCo(co);
  const poste = (cand.linked_need && nById(cand.linked_need)) ? nById(cand.linked_need).title : (cand.poste || cand.title || 'le poste');
  const subj = 'Coordonnées de votre candidat — ' + cand.name;
  const body = `Bonjour ${prenom || ''},\n\n`
