@@ -1,5 +1,6 @@
 // api/cron-reminders.js — même logique que send-reminders, appelé par le cron Vercel
 const { sendEmail, buildReminderEmail } = require('./_lib/email.js');
+const { dayKeyTZ, todayKeyTZ } = require('./_lib/dates.js');
 
 const STATUS_FR = {
   new:'Précal à faire', precal:'Précal faite', dossier:'Dossier envoyé',
@@ -30,7 +31,7 @@ module.exports = async function handler(req, res) {
   }
 
   const now = new Date();
-  const todayStr = now.toDateString();
+  const todayK = todayKeyTZ();
   const alerts = [];
 
   (DB.candidates || []).forEach(c => {
@@ -45,12 +46,11 @@ module.exports = async function handler(req, res) {
     }
   });
   (DB.agenda || []).filter(a => !a.done && a.date).forEach(a => {
-    const d = new Date(a.date);
-    if (d < now && d.toDateString() !== todayStr) alerts.push(`En retard : ${a.title}`);
+    if (dayKeyTZ(a.date) < todayK) alerts.push(`En retard : ${a.title}`);
   });
 
   const agenda = (DB.agenda || [])
-    .filter(a => !a.done && a.date && new Date(a.date).toDateString() === todayStr)
+    .filter(a => !a.done && a.date && dayKeyTZ(a.date) === todayK)
     .sort((a, b) => (a.time||'').localeCompare(b.time||''))
     .map(a => ({ title: a.title, time: a.time||'' }));
 

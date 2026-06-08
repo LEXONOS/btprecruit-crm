@@ -57,7 +57,15 @@ const PRO_TABS=[
 ];
 let proTab='active';
 let proSelectedId=null;
-const AG_TYPES=[{id:'call',ico:'',l:'Appel'},{id:'visio',ico:'',l:'Entretien visio'},{id:'task',ico:'',l:'Tâche'},{id:'relance',ico:'',l:'Relance'}];
+const AG_TYPES=[
+ {id:'call',ico:'📞',l:'Appel',col:'var(--orange)'},
+ {id:'visio',ico:'🎥',l:'Entretien visio',col:'var(--blue)'},
+ {id:'task',ico:'✅',l:'Tâche',col:'var(--green)'},
+ {id:'relance',ico:'🔁',l:'Relance',col:'var(--purple)'},
+ {id:'contract',ico:'📄',l:'Contrat',col:'var(--gold)'},
+ {id:'meeting',ico:'🤝',l:'Rendez-vous',col:'var(--green)'}
+];
+const agType=(id)=>AG_TYPES.find(t=>t.id===id)||AG_TYPES[2];
 const BOARDS=['France Travail','Indeed','LinkedIn Jobs','APEC','Welcome to the Jungle','Monster','Meteojob'];
 const WEEK_HOURS=[8,9,10,11,12,13,14,15,16,17,18];
 function fmtDate(d){const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];return`${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;}
@@ -529,7 +537,7 @@ function _proposeAgendaItem({type='task',title='',notes='',cand_id=null,co_id=nu
 function _addProposedItem(){
   const p=window._proposedItem;if(!p)return;
   document.getElementById('_agenda-propose-mo')?.remove();
-  DB.agenda.push({id:uid(),type:p.type,title:p.title,date:localDateStr(new Date(p.date)),time:p.time,cand_id:p.cand_id||null,comp_id:p.co_id||null,notes:p.notes||'',done:false,created:now_()});
+  addAgendaAuto({type:p.type,title:p.title,date:p.date,time:p.time,cand_id:p.cand_id,comp_id:p.co_id,notes:p.notes,_auto:true});
   save();badges();
   toast(`📅 Agenda : ${p.title}`,'s');
   window._proposedItem=null;
@@ -629,7 +637,42 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const now_=()=>new Date().toISOString();
 const ago=(n)=>new Date(Date.now()-n*86400000).toISOString();
 const inDays=(n)=>new Date(Date.now()+n*86400000).toISOString();
-const fD=(iso)=>{if(!iso)return'—';return new Date(iso).toLocaleDateString('fr-FR');};
+
+// ═══════════════════════════════════════════════════════
+// DATES — moteur timezone-safe (source unique de vérité)
+// Règle d'or : une date d'agenda est une JOURNÉE CALENDAIRE LOCALE
+// "YYYY-MM-DD", jamais un instant UTC. On ne fait JAMAIS
+// new Date("YYYY-MM-DD") (interprété minuit UTC → décalage d'un jour).
+// ═══════════════════════════════════════════════════════
+// Renvoie la clé jour locale (YYYY-MM-DD) de n'importe quelle valeur
+// (chaîne date seule, timestamp ISO complet, Date, ou nombre ms).
+function dayKey(v){
+ if(v===null||v===undefined||v==='') return '';
+ if(typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v.slice(0,10);
+ const d=(v instanceof Date)?v:new Date(v);
+ if(isNaN(d.getTime())) return (typeof v==='string'?v.slice(0,10):'');
+ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// Clé jour d'aujourd'hui (locale)
+function todayKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+// Parse une valeur date en Date locale SANS décalage (date seule → midi local)
+function parseDayLocal(v){
+ if(!v) return null;
+ if(typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v+'T12:00:00');
+ const d=new Date(v); return isNaN(d.getTime())?null:d;
+}
+// Ajoute n jours OUVRÉS (saute samedi/dimanche) à une date → renvoie une Date
+function addWorkingDays(baseDate,n){
+ const d=baseDate?new Date(baseDate.getTime()):new Date();
+ let added=0;
+ while(added<n){d.setDate(d.getDate()+1);const wd=d.getDay();if(wd!==0&&wd!==6)added++;}
+ return d;
+}
+// Décale une clé jour de n jours (n peut être négatif), renvoie une clé jour
+function shiftDayKey(key,n){const d=parseDayLocal(key)||new Date();d.setDate(d.getDate()+n);return dayKey(d);}
+
+// Affichage court : 06/06/2026 — timezone-safe (date seule traitée comme jour local)
+const fD=(iso)=>{if(!iso)return'—';const d=parseDayLocal(iso);return d?d.toLocaleDateString('fr-FR'):'—';};
 const fM=(n)=>{if(!n&&n!==0)return'—';return Number(n).toLocaleString('fr-FR')+'€';};
 const honor=(s)=>{const taux=Number(getTauxHon())/100;return s?fM(Math.round(Number(s)*taux)):'—';};
 const esc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -687,8 +730,10 @@ const cById=(id)=>DB.candidates.find(c=>c.id===id);
 const coById=(id)=>DB.companies.find(c=>c.id===id);
 const nById=(id)=>DB.needs.find(n=>n.id===id);
 const agById=(id)=>DB.agenda.find(a=>a.id===id);
-const isToday=(iso)=>{if(!iso)return false;return new Date(iso).toDateString()===new Date().toDateString();};
-const isPast=(iso)=>{if(!iso)return false;return new Date(iso)<new Date();};
+// Timezone-safe : compare des JOURNÉES locales, jamais des instants UTC.
+const isToday=(iso)=>!!iso&&dayKey(iso)===todayKey();
+const isTomorrow=(iso)=>!!iso&&dayKey(iso)===shiftDayKey(todayKey(),1);
+const isPast=(iso)=>!!iso&&dayKey(iso)<todayKey(); // strictement avant aujourd'hui
 const daysDiff=(iso)=>iso?Math.floor((Date.now()-new Date(iso))/86400000):0;
 
 // ═══════════════════════════════════════════════════════
@@ -778,7 +823,7 @@ function computeAlerts(){
  });
  // Relances profil J+3
  DB.agenda.filter(function(ag){return !ag.done&&ag._profile_followup;}).forEach(function(ag){
-  var diff=(new Date(ag.date)-Date.now())/86400000;
+  var diff=(parseDayLocal(ag.date)-new Date())/86400000;
   if(diff<2){
    var co2=coById(ag.comp_id),ca2=cById(ag.cand_id);
    a.push({color:'var(--ac5)',msg:'&#x1F4DE; Rappeler '+(co2?co2.name:'client')+' — réception CV '+(ca2?ca2.name:''),act:"openAgPanel('"+ag.id+"')"});
@@ -799,6 +844,53 @@ function computeAlerts(){
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
+// ── COCKPIT AGENDA (dashboard) — charge mentale zéro ──
+// Une ligne d'agenda riche : icône, titre, entité liée, extrait de note (contexte), heure colorée par état.
+function dashAgRow(a){
+ const t=agType(a.type);
+ const ctx=agendaContext(a);
+ const ent=(ctx.co&&ctx.co.name)||(ctx.ca&&ctx.ca.name)||'';
+ const stt=agendaState(a);
+ const C={overdue:'var(--red)',today:'var(--gold)',soon:'var(--blue)',upcoming:'var(--mu)',done:'var(--green)'}[stt]||'var(--mu)';
+ const note=a.notes?a.notes.replace(/\n/g,' '):'';
+ return `<div class="aitem" onclick="openAgPanel('${a.id}')" style="align-items:flex-start;border-left:2px solid ${C}">
+   <span style="font-size:13px;flex-shrink:0;line-height:1.3">${t.ico}</span>
+   <div style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><strong style="font-size:11px">${esc(a.title)}</strong>${ent?`<span style="font-size:9px;color:var(--mu2)">· ${esc(ent)}</span>`:''}</div>
+    ${note?`<div style="font-size:10px;color:var(--mu);margin-top:2px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(note)}</div>`:''}
+   </div>
+   <span style="font-size:10px;font-weight:700;color:${C};flex-shrink:0">${a.time||(stt==='today'?'Jour':'')}</span>
+ </div>`;
+}
+function dashInterviewCard(a){
+ const ca=a.cand_id?cById(a.cand_id):null;const visioLink=ca&&ca.visio_link||null;
+ return `<div class="interview-card" onclick="openAgPanel('${a.id}')"><div class="interview-time">${a.time||'—'}</div><div class="interview-info"><div class="interview-name">${esc(a.title)}</div><div class="interview-sub">${ca?esc(ca.name):''}</div></div>${visioLink?`<a href="${esc(visioLink)}" target="_blank" onclick="event.stopPropagation()" class="btn bi bxs">Rejoindre</a>`:''}</div>`;
+}
+function renderDashAgendaBlocks(){
+ const byTime=(a,b)=>((a.time||'99')>(b.time||'99')?1:-1);
+ const overdue=DB.agenda.filter(a=>!a.done&&isPast(a.date)).sort((a,b)=>((a.date||'')+(a.time||''))<((b.date||'')+(b.time||''))?-1:1);
+ const interviews=DB.agenda.filter(a=>!a.done&&isToday(a.date)&&a.type==='visio').sort(byTime);
+ const todayOther=DB.agenda.filter(a=>!a.done&&isToday(a.date)&&a.type!=='visio').sort(byTime);
+ const tomorrow=DB.agenda.filter(a=>!a.done&&isTomorrow(a.date)).sort(byTime);
+ const cnt=(n,c)=>`<span style="font-size:9px;color:${c||'var(--mu)'};font-family:'DM Mono',monospace;font-weight:700;margin-left:4px">(${n})</span>`;
+ let h='';
+ if(overdue.length){
+  h+=`<div class="dsec" style="color:var(--red)">⚠ En retard${cnt(overdue.length,'var(--red)')}</div>`;
+  h+=overdue.slice(0,5).map(dashAgRow).join('');
+  if(overdue.length>5)h+=`<div style="font-size:10px;color:var(--mu);padding:4px 10px">+${overdue.length-5} autre(s) · <span style="color:var(--blue);cursor:pointer" onclick="go('agenda')">voir l'agenda →</span></div>`;
+ }
+ h+=`<div class="dsec${overdue.length?' mt14':''}">Entretiens du jour${interviews.length?cnt(interviews.length,'var(--blue)'):''}</div>`;
+ h+=interviews.length?interviews.map(dashInterviewCard).join(''):`<div class="aitem"><span class="mu_ fs10">Aucun entretien aujourd'hui</span></div>`;
+ h+=`<div class="dsec mt14">À faire aujourd'hui${todayOther.length?cnt(todayOther.length,'var(--gold)'):''}</div>`;
+ h+=todayOther.length?todayOther.map(dashAgRow).join(''):`<div class="aitem"><span class="mu_ fs10">Rien d'autre aujourd'hui ✓</span></div>`;
+ if(tomorrow.length){
+  h+=`<div class="dsec mt14" style="color:var(--blue)">Demain — anticiper${cnt(tomorrow.length,'var(--blue)')}</div>`;
+  h+=tomorrow.slice(0,4).map(dashAgRow).join('');
+  if(tomorrow.length>4)h+=`<div style="font-size:10px;color:var(--mu);padding:4px 10px">+${tomorrow.length-4} demain · <span style="color:var(--blue);cursor:pointer" onclick="go('agenda')">voir →</span></div>`;
+ }
+ return h;
+}
+
 function rDash(){
  const c=DB.candidates;
  const placed=c.filter(x=>x.status==='placed');
@@ -867,10 +959,7 @@ function rDash(){
  }).join('')||`<div class="mu_ fs11">Aucun candidat actif</div>`}
  </div>
  <div>
- <div class="dsec">Entretiens du jour</div>
- ${(()=>{const interviews=DB.agenda.filter(a=>!a.done&&isToday(a.date)&&a.type==='visio').sort((a,b)=>a.time>b.time?1:-1);if(!interviews.length)return'<div class="aitem"><span class="mu_ fs10">Aucun entretien aujourd\'hui</span></div>';return interviews.map(a=>{const ca=a.cand_id?cById(a.cand_id):null;const visioLink=ca?.visio_link||null;return`<div class="interview-card" onclick="openAgPanel('${a.id}')"><div class="interview-time">${a.time||'—'}</div><div class="interview-info"><div class="interview-name">${esc(a.title)}</div><div class="interview-sub">${ca?esc(ca.name):''}</div></div>${visioLink?`<a href="${esc(visioLink)}" target="_blank" onclick="event.stopPropagation()" class="btn bi bxs">Rejoindre</a>`:''}</div>`;}).join('');})()}
- <div class="dsec mt14">Agenda aujourd'hui</div>
- ${(()=>{const others=DB.agenda.filter(a=>!a.done&&isToday(a.date)&&a.type!=='visio').sort((a,b)=>a.time>b.time?1:-1);if(!others.length)return'<div class="aitem"><span class="mu_ fs10">Rien d\'autre aujourd\'hui</span></div>';return others.map(a=>{const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];return`<div class="aitem" onclick="openAgPanel('${a.id}')">${t.ico}<strong style="flex:1">${esc(a.title)}</strong><span class="ac4 fs10">${a.time||''}</span></div>`;}).join('');})()}
+ ${renderDashAgendaBlocks()}
  <div class="dsec mt14">Besoins ouverts</div>
  ${DB.needs.filter(n=>n.status==='open').slice(0,5).map(n=>{const co=coById(n.company_id);return`<div class="aitem" onclick="openNeedPanel('${n.id}')"><span style="flex:1">${esc(n.title)}</span><span class="fs10 mu_">${co?esc(co.name):''}</span><span class="fs9" style="color:${{h:'var(--ac3)',m:'var(--ac4)',l:'var(--mu2)'}[n.urgency]||'var(--mu2)'}">${{h:'●',m:'○',l:'·'}[n.urgency]||''}</span></div>`;}).join('')||`<div class="mu_ fs11">Aucun besoin ouvert</div>`}
  <div class="dsec mt14"> Entrants à trier</div>
@@ -1941,8 +2030,7 @@ function getTakenSlots(){
  // Returns set of "YYYY-MM-DD HH" strings for taken slots
  const taken=new Set();
  DB.agenda.filter(a=>!a.done&&a.date&&a.time).forEach(a=>{
- const d=new Date(a.date);
- const dateStr=d.toISOString().split('T')[0];
+ const dateStr=dayKey(a.date);
  const h=parseInt(a.time.split(':')[0]);
  taken.add(`${dateStr}_${h}`);
  // Block 1h duration
@@ -1986,7 +2074,7 @@ function renderCalMo(candId){
  if(isSel)cls+=' selected';
  let inner='';
  if(isTaken){
- const ev=DB.agenda.find(a=>{const dd=new Date(a.date);return dd.toISOString().split('T')[0]===dateStr&&parseInt((a.time||'').split(':')[0])===h;});
+ const ev=DB.agenda.find(a=>{return dayKey(a.date)===dateStr&&parseInt((a.time||'').split(':')[0])===h;});
  inner=`<div class="cal-ev taken-ev">${ev?esc(ev.title.slice(0,18)):'Occupé'}</div>`;
  }
  if(isSel){inner=`<div class="cal-ev new-ev">✓ Sélectionné</div>`;}
@@ -2018,7 +2106,7 @@ function renderCalMo(candId){
 function calPrevWeek(id){UI.calWeekOffset--;renderCalMo(id);}
 function calNextWeek(id){UI.calWeekOffset++;renderCalMo(id);}
 function selectSlot(candId,dateStr,h){
- const d=new Date(dateStr);
+ const d=parseDayLocal(dateStr);
  const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
  const label=`${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} à ${h}h00–${h+1}h00`;
  UI.calSelected={dateStr,h,label};
@@ -2075,18 +2163,15 @@ function confirmEmailSent(candId,visioLink,dateStr,h){
  c.int_time=`${h}:00`;
  c.email_sent=now_();
  c.updated=now_();
- // Auto-add to agenda
- DB.agenda.push({
- id:uid(),
- type:'visio',
- title:`Entretien visio — ${c.name}`,
- date:localDateStr(new Date(dateStr)),
- time:`${h}:00`,
- cand_id:c.id,
- comp_id:null,
- notes:`Lien visio : ${visioLink}`,
- done:false,
- created:now_(),
+ // Auto-add to agenda (date normalisée — plus de décalage)
+ addAgendaAuto({
+  type:'visio',
+  title:`Entretien visio — ${c.name}`,
+  date:dateStr,
+  time:`${h}:00`,
+  cand_id:c.id,
+  notes:`Entretien visio planifié.\nLien : ${visioLink}`,
+  _auto:true
  });
  save();closeMo();closePanel();
  badges();
@@ -2295,12 +2380,11 @@ function needCard(n){
 // PROSPECTS
 // ═══════════════════════════════════════════════════════
 function processNRPs(){
- const today=new Date();today.setHours(0,0,0,0);
+ const tk=todayKey();
  let changed=false;
  DB.companies.forEach(c=>{
  if(c.status==='nrp'&&c.next_call_date){
- const nd=new Date(c.next_call_date);nd.setHours(0,0,0,0);
- if(nd<=today){c.status='tocall';c.next_call_date=null;changed=true;}
+ if(dayKey(c.next_call_date)<=tk){c.status='tocall';c.next_call_date=null;changed=true;}
  }
  });
  if(changed)save();
@@ -2410,16 +2494,14 @@ function renderProActive(el) {
  // Logique « NRP → jour suivant » : si NRP et date de rappel atteinte, repasse en à appeler
  pros.forEach(c => {
  if (c.status === 'nrp' && c.next_call_date) {
- const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
- if (nd <= today) { c.status = 'tocall'; c.next_call_date = null; }
+ if (dayKey(c.next_call_date) <= todayKey()) { c.status = 'tocall'; c.next_call_date = null; }
  }
  });
 
  // Masque les rappels planifiés dans le futur (pas encore dus)
  _proVisible = pros.filter(c => {
  if (c.status === 'callback' && c.next_call_date) {
- const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
- return nd <= today;
+ return dayKey(c.next_call_date) <= todayKey();
  }
  return true;
  });
@@ -2427,8 +2509,7 @@ function renderProActive(el) {
  // Compte les rappels futurs (cachés)
  const futureCallbacks = pros.filter(c => {
  if (c.status === 'callback' && c.next_call_date) {
- const nd = new Date(c.next_call_date); nd.setHours(0, 0, 0, 0);
- return nd > today;
+ return dayKey(c.next_call_date) > todayKey();
  }
  return false;
  }).length;
@@ -2886,15 +2967,13 @@ function confirmCallback(coId){
  const noteEl=document.getElementById('pro-cb-note');
  if(!dateEl?.value){toast('Date requise','e');return;}
  c.status='callback';
- c.next_call_date=new Date(dateEl.value).toISOString();
+ c.next_call_date=dayKey(dateEl.value);
  c.updated=now_();
  const note=noteEl?.value||'';
  const timeLabel=timeEl?.value?` à ${timeEl.value}`:'';
  addTimeline(coId,'callback',note||`Rappel planifié le ${fD(c.next_call_date)}${timeLabel}`,timeEl?.value||null);
- // Ajouter à l'agenda si heure renseignée
- if(timeEl?.value){
- DB.agenda.unshift({id:uid(),title:`Rappel ${c.name}`,type:'call',date:dateEl.value,time:timeEl.value,comp_id:coId,done:false,created:now_(),updated:now_()});
- }
+ // Toujours ajouter au calendrier (avec ou sans heure) — la note sert de contexte au dashboard
+ addAgendaAuto({title:`Rappeler ${c.name}`,type:'call',date:dateEl.value,time:timeEl?.value||null,comp_id:coId,notes:note||'Rappel prospect planifié.',_auto:true});
  save();closeProPopup_direct();rPros();badges();
  toast(` ${c.name} — rappel le ${fD(c.next_call_date)}${timeLabel}`,'s');
 }
@@ -3172,7 +3251,73 @@ const AG_HALF_HOURS=['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10
 const localDateStr=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const todayLocal=()=>localDateStr(new Date());
 
-// Noms jours/mois en français
+// ═══════════════════════════════════════════════════════
+// MOTEUR AGENDA — création centralisée & automatisations
+// Tout passage par addAgendaAuto garantit :
+//  · une date NORMALISÉE en jour local (dayKey) → plus jamais de décalage
+//  · des champs cohérents (id, created, updated, done…)
+//  · la possibilité de lier un candidat / une entreprise
+// ═══════════════════════════════════════════════════════
+function addAgendaAuto(o){
+ o=o||{};
+ const item={
+  id:uid(),
+  type:o.type||'task',
+  title:o.title||'(sans titre)',
+  date:dayKey(o.date||todayKey()),      // ← TOUJOURS jour local YYYY-MM-DD
+  time:o.time||null,
+  cand_id:o.cand_id||null,
+  comp_id:o.comp_id||null,
+  notes:o.notes||'',
+  done:!!o.done,
+  created:now_(),
+  updated:now_()
+ };
+ // Flags d'automatisation conservés tels quels
+ ['_profile_followup','_contract_followup','_contract_log','_auto','_source','_origin'].forEach(k=>{if(o[k]!==undefined)item[k]=o[k];});
+ if(o.done) item.done_at=now_();
+ DB.agenda.unshift(item);
+ return item;
+}
+
+// Événements liés à une entité (entreprise OU candidat), triés chronologiquement
+function agendaForEntity(kind,id,opts){
+ opts=opts||{};
+ const key=kind==='co'?'comp_id':'cand_id';
+ let list=DB.agenda.filter(a=>a[key]===id);
+ if(!opts.includeDone) list=list; // on garde tout, le tri sépare
+ return list.sort((a,b)=>{
+  const ka=a.date||'',kb=b.date||'';
+  if(ka!==kb) return ka<kb?-1:1;
+  return (a.time||'')<(b.time||'')?-1:1;
+ });
+}
+
+// Contexte complet d'un événement (entité liée + coordonnées) pour l'affichage
+function agendaContext(a){
+ if(!a) return {};
+ const ca=a.cand_id?cById(a.cand_id):null;
+ const co=a.comp_id?coById(a.comp_id):null;
+ return {ca,co,
+  phone:(co&&co.phone)||(ca&&ca.phone)||'',
+  email:(co&&co.email)||(ca&&ca.email)||'',
+  city:(co&&co.city)||(ca&&(ca.mobility||ca.localisation))||''
+ };
+}
+
+// État d'un événement par rapport à maintenant : 'overdue' | 'today' | 'soon' | 'upcoming' | 'done'
+function agendaState(a){
+ if(!a) return 'upcoming';
+ if(a.done) return 'done';
+ const k=dayKey(a.date);
+ const tk=todayKey();
+ if(k<tk) return 'overdue';
+ if(k===tk) return 'today';
+ if(k===shiftDayKey(tk,1)) return 'soon';
+ return 'upcoming';
+}
+
+
 const FR_DAYS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const FR_DAYS_SHORT=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const FR_MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -3564,7 +3709,7 @@ function renderAgMonth(el,dateStr,showDone){
  let startDow=first.getDay();if(startDow===0)startDow=7;startDow--;
  const today=todayLocal();
  const DAYNAMES=['L','M','M','J','V','S','D'];
- const EVT_COLORS={call:'var(--ac4)',visio:'var(--ac5)',task:'var(--ac2)',relance:'var(--ac6)'};
+ const EVT_COLORS={call:'var(--ac4)',visio:'var(--ac5)',task:'var(--ac2)',relance:'var(--ac6)',contract:'var(--gold)',meeting:'var(--ac2)'};
 
  let html=`<div class="mo-grid">`;
  DAYNAMES.forEach(dn=>html+=`<div class="mo-dh">${dn}</div>`);
@@ -3715,7 +3860,7 @@ function saveAgForm(id){
  const data={
  title:t,
  type:document.getElementById('af-type')?.value||'task',
- date:newDate,
+ date:dayKey(newDate),
  time:newTime||null,
  cand_id:document.getElementById('af-ca')?.value||null,
  comp_id:document.getElementById('af-co')?.value||null,
@@ -3726,8 +3871,11 @@ function saveAgForm(id){
  if(id){const a=agById(id);if(!a)return;Object.assign(a,data);}
  else{data.id=uid();data.created=n;DB.agenda.unshift(data);}
  save();closeMo();
- if(newDate)UI.agDate=newDate;
+ if(newDate)UI.agDate=dayKey(newDate);
  rAgenda();badges();
+ // Si une fiche entreprise/candidat liée est ouverte, la rafraîchir (section Suivi)
+ if(UI.ptype==='co'&&data.comp_id===UI.pid)openCoPanel(UI.pid);
+ else if(UI.ptype==='cand'&&data.cand_id===UI.pid)openCandPanel(UI.pid);
  toast(id?'Événement mis à jour':'Événement ajouté','s');
 }
 
@@ -3789,7 +3937,8 @@ function openCandPanel(id){
  <div class="sl">Statut <span><button class="btn bg bxs" onclick="openStatusMo('cand','${id}')">Changer →</button></span></div>
  <div class="st-sel">${CAND_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>
  <div class="sl mt12">Matchage besoin</div>
- <div class="flex fg5 fw">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn ${c.linked_need===n.id?'bp':'bg'} bxs" onclick="toggleLink('${id}','${n.id}')">${c.linked_need===n.id?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>`,
+ <div class="flex fg5 fw">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn ${c.linked_need===n.id?'bp':'bg'} bxs" onclick="toggleLink('${id}','${n.id}')">${c.linked_need===n.id?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>
+ ${renderLinkedAgenda('cand',id)}`,
  // 1 FICHIERS — rendered via renderCPFichiers
  renderCPFichiers(c),
  // 2 ENTRETIEN
@@ -3866,7 +4015,8 @@ function openCoPanel(id){
  </div>`;
  }).join('')||(needs.length?`<div class="mu_ fs11">Aucun besoin ouvert</div>`:'')}`:''}
  <div class="sl">Pipeline <span><button class="btn bg bxs" onclick="openStatusMo('co','${id}')">Voir arbre →</button></span></div>
- <div class="st-sel">${COMP_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCmpS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>`,
+ <div class="st-sel">${COMP_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCmpS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>
+ ${renderLinkedAgenda('co',id)}`,
  // 1 BESOINS
  `<div class="flex fjb fac mb8"><span class="fs11">${needs.length} besoin(s)</span><button class="btn bp bxs" onclick="openNeedForm('${id}')">+ Besoin</button></div>
  ${needs.map(n=>{const ns=getNS(n.status);const matched=DB.candidates.filter(cx=>cx.linked_need===n.id).length;return`<div class="nc u${n.urgency||'l'} mb8" onclick="openNeedPanel('${n.id}')"><div class="nc-t">${esc(n.title)}</div><div class="nc-ft"><span class="pill ppre">${ns.l}</span><span class="fs10 mu_">${esc(n.location||'')}</span><span class="fs10 mu_ ml-auto" style="margin-left:auto">${matched}</span></div></div>`;}).join('')||'<div class="mu_ fs11">Aucun besoin</div>'}`,
@@ -3921,20 +4071,132 @@ function openNeedPanel(id){
 // ── AGENDA PANEL ────────────────────────────────────────────
 function openAgPanel(id){
  const a=agById(id);if(!a)return;
- const t=AG_TYPES.find(t=>t.id===a.type)||AG_TYPES[2];
- const ca=a.cand_id?cById(a.cand_id):null;
- const co=a.comp_id?coById(a.comp_id):null;
- setPanel(a.title,`${t.ico} ${t.l} · ${fD(a.date)}${a.time?` · ${a.time}`:''}`,null,`
- <div class="dr"><span class="drk">Type</span><span class="drv">${t.ico} ${t.l}</span></div>
- <div class="dr"><span class="drk">Date</span><span class="drv">${fD(a.date)}</span></div>
- <div class="dr"><span class="drk">Heure</span><span class="drv">${a.time||'—'}</span></div>
- <div class="dr"><span class="drk">Candidat</span><span class="drv">${ca?`<span class="ac5" style="cursor:pointer" onclick="openCandPanel('${ca.id}')">${esc(ca.name)}</span>`:'—'}</span></div>
- <div class="dr"><span class="drk">Entreprise</span><span class="drv">${co?`<span class="ac5" style="cursor:pointer" onclick="openCoPanel('${co.id}')">${esc(co.name)}</span>`:'—'}</span></div>
- <div class="dr"><span class="drk">Statut</span><span class="drv">${a.done?'Terminé':'En attente'}</span></div>
- ${a.notes?`<div class="sl">Notes</div><div class="notebox">${esc(a.notes)}</div>`:''}`,
- `<button class="btn ${a.done?'bg':'bp'} bsm" onclick="togAgDone('${id}');openAgPanel('${id}')">${a.done?'↺ À faire':'Terminé'}</button><button class="btn bg bsm" onclick="openAgForm('${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delAg('${id}')"></button>`
-);
+ UI.ptype='ag';UI.pid=id;
+ const t=agType(a.type);
+ const ctx=agendaContext(a);
+ const ca=ctx.ca, co=ctx.co;
+ const state=agendaState(a);
+ const STATE_META={
+  overdue:{l:'En retard',c:'var(--red)',bg:'var(--red-dim)',bd:'var(--red-border)'},
+  today:{l:"Aujourd'hui",c:'var(--gold)',bg:'var(--ac-dim)',bd:'var(--ac-border)'},
+  soon:{l:'Demain',c:'var(--blue)',bg:'var(--blue-dim)',bd:'var(--blue-border)'},
+  upcoming:{l:'À venir',c:'var(--mu)',bg:'var(--s3)',bd:'var(--bd)'},
+  done:{l:'Terminé',c:'var(--green)',bg:'var(--green-dim)',bd:'var(--green-border)'}
+ };
+ const sm=STATE_META[state]||STATE_META.upcoming;
+ const heure=a.time?a.time:'Toute la journée';
+
+ // Bandeau d'état + quand
+ const banner=`<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:${sm.bg};border:1px solid ${sm.bd};border-left:3px solid ${sm.c};border-radius:var(--r2);margin-bottom:12px">
+  <span style="font-size:22px;line-height:1">${t.ico}</span>
+  <div style="flex:1;min-width:0">
+   <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--tx);line-height:1.25">${esc(a.title)}</div>
+   <div style="font-size:10px;color:${sm.c};font-weight:700;margin-top:2px">${sm.l} · ${fmtDateHuman(a.date)}${a.time?' · '+a.time:''}</div>
+  </div>
+ </div>`;
+
+ // Carte CONTEXTE — coordonnées immédiatement actionnables (cœur de la demande)
+ let contextCard='';
+ const entity = co || ca;
+ if(entity){
+  const isCo=!!co;
+  const phone=ctx.phone, email=ctx.email, city=ctx.city;
+  contextCard=`<div style="background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2);padding:12px 13px;margin-bottom:12px">
+   <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu2)">${isCo?'Entreprise liée':'Candidat lié'}</span>
+    <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${isCo?'var(--blue)':'var(--green)'};cursor:pointer" onclick="${isCo?`openCoPanel('${co.id}')`:`openCandPanel('${ca.id}')`}">${esc(entity.name)} ›</span>
+   </div>
+   ${phone?`<div class="callbox" style="margin-bottom:7px"><div class="callbox-ph">${fPhone(phone)}</div><a href="tel:${esc(String(phone).replace(/\s/g,''))}" class="btn bg bxs" style="text-decoration:none">Appeler</a><div class="btn bg bxs" onclick="cpPhone('${esc(phone)}')">Copier</div></div>`:''}
+   ${email?`<div class="dr"><span class="drk">Email</span><span class="drv"><a href="mailto:${esc(email)}" style="color:var(--blue)">${esc(email)}</a></span></div>`:''}
+   ${city?`<div class="dr"><span class="drk">${isCo?'Ville':'Mobilité'}</span><span class="drv">${esc(city)}</span></div>`:''}
+   ${isCo&&co.contact?`<div class="dr"><span class="drk">Contact</span><span class="drv">${esc(co.contact)}${co.ctitle?` <span class="mu_ fs10">${esc(co.ctitle)}</span>`:''}</span></div>`:''}
+   ${!phone&&!email?`<div class="mu_ fs10">Aucune coordonnée enregistrée. <span style="color:var(--blue);cursor:pointer" onclick="${isCo?`openCoForm('${co.id}')`:`openCandForm('${ca.id}')`}">Compléter la fiche →</span></div>`:''}
+  </div>`;
+ }
+
+ // Note / contexte (ce que l'utilisateur a écrit en planifiant)
+ const noteCard=a.notes?`<div class="sl">Contexte / Note</div><div class="notebox">${esc(a.notes)}</div>`:'';
+
+ // Détails secondaires
+ const details=`<div class="sl">Détails</div>
+  <div class="dr"><span class="drk">Type</span><span class="drv">${t.ico} ${t.l}</span></div>
+  <div class="dr"><span class="drk">Date</span><span class="drv">${fD(a.date)}</span></div>
+  <div class="dr"><span class="drk">Heure</span><span class="drv">${heure}</span></div>
+  ${co&&ca?`<div class="dr"><span class="drk">Candidat</span><span class="drv"><span class="ac5" style="cursor:pointer" onclick="openCandPanel('${ca.id}')">${esc(ca.name)}</span></span></div>`:''}`;
+
+ // Report rapide (sans ouvrir le formulaire)
+ const reschedule=!a.done?`<div class="sl">Reporter</div>
+  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+   <button class="btn bg bxs" onclick="rescheduleAg('${id}','+1')">+1 jour</button>
+   <button class="btn bg bxs" onclick="rescheduleAg('${id}','tomorrow')">Demain</button>
+   <button class="btn bg bxs" onclick="rescheduleAg('${id}','+3')">+3 jours</button>
+   <button class="btn bg bxs" onclick="rescheduleAg('${id}','nextweek')">+1 sem.</button>
+  </div>`:'';
+
+ const body=banner+contextCard+noteCard+details+reschedule;
+ const actions=`<button class="btn ${a.done?'bg':'bp'} bsm" onclick="togAgDone('${id}');openAgPanel('${id}')">${a.done?'↺ Rouvrir':'✓ Terminer'}</button><button class="btn bg bsm" onclick="openAgForm('${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delAg('${id}')">🗑</button>`;
+ setPanel(a.title,`<span style="color:${sm.c};font-weight:700">${t.l}</span> · ${fmtDateHuman(a.date)}${a.time?` · ${a.time}`:''}`,null,body,actions);
 }
+
+// Report rapide d'un événement (recale la date, le rouvre, rafraîchit les vues liées)
+function rescheduleAg(id,key){
+ const a=agById(id);if(!a)return;
+ let nd;
+ if(key==='tomorrow')nd=shiftDayKey(todayKey(),1);
+ else if(key==='nextweek')nd=shiftDayKey(todayKey(),7);
+ else if(key==='today')nd=todayKey();
+ else if(/^\+\d+$/.test(key))nd=shiftDayKey(dayKey(a.date)||todayKey(),parseInt(key.slice(1),10));
+ else nd=dayKey(key);
+ a.date=nd;a.done=false;a.updated=now_();
+ save();
+ if(typeof rAgenda==='function'&&UI.view==='agenda')rAgenda();
+ badges();
+ if(UI.view==='dash')rDash();
+ if(UI.ptype==='co'&&a.comp_id===UI.pid)openCoPanel(UI.pid);
+ else if(UI.ptype==='cand'&&a.cand_id===UI.pid)openCandPanel(UI.pid);
+ else openAgPanel(id);
+ toast('Reporté au '+fmtDateHuman(nd),'s');
+}
+
+// ── SUIVI / RAPPELS liés à une fiche (entreprise ou candidat) ──
+// Affiche les événements d'agenda rattachés, regroupés En cours / Historique.
+function renderLinkedAgenda(kind,id){
+ const all=agendaForEntity(kind,id);
+ const addBtn=kind==='co'
+  ?`<button class="btn bp bxs" onclick="openAgForm(null,null,'${id}')">+ Rappel</button>`
+  :`<button class="btn bp bxs" onclick="openAgForm(null,'${id}')">+ Rappel</button>`;
+ if(!all.length){
+  return `<div class="sl">Suivi & rappels <span>${addBtn}</span></div>
+   <div class="mu_ fs11" style="padding:4px 0">Aucun rappel planifié. Ajoutez-en un pour ne rien oublier.</div>`;
+ }
+ const open=all.filter(a=>!a.done).sort((a,b)=>((a.date||'')+(a.time||''))<((b.date||'')+(b.time||''))?-1:1);
+ const done=all.filter(a=>a.done).sort((a,b)=>(a.date||'')>(b.date||'')?-1:1);
+ const STATE_C={overdue:'var(--red)',today:'var(--gold)',soon:'var(--blue)',upcoming:'var(--mu)',done:'var(--green)'};
+ const row=(a)=>{
+  const t=agType(a.type);const stt=agendaState(a);const c=STATE_C[stt]||'var(--mu)';
+  const snippet=a.notes?`<div style="font-size:10px;color:var(--mu2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.notes.replace(/\n/g,' '))}</div>`:'';
+  return `<div onclick="openAgPanel('${a.id}')" style="display:flex;align-items:flex-start;gap:9px;padding:8px 10px;background:var(--s2);border:1px solid var(--bd);border-left:2px solid ${c};border-radius:var(--r);margin-bottom:5px;cursor:pointer;transition:.12s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">
+   <span style="font-size:13px;line-height:1.2;flex-shrink:0">${t.ico}</span>
+   <div style="flex:1;min-width:0">
+    <div style="font-size:11px;font-weight:600;color:var(--tx);${a.done?'text-decoration:line-through;opacity:.6':''}">${esc(a.title)}</div>
+    ${snippet}
+   </div>
+   <div style="text-align:right;flex-shrink:0">
+    <div style="font-size:10px;font-weight:700;color:${c}">${fmtDateHuman(a.date)}</div>
+    ${a.time?`<div style="font-size:9px;color:var(--mu2)">${a.time}</div>`:''}
+   </div>
+  </div>`;
+ };
+ let html=`<div class="sl">Suivi & rappels <span>${addBtn}</span></div>`;
+ if(open.length){ html+=open.map(row).join(''); }
+ else { html+=`<div class="mu_ fs11" style="padding:2px 0 6px">Aucun rappel en cours.</div>`; }
+ if(done.length){
+  html+=`<details style="margin-top:6px"><summary style="font-size:10px;color:var(--mu);cursor:pointer;padding:4px 0">Historique (${done.length} terminé${done.length>1?'s':''})</summary><div style="margin-top:4px">${done.slice(0,8).map(row).join('')}</div></details>`;
+ }
+ return html;
+}
+
+
 
 // ── POST PANEL ──────────────────────────────────────────────
 function openPostPanel(id){
@@ -4077,7 +4339,7 @@ function saveCandForm(id){
  badges();toast(id?'Mis à jour ✓':'Candidat ajouté ✓ — précal planifiée','s');
 }
 function autoAg(c){
- DB.agenda.push({id:uid(),type:'call',title:`Précal — ${c.name}`,date:now_(),time:'',cand_id:c.id,comp_id:null,notes:'Appel de qualification téléphonique',done:false,created:now_()});
+ addAgendaAuto({type:'call',title:`Précal — ${c.name}`,date:todayKey(),cand_id:c.id,notes:'Appel de qualification téléphonique à réaliser.',_auto:true});
  save();
 }
 
@@ -4450,19 +4712,17 @@ async function confirmSendProfiles(candId) {
     `Profil envoyé : ${cand.name} (${cand.role||getCat(cand.cat).l})${need?' → Besoin : '+need.title:''}`,
     null
    );
-   // Ajouter relance J+3
-   const relanceDate = new Date(Date.now() + 3*86400*1000);
-   DB.agenda.push({
-    id: uid(),
-    type: 'task',
-    title: `Rappeler ${co.name} — réception CV ${cand.name}`,
-    date: relanceDate.toISOString(),
-    time: '09:00',
+   // Relance J+3 ouvrés — date normalisée + contexte
+   addAgendaAuto({
+    type:'relance',
+    title:`Rappeler ${co.name} — réception CV ${cand.name}`,
+    date: localDateStr(addWorkingDays(new Date(),3)),
+    time:'09:00',
     cand_id: candId,
     comp_id: item.coId,
-    _profile_followup: true,
-    done: false,
-    created: now_(),
+    notes:`Profil de ${cand.name} envoyé le ${fD(todayKey())}. Vérifier la bonne réception et relancer pour un retour.`,
+    _profile_followup:true,
+    _auto:true
    });
   }
  }
@@ -4936,7 +5196,7 @@ async function sendFromAIMatch(candId) {
    if(cand.status!=='placed') { cand.status='presented'; cand.updated=now_(); }
    addTimeline(co.id,'profile_sent','Profil envoyé : '+cand.name+' (via IA Match)'+(need?' → '+need.title:''),null);
    addTimeline(cand.id||candId,'profile_sent','Profil envoyé à '+co.name+(need?' → '+need.title:''),null);
-   DB.agenda.push({id:uid(),type:'task',title:'Rappeler '+co.name+' — réception CV '+cand.name,date:localDateStr(new Date(now+3*86400000)),time:'09:00',cand_id:candId,comp_id:coId,_profile_followup:true,done:false,created:now_()});
+   addAgendaAuto({type:'relance',title:'Rappeler '+co.name+' — réception CV '+cand.name,date:localDateStr(addWorkingDays(new Date(),3)),time:'09:00',cand_id:candId,comp_id:coId,notes:'Profil de '+cand.name+' envoyé (via IA Match) le '+fD(todayKey())+'. Vérifier réception et relancer.',_profile_followup:true,_auto:true});
   }
  }
  save(); rCands(); badges();
@@ -5252,7 +5512,7 @@ function delNeed(id){
  openMo(`Supprimer ce besoin ?`,`<div style="font-size:12px;color:var(--mu);line-height:1.6">Supprimer <strong>${esc(n.title)}</strong> ?<br>Cette action est irréversible.</div>`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.needs=DB.needs.filter(x=>x.id!=='${id}');DB.candidates.forEach(c=>{if(c.linked_need==='${id}')c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Besoin supprimé','w');})()">Supprimer</button>`);
 }
-function delAg(id){DB.agenda=DB.agenda.filter(a=>a.id!==id);save();closePanel();rAgenda();badges();toast('Supprimé','w');}
+function delAg(id){const a=agById(id);const co=a&&a.comp_id,ca=a&&a.cand_id;DB.agenda=DB.agenda.filter(a=>a.id!==id);save();if(typeof rAgenda==='function'&&UI.view==='agenda')rAgenda();badges();if(UI.view==='dash')rDash();if(UI.ptype==='co'&&co===UI.pid)openCoPanel(UI.pid);else if(UI.ptype==='cand'&&ca===UI.pid)openCandPanel(UI.pid);else closePanel();toast('Événement supprimé','w');}
 function delPost(id){DB.posts=DB.posts.filter(p=>p.id!==id);save();closePanel();rPosts();toast('Supprimé','w');}
 
 // ═══════════════════════════════════════════════════════
@@ -7872,11 +8132,42 @@ function sendContractEmail(coId, encodedData) {
 
  addTimeline(coId,'status','Contrat envoyé'+(data.frais>0?' (frais : '+data.frais+'€)':''),null);
 
+ // ═══ AUTOMATISATION AGENDA — envoi de contrat ═══
+ // 1) Trace de l'envoi (événement marqué fait → apparaît dans l'historique de la fiche & de l'agenda)
+ const candLie=data.candidat_id||null;
+ const candNom=candLie&&cById(candLie)?cById(candLie).name:'';
+ addAgendaAuto({
+  type:'contract',
+  title:'Contrat envoyé — '+co.name,
+  date:todayKey(),
+  time:new Date().toTimeString().slice(0,5),
+  comp_id:coId,
+  cand_id:candLie,
+  notes:'Proposition professionnelle envoyée à '+co.name+(candNom?' (candidat : '+candNom+')':'')+(data.frais>0?'\nFrais : '+data.frais+'€':'')+'\nEn attente de signature.',
+  done:true,
+  _contract_log:true
+ });
+ // 2) Relance signature à J+3 ouvrés (sauf si déjà signé) — sans doublon
+ if(!co._contract_signed){
+  DB.agenda=DB.agenda.filter(a=>!(a._contract_followup&&a.comp_id===coId&&!a.done));
+  addAgendaAuto({
+   type:'relance',
+   title:'Relancer signature — '+co.name,
+   date:localDateStr(addWorkingDays(new Date(),3)),
+   time:'09:30',
+   comp_id:coId,
+   cand_id:candLie,
+   notes:'Contrat envoyé le '+fD(todayKey())+'. Relancer la signature si toujours en attente.\nLe lien de signature est renvoyable en 1 clic depuis la fiche client (bouton « Relancer »).',
+   _contract_followup:true
+  });
+ }
+ save();
+
  EM={to:co.email,subject:'Proposition professionnelle NOVALEM — '+co.name,body:body,candId:null,coId:coId,tplKey:null};
  EM_VIEW='compose';
  closeMo();
  setTimeout(()=>go('emails'),100);
- toast('Email contrat prêt — PDF joint automatiquement','s');
+ toast('Email contrat prêt · Relance auto planifiée dans l\'agenda ✓','s');
 }
 
 // ── RELANCE SIGNATURE CONTRAT ──────────────────────────────────
@@ -9214,6 +9505,10 @@ async function _checkPendingSignatures() {
     .limit(1).maybeSingle();
    if (data && data.signer_name) {
     co._contract_signed = { signer_name: data.signer_name, signed_at: data.signed_at, ref: 'NV-' + (data.ct_id || '').slice(0, 8).toUpperCase() };
+    // Clôturer la relance de signature en attente (automatisation agenda)
+    (DB.agenda||[]).forEach(a=>{ if(a._contract_followup && a.comp_id===co.id && !a.done){ a.done=true; a.done_at=now_(); a.updated=now_(); } });
+    // Tracer la signature dans l'agenda (jour de la signature)
+    addAgendaAuto({ type:'contract', title:'Contrat signé — '+co.name, date:dayKey(data.signed_at||todayKey()), comp_id:co.id, cand_id:(co._contract_draft&&co._contract_draft.candidat_id)||null, notes:'Signé par '+data.signer_name+'. Transmettre les coordonnées du candidat et valider le placement.', done:true, _contract_log:true });
     const _cands = candidatsForClient(co.id);
     const _candId = (co._contract_draft && co._contract_draft.candidat_id) || (_cands[0] && _cands[0].id) || null;
     DB._contract_notif = { coId: co.id, coName: co.name, signer: data.signer_name, at: data.signed_at, candId: _candId };

@@ -245,6 +245,8 @@ select option{background:var(--s2)}
 .wk-evt.visio{background:rgba(74,132,226,.18);color:var(--blue);border-left:2px solid var(--blue)}
 .wk-evt.task{background:rgba(45,212,160,.13);color:var(--green);border-left:2px solid var(--green)}
 .wk-evt.relance{background:rgba(144,72,224,.13);color:var(--purple);border-left:2px solid var(--purple)}
+.wk-evt.contract{background:rgba(200,224,64,.14);color:var(--gold);border-left:2px solid var(--gold)}
+.wk-evt.meeting{background:rgba(45,212,160,.13);color:var(--green);border-left:2px solid var(--green)}
 .wk-evt.done{opacity:.4}
 
 .mo-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
@@ -271,6 +273,8 @@ select option{background:var(--s2)}
 .day-evt.visio{background:rgba(74,132,226,.12);border-left:3px solid var(--blue)}
 .day-evt.task{background:rgba(45,212,160,.09);border-left:3px solid var(--green)}
 .day-evt.relance{background:rgba(144,72,224,.09);border-left:3px solid var(--purple)}
+.day-evt.contract{background:rgba(200,224,64,.10);border-left:3px solid var(--gold)}
+.day-evt.meeting{background:rgba(45,212,160,.09);border-left:3px solid var(--green)}
 .day-evt.done{opacity:.4}
 .day-evt-t{font-size:11px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .day-evt-time{font-size:10px;color:var(--mu);flex-shrink:0}
