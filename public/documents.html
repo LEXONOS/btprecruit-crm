@@ -315,9 +315,9 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);min-he
 </div>
 
 <script>
-const raw = sessionStorage.getItem('novalem_user');
+const raw = localStorage.getItem('novalem_user');
 if (!raw) window.location.href = '/';
-try { const u = JSON.parse(raw); if (!u||!u.ts||(Date.now()-u.ts)>24*3600000){sessionStorage.removeItem('novalem_user');window.location.href='/';}} catch(e){window.location.href='/';}
+try { const u = JSON.parse(raw); if (!u||!u.ts||(Date.now()-u.ts)>7*24*3600000){localStorage.removeItem('novalem_user');window.location.href='/';} else { u.ts=Date.now(); try{localStorage.setItem('novalem_user',JSON.stringify(u));}catch(_){} } } catch(e){ localStorage.removeItem('novalem_user'); window.location.href='/'; }
 
 /* === DOCUMENTS PREMIUM ANIMATIONS JS === */
 (function(){

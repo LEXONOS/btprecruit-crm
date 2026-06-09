@@ -1038,8 +1038,8 @@ a{color:inherit;text-decoration:none}
 // En production, ton système de login doit écrire dans
 // sessionStorage avant d'arriver sur cette page.
 // ═══════════════════════════════════════════════════════════════
-if (!sessionStorage.getItem('novalem_user')) {
-  sessionStorage.setItem('novalem_user', JSON.stringify({
+if (!localStorage.getItem('novalem_user')) {
+  localStorage.setItem('novalem_user', JSON.stringify({
     id: 'demo',
     name: 'Scout',
     ts: Date.now()
@@ -1051,14 +1051,14 @@ if (!sessionStorage.getItem('novalem_user')) {
 // ═══════════════════════════════════════════════════════════════
 
 // ═ AUTH ═
-const rawUser = sessionStorage.getItem('novalem_user');
+const rawUser = localStorage.getItem('novalem_user');
 if (!rawUser) { window.location.href = '/'; }
 let CURRENT_USER = null;
 try {
   const u = JSON.parse(rawUser);
-  if (!u || !u.ts || (Date.now() - u.ts) > 24*3600000) {
-    sessionStorage.removeItem('novalem_user'); window.location.href='/';
-  } else CURRENT_USER = u;
+  if (!u || !u.ts || (Date.now() - u.ts) > 7*24*3600000) {
+    localStorage.removeItem('novalem_user'); window.location.href='/';
+  } else { u.ts=Date.now(); try{localStorage.setItem('novalem_user',JSON.stringify(u));}catch(_){} CURRENT_USER = u; }
 } catch(e){ window.location.href='/'; }
 const UID = (CURRENT_USER && CURRENT_USER.id) || 'anon';
 const STORE_KEY = `novalem_acad_${UID}`;

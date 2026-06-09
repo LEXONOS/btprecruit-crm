@@ -816,7 +816,7 @@ function computeAlerts(){
  a.push({color:'var(--ac6)',msg:`En retard : ${ev.title}`,act:`go('agenda')`})
 );
  // Factures en retard
- const todayStr=new Date().toISOString().split('T')[0];
+ const todayStr=todayKey();
  (DB.invoices||[]).filter(inv=>inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr).forEach(inv=>{
  const co=coById(inv.company_id);
  a.push({color:'var(--ac3)',msg:`Facture impayée en retard — ${co?co.name:'?'} (${fM(inv.amount)})`,act:`go('facturation')`});
@@ -864,7 +864,7 @@ function dashAgRow(a){
 }
 function dashInterviewCard(a){
  const ca=a.cand_id?cById(a.cand_id):null;const visioLink=ca&&ca.visio_link||null;
- return `<div class="interview-card" onclick="openAgPanel('${a.id}')"><div class="interview-time">${a.time||'—'}</div><div class="interview-info"><div class="interview-name">${esc(a.title)}</div><div class="interview-sub">${ca?esc(ca.name):''}</div></div>${visioLink?`<a href="${esc(visioLink)}" target="_blank" onclick="event.stopPropagation()" class="btn bi bxs">Rejoindre</a>`:''}</div>`;
+ return `<div class="interview-card" onclick="${ca?`openInterviewModal('${ca.id}')`:`openAgPanel('${a.id}')`}"><div class="interview-time">${a.time||'—'}</div><div class="interview-info"><div class="interview-name">${esc(a.title)}</div><div class="interview-sub">${ca?esc(ca.name):''}</div></div>${visioLink?`<a href="${esc(visioLink)}" target="_blank" onclick="event.stopPropagation()" class="btn bi bxs">Rejoindre</a>`:''}</div>`;
 }
 function renderDashAgendaBlocks(){
  const byTime=(a,b)=>((a.time||'99')>(b.time||'99')?1:-1);
@@ -1077,15 +1077,15 @@ function rEnCours(){
  const cands=DB.candidates.filter(c=>['new','precal'].includes(c.status))
  .sort((a,b)=>{
  // Ceux avec RDV agenda en premier
- const aAg=DB.agenda.find(ag=>ag.cand_id===a.id&&!ag.done&&ag.date>=new Date().toISOString().split('T')[0]);
- const bAg=DB.agenda.find(ag=>ag.cand_id===b.id&&!ag.done&&ag.date>=new Date().toISOString().split('T')[0]);
+ const aAg=DB.agenda.find(ag=>ag.cand_id===a.id&&!ag.done&&ag.date>=todayKey());
+ const bAg=DB.agenda.find(ag=>ag.cand_id===b.id&&!ag.done&&ag.date>=todayKey());
  if(aAg&&!bAg)return -1;
  if(!aAg&&bAg)return 1;
  if(aAg&&bAg)return (aAg.date+aAg.time||'').localeCompare(bAg.date+bAg.time||'');
  return new Date(b.updated)-new Date(a.updated);
  });
 
- const today=new Date().toISOString().split('T')[0];
+ const today=todayKey();
 
  const rows=cands.map(c=>{
  const cat=getCat(c.cat);
@@ -1199,7 +1199,7 @@ function rDossiers(){
  });
 
  const DOCS_REQUIRED=['cv','id_card','carte_vit','dossier','rgpd'];
- const today=new Date().toISOString().split('T')[0];
+ const today=todayKey();
 
  function docPct(c){
  const docs=c.docs||[];
@@ -2120,7 +2120,7 @@ function proceedToEmail(candId){
  const c=cById(candId);if(!c)return;
  const visioLink=genJitsiLink();
  const sel=UI.calSelected;
- const d=new Date(sel.dateStr);
+ const d=parseDayLocal(sel.dateStr); // ← jour local (midi), JAMAIS new Date("YYYY-MM-DD") = minuit UTC = veille en Guadeloupe
  const dateStr=`${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} de ${sel.h}h00 à ${sel.h+1}h00`;
  c.visio_link=visioLink;c.int_date_planned=sel.dateStr;c.int_time=`${sel.h}:00`;c.updated=now_();save();
 
@@ -2221,7 +2221,8 @@ function renderCPProfil(c){
 
 // TAB 1 — ENTRETIEN
 function renderCPEntretien(c){
- return`
+ const cockpitBtn=(c.int_date_planned||c.visio_link)?`<button class="btn bp btn-full" style="margin-bottom:10px" onclick="openInterviewModal('${c.id}')">▶ Ouvrir le cockpit d'entretien</button>`:'';
+ return cockpitBtn+`
  <div class="dr"><span class="drk">Entretien fait</span><span class="drv">${c.int_done?`${fD(c.int_date)}`:'Non'}</span></div>
  <div class="dr"><span class="drk">Planifié le</span><span class="drv">${c.int_date_planned?`${fD(c.int_date_planned)} ${c.int_time||''}`:' —'}</span></div>
  ${c.visio_link?`<div class="dr"><span class="drk">Lien visio</span><span class="drv"><a href="${esc(c.visio_link)}" target="_blank" style="color:var(--ac5)">Ouvrir →</a></span></div>`:''}
@@ -4117,6 +4118,16 @@ function openAgPanel(id){
  // Note / contexte (ce que l'utilisateur a écrit en planifiant)
  const noteCard=a.notes?`<div class="sl">Contexte / Note</div><div class="notebox">${esc(a.notes)}</div>`:'';
 
+ // Entretien visio lié à un candidat → accès direct au cockpit + au lien de connexion
+ let visioCard='';
+ if(a.type==='visio' && ca){
+  const _vl = ca.visio_link || ((a.notes||'').match(/https?:\/\/[^\s]+/)||[])[0] || '';
+  visioCard=`<div style="margin-bottom:12px">
+   <button class="btn bp btn-full" onclick="openInterviewModal('${ca.id}')">▶ Ouvrir le cockpit d'entretien</button>
+   ${_vl?`<a href="${esc(_vl)}" target="_blank" class="btn bg bsm btn-full" style="text-decoration:none;margin-top:6px">🎥 Rejoindre la visio</a>`:''}
+  </div>`;
+ }
+
  // Détails secondaires
  const details=`<div class="sl">Détails</div>
   <div class="dr"><span class="drk">Type</span><span class="drv">${t.ico} ${t.l}</span></div>
@@ -4133,7 +4144,7 @@ function openAgPanel(id){
    <button class="btn bg bxs" onclick="rescheduleAg('${id}','nextweek')">+1 sem.</button>
   </div>`:'';
 
- const body=banner+contextCard+noteCard+details+reschedule;
+ const body=banner+visioCard+contextCard+noteCard+details+reschedule;
  const actions=`<button class="btn ${a.done?'bg':'bp'} bsm" onclick="togAgDone('${id}');openAgPanel('${id}')">${a.done?'↺ Rouvrir':'✓ Terminer'}</button><button class="btn bg bsm" onclick="openAgForm('${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delAg('${id}')">🗑</button>`;
  setPanel(a.title,`<span style="color:${sm.c};font-weight:700">${t.l}</span> · ${fmtDateHuman(a.date)}${a.time?` · ${a.time}`:''}`,null,body,actions);
 }
@@ -4429,7 +4440,7 @@ function openNeedForm(coId=null,id=null){
  const catOpts=BTP_CATS.map(c=>`<option value="${c.id}" ${(n.cat||'go')===c.id?'selected':''}>${c.l}</option>`).join('');
  const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
  const stOpts=NST.map(s=>`<option value="${s.id}" ${(n.status||'open')===s.id?'selected':''}>${s.l}</option>`).join('');
- const today=new Date().toISOString().split('T')[0];
+ const today=todayKey();
  openMo(id?'Modifier besoin':'Nouveau besoin',`
  <div class="fg">
  <div class="fgrp ff"><span class="lbl">Titre du poste *</span><input id="nf-t" value="${esc(n.title||'')}" placeholder="Conducteur de travaux GO"></div>
@@ -4558,6 +4569,97 @@ function togDoc(id,doc,checked){const c=cById(id);if(!c)return;c.docs=c.docs||[]
 function saveIntNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('int-note-'+id);if(!el)return;c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();save();toast('Synthèse sauvegardée ✓','s');}
 function saveGenNote2(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note2-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_date=now_();c.updated=now_();save();if(UI.pid===id)renderCandPanelTab(id);toast('Entretien marqué fait ✓','s');}
+
+// ═══════════════════════════════════════════════════════════
+// COCKPIT D'ENTRETIEN — pop-up unique ouvert depuis l'agenda (clic sur
+// l'entretien) ou la fiche candidat. Réunit : le lien visio, le récap
+// COMPLET du dossier (identité, situation, compétences, expériences +
+// référents) pour repasser sur toutes les infos, et la prise de notes.
+// ═══════════════════════════════════════════════════════════
+function openInterviewModal(candId){
+ const c=cById(candId); if(!c){toast('Candidat introuvable','e');return;}
+ const dd=c._dossier_data||{};
+ const pro=dd.pro||{}, adm=dd.admin||{}, comp=dd.competences||{};
+ const exps=(dd.experiences&&dd.experiences.length?dd.experiences:(c.experiences||[]));
+ const link=c.visio_link||'';
+ const when=c.int_date_planned?`${fD(c.int_date_planned)}${c.int_time?' à '+c.int_time:''}`:'Non planifié';
+ const EXPL={moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'};
+ const UEL={ue:'Ressortissant UE/EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'};
+ const permL=pro.permis==='oui'?('Oui'+(pro.permis_detail?' — '+pro.permis_detail:'')):(pro.permis==='non'?'Non':(pro.permis_detail||pro.permis||''));
+ const row=(k,v)=>v?`<div class="dr"><span class="drk">${esc(k)}</span><span class="drv">${esc(String(v))}</span></div>`:'';
+ const chips=(arr)=>(arr&&arr.length)?arr.map(x=>`<span style="display:inline-block;background:var(--s3);border:1px solid var(--bd2);border-radius:3px;padding:2px 7px;margin:2px 3px 2px 0;font-size:10px">${esc(x)}</span>`).join(''):'';
+
+ const visioBlock=`
+  <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.25);border-radius:var(--r2);padding:12px 13px;margin-bottom:14px">
+   <div style="font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu2);margin-bottom:8px">Entretien visio · ${esc(when)}</div>
+   ${link?`<a href="${esc(link)}" target="_blank" class="btn bp btn-full" style="text-decoration:none;margin-bottom:7px">🎥 Rejoindre la visio</a>
+   <div style="display:flex;gap:6px;align-items:center"><div style="flex:1;font-size:10px;color:var(--mu);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn bg bxs" onclick="cpText('${esc(link)}')">Copier</button></div>`
+   :`<div style="font-size:11px;color:var(--ac4)">Aucun lien visio. <span style="color:var(--blue);cursor:pointer" onclick="closeMo();openCalendarMo('${c.id}')">Planifier l'entretien →</span></div>`}
+  </div>`;
+
+ let dossierBlock='';
+ if(c._dossier_validated){
+  const hasComp=(comp.caces&&comp.caces.length)||(comp.electrique&&comp.electrique.length)||(comp.securite&&comp.securite.length)||(comp.logiciels&&comp.logiciels.length)||comp.langues;
+  dossierBlock=`
+   <div class="sl">Identité &amp; contact</div>
+   ${row('Nom',c.name)}${row('Téléphone',c.phone)}${row('Email',c.email)}
+   <div class="sl mt12">Situation professionnelle</div>
+   ${row('Poste',pro.poste||c.role)}
+   ${row('Expérience',EXPL[pro.experience]||pro.experience)}
+   ${row('Salaire actuel',pro.sal_actuel?pro.sal_actuel+' €/an':'')}
+   ${row('Salaire souhaité',pro.sal_souhaite?pro.sal_souhaite+' €/an':(c.salary?c.salary+' €/an':''))}
+   ${row('Disponibilité',pro.dispo)}
+   ${row('Type de contrat',pro.contrat)}
+   ${row('Mobilité',pro.mobilite)}
+   ${row('Permis',permL)}
+   <div class="sl mt12">Situation administrative</div>
+   ${row('Statut',UEL[adm.situation_ue]||adm.situation_ue)}
+   ${row('Type de titre',adm.titre_type)}${row('Expiration titre',adm.titre_exp)}${row("Pays d'origine",adm.pays_origine)}
+   ${hasComp?`<div class="sl mt12">Compétences</div>`:''}
+   ${(comp.caces&&comp.caces.length)?`<div style="margin-bottom:6px"><span class="drk" style="display:block;margin-bottom:3px">CACES</span>${chips(comp.caces)}</div>`:''}
+   ${(comp.electrique&&comp.electrique.length)?`<div style="margin-bottom:6px"><span class="drk" style="display:block;margin-bottom:3px">Habilitations élec.</span>${chips(comp.electrique)}</div>`:''}
+   ${(comp.securite&&comp.securite.length)?`<div style="margin-bottom:6px"><span class="drk" style="display:block;margin-bottom:3px">Sécurité</span>${chips(comp.securite)}</div>`:''}
+   ${(comp.logiciels&&comp.logiciels.length)?`<div style="margin-bottom:6px"><span class="drk" style="display:block;margin-bottom:3px">Logiciels</span>${chips(comp.logiciels)}</div>`:''}
+   ${row('Langues',comp.langues)}
+   ${(exps&&exps.length)?`<div class="sl mt12">Expériences professionnelles (${exps.length})</div>`+exps.map((e,i)=>`
+     <div style="background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2);padding:9px 11px;margin-bottom:7px">
+      <div style="font-weight:700;font-size:12px;color:var(--tx)">${i+1}. ${esc(e.societe||'—')}${e.fonction?' — '+esc(e.fonction):''}</div>
+      ${(e.contrat||e.periode)?`<div style="font-size:10px;color:var(--mu);margin-top:2px">${[esc(e.contrat||''),esc(e.periode||'')].filter(Boolean).join('  ·  ')}</div>`:''}
+      ${e.motif?`<div style="font-size:10px;color:var(--mu);margin-top:2px">Motif de fin : ${esc(e.motif)}</div>`:''}
+      ${(e.ref_nom||e.ref_tel)?`<div style="font-size:10px;color:var(--ac5);margin-top:3px">Référent : ${esc([e.ref_nom,e.ref_fonction].filter(Boolean).join(' · '))}${e.ref_tel?` · <a href="tel:${esc(String(e.ref_tel).replace(/\s/g,''))}" style="color:var(--ac5)">${esc(e.ref_tel)}</a>`:''}</div>`:''}
+     </div>`).join(''):''}
+   <div style="margin-top:8px"><button class="btn bg bsm btn-full" onclick="closeMo();openCandPanel('${c.id}');setTimeout(()=>setCPTab(2,'${c.id}'),140)">📎 Voir les pièces (CV, CNI, permis, dossier PDF)</button></div>`;
+ } else {
+  dossierBlock=`<div style="padding:11px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);font-size:11px;color:var(--ac4)">
+    Dossier non encore reçu — le récap s'affichera ici une fois le dossier signé.<br>
+    <span style="cursor:pointer;font-weight:700;color:var(--ac4)" onclick="cpText('https://novalem-crm.vercel.app/dossier.html?cid=${c.id}&amp;n=${encodeURIComponent(c.name)}')">Copier le lien du dossier</span></div>`;
+ }
+
+ const notesBlock=`
+  <div class="sl mt12">Notes d'entretien</div>
+  <textarea id="intc-note-${c.id}" style="min-height:120px;width:100%;margin-bottom:4px" placeholder="Validation des infos du dossier, ressenti, points à creuser, détails des expériences passées…">${esc(c.notes_int||'')}</textarea>`;
+
+ openMo(`Entretien — ${c.name}`, visioBlock+dossierBlock+notesBlock,
+  `<button class="btn bg" onclick="closeMo()">Fermer</button>
+   <button class="btn bg" onclick="markIntDoneFromModal('${c.id}')">✓ Entretien fait</button>
+   <button class="btn bp" onclick="saveInterviewNote('${c.id}')">💾 Enregistrer</button>`);
+}
+function saveInterviewNote(candId){
+ const c=cById(candId); if(!c)return;
+ const el=document.getElementById('intc-note-'+candId); if(!el)return;
+ c.notes_int=el.value; if(el.value){c.int_done=true; c.int_date=c.int_date||now_();}
+ c.updated=now_(); save();
+ if(UI.pid===candId&&UI.ptype==='cand')renderCandPanelTab(candId);
+ toast("Notes d'entretien enregistrées ✓",'s');
+}
+function markIntDoneFromModal(candId){
+ const c=cById(candId); if(!c)return;
+ const el=document.getElementById('intc-note-'+candId); if(el)c.notes_int=el.value;
+ c.int_done=true; c.int_date=now_(); c.updated=now_();
+ save(); badges();
+ if(UI.pid===candId&&UI.ptype==='cand')renderCandPanelTab(candId);
+ toast('Entretien marqué fait ✓','s');
+}
 function openStatusTree(id){openStatusMo('cand',id);}
 function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(c.linked_need?'Besoin lié ✓':'Lien retiré','s');}
 function saveGNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
@@ -6289,7 +6391,7 @@ Novalem — Cabinet de recrutement BTP`;
 
 Suite à notre échange téléphonique, je vous confirme notre entretien visio :
 
-  Date : ${c.int_date_planned?new Date(c.int_date_planned).toLocaleDateString('fr-FR'):'[DATE]'} à ${c.int_time||'[HEURE]'}
+  Date : ${c.int_date_planned?fD(c.int_date_planned):'[DATE]'} à ${c.int_time||'[HEURE]'}
   Lien : ${c.visio_link||'[LIEN À INSÉRER]'}
 
 Merci de vous connecter 2-3 minutes avant l'heure.
@@ -8320,7 +8422,7 @@ function rFacturation(){
  const filter=UI.invFilter||'all';
 
  // Auto-mark overdue
- const todayStr=new Date().toISOString().split('T')[0];
+ const todayStr=todayKey();
  let changed=false;
  invs.forEach(inv=>{if(inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr){inv.status='overdue';changed=true;}});
  if(changed)save();
@@ -8569,7 +8671,7 @@ function _createInvoice(candId,salary,taux,notes,extra){
  const need=c?.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
  const co=need?coById(need.company_id):null;
  const amount=Math.round(Number(salary)*taux/100);
- const today=new Date().toISOString().split('T')[0];
+ const today=todayKey();
  const due=new Date();due.setDate(due.getDate()+30);
  const inv={
   id:uid(),invoice_number:getInvoiceNumber(),

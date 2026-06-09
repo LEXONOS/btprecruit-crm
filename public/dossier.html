@@ -1068,6 +1068,19 @@ async function submitDossier(){
   attachments.push({ key: key, filename: file.name, content: b64.split(',')[1], type: file.type });
  }
 
+ // Générer le PDF complet du dossier signé → archivé automatiquement sur la fiche candidat
+ try {
+  var dossierPdf = dossierPdfBase64(dossier);
+  if (dossierPdf) {
+   attachments.push({
+    key: 'dossier',
+    filename: 'Dossier_' + (dossier.identite.prenom||'') + '_' + (dossier.identite.nom||'') + '.pdf',
+    content: dossierPdf,
+    type: 'application/pdf'
+   });
+  }
+ } catch(e) { /* non bloquant : le dossier part quand même */ }
+
  try {
   var resp = await fetch(API+'/api/jobs', {
    method:'POST',
@@ -1304,10 +1317,10 @@ async function confirmBooking(){
  }
 }
 
-function downloadDossierPDF(){
- var d = window._dossierId; if(!d) return;
+function buildDossierDoc(d){
+ if(!d || !d.identite) return null;
  var jsPDFLib = window.jspdf;
- if(!jsPDFLib){ alert('PDF non disponible'); return; }
+ if(!jsPDFLib){ return null; }
  var doc = new jsPDFLib.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
  var W=210,H=297,ML=18,MR=18,MT=16,CW=174;
@@ -1380,6 +1393,19 @@ function downloadDossierPDF(){
  if(d.competences.langues) row('Langues', d.competences.langues);
  if(d.competences.notes) row('Notes', d.competences.notes);
 
+ var _exps=(d.experiences||[]);
+ if(_exps.length){
+  section('EXPÉRIENCES PROFESSIONNELLES');
+  _exps.forEach(function(e,i){
+   if(y>H-30){doc.addPage();y=MT;}
+   sf('bold',8.5);tc(...C.n);wt((i+1)+'. '+(e.societe||'—')+(e.fonction?' — '+e.fonction:''),ML,y);y+=4.5;
+   if(e.contrat||e.periode){sf('normal',8);tc(...C.g);wt([e.contrat,e.periode].filter(Boolean).join('   ·   '),ML,y);y+=4;}
+   if(e.motif){sf('normal',8);tc(...C.g);wt('Motif de fin : '+e.motif,ML,y);y+=4;}
+   if(e.ref_nom||e.ref_tel){sf('normal',8);tc(...C.g);wt('Référent : '+[e.ref_nom,e.ref_fonction,e.ref_tel].filter(Boolean).join('  ·  '),ML,y);y+=4;}
+   y+=2;
+  });
+ }
+
  sep();
  section('SIGNATURE ÉLECTRONIQUE');
  sf('italic',12);tc(...C.o);wt(d.signature.signed_by,ML,y);y+=6;
@@ -1398,7 +1424,18 @@ function downloadDossierPDF(){
   wt(p+' / '+np,W-MR,H-8,{align:'right'});
  }
 
+ return doc;
+}
+function downloadDossierPDF(){
+ var d = window._dossierId; if(!d) return;
+ var doc = buildDossierDoc(d);
+ if(!doc){ alert('PDF non disponible'); return; }
  doc.save('Dossier_Candidature_NOVALEM_'+d.identite.nom+'.pdf');
+}
+// Renvoie le PDF complet du dossier en base64 (sans préfixe data:) — pour archivage auto sur la fiche candidat
+function dossierPdfBase64(d){
+ try { var doc=buildDossierDoc(d); if(!doc) return null; var uri=doc.output('datauristring'); return (uri.split(',')[1])||null; }
+ catch(e){ return null; }
 }
 </script>
 </body>

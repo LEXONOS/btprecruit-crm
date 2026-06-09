@@ -439,14 +439,44 @@ async function handleSubmitDossier(req, res) {
               };
               cand.experiences = dossier.experiences || [];
 
-              // Ajouter dans la liste docs
+              // ── Rattacher TOUS les documents reçus à la fiche candidat ──
+              // CV, pièce d'identité (CNI/passeport/titre), permis + le PDF complet du dossier.
+              // Stockés en base64 (data URL) → aperçu & téléchargement directs dans le CRM,
+              // exactement comme les uploads manuels (aucun bucket Supabase à configurer).
               cand.docs = cand.docs || [];
-              const docEntry = { id: 'dossier', l: 'Dossier candidature signé', ico: '📋',
-                name: `Dossier_${id.prenom}_${id.nom}.pdf`, date: new Date().toISOString(),
-                file: true, ref };
-              const existing = cand.docs.findIndex(d => d.id === 'dossier');
-              if (existing >= 0) cand.docs[existing] = docEntry;
-              else cand.docs.push(docEntry);
+              const SLOT = { cv:'cv', id:'id_card', titre:'id_card', permis:'permis', carte_vit:'carte_vit', dossier:'dossier' };
+              const MAX_INLINE = 4.5 * 1024 * 1024; // garde-fou (protège le cache local du navigateur)
+              const fmtSize = (n) => n < 1024 ? n+'o' : (n < 1024*1024 ? Math.round(n/1024)+'Ko' : (n/1024/1024).toFixed(1)+'Mo');
+              const upsertDoc = (slotId, entry) => {
+                const i = cand.docs.findIndex(d => d.id === slotId);
+                if (i >= 0) cand.docs[i] = entry; else cand.docs.push(entry);
+              };
+              for (const att of (attachments || [])) {
+                const slotId = SLOT[att.key] || att.key;
+                const b64 = att.content || '';
+                const approxBytes = Math.floor(b64.length * 3 / 4);
+                const mime = att.type || (att.key === 'dossier' ? 'application/pdf' : 'application/octet-stream');
+                const entry = {
+                  id: slotId,
+                  name: att.filename || (slotId + (mime === 'application/pdf' ? '.pdf' : '')),
+                  size: fmtSize(approxBytes),
+                  date: new Date().toISOString(),
+                  type: mime,
+                  ref,
+                };
+                if (b64 && approxBytes <= MAX_INLINE) {
+                  entry.file = `data:${mime};base64,${b64}`;
+                } else {
+                  entry.file = true;     // trop volumineux pour l'inline → reçu (joint à l'email)
+                  entry.oversized = true;
+                }
+                upsertDoc(slotId, entry);
+              }
+              // Filet de sécurité : garder une trace "dossier" même si le PDF n'a pas pu être généré
+              if (!(attachments || []).some(a => a.key === 'dossier')) {
+                upsertDoc('dossier', { id:'dossier', name:`Dossier_${id.prenom}_${id.nom}.pdf`, date:new Date().toISOString(), file:true, ref });
+              }
+              cand._dossier_validated_at = new Date().toISOString();
 
               // Sauvegarder
               await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', row.id);
@@ -590,21 +620,38 @@ async function handleSubmitDossier(req, res) {
             cand._dossier_ref = ref;
             cand._dossier_notif_seen = false;
 
-            // Ajouter dans la liste des docs
-            cand.docs = cand.docs || [];
-            const docEntry = {
-              id: 'dossier',
-              name: `Dossier_${id.prenom}_${id.nom}_${ref}.pdf`,
-              date: new Date().toISOString(),
-              size: 'signé',
-              file: true,
-              signed_by: sig.signed_by,
-              signed_at: sig.signed_at,
+            // Données complètes du dossier (récap CRM + cockpit d'entretien)
+            cand._dossier_signed_at = sig.signed_at;
+            cand._dossier_data = {
+              pro, admin,
+              competences: comp,
+              experiences: dossier.experiences || [],
+              self_employed: !!(dossier.experiences && dossier.experiences.length === 0)
             };
-            // Remplacer ou ajouter
-            const existingIdx = cand.docs.findIndex(d => d.id === 'dossier');
-            if (existingIdx >= 0) cand.docs[existingIdx] = docEntry;
-            else cand.docs.push(docEntry);
+            cand.experiences = dossier.experiences || [];
+
+            // ── Rattacher TOUTES les pièces reçues à la fiche (CV, CNI/titre, permis, dossier PDF) ──
+            cand.docs = cand.docs || [];
+            const SLOT2 = { cv:'cv', id:'id_card', titre:'id_card', permis:'permis', carte_vit:'carte_vit', dossier:'dossier' };
+            const MAX_INLINE2 = 4.5 * 1024 * 1024;
+            const fmtSize2 = (n) => n < 1024 ? n+'o' : (n < 1024*1024 ? Math.round(n/1024)+'Ko' : (n/1024/1024).toFixed(1)+'Mo');
+            const upsertDoc2 = (slotId, entry) => {
+              const i = cand.docs.findIndex(d => d.id === slotId);
+              if (i >= 0) cand.docs[i] = entry; else cand.docs.push(entry);
+            };
+            for (const att of (attachments || [])) {
+              const slotId = SLOT2[att.key] || att.key;
+              const b64 = att.content || '';
+              const approxBytes = Math.floor(b64.length * 3 / 4);
+              const mime = att.type || (att.key === 'dossier' ? 'application/pdf' : 'application/octet-stream');
+              const entry = { id: slotId, name: att.filename || (slotId + (mime === 'application/pdf' ? '.pdf' : '')), size: fmtSize2(approxBytes), date: new Date().toISOString(), type: mime, ref };
+              if (b64 && approxBytes <= MAX_INLINE2) entry.file = `data:${mime};base64,${b64}`;
+              else { entry.file = true; entry.oversized = true; }
+              upsertDoc2(slotId, entry);
+            }
+            if (!(attachments || []).some(a => a.key === 'dossier')) {
+              upsertDoc2('dossier', { id:'dossier', name:`Dossier_${id.prenom}_${id.nom}_${ref}.pdf`, date:new Date().toISOString(), file:true, signed_by: sig.signed_by, signed_at: sig.signed_at, ref });
+            }
 
             // Passer en statut "dossier" si encore en précal
             if (['new','precal'].includes(cand.status)) {

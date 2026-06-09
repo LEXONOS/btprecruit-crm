@@ -1273,17 +1273,21 @@ a { color: inherit; text-decoration: none; }
 <!-- ═══════════ SCRIPT ═══════════ -->
 <script>
 /* ── Auth guard ──────────────────────────────────────────────── */
-const raw = sessionStorage.getItem('novalem_user');
+const raw = localStorage.getItem('novalem_user');
 if (!raw) { location.href = '/'; }
 
 let U = null;
 try {
   U = JSON.parse(raw);
-  if (!U || !U.ts || (Date.now() - U.ts) > 24 * 3600000) {
-    sessionStorage.removeItem('novalem_user');
+  if (!U || !U.ts || (Date.now() - U.ts) > 7*24*3600000) {
+    localStorage.removeItem('novalem_user');
     location.href = '/';
+  } else {
+    /* Fenêtre glissante : on prolonge la session à chaque ouverture */
+    U.ts = Date.now();
+    try { localStorage.setItem('novalem_user', JSON.stringify(U)); } catch(_){}
   }
-} catch(e) { location.href = '/'; }
+} catch(e) { localStorage.removeItem('novalem_user'); location.href = '/'; }
 
 /* ── Supabase ────────────────────────────────────────────────── */
 const SB_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
@@ -1793,7 +1797,7 @@ document.addEventListener('keydown', e => {
 
 /* ── Logout ──────────────────────────────────────────────────── */
 function logout() {
-  sessionStorage.removeItem('novalem_user');
+  localStorage.removeItem('novalem_user');
   if (sb) sb.auth.signOut().catch(() => {});
   location.href = '/';
 }

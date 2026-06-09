@@ -364,7 +364,7 @@ h1 em{font-style:italic;color:#b08418}
 const SUPABASE_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
 const HUB_URL = '/hub';
-const SESSION_MAX_MS = 24 * 3600000;
+const SESSION_MAX_MS = 7*24*3600000;
 
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) {}
@@ -498,7 +498,7 @@ document.getElementById('panel-signin').addEventListener('submit', async (e) => 
   const initials = profile?.avatar_initials ||
     ((prenom[0] || '') + (nom[0] || '')).toUpperCase();
 
-  sessionStorage.setItem('novalem_user', JSON.stringify({
+  localStorage.setItem('novalem_user', JSON.stringify({
     id:       data.user.id,
     name:     displayName.trim(),
     role:     profile?.role || 'scout',
@@ -590,7 +590,7 @@ document.getElementById('panel-signup').addEventListener('submit', async (e) => 
 /* AUTO-REDIRECT SI SESSION VALIDE < 24h            */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 (async function checkSession() {
-  const stored = sessionStorage.getItem('novalem_user');
+  const stored = localStorage.getItem('novalem_user');
   if (stored) {
     try {
       const u = JSON.parse(stored);
@@ -599,7 +599,7 @@ document.getElementById('panel-signup').addEventListener('submit', async (e) => 
         return;
       }
     } catch(e) {}
-    sessionStorage.removeItem('novalem_user');
+    localStorage.removeItem('novalem_user');
   }
 
   if (sb) {
@@ -621,7 +621,7 @@ document.getElementById('panel-signup').addEventListener('submit', async (e) => 
         const parts  = session.user.email.split('@')[0].split('.');
         const prenom = profile?.prenom || parts[0] || '';
         const nom    = profile?.nom    || parts[1] || '';
-        sessionStorage.setItem('novalem_user', JSON.stringify({
+        localStorage.setItem('novalem_user', JSON.stringify({
           id:       session.user.id,
           name:     (prenom + ' ' + nom).trim(),
           role:     profile?.role || 'scout',
