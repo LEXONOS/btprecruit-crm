@@ -224,31 +224,113 @@ async function saveSharedConfig(patch){
 }
 
 // ── localStorage save (cache local — toujours instantané) ─
-// Cache partagé sous une clé unique (plus de cache par-utilisateur).
+// Cache partagé sous une clé unique. Si le quota du navigateur est dépassé
+// (documents base64 volumineux), on met en cache SANS les candidats : le
+// cloud (table crm_candidats) reste la source de vérité pour eux.
 function saveLocal(){
- try{localStorage.setItem('btpcrm5_agency',JSON.stringify(DB));}catch(e){}
+ try{ localStorage.setItem('btpcrm5_agency',JSON.stringify(DB)); }
+ catch(e){
+   try{ const lite=Object.assign({},DB,{candidates:[]}); localStorage.setItem('btpcrm5_agency',JSON.stringify(lite)); }catch(_){}
+ }
 }
 
-// ── Supabase sync (async background — never blocks UI) ────
+// ══════════════════════════════════════════════════════════════════
+// PERSISTANCE CLOUD — modèle anti-perte de données
+// ------------------------------------------------------------------
+// AVANT : toute la base (candidats + entreprises + agenda + documents
+//   base64) était un seul gros JSON dans crm_data (1 ligne). Le navigateur
+//   ET le serveur réécrivaient ce bloc entier → toute écriture concurrente
+//   en écrasait une autre (candidats qui disparaissent, documents perdus).
+// APRÈS : chaque candidat = sa propre ligne dans crm_candidats. Le serveur
+//   (dossier validé, créneau réservé) met à jour SA ligne sans toucher au
+//   reste. Le navigateur ne pousse que les candidats qu'il a réellement
+//   modifiés (comparaison d'empreinte), donc il n'écrase jamais le serveur.
+//   Entreprises / besoins / agenda (écrits seulement par toi) restent dans
+//   crm_data : c'est sûr car il n'y a qu'un seul écrivain.
+// ══════════════════════════════════════════════════════════════════
+
+let _candSnap = {};        // empreinte du dernier état persisté (id -> JSON)
+let _candRefreshTimer = null;
+
+// Construit la ligne SQL d'un candidat (colonnes filtrables + objet complet).
+function _candRow(c){
+ return {
+   id: c.id,
+   name: c.name||'',
+   prenom: c.prenom||'',
+   nom: c.nom||'',
+   email: c.email||'',
+   phone: c.phone||'',
+   statut: c.status||'entrant',
+   poste: c.role||'',
+   cat: c.cat||'',
+   city: c.city||c.ville||'',
+   source: c.source||'',
+   data: c,
+   updated_at: new Date().toISOString()
+ };
+}
+
+// Indicateurs de synchro (badge en haut du CRM)
+function _syncOk(){
+ const ind=document.getElementById('sync-ind');
+ if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='● Connecté';ind.style.color='var(--green)';}
+}
+function _syncErr(e){
+ const ind=document.getElementById('sync-ind');
+ if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+((e&&e.message)||e);}
+}
+
+// ── Sync des DONNÉES PARTAGÉES (tout sauf les candidats) vers crm_data ──
 let _syncTimer=null;
 function syncToSupabase(){
- // Debounce: wait 800ms of inactivity before syncing
  clearTimeout(_syncTimer);
  _syncTimer=setTimeout(async()=>{
-  const sb=getSB();
-  if(!sb)return;
+  const sb=getSB(); if(!sb)return;
   try{
-    const payload=JSON.stringify(DB);
-    const {error}=await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:payload,updated_at:new Date().toISOString()},{onConflict:'id'});
+    const shared={
+      companies:   DB.companies||[],
+      needs:       DB.needs||[],
+      agenda:      DB.agenda||[],
+      posts:       DB.posts||[],
+      invoices:    DB.invoices||[],
+      email_rules: DB.email_rules||[]
+    };
+    const {error}=await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:JSON.stringify(shared),updated_at:new Date().toISOString()},{onConflict:'id'});
     if(error)throw error;
-    const ind=document.getElementById('sync-ind');
-    if(ind){ind.title='Cloud OK — '+new Date().toLocaleTimeString('fr-FR');ind.textContent='· Cloud ✓';ind.style.color='var(--green)';}
-  }catch(e){
-    const ind=document.getElementById('sync-ind');
-    if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+e.message;}
-    console.warn('Supabase sync error:',e);
-  }
+    _syncOk();
+  }catch(e){ _syncErr(e); console.warn('Supabase sync (partagé) error:',e); }
  },800);
+}
+
+// ── Sync des CANDIDATS modifiés vers crm_candidats (une ligne chacun) ──
+let _candSyncTimer=null;
+function syncCandidates(){
+ clearTimeout(_candSyncTimer);
+ _candSyncTimer=setTimeout(_doCandSync,800);
+}
+async function _doCandSync(){
+ const sb=getSB(); if(!sb)return;
+ try{
+   const rows=[]; const seen={};
+   for(const c of (DB.candidates||[])){
+     if(!c.id) c.id=(typeof uid==='function'?uid():Date.now().toString(36));
+     seen[c.id]=true;
+     const snap=JSON.stringify(c);
+     if(_candSnap[c.id]!==snap){ rows.push(_candRow(c)); _candSnap[c.id]=snap; }
+   }
+   if(rows.length){
+     const {error}=await sb.from('crm_candidats').upsert(rows,{onConflict:'id'});
+     if(error)throw error;
+   }
+   // Suppressions : présents dans l'empreinte mais plus dans DB.candidates
+   const toDel=Object.keys(_candSnap).filter(id=>!seen[id]);
+   if(toDel.length){
+     await sb.from('crm_candidats').delete().in('id',toDel);
+     toDel.forEach(id=>delete _candSnap[id]);
+   }
+   _syncOk();
+ }catch(e){ _syncErr(e); console.warn('Supabase sync (candidats) error:',e); }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -577,56 +659,143 @@ function openDocPreview(candId,docId){
 loadTheme();
 setInterval(_tickClocks,1000);_tickClocks();
 
-// ── save() = localStorage immédiat + Supabase en arrière-plan
+// ── save() = cache local immédiat + cloud en arrière-plan ──
+// Pousse les données partagées (crm_data) ET les candidats modifiés (crm_candidats).
 function save(){
  saveLocal();
  syncToSupabase();
+ syncCandidates();
 }
 
-// ── load() = Supabase (projet canonique) + cache localStorage ───
-async function load(){
- // 1. Toujours charger le cache local d'abord (instantané)
+// ── Chargement complet depuis le cloud (partagé + candidats) ──
+async function loadAllFromCloud(){
+ const sb=getSB(); if(!sb) return false;
+ // 1. Données partagées (entreprises, besoins, agenda, posts, factures, règles)
  try{
- const local=JSON.parse(localStorage.getItem('btpcrm5_agency'));
- if(local&&local.candidates){DB=local;try{window.DB=DB;}catch(_){}}
- // Sinon : DB reste vierge (pas de seed). Les données arrivent à la connexion cloud.
+   const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
+   if(!error && data && data.data){
+     const shared = typeof data.data==='string' ? JSON.parse(data.data) : data.data;
+     if(shared){
+       DB.companies   = shared.companies   || [];
+       DB.needs       = shared.needs       || [];
+       DB.agenda      = shared.agenda      || [];
+       DB.posts       = shared.posts       || [];
+       DB.invoices    = shared.invoices    || [];
+       DB.email_rules = shared.email_rules || [];
+     }
+   }
+ }catch(e){ console.warn('[load] données partagées:',e); }
+ // 2. Candidats (table dédiée — une ligne chacun)
+ try{ await loadCandidates(); }catch(e){ console.warn('[load] candidats:',e); }
+ try{ window.DB=DB; }catch(_){}
+ saveLocal();
+ // 3. Rafraîchissement périodique sûr (remplace l'ancien minuteur destructeur)
+ if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshCandidates, 45000);
+ return true;
+}
+
+// Charge tous les candidats depuis crm_candidats dans DB.candidates.
+async function loadCandidates(){
+ const sb=getSB(); if(!sb)return;
+ const {data,error}=await sb.from('crm_candidats').select('data,updated_at').order('updated_at',{ascending:false});
+ if(error)throw error;
+ const list=(data||[]).map(r=> typeof r.data==='string'?JSON.parse(r.data):r.data ).filter(Boolean);
+ DB.candidates=list;
+ _candSnap={};
+ for(const c of list){ if(c && c.id) _candSnap[c.id]=JSON.stringify(c); }
+ try{ window.DB=DB; }catch(_){}
+}
+
+// Re-tire les candidats du cloud et fusionne ce que le serveur a écrit
+// (dossier validé, créneau réservé, documents déposés) sans écraser tes
+// modifications locales en cours.
+async function refreshCandidates(){
+ const sb=getSB(); if(!sb)return;
+ let rows;
+ try{
+   const r=await sb.from('crm_candidats').select('data').order('updated_at',{ascending:false});
+   if(r.error)throw r.error;
+   rows=r.data||[];
+ }catch(e){ console.warn('[refresh] candidats:',e); return; }
+ let changed=false;
+ for(const row of rows){
+   const cc = typeof row.data==='string'?JSON.parse(row.data):row.data;
+   if(!cc || !cc.id) continue;
+   const idx=(DB.candidates||[]).findIndex(x=>x.id===cc.id);
+   if(idx<0){
+     DB.candidates.unshift(cc);
+     _candSnap[cc.id]=JSON.stringify(cc);
+     changed=true;
+   }else{
+     const local=DB.candidates[idx];
+     const localStr=JSON.stringify(local);
+     if(_candSnap[cc.id]===localStr){
+       // Local non modifié depuis la dernière synchro → le cloud fait foi
+       const ccStr=JSON.stringify(cc);
+       if(ccStr!==localStr){ DB.candidates[idx]=cc; _candSnap[cc.id]=ccStr; changed=true; }
+     }else{
+       // Local modifié non sauvegardé → on ne fusionne QUE les champs serveur
+       const merged=_mergeServerFields(local,cc);
+       if(JSON.stringify(merged)!==localStr){ DB.candidates[idx]=merged; changed=true; }
+     }
+   }
+ }
+ if(changed){
+   saveLocal();
+   if(typeof scanBookings==='function'){ try{scanBookings();}catch(_){}}
+   if(typeof badges==='function'){ try{badges();}catch(_){}}
+   if(typeof UI!=='undefined' && UI){
+     if(UI.view==='cands' && typeof rCands==='function'){ try{rCands();}catch(_){}}
+     if(UI.view==='dash' && typeof rDash==='function'){ try{rDash();}catch(_){}}
+   }
+ }
+}
+
+// Champs écrits EXCLUSIVEMENT par le serveur (réception dossier / réservation).
+function _mergeServerFields(local,cloud){
+ const out=Object.assign({},local);
+ ['_dossier_validated','_dossier_validated_at','_dossier_ref','_dossier_data','_dossier_signed_at','_dossier_notif_seen','booking_notif_seen'].forEach(f=>{
+   if(cloud[f]!==undefined) out[f]=cloud[f];
+ });
+ // booking : on prend la version cloud mais on garde le flag local _agenda_added
+ if(cloud.booking!==undefined){
+   const b=Object.assign({},cloud.booking);
+   if(local.booking && local.booking._agenda_added) b._agenda_added=true;
+   out.booking=b;
+ }
+ // documents : union par id (ne perd ni les tiens ni ceux du dossier)
+ if(Array.isArray(cloud.docs)){
+   const have={}; (out.docs||[]).forEach(d=>{ if(d&&d.id) have[d.id]=true; });
+   out.docs=(out.docs||[]).slice();
+   cloud.docs.forEach(d=>{ if(d && d.id && !have[d.id]) out.docs.push(d); });
+ }
+ return out;
+}
+
+// ── load() au démarrage = cache local instantané, puis cloud ──
+async function load(){
+ // 1. Cache local d'abord (instantané)
+ try{
+   const local=JSON.parse(localStorage.getItem('btpcrm5_agency'));
+   if(local){ DB=Object.assign({candidates:[],companies:[],needs:[],agenda:[],posts:[],invoices:[],email_rules:[]},local); try{window.DB=DB;}catch(_){}}
  }catch(e){/* DB vierge */}
-
- // Mettre à jour l'indicateur de connexion
+ // 2. Indicateur de connexion
  if(typeof updateConnIndicator==='function')updateConnIndicator();
-
- // 2. Charger la config d'agence partagée (clé Anthropic, taux, objectif CA)
+ // 3. Config d'agence partagée (clé Anthropic, taux, objectif CA)
  await loadSharedConfig();
-
- // 3. Charger les données d'agence partagées depuis le cloud
+ // 4. Données cloud (partagé + candidats)
  const sb=getSB();
  if(!sb)return; // Pas de client — cache local seul
-
  try{
-    const {data,error}=await sb.from('crm_data').select('data,updated_at').eq('id',AGENCY_DATA_ROW).maybeSingle();
- if(error)throw error;
- if(data?.data){
- let cloudDB;
- try{cloudDB=typeof data.data==='string'?JSON.parse(data.data):data.data;}
- catch(e){throw new Error('JSON cloud invalide');}
- if(cloudDB&&cloudDB.candidates){
- DB=cloudDB;
- try{window.DB=DB;}catch(_){}
- saveLocal(); // Mettre à jour le cache local
- rDash();badges(); // Refresh UI avec données cloud
- const ind=document.getElementById('sync-ind');
- if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données cloud chargées — '+new Date().toLocaleTimeString('fr-FR');}
- }
- } else {
- // Première connexion — uploader les données locales vers la ligne partagée
- await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:JSON.stringify(DB),updated_at:new Date().toISOString()},{onConflict:'id'});
- const ind=document.getElementById('sync-ind');
- if(ind){ind.textContent='· Sync ✓';ind.style.color='var(--ac2)';ind.title='Données initiales envoyées vers le cloud';}
- }
+   await loadAllFromCloud();
+   if(typeof rDash==='function')rDash();
+   if(typeof badges==='function')badges();
+   const ind=document.getElementById('sync-ind');
+   if(ind){ind.textContent='● Connecté';ind.style.color='var(--green)';ind.title='Données chargées — '+new Date().toLocaleTimeString('fr-FR');}
  }catch(e){
- console.warn('Supabase load error:',e);
- const ind=document.getElementById('sync-ind');
- if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Cloud inaccessible — données locales utilisées';}
+   console.warn('Supabase load error:',e);
+   const ind=document.getElementById('sync-ind');
+   if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Cloud inaccessible — données locales utilisées';}
  }
 }
 
@@ -5829,12 +5998,7 @@ async function connectCloud(){
  const sb=getSB();
  if(!sb){if(btn){btn.disabled=false;btn.textContent='Connecter';}toast('Connexion impossible — vérifiez les identifiants','e');return;}
  try{
-  const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
-  if(error)throw error;
-  if(data?.data){
-   const cloudDB=typeof data.data==='string'?JSON.parse(data.data):data.data;
-   if(cloudDB&&cloudDB.candidates){DB=cloudDB;saveLocal();}
-  }
+  await loadAllFromCloud();
   closeMo();
   updateConnIndicator();
   rDash();badges();
@@ -7798,12 +7962,7 @@ async function gateConnect(){
  try{
   const cgStatus=()=>document.getElementById('cg-status');
   if(cgStatus())cgStatus().textContent='Récupération de vos données…';
-  const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
-  if(error)throw error;
-  if(data?.data){
-   const cloudDB=typeof data.data==='string'?JSON.parse(data.data):data.data;
-   if(cloudDB&&cloudDB.candidates){DB=cloudDB;saveLocal();}
-  }
+  await loadAllFromCloud();
   if(cgStatus())cgStatus().textContent='Préparation de l\'espace…';
   // Init complète
   setTimeout(startSignaturePolling, 2000);
