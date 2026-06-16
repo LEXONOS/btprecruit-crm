@@ -7,8 +7,10 @@ const { createClient } = require('@supabase/supabase-js');
 
 function getSB() {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('SUPABASE_URL ou SUPABASE_ANON_KEY manquant');
+  // Côté serveur, on privilégie la clé service_role (contourne RLS → écritures
+  // fiables quoi qu'il arrive) ; sinon on retombe sur la clé anon.
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error('SUPABASE_URL ou clé Supabase manquante');
   // Realtime désactivé : aucune API serverless n'en a besoin, et ça évite
   // le warning "Node.js 20 detected without native WebSocket support".
   return createClient(url, key, {
@@ -354,6 +356,85 @@ async function handleSignContract(req, res) {
 
 
 // ── Soumission dossier candidature ────────────────────────────────────
+// ── Helpers documents candidats → bucket Supabase privé "candidat-docs" ──
+const DOC_SLOT = { cv:'cv', id:'id_card', titre:'id_card', permis:'permis', carte_vit:'carte_vit', dossier:'dossier' };
+function _fmtSize(n){ return n<1024 ? n+'o' : (n<1024*1024 ? Math.round(n/1024)+'Ko' : (n/1024/1024).toFixed(1)+'Mo'); }
+function _extFor(mime, filename){
+  if(mime==='application/pdf') return '.pdf';
+  if(mime==='image/jpeg'||mime==='image/jpg') return '.jpg';
+  if(mime==='image/png') return '.png';
+  if(mime==='image/webp') return '.webp';
+  const fromName = (filename||'').includes('.') ? '.'+filename.split('.').pop() : '';
+  return fromName || '.bin';
+}
+// Upload une pièce dans le bucket privé candidat-docs ; renvoie l'entrée doc
+// (chemin de stockage + URL signée longue durée). Fini le base64 dans la fiche.
+async function uploadCandidateDoc(sb, candId, slotId, att){
+  const b64 = att.content || '';
+  if(!b64) return null;
+  const mime = att.type || (att.key==='dossier' ? 'application/pdf' : 'application/octet-stream');
+  const buf  = Buffer.from(b64, 'base64');
+  const ext  = _extFor(mime, att.filename);
+  const path = `${candId}/${slotId}${ext}`;
+  const { error: upErr } = await sb.storage.from('candidat-docs').upload(path, buf, { contentType: mime, upsert: true });
+  if(upErr){ console.warn('[doc] upload', slotId, upErr.message); return null; }
+  let url = null;
+  try { const { data: s } = await sb.storage.from('candidat-docs').createSignedUrl(path, 60*60*24*365); url = s?.signedUrl || null; } catch(_){}
+  return { id: slotId, name: att.filename || (slotId+ext), size: _fmtSize(buf.length), date: new Date().toISOString(), type: mime, storage_path: path, url };
+}
+
+// Rattache un dossier validé à la fiche candidat (table crm_candidats) :
+// champs dossier + pièces uploadées dans le bucket. N'écrit QUE cette fiche
+// (plus de réécriture du blob global → plus d'écrasement concurrent).
+async function attachDossierToCandidate(sb, candId, info){
+  const { ref, sig, pro, admin, comp, dossier, attachments, id } = info;
+  const { data: row, error } = await sb.from('crm_candidats').select('data').eq('id', candId).maybeSingle();
+  if(error) throw error;
+  if(!row || !row.data){ console.warn('[dossier] candidat introuvable dans crm_candidats:', candId); return false; }
+  const cand = typeof row.data==='string' ? JSON.parse(row.data) : row.data;
+
+  cand._dossier_validated    = true;
+  cand._dossier_validated_at = new Date().toISOString();
+  cand._dossier_ref          = ref;
+  cand._dossier_signed_at    = sig.signed_at;
+  cand._dossier_notif_seen   = false;
+  cand._dossier_data = {
+    pro, admin,
+    competences: comp,
+    experiences: dossier.experiences || [],
+    self_employed: !!(dossier.experiences && dossier.experiences.length === 0)
+  };
+  cand.experiences = dossier.experiences || [];
+  if(['new','precal'].includes(cand.status)) cand.status = 'dossier';
+  cand.updated = new Date().toISOString();
+
+  cand.docs = cand.docs || [];
+  const upsertDoc = (entry) => { const i = cand.docs.findIndex(d => d.id === entry.id); if(i>=0) cand.docs[i]=entry; else cand.docs.push(entry); };
+  for (const att of (attachments || [])) {
+    const slotId = DOC_SLOT[att.key] || att.key;
+    try {
+      let entry;
+      if (att.storage_path) {
+        // Déjà déposé dans le bucket par le client → on enregistre juste le lien
+        entry = { id: slotId, name: att.filename || slotId, size: att.size ? _fmtSize(att.size) : undefined, date: new Date().toISOString(), type: att.type || 'application/octet-stream', storage_path: att.storage_path, url: att.url || null };
+      } else if (att.content) {
+        entry = await uploadCandidateDoc(sb, candId, slotId, att);
+      }
+      if (entry) { entry.ref = ref; upsertDoc(entry); }
+    } catch(e){ console.warn('[dossier] doc', slotId, e.message); }
+  }
+  if(!cand.docs.some(d => d.id === 'dossier')){
+    upsertDoc({ id:'dossier', name:`Dossier_${id.prenom}_${id.nom}_${ref}.pdf`, date:new Date().toISOString(), missing:true, signed_by: sig.signed_by, signed_at: sig.signed_at, ref });
+  }
+
+  const { error: upErr } = await sb.from('crm_candidats').update({
+    data: cand, statut: cand.status || 'dossier', updated_at: new Date().toISOString()
+  }).eq('id', candId);
+  if(upErr) throw upErr;
+  console.log('[dossier] fiche candidat mise à jour:', candId, 'ref:', ref);
+  return true;
+}
+
 async function handleSubmitDossier(req, res) {
   const { dossier, attachments } = req.body || {};
   if (!dossier || !dossier.identite) {
@@ -409,84 +490,10 @@ async function handleSubmitDossier(req, res) {
       console.warn('[dossier] Supabase insert error (non-bloquant):', e.message);
     }
 
-    // Mettre à jour le profil candidat dans crm_data si cand_id fourni
+    // Mettre à jour la fiche candidat (table dédiée crm_candidats) + pièces dans le bucket
     if (candId) {
-      try {
-        // Récupérer la crm_data existante (stockée par l'utilisateur CRM)
-        // On met à jour le candidat pour : _dossier_validated, _dossier_ref, et ajouter doc 'dossier'
-        const { data: rows } = await sb
-          .from('crm_data')
-          .select('id, data')
-          .in('id', [1, 2]);  // Louis=1, Corentin=2
-
-        for (const row of (rows || [])) {
-          try {
-            const db = JSON.parse(row.data || '{}');
-            const cands = db.candidates || [];
-            const cand = cands.find(c => c.id === candId);
-            if (cand) {
-              // Marquer dossier validé
-              cand._dossier_validated = true;
-              cand._dossier_ref = ref;
-              cand._dossier_signed_at = sig.signed_at;
-              cand._dossier_notif_seen = false;
-              // Données complètes du dossier (pour affichage CRM + contrôle de réf)
-              cand._dossier_data = {
-                pro, admin,
-                competences: comp,
-                experiences: dossier.experiences || [],
-                self_employed: !!(dossier.experiences && dossier.experiences.length===0)
-              };
-              cand.experiences = dossier.experiences || [];
-
-              // ── Rattacher TOUS les documents reçus à la fiche candidat ──
-              // CV, pièce d'identité (CNI/passeport/titre), permis + le PDF complet du dossier.
-              // Stockés en base64 (data URL) → aperçu & téléchargement directs dans le CRM,
-              // exactement comme les uploads manuels (aucun bucket Supabase à configurer).
-              cand.docs = cand.docs || [];
-              const SLOT = { cv:'cv', id:'id_card', titre:'id_card', permis:'permis', carte_vit:'carte_vit', dossier:'dossier' };
-              const MAX_INLINE = 4.5 * 1024 * 1024; // garde-fou (protège le cache local du navigateur)
-              const fmtSize = (n) => n < 1024 ? n+'o' : (n < 1024*1024 ? Math.round(n/1024)+'Ko' : (n/1024/1024).toFixed(1)+'Mo');
-              const upsertDoc = (slotId, entry) => {
-                const i = cand.docs.findIndex(d => d.id === slotId);
-                if (i >= 0) cand.docs[i] = entry; else cand.docs.push(entry);
-              };
-              for (const att of (attachments || [])) {
-                const slotId = SLOT[att.key] || att.key;
-                const b64 = att.content || '';
-                const approxBytes = Math.floor(b64.length * 3 / 4);
-                const mime = att.type || (att.key === 'dossier' ? 'application/pdf' : 'application/octet-stream');
-                const entry = {
-                  id: slotId,
-                  name: att.filename || (slotId + (mime === 'application/pdf' ? '.pdf' : '')),
-                  size: fmtSize(approxBytes),
-                  date: new Date().toISOString(),
-                  type: mime,
-                  ref,
-                };
-                if (b64 && approxBytes <= MAX_INLINE) {
-                  entry.file = `data:${mime};base64,${b64}`;
-                } else {
-                  entry.file = true;     // trop volumineux pour l'inline → reçu (joint à l'email)
-                  entry.oversized = true;
-                }
-                upsertDoc(slotId, entry);
-              }
-              // Filet de sécurité : garder une trace "dossier" même si le PDF n'a pas pu être généré
-              if (!(attachments || []).some(a => a.key === 'dossier')) {
-                upsertDoc('dossier', { id:'dossier', name:`Dossier_${id.prenom}_${id.nom}.pdf`, date:new Date().toISOString(), file:true, ref });
-              }
-              cand._dossier_validated_at = new Date().toISOString();
-
-              // Sauvegarder
-              await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', row.id);
-              break;
-            }
-          } catch(e2) {}
-        }
-      } catch(e) {
-        console.warn('[dossier] crm_data update error:', e.message);
-      }
+      try { await attachDossierToCandidate(sb, candId, { ref, sig, pro, admin, comp, dossier, attachments, id }); }
+      catch(e) { console.warn('[dossier] mise à jour fiche candidat:', e.message); }
     }
   }
 
@@ -597,80 +604,6 @@ async function handleSubmitDossier(req, res) {
     }
   }
 
-  // ── Mettre à jour le profil candidat dans le CRM (Supabase) ────
-  if (sb && candId) {
-    try {
-      // Lire les données CRM existantes
-      const { data: crmRows } = await sb
-        .from('crm_data')
-        .select('id, data')
-        .order('id', { ascending: true });
-
-      if (crmRows?.length) {
-        for (const row of crmRows) {
-          let db;
-          try { db = typeof row.data === 'string' ? JSON.parse(row.data) : row.data; }
-          catch(e) { continue; }
-
-          const cand = (db.candidates || []).find(c => c.id === candId);
-          if (cand) {
-            // Marquer dossier validé
-            cand._dossier_validated = true;
-            cand._dossier_validated_at = new Date().toISOString();
-            cand._dossier_ref = ref;
-            cand._dossier_notif_seen = false;
-
-            // Données complètes du dossier (récap CRM + cockpit d'entretien)
-            cand._dossier_signed_at = sig.signed_at;
-            cand._dossier_data = {
-              pro, admin,
-              competences: comp,
-              experiences: dossier.experiences || [],
-              self_employed: !!(dossier.experiences && dossier.experiences.length === 0)
-            };
-            cand.experiences = dossier.experiences || [];
-
-            // ── Rattacher TOUTES les pièces reçues à la fiche (CV, CNI/titre, permis, dossier PDF) ──
-            cand.docs = cand.docs || [];
-            const SLOT2 = { cv:'cv', id:'id_card', titre:'id_card', permis:'permis', carte_vit:'carte_vit', dossier:'dossier' };
-            const MAX_INLINE2 = 4.5 * 1024 * 1024;
-            const fmtSize2 = (n) => n < 1024 ? n+'o' : (n < 1024*1024 ? Math.round(n/1024)+'Ko' : (n/1024/1024).toFixed(1)+'Mo');
-            const upsertDoc2 = (slotId, entry) => {
-              const i = cand.docs.findIndex(d => d.id === slotId);
-              if (i >= 0) cand.docs[i] = entry; else cand.docs.push(entry);
-            };
-            for (const att of (attachments || [])) {
-              const slotId = SLOT2[att.key] || att.key;
-              const b64 = att.content || '';
-              const approxBytes = Math.floor(b64.length * 3 / 4);
-              const mime = att.type || (att.key === 'dossier' ? 'application/pdf' : 'application/octet-stream');
-              const entry = { id: slotId, name: att.filename || (slotId + (mime === 'application/pdf' ? '.pdf' : '')), size: fmtSize2(approxBytes), date: new Date().toISOString(), type: mime, ref };
-              if (b64 && approxBytes <= MAX_INLINE2) entry.file = `data:${mime};base64,${b64}`;
-              else { entry.file = true; entry.oversized = true; }
-              upsertDoc2(slotId, entry);
-            }
-            if (!(attachments || []).some(a => a.key === 'dossier')) {
-              upsertDoc2('dossier', { id:'dossier', name:`Dossier_${id.prenom}_${id.nom}_${ref}.pdf`, date:new Date().toISOString(), file:true, signed_by: sig.signed_by, signed_at: sig.signed_at, ref });
-            }
-
-            // Passer en statut "dossier" si encore en précal
-            if (['new','precal'].includes(cand.status)) {
-              cand.status = 'dossier';
-            }
-            cand.updated = new Date().toISOString();
-
-            // Sauvegarder
-            await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', row.id);
-            console.log('[dossier] Profil candidat mis à jour:', candId, 'ref:', ref);
-            break;
-          }
-        }
-      }
-    } catch(e) {
-      console.warn('[dossier] Mise à jour profil candidat échouée (non-bloquant):', e.message);
-    }
-  }
-
   return res.status(200).json({ success: true, ref, message: 'Dossier reçu' });
 }
 
@@ -678,15 +611,11 @@ async function handleSubmitDossier(req, res) {
 // AUTO-BOOKING — créneaux candidat (fusionné depuis book.js)
 // ═══════════════════════════════════════════════════════════════════
 async function findCandidateById(sb, cid) {
-  const { data: rows, error } = await sb.from('crm_data').select('id, data').in('id', [1, 2]);
+  const { data: row, error } = await sb.from('crm_candidats').select('data').eq('id', cid).maybeSingle();
   if (error) throw error;
-  for (const row of (rows || [])) {
-    let db;
-    try { db = JSON.parse(row.data || '{}'); } catch (e) { continue; }
-    const cand = (db.candidates || []).find(c => c.id === cid);
-    if (cand) return { rowId: row.id, db, cand };
-  }
-  return { rowId: null, db: null, cand: null };
+  if (!row || !row.data) return { cand: null };
+  const cand = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+  return { cand };
 }
 
 async function handleGetBooking(req, res) {
@@ -735,7 +664,7 @@ async function handleBookSlot(req, res) {
   let sb;
   try { sb = getSB(); } catch (e) { return res.status(500).json({ error: e.message }); }
   try {
-    const { rowId, db, cand } = await findCandidateById(sb, cid);
+    const { cand } = await findCandidateById(sb, cid);
     if (!cand)         return res.status(404).json({ error: 'Candidat introuvable' });
     if (!cand.booking) return res.status(404).json({ error: 'Aucune invitation active' });
     if (cand.booking.token !== bk) return res.status(403).json({ error: 'Lien invalide' });
@@ -760,7 +689,8 @@ async function handleBookSlot(req, res) {
     cand.int_date_planned      = picked.dateStr;
     cand.int_time              = picked.h + ':00';
 
-    await sb.from('crm_data').update({ data: JSON.stringify(db) }).eq('id', rowId);
+    const { error: upErr } = await sb.from('crm_candidats').update({ data: cand, updated_at: new Date().toISOString() }).eq('id', cid);
+    if (upErr) throw upErr;
 
     // Email de confirmation au candidat (avec lien visio) — best effort, n'échoue pas la résa
     try {
