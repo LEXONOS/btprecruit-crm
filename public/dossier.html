@@ -665,6 +665,7 @@ textarea.inp{resize:vertical;min-height:70px}
 </div><!-- /.wrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 var API = 'https://novalem-crm.vercel.app';
 var CAND_ID = null; // Récupéré depuis l'URL si lien depuis CRM
@@ -1060,24 +1061,39 @@ async function submitDossier(){
   cand_id: CAND_ID,
  };
 
- // Convertir les fichiers en base64
+ // ── Envoyer les pièces directement dans le bucket (hors limite Vercel) ──
  var attachments = [];
+ var _cid = CAND_ID || ('anon-' + Date.now().toString(36));
  for(var key of Object.keys(uploadedFiles)){
   var file = uploadedFiles[key];
-  var b64 = await fileToBase64(file);
-  attachments.push({ key: key, filename: file.name, content: b64.split(',')[1], type: file.type });
+  try {
+   var att = await uploadPieceToBucket(_cid, key, file);
+   if (att) { attachments.push(att); continue; }
+   throw new Error('upload indisponible');
+  } catch(e) {
+   // Repli : si l'upload direct échoue, on envoie en base64 (petits fichiers)
+   var b64 = await fileToBase64(file);
+   attachments.push({ key: key, filename: file.name, content: b64.split(',')[1], type: file.type });
+  }
  }
 
- // Générer le PDF complet du dossier signé → archivé automatiquement sur la fiche candidat
+ // PDF complet du dossier signé → bucket puis lien sur la fiche candidat
  try {
   var dossierPdf = dossierPdfBase64(dossier);
   if (dossierPdf) {
-   attachments.push({
-    key: 'dossier',
-    filename: 'Dossier_' + (dossier.identite.prenom||'') + '_' + (dossier.identite.nom||'') + '.pdf',
-    content: dossierPdf,
-    type: 'application/pdf'
-   });
+   var pdfName = 'Dossier_' + (dossier.identite.prenom||'') + '_' + (dossier.identite.nom||'') + '.pdf';
+   try {
+    var SBp = getDossierSB();
+    if (SBp) {
+     var pdfPath = _cid + '/dossier.pdf';
+     var upPdf = await SBp.storage.from('candidat-docs').upload(pdfPath, _b64ToBlob(dossierPdf,'application/pdf'), { contentType:'application/pdf', upsert:true });
+     if (upPdf.error) throw upPdf.error;
+     var sp = await SBp.storage.from('candidat-docs').createSignedUrl(pdfPath, 60*60*24*365);
+     attachments.push({ key:'dossier', filename: pdfName, type:'application/pdf', storage_path: pdfPath, url: (sp.data&&sp.data.signedUrl)||null });
+    } else { throw new Error('SB indisponible'); }
+   } catch(e) {
+    attachments.push({ key:'dossier', filename: pdfName, content: dossierPdf, type:'application/pdf' });
+   }
   }
  } catch(e) { /* non bloquant : le dossier part quand même */ }
 
@@ -1125,6 +1141,35 @@ function fileToBase64(file){
   r.onerror = reject;
   r.readAsDataURL(file);
  });
+}
+
+// ── Stockage direct des pièces dans Supabase (bucket privé candidat-docs) ──
+// Évite la limite de 4,5 Mo des requêtes Vercel : les fichiers ne transitent
+// plus par l'API, ils vont directement dans le bucket.
+var SB_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
+var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
+var _dossierSB = null;
+function getDossierSB(){
+ try{ if(!_dossierSB && window.supabase) _dossierSB = window.supabase.createClient(SB_URL, SB_ANON, { auth:{persistSession:false} }); }catch(e){}
+ return _dossierSB;
+}
+function _b64ToBlob(b64, mime){
+ var bin = atob(b64); var len = bin.length; var arr = new Uint8Array(len);
+ for(var i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+ return new Blob([arr], { type: mime || 'application/octet-stream' });
+}
+// Upload une pièce vers le bucket ; renvoie une entrée attachment {key, storage_path, url, ...}
+async function uploadPieceToBucket(cid, key, file){
+ var SB = getDossierSB(); if(!SB) return null;
+ var slotMap = { cv:'cv', id:'id_card', titre:'id_card', permis:'permis', carte_vit:'carte_vit', dossier:'dossier' };
+ var slot = slotMap[key] || key;
+ var ext = (file.name && file.name.indexOf('.')>=0) ? file.name.split('.').pop().toLowerCase() : 'bin';
+ var path = cid + '/' + slot + '.' + ext;
+ var up = await SB.storage.from('candidat-docs').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: true });
+ if(up.error) throw up.error;
+ var url = null;
+ try{ var s = await SB.storage.from('candidat-docs').createSignedUrl(path, 60*60*24*365); url = (s.data && s.data.signedUrl) || null; }catch(e){}
+ return { key: key, filename: file.name, type: file.type, size: file.size, storage_path: path, url: url };
 }
 
 // ═══════════ EXPÉRIENCES PROFESSIONNELLES & RÉFÉRENCES ═══════════
