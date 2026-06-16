@@ -626,12 +626,17 @@ function _addProposedItem(){
 }
 
 // ── Aperçu document candidat ─────────────────────────────────
-function openDocPreview(candId,docId){
+async function openDocPreview(candId,docId){
   const cand=cById(candId);if(!cand)return;
   const doc=(cand.docs||[]).find(d=>d.id===docId);
-  if(!doc?.file){toast('Aucun fichier','w');return;}
-  const isPdf=doc.type==='application/pdf'||doc.file.startsWith('data:application/pdf');
-  const isImg=doc.type?.startsWith('image/')||/\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name||'');
+  if(!doc || (!doc.file && !doc.storage_path && !doc.url)){toast('Aucun fichier','w');return;}
+  // Pièce dans le bucket → on régénère une URL signée fraîche (robuste à l'expiration)
+  let src=(typeof doc.file==='string'&&doc.file.startsWith('data:'))?doc.file:(doc.url||doc.file||null);
+  if(doc.storage_path){ const fresh=await freshDocUrl(doc.storage_path); if(fresh) src=fresh; }
+  if(!src){toast('Fichier indisponible','w');return;}
+  const ref=(doc.name||doc.storage_path||'');
+  const isPdf=doc.type==='application/pdf'||(typeof src==='string'&&src.startsWith('data:application/pdf'))||/\.pdf(\?|$)/i.test(ref);
+  const isImg=(doc.type&&doc.type.startsWith('image/'))||/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(ref);
   const label=doc.name||docId;
   document.getElementById('doc-preview-ov')?.remove();
   const ov=document.createElement('div');
@@ -639,10 +644,10 @@ function openDocPreview(candId,docId){
   ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
   ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
   let content='';
-  if(isPdf)content=`<iframe src="${doc.file}" style="width:min(880px,96vw);height:min(88vh,900px);border:none;border-radius:8px;background:#fff"></iframe>`;
-  else if(isImg)content=`<img src="${doc.file}" style="max-width:min(880px,96vw);max-height:min(88vh,900px);object-fit:contain;border-radius:8px">`;
+  if(isPdf)content=`<iframe src="${src}" style="width:min(880px,96vw);height:min(88vh,900px);border:none;border-radius:8px;background:#fff"></iframe>`;
+  else if(isImg)content=`<img src="${src}" style="max-width:min(880px,96vw);max-height:min(88vh,900px);object-fit:contain;border-radius:8px">`;
   else content=`<div style="background:var(--s2);border-radius:8px;padding:32px;text-align:center;color:var(--mu)"><div style="font-size:40px;margin-bottom:12px">📄</div><div>${esc(label)}</div></div>`;
-  ov.innerHTML=`<div style="max-width:min(900px,98vw)"><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#fff">${esc(label)}</div><div style="display:flex;gap:8px"><a href="${doc.file}" download="${esc(label)}" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none">⬇ Télécharger</a><button onclick="document.getElementById('doc-preview-ov').remove()" style="background:#2a2a2e;color:#aaa;border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer">× Fermer</button></div></div>${content}</div>`;
+  ov.innerHTML=`<div style="max-width:min(900px,98vw)"><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#fff">${esc(label)}</div><div style="display:flex;gap:8px"><a href="${src}" target="_blank" download="${esc(label)}" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none">⬇ Télécharger</a><button onclick="document.getElementById('doc-preview-ov').remove()" style="background:#2a2a2e;color:#aaa;border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer">× Fermer</button></div></div>${content}</div>`;
   document.body.appendChild(ov);
 }
 
@@ -2299,15 +2304,25 @@ function proceedToEmail(candId){
  const dossierUrl=localStorage.getItem('btp_dossier_url')||'';
  const firstN=greetCand(c);
 
+ const dossierLink=`https://novalem-crm.vercel.app/dossier.html?cid=${encodeURIComponent(c.id)}&n=${encodeURIComponent(c.name)}`;
  const emailBody=`Bonjour ${firstN},
 
 Suite à notre échange téléphonique, je vous confirme notre entretien visio :
 
- Date : ${dateStr}
- Lien de connexion : ${visioLink}
+Date : ${dateStr}
+Lien de connexion : ${visioLink}
 
-Merci de vous connecter 2-3 minutes avant l'heure prévue.\n\n─────────────────────────\nDossier de candidature\n─────────────────────────\nMerci de compléter votre dossier en cliquant sur le bouton ci-dessous :\\n\\n[Compléter mon dossier en ligne ->(https://novalem-crm.vercel.app/dossier.html?cid=${encodeURIComponent(c.id)}&n=${encodeURIComponent(c.name)})\\n\\nCordialement,
+Merci de vous connecter 2-3 minutes avant l'heure prévue.
 
+─────────────────────────
+Dossier de candidature
+─────────────────────────
+Merci de compléter votre dossier en cliquant sur le bouton ci-dessous :
+
+[Compléter mon dossier en ligne](${dossierLink})
+
+Cordialement,
+${nom}
 Novalem — Cabinet de recrutement`;
 
  closeMo();
@@ -2452,31 +2467,111 @@ return dossierBadge+`
  <div style="margin-top:10px;font-size:10px;color:var(--mu2)"> Uploadez le CV pour activer l'extraction IA automatique.</div>`}`;
 }
 function bindFileInputs(candId){/* inputs already bound via onchange in HTML */}
-function handleFileUpload(event){
+// ── Stockage des pièces candidat dans le bucket privé "candidat-docs" ──
+// Évite la limite de 3 Mo et la saturation du cache : les fichiers vont dans
+// le stockage Supabase, la fiche ne garde qu'un chemin + une URL signée.
+async function cvBucketUpload(candId, slotId, file){
+ const sb=getSB(); if(!sb) throw new Error('Cloud indisponible');
+ const ext=(file.name&&file.name.includes('.'))?file.name.split('.').pop().toLowerCase():'bin';
+ const path=`${candId}/${slotId}.${ext}`;
+ const { error }=await sb.storage.from('candidat-docs').upload(path, file, { contentType:file.type||'application/octet-stream', upsert:true });
+ if(error) throw error;
+ let url=null;
+ try{ const { data:s }=await sb.storage.from('candidat-docs').createSignedUrl(path, 60*60*24*365); url=(s&&s.signedUrl)||null; }catch(_){}
+ return { storage_path:path, url };
+}
+async function freshDocUrl(storage_path){
+ const sb=getSB(); if(!sb||!storage_path) return null;
+ try{ const { data:s }=await sb.storage.from('candidat-docs').createSignedUrl(storage_path, 60*60); return (s&&s.signedUrl)||null; }catch(_){ return null; }
+}
+// Renvoie {mediaType, base64} d'une pièce (bucket OU base64 hérité) — pour l'IA.
+async function docToBase64(doc){
+ if(!doc) return null;
+ if(typeof doc.file==='string' && doc.file.startsWith('data:')){
+   return { mediaType: doc.type||'application/pdf', base64: doc.file.split(',')[1]||'' };
+ }
+ let url=null;
+ if(doc.storage_path) url=await freshDocUrl(doc.storage_path);
+ else if(doc.url) url=doc.url;
+ else if(typeof doc.file==='string' && /^https?:/.test(doc.file)) url=doc.file;
+ if(!url) return null;
+ try{
+   const resp=await fetch(url); const blob=await resp.blob();
+   const b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(((r.result||'')+'').split(',')[1]||''); r.onerror=rej; r.readAsDataURL(blob); });
+   return { mediaType: doc.type||blob.type||'application/pdf', base64: b64 };
+ }catch(_){ return null; }
+}
+
+// ── Upload multi-fichiers "intelligent" (dépôt rapide sur la fiche) ──
+// Tu déposes un ou plusieurs fichiers, ils sont classés par nom et envoyés
+// dans le bucket. C'est le bouton "Upload multi-fichiers" de l'onglet Fichiers.
+async function handleSmartUpload(event, candId){
+ const input=event.target;
+ const files=Array.from(input.files||[]);
+ if(!files.length) return;
+ const c=cById(candId); if(!c) return;
+ c.docs=c.docs||[];
+ const classify=(name)=>{
+   const n=(name||'').toLowerCase();
+   if(/\bcv\b|curriculum|resume/.test(n)) return 'cv';
+   if(/cni|identit|passeport|titre|sejour|séjour/.test(n)) return 'id_card';
+   if(/permis/.test(n)) return 'permis';
+   if(/vitale|secu|sécu/.test(n)) return 'carte_vit';
+   if(/dossier/.test(n)) return 'dossier';
+   return null;
+ };
+ const genericSlot=()=>{ let i=1; while(c.docs.find(d=>d.id==='pj_'+i)) i++; return 'pj_'+i; };
+ toast(files.length>1?`Upload de ${files.length} fichiers…`:'Upload en cours…','i');
+ for(const file of files){
+   let slot=classify(file.name);
+   if(!slot) slot=(!c.docs.find(d=>d.id==='cv'))?'cv':genericSlot();
+   try{
+     const { storage_path, url }=await cvBucketUpload(candId, slot, file);
+     const entry={ id:slot, name:file.name, size:formatSize(file.size), date:now_(), type:file.type, storage_path, url, file:url };
+     const idx=c.docs.findIndex(d=>d.id===slot);
+     if(idx>=0)c.docs[idx]=entry; else c.docs.push(entry);
+   }catch(e){ toast('Échec upload '+file.name+' : '+(e.message||e),'e'); }
+ }
+ c.updated=now_(); save();
+ if(typeof renderCandPanelTab==='function') renderCandPanelTab(candId);
+ input.value='';
+ toast('Fichiers ajoutés ✓','s');
+}
+
+async function handleFileUpload(event){
  const input=event.target;
  const docId=input.dataset.docid;
  const candId=input.dataset.candid;
  const file=input.files[0];if(!file)return;
- const maxSize=3*1024*1024; // 3MB limit
- if(file.size>maxSize){toast('Fichier trop lourd (max 3MB)','e');return;}
- const reader=new FileReader();
- reader.onload=(e)=>{
  const c=cById(candId);if(!c)return;
- c.docs=c.docs||[];
- const idx=c.docs.findIndex(d=>d.id===docId);
- const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:e.target.result};
- if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
- c.updated=now_();save();
- renderCandPanelTab(candId);
- toast(`${file.name} uploadé ✓`,'s');
- };
- reader.readAsDataURL(file);
+ toast('Upload en cours…','i');
+ try{
+   const { storage_path, url }=await cvBucketUpload(candId, docId, file);
+   c.docs=c.docs||[];
+   const idx=c.docs.findIndex(d=>d.id===docId);
+   const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,storage_path,url,file:url};
+   if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
+   c.updated=now_();save();
+   if(typeof renderCandPanelTab==='function') renderCandPanelTab(candId);
+   toast(`${file.name} uploadé ✓`,'s');
+ }catch(e){
+   // Repli base64 si l'upload bucket échoue (petits fichiers seulement)
+   if(file.size<=3*1024*1024){
+     const reader=new FileReader();
+     reader.onload=(ev)=>{ c.docs=c.docs||[]; const idx=c.docs.findIndex(d=>d.id===docId); const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:ev.target.result}; if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData); c.updated=now_();save(); if(typeof renderCandPanelTab==='function')renderCandPanelTab(candId); toast(`${file.name} uploadé ✓`,'s'); };
+     reader.readAsDataURL(file);
+   } else { toast('Échec upload : '+(e.message||e),'e'); }
+ }
+ input.value='';
 }
 function formatSize(bytes){if(bytes<1024)return bytes+'o';if(bytes<1024*1024)return Math.round(bytes/1024)+'Ko';return(bytes/1024/1024).toFixed(1)+'Mo';}
 function removeDoc(candId,docId){
  const c=cById(candId);if(!c)return;
+ const doc=(c.docs||[]).find(d=>d.id===docId);
+ if(doc&&doc.storage_path){ const sb=getSB(); if(sb){ try{ sb.storage.from('candidat-docs').remove([doc.storage_path]); }catch(_){} } }
  c.docs=(c.docs||[]).filter(d=>d.id!==docId);c.updated=now_();save();
- renderCandPanelTab(candId);toast('Fichier supprimé','w');
+ if(typeof renderCandPanelTab==='function') renderCandPanelTab(candId);
+ toast('Fichier supprimé','w');
 }
 
 // TAB 3 — RÉFÉRENCES
@@ -6114,7 +6209,7 @@ async function aiExtractCV(candId){
  return;
  }
  // Find uploaded CV doc
- const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
+ const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&(d.file||d.storage_path||d.url));
  if(!cvDoc){
  toast('Uploadez d\'abord le CV dans l\'onglet Fichiers','e');
  return;
@@ -6123,9 +6218,11 @@ async function aiExtractCV(candId){
  if(btn){btn.textContent='Analyse en cours…';btn.disabled=true;}
 
  try{
- // Determine media type
- const mediaType=cvDoc.type||'application/pdf';
- const base64Data=cvDoc.file.split(',')[1]||cvDoc.file;
+ // Récupère le contenu du CV (bucket ou base64 hérité) pour l'IA
+ const conv=await docToBase64(cvDoc);
+ if(!conv||!conv.base64){ toast('Impossible de lire le CV','e'); if(btn){btn.textContent='Analyser CV';btn.disabled=false;} return; }
+ const mediaType=conv.mediaType||'application/pdf';
+ const base64Data=conv.base64;
 
  let messages;
  if(mediaType==='application/pdf'||mediaType.startsWith('image/')){
