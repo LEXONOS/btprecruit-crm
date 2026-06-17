@@ -3618,7 +3618,7 @@ async function aiProfileAdvice(candId) {
  try {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
    method:'POST',
-   headers:{'Content-Type':'application/json'},
+   headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
    body: JSON.stringify({
     model:'claude-sonnet-4-20250514',
     max_tokens:1000,
@@ -4631,7 +4631,7 @@ async function siretLookup(nameFieldId, siretFieldId) {
  try {
   const resp = await fetch('https://api.anthropic.com/v1/messages',{
    method:'POST',
-   headers:{'Content-Type':'application/json'},
+   headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
    body:JSON.stringify({
     model:'claude-sonnet-4-20250514',
     max_tokens:100,
@@ -5007,10 +5007,17 @@ function openSendProfileModal(candId) {
   cvtheque.length ? `<div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);margin-bottom:8px;margin-top:12px">CVthèque — acceptent des profils ${getCat(cat).l}</div>` + cvtheque.map(x=>rowHtml(x,'cv')).join('') : '',
  ].join('');
 
+ const _comp=presentationCompleteness(cand);
+ const compBanner=`<div style="margin-bottom:12px;padding:9px 12px;background:${_comp.missing.length?'rgba(201,137,26,.07)':'rgba(45,212,160,.08)'};border:1px solid ${_comp.missing.length?'rgba(201,137,26,.25)':'rgba(45,212,160,.25)'};border-radius:var(--r2);font-size:10.5px;line-height:1.6">
+  <div style="font-weight:700;margin-bottom:3px;color:${_comp.missing.length?'var(--ac4)':'var(--ac2)'}">${_comp.missing.length?'⚠ Éléments utilisés pour la présentation':'✓ Profil complet pour la présentation'}</div>
+  ${_comp.has.length?`<div style="color:var(--ac2)">Disponible : ${_comp.has.join(', ')}</div>`:''}
+  ${_comp.missing.length?`<div style="color:var(--ac4)">Manquant : ${_comp.missing.join(', ')}</div>`:''}
+ </div>`;
  openMo(`📤 Envoyer le profil — ${esc(cand.name)}`,
   `<div style="margin-bottom:12px;padding:10px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:var(--r2);font-size:11px">
     <strong>${esc(cand.name)}</strong> · ${esc(cand.role||getCat(cat).l)} · ${cand.salary?fM(cand.salary)+'€/an':''} · Dispo : ${esc(cand.avail||'—')} · ${esc(cand.mobility||'—')}
    </div>
+   ${compBanner}
    ${total ? `<div style="max-height:55vh;overflow-y:auto">${listHtml}</div>` : `<div style="text-align:center;padding:30px;color:var(--mu2);font-size:11px">Aucune entreprise disponible pour cette catégorie.<br>Ajoutez des entreprises dans la CVthèque ou créez des besoins.</div>`}
    <div style="margin-top:10px;padding:8px 12px;background:rgba(201,137,26,.07);border-radius:var(--r2);font-size:10px;color:var(--ac4)">
     ⚠ Les entreprises en rouge ont déjà reçu un profil cette semaine. Évitez d'en envoyer plus de 2 par semaine par entreprise.
@@ -5105,22 +5112,83 @@ async function confirmSendProfiles(candId) {
  }
 }
 
+// ── Brief candidat complet (dossier + CV + notes + références) pour l'IA ──
+function buildCandidateBrief(cand){
+ const cv = cand.cv_extracted || {};
+ const dd = cand._dossier_data || {};
+ const p=[];
+ p.push(`Spécialité BTP : ${getCat(cand.cat).l}`);
+ p.push(`Poste visé : ${cand.role || cv.poste_cible || getCat(cand.cat).l}`);
+ if(cand.salary||cv.salaire_actuel) p.push(`Prétention salariale (brut annuel) : ${cand.salary||cv.salaire_actuel} €`);
+ if(cand.avail||cv.disponibilite) p.push(`Disponibilité : ${cand.avail||cv.disponibilite}`);
+ if(cand.mobility||cv.mobilite) p.push(`Mobilité : ${cand.mobility||cv.mobilite}`);
+ if(cv.experience_annees) p.push(`Expérience : ${cv.experience_annees} ans`);
+ if(cv.poste_actuel) p.push(`Poste actuel : ${cv.poste_actuel}`);
+ if(cv.notes_synthese) p.push(`Synthèse CV : ${cv.notes_synthese}`);
+ if(dd && Object.keys(dd).length) p.push(`Dossier de candidature (structuré) : ${JSON.stringify({pro:dd.pro,admin:dd.admin,competences:dd.competences})}`);
+ const exps=(dd.experiences&&dd.experiences.length)?dd.experiences:(cand.experiences||[]);
+ if(exps&&exps.length) p.push(`Expériences : ${JSON.stringify(exps.slice(0,10))}`);
+ if(cand.notes_pre) p.push(`Notes pré-qualification : ${cand.notes_pre}`);
+ if(cand.notes_int) p.push(`Notes d'entretien : ${cand.notes_int}`);
+ if(cand.notes) p.push(`Notes générales : ${cand.notes}`);
+ const refDone=(cand.refs||[]).filter(r=>r.done&&(r.note||r.contact));
+ if(refDone.length) p.push(`Contrôle de référence EFFECTUÉ : ${refDone.map(r=>(r.contact||'ancien employeur')+' — '+(r.note||'retour positif')).join(' ; ')}`);
+ return p.join('\n');
+}
+
+// ── Contrôle de complétude : ce qu'on a / ce qui manque pour présenter ──
+function presentationCompleteness(cand){
+ const cv=cand.cv_extracted||{};
+ const has=[], missing=[];
+ ((cand.docs||[]).some(d=>d.id==='cv'&&(d.file||d.storage_path||d.url))?has:missing).push('CV');
+ (cand._dossier_validated?has:missing).push('Dossier de candidature');
+ (cand.notes_int?has:missing).push("Notes d'entretien");
+ ((cand.refs||[]).some(r=>r.done)?has:missing).push('Contrôle de référence');
+ ((cand.salary||cv.salaire_actuel)?has:missing).push('Prétention salariale');
+ return {has, missing};
+}
+
+// ── Email de présentation généré par l'IA, adapté au besoin entreprise ──
+async function generateTailoredEmail(cand, co, need, key){
+ if(!key) throw new Error('Clé API manquante');
+ const userName = localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
+ const userPhone = localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+ const prenomCo = greetCo(co)||'';
+ const prenomCand = greetCand(cand)||'le candidat';
+ const besoin = need ? `${need.title}${need.description?(' — '+need.description):''}` : (co._cv_need_note||'non précisé');
+ const sys = `Tu es ${userName}, recruteur chez NOVALEM (recrutement BTP, placements CDI). Tu rédiges le corps d'un email présentant un candidat à une entreprise.
+RÈGLES ABSOLUES :
+- AUCUN MENSONGE. N'invente aucune compétence, expérience ni certification. Utilise UNIQUEMENT les informations fournies sur le candidat.
+- Si un besoin entreprise est fourni, mets subtilement en avant, SANS mentir, les compétences RÉELLES du candidat qui correspondent à ce besoin (ex : "au niveau de votre besoin de quelqu'un qui maîtrise le QSE, [prénom] a justement... via telle expérience").
+- Présente le candidat par son PRÉNOM uniquement.
+STRUCTURE EXACTE du corps :
+1. "Bonjour${prenomCo?' '+prenomCo:' Madame, Monsieur'}," puis "J'espère que vous allez bien."
+2. Une phrase de contexte ("Comme convenu par téléphone" ou "Suite à votre besoin de ...").
+3. 2 à 3 phrases MAXIMUM sur ce qui fait la FORCE / les points différenciants du profil.
+4. Une liste de 8 points MAXIMUM (chaque ligne commence par "- ") des principales choses qu'il a faites et sait faire, concis, sans répéter l'accroche. Les DERNIÈRES puces, dans cet ordre, sont : la prétention salariale (brut annuel), le permis (Oui/Non), les langues. N'ajoute permis/langues que si l'info est disponible.
+5. Si un contrôle de référence a été EFFECTUÉ, ajoute APRÈS la liste UNE seule phrase du type "En contactant ses anciens employeurs, je n'ai eu que de bons retours, notamment sur ...".
+6. Une phrase de clôture invitant à le contacter, puis la signature :
+${userName}${userPhone?'\n'+userPhone:''}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr
+- Ton professionnel, direct, chaleureux mais sobre. Pas d'emojis, pas de gras markdown. Réponds UNIQUEMENT par le corps de l'email (texte brut + puces "- ").`;
+ const user = `ENTREPRISE CIBLE : ${co.name||''}${co.city?(' ('+co.city+')'):''}\nCONTACT : ${co.contact||'inconnu'}\nBESOIN DE L'ENTREPRISE : ${besoin}\nPRÉNOM DU CANDIDAT À UTILISER : ${prenomCand}\n\nDONNÉES DU CANDIDAT :\n${buildCandidateBrief(cand)}`;
+ const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  method:'POST',
+  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
+  body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, system:sys, messages:[{role:'user',content:user}] })
+ });
+ if(!resp.ok){ const e=await resp.json().catch(()=>({})); throw new Error(e.error?.message||('HTTP '+resp.status)); }
+ const data = await resp.json();
+ const txt = (data.content||[]).find(b=>b.type==='text')?.text || '';
+ return txt.trim();
+}
+
 // ── 3. GÉNÉRATION CV ANONYMISÉ (texte via IA) ─────────────────────────
 async function generateAnonCVText(cand, key) {
- const profile = [
-  `Poste : ${cand.role || getCat(cand.cat).l}`,
-  `Spécialité : ${getCat(cand.cat).l}`,
-  `Expérience : ${cand.notes_pre||''}`,
-  `Salaire actuel : ${cand.salary ? fM(cand.salary) : 'NC'}`,
-  `Disponibilité : ${cand.avail||'NC'}`,
-  `Mobilité : ${cand.mobility||'NC'}`,
-  `Notes entretien : ${cand.notes_int||''}`,
-  `Notes générales : ${cand.notes||''}`,
- ].filter(l=>l.split(': ')[1]).join('\n');
+ const profile = buildCandidateBrief(cand);
 
  const resp = await fetch('https://api.anthropic.com/v1/messages', {
   method:'POST',
-  headers:{'Content-Type':'application/json'},
+  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
   body: JSON.stringify({
    model:'claude-sonnet-4-20250514',
    max_tokens:1200,
@@ -5318,44 +5386,24 @@ async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, ke
   (cand.notes_pre||'').includes('permis') || (cand.notes||'').includes('permis') ? '**Permis B :** Oui' : null,
  ].filter(Boolean).join('\n');
 
- let subject, body;
+ // Sujet
+ let subject = need
+  ? `Profil ${cand.role||getCat(cand.cat).l} — pour votre besoin ${need.title}`
+  : `Profil ${cand.role||getCat(cand.cat).l} à découvrir`;
 
- if(hasContract) {
-  // CLIENT AVEC CONTRAT → CV complet avec contact candidat
-  subject = need
-   ? `Profil candidat — ${cand.role} pour votre besoin "${need.title}"`
-   : `Profil à découvrir — ${cand.role||getCat(cand.cat).l}`;
-
-  body = `Bonjour${prenom?' '+prenom:''},\n\n`
+ // Corps généré par l'IA, adapté au besoin de l'entreprise (sans mensonge)
+ let body=null;
+ try { body = await generateTailoredEmail(cand, co, need, key); } catch(e){ console.warn('IA email présentation:', e); }
+ if(!body){
+  // Repli si l'IA est indisponible : structure proche, sans invention
+  const prenomCand = greetCand(cand)||'ce candidat';
+  body = `Bonjour${prenom?' '+prenom:' Madame, Monsieur'},\n\nJ'espère que vous allez bien.\n\n`
    +(need
-    ? `Suite à votre besoin de **${need.title}**, je vous transmets ci-joint le profil d'un candidat que j'ai sélectionné et qui me semble correspondre à vos attentes.\n\n`
-    : `Je me permets de vous faire parvenir un profil que j'ai récemment rencontré et qui pourrait vous intéresser.\n\n`)
-   +`---\n\n`
+    ? `Comme convenu, je vous présente le profil de ${prenomCand}, dont le parcours correspond à votre besoin de ${need.title}.\n\n`
+    : `Je me permets de vous présenter le profil de ${prenomCand}, que j'ai rencontré en entretien.\n\n`)
    +`${infoLines}\n\n`
-   +`---\n\n`
-   +`**Ce candidat a été rencontré en entretien de positionnement, ses compétences ont été vérifiées et son dossier est complet.**\n\n`
-   +`N'hésitez pas à me contacter directement pour échanger sur ce profil et organiser une rencontre :\n\n`
-   +`📞 **${userPhone}**\n\n`
-   +`Bien cordialement,\n**${userName}**\n${userPhone}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr`;
-
- } else {
-  // PROSPECT / CVthèque → CV anonymisé
-  subject = need
-   ? `Candidat BTP — ${cand.role||getCat(cand.cat).l} pour votre besoin`
-   : `Profil BTP intéressant — ${getCat(cand.cat).l}`;
-
-  body = `Bonjour${prenom?' '+prenom:''},\n\n`
-   +(need
-    ? `Je me permets de vous contacter suite à votre besoin **${need.title}**. J'ai le plaisir de vous présenter un candidat que j'ai rencontré et dont le profil me semble particulièrement correspondre à vos attentes.\n\n`
-    : `Je me permets de vous faire parvenir un profil de ${getCat(cand.cat).l} que j'ai sélectionné avec soin et qui pourrait vous intéresser.\n\n`)
-   +`---\n\n`
-   +`${infoLines}\n\n`
-   +`---\n\n`
-   +`Chaque candidat que nous présentons a été rencontré en entretien de positionnement, ses compétences et références ont été vérifiées. Nous nous engageons à ne vous présenter que des profils qualifiés et motivés.\n\n`
-   +`Vous trouverez le CV anonymisé en pièce jointe. Si ce profil vous intéresse, contactez-moi directement pour organiser une rencontre :\n\n`
-   +`📞 **${userPhone}**\n\n`
-   +`[Répondre à cette proposition ->(mailto:contact@novalem-recrutement.fr?subject=Profil ${encodeURIComponent(cand.role||getCat(cand.cat).l)})]\n\n`
-   +`Bien cordialement,\n**${userName}**\n${userPhone}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr`;
+   +`Vous trouverez son CV anonymisé en pièce jointe. N'hésitez pas à me contacter directement pour en échanger :\n📞 ${userPhone}\n\n`
+   +`Bien cordialement,\n${userName}\n${userPhone}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr`;
  }
 
  try {
@@ -5363,7 +5411,7 @@ async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, ke
    to: co.email,
    subject,
    body,
-   ...(pdfB64 && !hasContract ? {
+   ...(pdfB64 ? {
     attachments:[{
      filename: `Profil_${(cand.role||'Candidat').replace(/\s+/g,'_')}_Novalem.pdf`,
      content: pdfB64,
@@ -5452,7 +5500,7 @@ async function aiMatchEnterprises(candId) {
  try {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
    method: 'POST',
-   headers: {'Content-Type':'application/json'},
+   headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
    body: JSON.stringify({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 800,
