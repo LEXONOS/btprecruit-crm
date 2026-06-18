@@ -402,11 +402,37 @@ async function attachDossierToCandidate(sb, candId, info){
     pro, admin,
     competences: comp,
     experiences: dossier.experiences || [],
-    self_employed: !!(dossier.experiences && dossier.experiences.length === 0)
+    self_employed: !!dossier.self_employed || !!(dossier.experiences && dossier.experiences.length === 0)
   };
   cand.experiences = dossier.experiences || [];
   if(['new','precal'].includes(cand.status)) cand.status = 'dossier';
   cand.updated = new Date().toISOString();
+
+  // ── Déversement vers l'onglet « Contrôle de référence » ──────────────────
+  // Chaque expérience renseignée devient une ligne de contrôle de référence.
+  // On préserve les références ajoutées à la main (sans _src) et le statut
+  // « fait » / la note déjà saisis pour une expérience identique (re-soumission).
+  try {
+    const prevRefs = Array.isArray(cand.refs) ? cand.refs.slice() : [];
+    const manualRefs = prevRefs.filter(r => r && r._src !== 'dossier');
+    const dossierRefs = (dossier.experiences || []).map((e, i) => {
+      const company = (e.societe || '').trim() || (e.fonction ? 'Expérience — ' + e.fonction : 'Expérience pro ' + (i + 1));
+      const phone = (e.ref_tel || '').trim();
+      const key = 'exp_' + i + '_' + (company + '|' + phone).toLowerCase().replace(/\s+/g, '');
+      const prev = prevRefs.find(r => r && r._src === 'dossier' && r._key === key);
+      return {
+        company,
+        contact: [e.ref_nom, e.ref_fonction].filter(Boolean).join(' — '),
+        phone,
+        role: [e.fonction, e.periode].filter(Boolean).join(' · '),   // contexte : poste tenu + période
+        done: prev ? !!prev.done : false,
+        note: prev ? (prev.note || '') : '',
+        _src: 'dossier',
+        _key: key
+      };
+    }).filter(r => r.company || r.phone || r.contact);
+    cand.refs = manualRefs.concat(dossierRefs);
+  } catch (e) { console.warn('[dossier] refs depuis expériences:', e.message); }
 
   cand.docs = cand.docs || [];
   const upsertDoc = (entry) => { const i = cand.docs.findIndex(d => d.id === entry.id); if(i>=0) cand.docs[i]=entry; else cand.docs.push(entry); };
