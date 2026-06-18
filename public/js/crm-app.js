@@ -4249,16 +4249,19 @@ function openCandPanel(id){
  <button class="btn bg bsm mt6" onclick="saveGenNote('${id}')">Sauvegarder note</button>`,
  // 3 RÉFÉRENCES
  `<div class="dr"><span class="drk">Contrôle REF</span><span class="drv">${c.ref_done?'Fait':'À faire'}</span></div>
- <div class="sl">Références <span><button class="btn bg bxs" onclick="addRef('${id}')">+ Ajouter</button></span></div>
+ <div class="sl">Références <span class="mu_ fs10" style="font-weight:400">${(c.refs||[]).length} contact(s)</span> <span><button class="btn bg bxs" onclick="addRef('${id}')">+ Ajouter</button></span></div>
+ ${(c.refs||[]).some(r=>r&&r._src==='dossier')?`<div class="fs10 mu_" style="margin:-2px 0 8px">Les référents marqués <span style="color:var(--ac4)">Dossier</span> ont été renseignés par le candidat dans son dossier.</div>`:''}
  ${(c.refs||[]).length?(c.refs||[]).map((r,i)=>`<div class="refcard">
- <div class="flex fac fjb mb4"><strong class="fs11">${esc(r.company)}</strong><button class="btn bd_ bxs" onclick="rmRef('${id}',${i})">×</button></div>
- <div class="mu_ fs10">${esc(r.contact||'—')}${r.phone?` · ${esc(r.phone)}`:''}</div>
- ${r.done?`<div style="color:var(--ac2);font-size:10px;margin-top:4px">${esc(r.note||'Appelé')}</div>`:`<div style="color:var(--ac4);font-size:10px;margin-top:4px">À appeler</div>`}
+ <div class="flex fac fjb mb4"><div style="display:flex;align-items:center;gap:6px;min-width:0"><strong class="fs11" style="overflow:hidden;text-overflow:ellipsis">${esc(r.company||'—')}</strong>${r._src==='dossier'?'<span style="font-size:8px;padding:1px 6px;background:rgba(201,137,26,.12);border:1px solid rgba(201,137,26,.25);border-radius:10px;color:var(--ac4);flex-shrink:0">Dossier</span>':''}</div><button class="btn bd_ bxs" onclick="rmRef('${id}',${i})">×</button></div>
+ ${r.role?`<div class="fs10" style="color:var(--ac5);margin-bottom:2px">${esc(r.role)}</div>`:''}
+ <div class="mu_ fs10">${esc(r.contact||'Référent non nommé')}${r.phone?` · <a href="tel:${esc(String(r.phone).replace(/\s/g,''))}" style="color:var(--ac2);font-family:'DM Mono',monospace">${esc(fPhone(r.phone))}</a>`:''}${r.phone?` <span onclick="cpPhone('${esc(r.phone)}')" style="cursor:pointer">⧉</span>`:''}</div>
+ ${r.done?`<div style="color:var(--ac2);font-size:10px;margin-top:4px">✓ ${esc(r.note||'Référence vérifiée')}</div>`:`<div style="color:var(--ac4);font-size:10px;margin-top:4px">${r.phone?'À appeler':'Téléphone manquant'}</div>`}
  <div class="flex fg5 mt8">
- <button class="btn bg bxs" onclick="togRef('${id}',${i})">${r.done?'↺ À refaire':'Marqué fait'}</button>
+ <button class="btn bp bxs" onclick="noteRef('${id}',${i})">✎ Compte-rendu</button>
+ ${r.done?`<button class="btn bg bxs" onclick="togRef('${id}',${i})">↺ Rouvrir</button>`:''}
  <button class="btn bi bxs" onclick="prosFromRef('${id}',${i})">→ Prospecter</button>
  </div>
- </div>`).join(''):'<div class="mu_ fs11">Aucune référence ajoutée</div>'}
+ </div>`).join(''):'<div class="mu_ fs11">Aucune référence — elles apparaîtront ici dès que le candidat aura renseigné ses expériences dans le dossier.</div>'}
  <div class="sl">Notes générales</div>
  <textarea id="gnote-${id}" style="min-height:64px">${esc(c.notes||'')}</textarea>
  <button class="btn bp bsm mt8" onclick="saveGNote('${id}')">Sauvegarder</button>`,
@@ -5015,7 +5018,23 @@ function saveCoNote(id){const c=coById(id);if(!c)return;const el=document.getEle
 function addRef(id){openMo('Ajouter référence',`<div class="fg"><div class="fgrp ff"><span class="lbl">Entreprise</span><input id="rf-co" placeholder="Nom entreprise"></div><div class="fgrp"><span class="lbl">Contact</span><input id="rf-ct"></div><div class="fgrp"><span class="lbl">Téléphone</span><input id="rf-ph"></div></div>`,`<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="saveRef('${id}')">Ajouter</button>`);}
 function saveRef(id){const c=cById(id);if(!c)return;const co=document.getElementById('rf-co').value.trim();if(!co)return;c.refs=c.refs||[];c.refs.push({company:co,contact:document.getElementById('rf-ct').value,phone:document.getElementById('rf-ph').value,done:false,note:''});c.updated=now_();save();closeMo();openCandPanel(id);toast('Référence ajoutée ✓','s');}
 function rmRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs.splice(i,1);c.updated=now_();save();openCandPanel(id);}
-function togRef(id,i){const c=cById(id);if(!c||!c.refs)return;c.refs[i].done=!c.refs[i].done;c.updated=now_();save();openCandPanel(id);toast(c.refs[i].done?'Contrôle fait ✓':'Remis en attente','s');}
+function togRef(id,i){const c=cById(id);if(!c||!c.refs||!c.refs[i])return;c.refs[i].done=!c.refs[i].done;c.updated=now_();save();openCandPanel(id);toast(c.refs[i].done?'Contrôle fait ✓':'Remis en attente','s');}
+// Saisir / éditer le compte-rendu du contrôle de référence (ce que dit le référent)
+function noteRef(id,i){
+ const c=cById(id);if(!c||!c.refs||!c.refs[i])return;const r=c.refs[i];
+ openMo('Contrôle de référence',`
+  <div style="font-size:12px;font-weight:700;margin-bottom:2px">${esc(r.company||'Référent')}</div>
+  <div class="fs10 mu_" style="margin-bottom:10px">${esc(r.contact||'')}${r.phone?' · '+esc(fPhone(r.phone)):''}</div>
+  <div class="fgrp"><span class="lbl">Compte-rendu de l'appel</span>
+  <textarea id="rf-note" style="min-height:110px" placeholder="Ce que dit le référent : tenue du poste, ponctualité, savoir-être, motif de départ confirmé, recommande ou non…">${esc(r.note||'')}</textarea></div>`,
+  `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="saveRefNote('${id}',${i})">✓ Enregistrer (marque fait)</button>`);
+}
+function saveRefNote(id,i){
+ const c=cById(id);if(!c||!c.refs||!c.refs[i])return;
+ const el=document.getElementById('rf-note');if(!el)return;
+ c.refs[i].note=el.value.trim();c.refs[i].done=true;c.updated=now_();save();closeMo();openCandPanel(id);
+ toast('Contrôle de référence enregistré ✓','s');
+}
 function prosFromRef(id,i){const c=cById(id);if(!c||!c.refs||!c.refs[i])return;const r=c.refs[i];closePanel();openCoForm();setTimeout(()=>{const n=document.getElementById('cof-n');if(n)n.value=r.company;const ph=document.getElementById('cof-ph');if(ph)ph.value=r.phone||'';const src=document.getElementById('cof-src');if(src)src.value='Contrôle REF';},80);}
 function cpPhone(ph){navigator.clipboard.writeText(ph).then(()=>toast(`${ph} copié`,'i')).catch(()=>toast(ph,'i'));}
 
