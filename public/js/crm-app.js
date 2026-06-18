@@ -48,6 +48,22 @@ const DOCS_LIST=[
 ];
 // Legacy compat — some old candidates stored docs as string arrays
 const DOCS=DOCS_LIST.map(d=>d.l);
+
+// ── Détection de présence d'une pièce candidat ────────────────────────────
+// Une pièce est "reçue" si elle a un contenu base64 (file), un chemin de
+// stockage bucket (storage_path) OU une URL signée (url). Les pièces d'un
+// dossier envoyé en ligne arrivent en storage_path/url SANS base64 : il faut
+// donc les trois conditions, sinon elles sont comptées comme manquantes.
+function docHasFile(d){ return !!(d && !d.missing && (d.file || d.storage_path || d.url)); }
+// Pièce d'un type donné, présente, dans la liste de pièces d'un candidat.
+function findDoc(c,id){ return (c&&c.docs?c.docs:[]).find(d=>d&&d.id===id&&docHasFile(d)); }
+// Meilleure source immédiatement affichable (data URL ou URL http) pour un aperçu
+// rapide sans régénérer d'URL signée. openDocPreview gère le rafraîchissement.
+function docDirectSrc(d){
+ if(!d) return null;
+ if(typeof d.file==='string' && (d.file.startsWith('data:')||/^https?:/.test(d.file))) return d.file;
+ return d.url || (typeof d.file==='string'?d.file:null) || null;
+}
 const SOURCES=['LinkedIn','Indeed','France Travail','CVtech','Candidature spontanée','APEC','Welcome to the Jungle','Réseau / Recommandation','Cold outreach'];
 const PRO_TABS=[
  {id:'active',l:'À appeler / En cours'},
@@ -1218,7 +1234,7 @@ function rEntrants(){
 
 function entRow(c){
  const cat=getCat(c.cat);
- const hasCv=!!(c.docs||[]).find(d=>d.id==='cv'&&d.file);
+ const hasCv=!!findDoc(c,'cv');
  const annonce=c.post_id?DB.posts.find(p=>p.id===c.post_id):null;
  return`<tr onclick="openEntrantSplit('${c.id}')" style="cursor:pointer">
  <td onclick="event.stopPropagation()">
@@ -1273,8 +1289,8 @@ function rEnCours(){
  ? `<span style="font-size:10px;padding:2px 8px;background:rgba(224,74,74,.1);border:1px solid rgba(224,74,74,.25);border-radius:2px;color:var(--ac3)">! RDV dépassé — ${fmtDateStr(overdueAg.date)}</span>`
  : `<span style="font-size:10px;color:var(--mu2)">Aucun RDV planifié</span>`;
 
- const docsOk=(c.docs||[]).filter(d=>d.file).length;
- const hasCv=!!(c.docs||[]).find(d=>d.id==='cv'&&d.file);
+ const docsOk=(c.docs||[]).filter(docHasFile).length;
+ const hasCv=!!findDoc(c,'cv');
 
  return`<div class="cc encours-card" onclick="openCandPanel('${c.id}')" style="margin-bottom:6px;padding:12px 13px">
  <div style="display:flex;align-items:flex-start;gap:12px">
@@ -1372,12 +1388,14 @@ function rDossiers(){
  return new Date(b.updated)-new Date(a.updated);
  });
 
- const DOCS_REQUIRED=['cv','id_card','carte_vit','dossier','rgpd'];
+ // Pièces réellement attendues = les 5 types de DOCS_LIST (le 'rgpd' n'est PAS
+ // une pièce mais une case de consentement → l'exiger bloquait la barre à <100%).
+ const DOCS_REQUIRED=DOCS_LIST.map(d=>d.id);
  const today=todayKey();
 
  function docPct(c){
  const docs=c.docs||[];
- const done=DOCS_REQUIRED.filter(id=>docs.find(d=>d.id===id&&d.file)).length;
+ const done=DOCS_REQUIRED.filter(id=>docs.find(d=>d.id===id&&docHasFile(d))).length;
  return{done,total:DOCS_REQUIRED.length,pct:Math.round(done/DOCS_REQUIRED.length*100)};
  }
 
@@ -1392,7 +1410,7 @@ function rDossiers(){
  const st=getCS(c.status);
  const sc=stColors[c.status]||stColors.dossier;
  const dp=docPct(c);
- const docMissing=DOCS_REQUIRED.filter(id=>!(c.docs||[]).find(d=>d.id===id&&d.file));
+ const docMissing=DOCS_REQUIRED.filter(id=>!(c.docs||[]).find(d=>d.id===id&&docHasFile(d)));
  const nextAg=DB.agenda.find(ag=>ag.cand_id===c.id&&!ag.done&&ag.date>=today);
 
  const docBar=`<div style="display:flex;align-items:center;gap:6px">
@@ -1485,17 +1503,19 @@ function openEntrantSplit(id){
  const c=cById(id);if(!c)return;
  if(c.booking&&c.booking.status==='booked'&&c.booking_notif_seen===false){c.booking_notif_seen=true;save();badges();}
  const cat=getCat(c.cat);
- const hasCv=!!(c.docs||[]).find(d=>d.id==='cv'&&d.file);
- const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
+ const hasCv=!!findDoc(c,'cv');
+ const cvDoc=findDoc(c,'cv');
  const annonce=c.post_id?DB.posts.find(p=>p.id===c.post_id):null;
 
  // Build CV preview
  let cvPreview='';
  if(cvDoc){
- if(cvDoc.type==='application/pdf'){
- cvPreview=`<iframe src="${cvDoc.file}" style="width:100%;height:100%;border:none;border-radius:3px" title="CV ${esc(c.name)}"></iframe>`;
+ const cvSrc=docDirectSrc(cvDoc);
+ const cvIsPdf=cvDoc.type==='application/pdf'||(typeof cvSrc==='string'&&/\.pdf(\?|$)/i.test(cvSrc));
+ if(cvIsPdf){
+ cvPreview=`<iframe src="${cvSrc}" style="width:100%;height:100%;border:none;border-radius:3px" title="CV ${esc(c.name)}"></iframe>`;
  } else {
- cvPreview=`<img src="${cvDoc.file}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:3px" alt="CV ${esc(c.name)}">`;
+ cvPreview=`<img src="${cvSrc}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:3px" alt="CV ${esc(c.name)}">`;
  }
  } else {
  cvPreview=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--mu);gap:12px">
@@ -2078,7 +2098,7 @@ function rPipeline(){
 }
 function candCard(c,st){
  const cat=getCat(c.cat);
- const docs=(c.docs||[]).filter(d=>d.file).length;
+ const docs=(c.docs||[]).filter(docHasFile).length;
  return`<div class="cc ${c.pepite?'pep':''}" onclick="openCandPanel('${c.id}')" oncontextmenu="ctxCand(event,'${c.id}')">
  <div class="cc-name">${esc(c.name)}${c.pepite?'':''}</div>
  <div class="cc-role">${esc(c.role||'—')}${c.salary?` · <span style="color:var(--ac2)">${fM(c.salary)}</span>`:''}
@@ -2093,8 +2113,10 @@ function candCard(c,st){
 // ═══════════════════════════════════════════════════════════
 function startPrecal(id){
  const c=cById(id);if(!c)return;
- const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&d.file);
- const cvHtml=cvDoc?(cvDoc.type==='application/pdf'?`<iframe src="${cvDoc.file}" style="width:100%;height:300px;border:none;border-radius:6px;margin-bottom:12px"></iframe>`:`<img src="${cvDoc.file}" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:6px;margin-bottom:12px">`):`<div style="background:var(--s3);border:1px dashed var(--bd2);border-radius:6px;padding:14px;text-align:center;margin-bottom:12px;color:var(--mu);font-size:11px">Aucun CV — <label style="color:var(--gold);cursor:pointer">Uploader<input type="file" accept=".pdf,.jpg,.png" style="display:none" onchange="uploadCvFromSplit(event,'${id}')"></label></div>`;
+ const cvDoc=findDoc(c,'cv');
+ const _cvSrc=cvDoc?docDirectSrc(cvDoc):null;
+ const _cvIsPdf=cvDoc&&(cvDoc.type==='application/pdf'||(typeof _cvSrc==='string'&&/\.pdf(\?|$)/i.test(_cvSrc)));
+ const cvHtml=cvDoc?(_cvIsPdf?`<iframe src="${_cvSrc}" style="width:100%;height:300px;border:none;border-radius:6px;margin-bottom:12px"></iframe>`:`<img src="${_cvSrc}" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:6px;margin-bottom:12px">`):`<div style="background:var(--s3);border:1px dashed var(--bd2);border-radius:6px;padding:14px;text-align:center;margin-bottom:12px;color:var(--mu);font-size:11px">Aucun CV — <label style="color:var(--gold);cursor:pointer">Uploader<input type="file" accept=".pdf,.jpg,.png" style="display:none" onchange="uploadCvFromSplit(event,'${id}')"></label></div>`;
  const openNeeds=DB.needs.filter(n=>n.status==='open');
  const cat=getCat(c.cat);
  const matchedNeeds=openNeeds.filter(n=>n.cat===c.cat);
@@ -2375,10 +2397,13 @@ function setCPTab(i,id){
 function setCoTab(i,id){UI.ptab=i;openCoPanel(id);}
 function renderCandPanelTab(id){
  const c=cById(id);if(!c)return;
- const tabs=[renderCPProfil,renderCPEntretien,renderCPFichiers,renderCPRefs];
- document.getElementById('pb').innerHTML=(tabs[UI.ptab]||tabs[0])(c);
- // Bind file inputs after render
- if(UI.ptab===2) bindFileInputs(id);
+ // Source unique de vérité : openCandPanel reconstruit la barre d'onglets ET le
+ // corps avec le MÊME ordre [Profil, Fichiers, Entretien, Références, Suivi].
+ // (Avant, un tableau au mauvais ordre faisait basculer l'onglet Fichiers vers
+ // Entretien après un upload.)
+ openCandPanel(id);
+ // Bind file inputs after render (onglet Fichiers = index 1)
+ if(UI.ptab===1) bindFileInputs(id);
 }
 
 // TAB 0 — PROFIL
@@ -2421,13 +2446,18 @@ function renderCPEntretien(c){
 // TAB 2 — FICHIERS (avec upload)
 function renderCPFichiers(c){
  const docs=c.docs||[];
- const uploaded=docs.filter(d=>d.file).length;
+ const uploaded=docs.filter(docHasFile).length;
+ const hasDossierPdf=!!findDoc(c,'dossier');
  const dossierBadge=c._dossier_validated
   ?'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.25);border-radius:var(--r2);margin-bottom:12px"><span style="font-size:18px">&#x2705;</span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ac2)">Dossier signé &amp; validé</div><div style="font-size:10px;color:var(--mu)">Réf. '+(c._dossier_ref||'—')+' · '+(c._dossier_validated_at?fD(c._dossier_validated_at):'—')+'</div></div></div>'
   :'<div style="padding:9px 12px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);margin-bottom:12px;font-size:11px;color:var(--ac4)">⚠ Dossier non reçu — <a href="https://novalem-crm.vercel.app/dossier.html?cid='+c.id+'&n='+encodeURIComponent(c.name)+'" target="_blank" style="color:var(--ac4);font-weight:700">Envoyer le lien</a></div>';
-return dossierBadge+`
+ // Bouton principal : ouvrir le dossier de candidature complet (récap + pièces)
+ const fullBtn=(c._dossier_validated||c._dossier_data||hasDossierPdf||uploaded>0)
+  ?`<button class="btn bp btn-full" style="margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:7px" onclick="openFullDossier('${c.id}')"><span style="font-size:15px">📂</span> Ouvrir le dossier de candidature complet</button>`
+  :'';
+return dossierBadge+fullBtn+`
  <div class="flex fjb fac mb8">
- <span class="fs11">${uploaded}/${DOCS_LIST.length} documents</span>
+ <span class="fs11">${uploaded}/${DOCS_LIST.length} documents reçus</span>
  <div class="pgbar" style="width:100px"><div class="pgfill" style="width:${Math.round(uploaded/DOCS_LIST.length*100)}%"></div></div>
  </div>
  <div style="margin-bottom:10px">
@@ -2439,22 +2469,23 @@ return dossierBadge+`
  </div>
  ${DOCS_LIST.map(d=>{
  const existing=docs.find(x=>x.id===d.id);
+ const present=docHasFile(existing);
  return`<div class="file-row">
  <div class="file-ico">${d.ico}</div>
  <div class="file-info">
  <div class="file-name">${esc(d.l)}</div>
- ${existing?.name?`<div class="file-meta">Docs ${esc(existing.name)} · ${existing.size||''} · ${fD(existing.date)}</div>`:`<div class="file-meta mu_">Non reçu</div>`}
+ ${present?`<div class="file-meta">${esc(existing.name||d.l)}${existing.size?' · '+existing.size:''} · ${fD(existing.date)}</div>`:`<div class="file-meta mu_">Non reçu</div>`}
  </div>
- <span class="file-status ${existing?.file?'fs-ok':'fs-miss'}">${existing?.file?'✓ OK':'Manquant'}</span>
- ${existing?.file?`<button class="btn bg bxs" onclick="openDocPreview('${c.id}','${d.id}')" style="font-size:11px" title="Aperçu">👁</button>`:''}
+ <span class="file-status ${present?'fs-ok':'fs-miss'}">${present?'✓ OK':'Manquant'}</span>
+ ${present?`<button class="btn bg bxs" onclick="openDocPreview('${c.id}','${d.id}')" style="font-size:11px" title="Ouvrir / aperçu">👁</button>`:''}
     <label class="file-upload-btn">
- ${existing?.file?'↑ Remplacer':'↑ Upload'}
+ ${present?'↑ Remplacer':'↑ Upload'}
  <input type="file" data-docid="${d.id}" data-candid="${c.id}" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="handleFileUpload(event)">
  </label>
- ${existing?.file?`<button class="btn bd_ bxs" onclick="removeDoc('${c.id}','${d.id}')">×</button>`:''}
+ ${present?`<button class="btn bd_ bxs" onclick="removeDoc('${c.id}','${d.id}')">×</button>`:''}
  </div>`;
  }).join('')}
- ${(docs.find(d=>d.id==='cv'&&d.file))?`
+ ${findDoc(c,'cv')?`
  <div style="margin-top:14px;padding:10px 12px;background:rgba(154,74,224,.07);border:1px solid rgba(154,74,224,.25);border-radius:3px">
  <div style="font-size:11px;margin-bottom:7px;display:flex;align-items:center;gap:6px">
  <span class="ai-badge">IA</span>
@@ -4239,7 +4270,8 @@ function openCandPanel(id){
  </div>
  <div>${renderTimeline(id)}</div>`
  ];
- const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button><button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="openSendProfileModal('${id}')">📤 Envoyer profil</button>${c._dossier_validated?`<button class="btn bxs" style="background:rgba(201,137,26,.12);color:var(--ac4)" onclick="aiMatchEnterprises('${id}')">🤖 Match IA</button>`:''}`;
+ const _hasDossier=c._dossier_validated||c._dossier_data||findDoc(c,'dossier')||(c.docs||[]).some(docHasFile);
+ const acts=`<button class="btn bp bsm" onclick="openCandForm('${id}')">✎ Modifier</button>${_hasDossier?`<button class="btn bg bsm" onclick="openFullDossier('${id}')">📂 Dossier complet</button>`:''}<button class="btn bg bsm" onclick="openAgForm(null,'${id}')"> Planifier</button><button class="btn bg bsm" onclick="openSendProfileModal('${id}')">📤 Envoyer profil</button>${c._dossier_validated?`<button class="btn bxs" style="background:rgba(201,137,26,.12);color:var(--ac4)" onclick="aiMatchEnterprises('${id}')">🤖 Match IA</button>`:''}`;
  setPanel(c.name,`<span class="tag ${cat.cls}">${cat.l}</span> <span class="pill ${st.p}">${st.l}</span>${c.pepite?'':''}`,tabs,B[UI.ptab],acts);
 }
 
@@ -4840,31 +4872,23 @@ function markIntDone(id){const c=cById(id);if(!c)return;c.int_done=true;c.int_da
 // COMPLET du dossier (identité, situation, compétences, expériences +
 // référents) pour repasser sur toutes les infos, et la prise de notes.
 // ═══════════════════════════════════════════════════════════
-function openInterviewModal(candId){
- const c=cById(candId); if(!c){toast('Candidat introuvable','e');return;}
+// ── Récap structuré du dossier (réutilisé par le cockpit ET le dossier complet) ──
+// Renvoie le bloc HTML identité → expériences, SANS les boutons d'action.
+function dossierRecapHtml(c){
  const dd=c._dossier_data||{};
  const pro=dd.pro||{}, adm=dd.admin||{}, comp=dd.competences||{};
  const exps=(dd.experiences&&dd.experiences.length?dd.experiences:(c.experiences||[]));
- const link=c.visio_link||'';
- const when=c.int_date_planned?`${fD(c.int_date_planned)}${c.int_time?' à '+c.int_time:''}`:'Non planifié';
  const EXPL={moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'};
  const UEL={ue:'Ressortissant UE/EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'};
  const permL=pro.permis==='oui'?('Oui'+(pro.permis_detail?' — '+pro.permis_detail:'')):(pro.permis==='non'?'Non':(pro.permis_detail||pro.permis||''));
  const row=(k,v)=>v?`<div class="dr"><span class="drk">${esc(k)}</span><span class="drv">${esc(String(v))}</span></div>`:'';
  const chips=(arr)=>(arr&&arr.length)?arr.map(x=>`<span style="display:inline-block;background:var(--s3);border:1px solid var(--bd2);border-radius:3px;padding:2px 7px;margin:2px 3px 2px 0;font-size:10px">${esc(x)}</span>`).join(''):'';
-
- const visioBlock=`
-  <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.25);border-radius:var(--r2);padding:12px 13px;margin-bottom:14px">
-   <div style="font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu2);margin-bottom:8px">Entretien visio · ${esc(when)}</div>
-   ${link?`<a href="${esc(link)}" target="_blank" class="btn bp btn-full" style="text-decoration:none;margin-bottom:7px">🎥 Rejoindre la visio</a>
-   <div style="display:flex;gap:6px;align-items:center"><div style="flex:1;font-size:10px;color:var(--mu);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn bg bxs" onclick="cpText('${esc(link)}')">Copier</button></div>`
-   :`<div style="font-size:11px;color:var(--ac4)">Aucun lien visio. <span style="color:var(--blue);cursor:pointer" onclick="closeMo();openCalendarMo('${c.id}')">Planifier l'entretien →</span></div>`}
-  </div>`;
-
- let dossierBlock='';
- if(c._dossier_validated){
-  const hasComp=(comp.caces&&comp.caces.length)||(comp.electrique&&comp.electrique.length)||(comp.securite&&comp.securite.length)||(comp.logiciels&&comp.logiciels.length)||comp.langues;
-  dossierBlock=`
+ const hasComp=(comp.caces&&comp.caces.length)||(comp.electrique&&comp.electrique.length)||(comp.securite&&comp.securite.length)||(comp.logiciels&&comp.logiciels.length)||comp.langues;
+ const hasAnyDossier=c._dossier_validated||c._dossier_data||(exps&&exps.length)||pro.poste;
+ if(!hasAnyDossier){
+  return `<div style="padding:11px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);font-size:11px;color:var(--ac4)">Aucune donnée de dossier en ligne — seules les pièces ci-dessus sont disponibles.<br><span style="cursor:pointer;font-weight:700;color:var(--ac4)" onclick="cpText('https://novalem-crm.vercel.app/dossier.html?cid=${c.id}&amp;n=${encodeURIComponent(c.name)}')">Copier le lien du dossier à envoyer</span></div>`;
+ }
+ return `
    <div class="sl">Identité &amp; contact</div>
    ${row('Nom',c.name)}${row('Téléphone',c.phone)}${row('Email',c.email)}
    <div class="sl mt12">Situation professionnelle</div>
@@ -4891,8 +4915,66 @@ function openInterviewModal(candId){
       ${(e.contrat||e.periode)?`<div style="font-size:10px;color:var(--mu);margin-top:2px">${[esc(e.contrat||''),esc(e.periode||'')].filter(Boolean).join('  ·  ')}</div>`:''}
       ${e.motif?`<div style="font-size:10px;color:var(--mu);margin-top:2px">Motif de fin : ${esc(e.motif)}</div>`:''}
       ${(e.ref_nom||e.ref_tel)?`<div style="font-size:10px;color:var(--ac5);margin-top:3px">Référent : ${esc([e.ref_nom,e.ref_fonction].filter(Boolean).join(' · '))}${e.ref_tel?` · <a href="tel:${esc(String(e.ref_tel).replace(/\s/g,''))}" style="color:var(--ac5)">${esc(e.ref_tel)}</a>`:''}</div>`:''}
-     </div>`).join(''):''}
-   <div style="margin-top:8px"><button class="btn bg bsm btn-full" onclick="closeMo();openCandPanel('${c.id}');setTimeout(()=>setCPTab(2,'${c.id}'),140)">📎 Voir les pièces (CV, CNI, permis, dossier PDF)</button></div>`;
+     </div>`).join(''):''}`;
+}
+
+// ── DOSSIER DE CANDIDATURE COMPLET (pop-up unique) ────────────────────────
+// Vue de revue : toutes les pièces ouvrables d'un clic (👁) + le récap complet.
+function openFullDossier(candId){
+ const c=cById(candId); if(!c){toast('Candidat introuvable','e');return;}
+ const validated=!!c._dossier_validated;
+ const banner=validated
+  ?`<div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.25);border-radius:var(--r2);margin-bottom:14px"><span style="font-size:19px">&#x2705;</span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ac2)">Dossier signé &amp; validé</div><div style="font-size:10px;color:var(--mu)">Réf. ${esc(c._dossier_ref||'—')} · signé le ${c._dossier_signed_at?fD(c._dossier_signed_at):(c._dossier_validated_at?fD(c._dossier_validated_at):'—')}</div></div></div>`
+  :`<div style="padding:10px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);margin-bottom:14px;font-size:11px;color:var(--ac4)">Dossier en ligne non encore signé — pièces disponibles ci-dessous.</div>`;
+
+ // Section pièces — chaque pièce présente est ouvrable d'un clic
+ const piecesRows=DOCS_LIST.map(d=>{
+  const existing=(c.docs||[]).find(x=>x.id===d.id);
+  const present=docHasFile(existing);
+  return `<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid ${present?'rgba(45,212,160,.25)':'var(--bd)'};background:${present?'rgba(45,212,160,.05)':'var(--s2)'};border-radius:var(--r2);margin-bottom:6px">
+    <span style="font-size:17px;width:22px;text-align:center;flex-shrink:0">${d.ico}</span>
+    <div style="flex:1;min-width:0">
+     <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(d.l)}</div>
+     <div style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${present?esc((existing.name||d.l)+(existing.size?' · '+existing.size:''))+' · '+fD(existing.date):'Non reçu'}</div>
+    </div>
+    ${present
+      ?`<button class="btn bp bxs" style="flex-shrink:0" onclick="openDocPreview('${c.id}','${d.id}')">👁 Ouvrir</button>`
+      :`<label class="file-upload-btn" style="flex-shrink:0">↑ Upload<input type="file" data-docid="${d.id}" data-candid="${c.id}" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="handleFileUpload(event)"></label>`}
+   </div>`;
+ }).join('');
+
+ const piecesCount=(c.docs||[]).filter(docHasFile).length;
+ const dossierPdf=findDoc(c,'dossier');
+ const piecesBlock=`
+  <div class="sl" style="margin-top:0">Pièces du dossier <span style="font-weight:400;color:var(--mu)">${piecesCount}/${DOCS_LIST.length} reçues</span></div>
+  ${piecesRows}
+  ${dossierPdf?`<button class="btn bg btn-full bsm" style="margin-top:4px" onclick="openDocPreview('${c.id}','dossier')">📄 Ouvrir le dossier PDF signé</button>`:''}`;
+
+ const recapBlock=`<div class="sl mt12" style="border-top:1px solid var(--bd);padding-top:12px">Informations du dossier</div>`+dossierRecapHtml(c);
+
+ openMo(`Dossier complet — ${c.name}`, banner+piecesBlock+recapBlock,
+  `<button class="btn bg" onclick="closeMo()">Fermer</button>
+   ${(c.int_date_planned||c.visio_link)?`<button class="btn bg" onclick="closeMo();openInterviewModal('${c.id}')">🎥 Cockpit entretien</button>`:''}
+   <button class="btn bp" onclick="closeMo();openCandPanel('${c.id}');setTimeout(()=>setCPTab(1,'${c.id}'),140)">📎 Gérer les pièces</button>`);
+}
+
+function openInterviewModal(candId){
+ const c=cById(candId); if(!c){toast('Candidat introuvable','e');return;}
+ const link=c.visio_link||'';
+ const when=c.int_date_planned?`${fD(c.int_date_planned)}${c.int_time?' à '+c.int_time:''}`:'Non planifié';
+
+ const visioBlock=`
+  <div style="background:rgba(61,224,154,.07);border:1px solid rgba(61,224,154,.25);border-radius:var(--r2);padding:12px 13px;margin-bottom:14px">
+   <div style="font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--mu2);margin-bottom:8px">Entretien visio · ${esc(when)}</div>
+   ${link?`<a href="${esc(link)}" target="_blank" class="btn bp btn-full" style="text-decoration:none;margin-bottom:7px">🎥 Rejoindre la visio</a>
+   <div style="display:flex;gap:6px;align-items:center"><div style="flex:1;font-size:10px;color:var(--mu);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn bg bxs" onclick="cpText('${esc(link)}')">Copier</button></div>`
+   :`<div style="font-size:11px;color:var(--ac4)">Aucun lien visio. <span style="color:var(--blue);cursor:pointer" onclick="closeMo();openCalendarMo('${c.id}')">Planifier l'entretien →</span></div>`}
+  </div>`;
+
+ let dossierBlock='';
+ if(c._dossier_validated){
+  dossierBlock=dossierRecapHtml(c)+`
+   <div style="margin-top:8px;display:flex;gap:6px"><button class="btn bp bsm" style="flex:1" onclick="closeMo();openFullDossier('${c.id}')">📂 Dossier complet</button><button class="btn bg bsm" style="flex:1" onclick="closeMo();openCandPanel('${c.id}');setTimeout(()=>setCPTab(1,'${c.id}'),140)">📎 Voir les pièces</button></div>`;
  } else {
   dossierBlock=`<div style="padding:11px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);font-size:11px;color:var(--ac4)">
     Dossier non encore reçu — le récap s'affichera ici une fois le dossier signé.<br>
