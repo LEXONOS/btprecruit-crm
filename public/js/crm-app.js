@@ -5163,14 +5163,16 @@ async function confirmSendProfiles(candId) {
  }
 
  // Envoyer à chaque entreprise sélectionnée
- let sent = 0;
+ let sent = 0, lastErr = null;
  for(const item of selected) {
   const co = coById(item.coId);
   const need = item.needId ? DB.needs.find(n=>n.id===item.needId) : null;
-  if(!co || !co.email) continue;
+  if(!co || !co.email) { lastErr = lastErr || `${co?co.name:'Entreprise'} n'a pas d'email enregistré`; continue; }
 
   const hasContract = !!(co._contract_signed || co.contract);
-  const ok = await sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, key);
+  let ok = false;
+  try { ok = await sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, key); }
+  catch(e){ lastErr = e.message; }
   if(ok) {
    sent++;
    // Mettre à jour compteurs
@@ -5209,7 +5211,7 @@ async function confirmSendProfiles(candId) {
  if(sent > 0) {
   toast(`✅ Profil envoyé à ${sent} entreprise(s) — relance J+3 planifiée`,'s');
  } else {
-  toast('Erreur lors de l\'envoi — vérifiez les emails','e');
+  toast('Échec de l\'envoi : ' + (lastErr || 'vérifiez la configuration email et les adresses'),'e');
  }
 }
 
@@ -5472,7 +5474,8 @@ function generateAnonCVPDF(cand, anonCV) {
 
 // ── 5. ENVOI EMAIL ADAPTÉ ─────────────────────────────────────────────
 async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, key) {
- const apiBase = getApiBase(); if(!apiBase) return false;
+ const apiBase = getApiBase();
+ if(!apiBase) throw new Error("Envoi indisponible : vous consultez le CRM en local. Ouvrez-le depuis votre adresse en ligne (Vercel) pour envoyer.");
 
  const userName = localStorage.getItem(uKey('btp_user_name'))||'Louis RENAULT';
  const userPhone = localStorage.getItem(uKey('btp_user_tel'))||'06 58 21 20 96';
@@ -5526,11 +5529,14 @@ async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, ke
    headers:{'Content-Type':'application/json'},
    body: JSON.stringify(payload),
   });
-  const data = await resp.json();
-  return resp.ok && (data.sent || data.id);
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok){
+   throw new Error(data.hint || data.error || ('Serveur email : HTTP '+resp.status));
+  }
+  return !!(data.sent || data.id);
  } catch(e) {
   console.warn('sendProfileEmail error:', e);
-  return false;
+  throw e; // propagé pour affichage du motif réel
  }
 }
 
@@ -6615,9 +6621,12 @@ const BOARD_CONFIG={
 // Détecte si le CRM tourne sur Vercel (API auto-post disponible)
 // ou en local (liens manuels uniquement)
 function getApiBase(){
- const loc=window.location.hostname;
- if(loc==='localhost'||loc===''||loc.endsWith('.html'))return null; // local
- return window.location.origin; // Ex: https://novalem-crm.vercel.app
+ // L'envoi d'email et les appels serveur passent par /api/... (fonctions Vercel).
+ // Indisponible uniquement si la page est ouverte en fichier local (file://) :
+ // dans ce cas il faut utiliser l'adresse EN LIGNE (ex: https://novalem-crm.vercel.app).
+ if(window.location.protocol==='file:') return null;
+ if(!window.location.hostname) return null;
+ return window.location.origin; // https://…vercel.app  ·  http://localhost:3000 (vercel dev)
 }
 
 function openPublishPanel(postId){
