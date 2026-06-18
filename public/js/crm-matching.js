@@ -930,6 +930,7 @@ function nvRenderCompose(o){
   MB().innerHTML = `
     ${o.note ? `<div style="margin-bottom:10px;font-size:10px;color:var(--ac3);background:var(--red-dim);border-radius:var(--r);padding:7px 10px">${E(o.note)}</div>` : ''}
     ${o.multiNote ? `<div style="margin-bottom:10px;font-size:10px;color:var(--ac5);background:var(--blue-dim);border-radius:var(--r);padding:7px 10px">${E(o.multiNote)}</div>` : ''}
+    ${!apiBase ? `<div style="margin-bottom:10px;font-size:10.5px;color:var(--ac4);background:rgba(201,137,26,.1);border:1px solid rgba(201,137,26,.3);border-radius:var(--r);padding:9px 11px;line-height:1.55">⚠ <strong>Envoi direct indisponible ici.</strong> Vous consultez le CRM en local — l'envoi d'email passe par le serveur. Ouvrez le CRM depuis votre <strong>adresse en ligne (Vercel)</strong> pour envoyer en un clic, ou utilisez « ⬇ CV + ma messagerie » pour télécharger le CV et ouvrir votre logiciel d'email.</div>` : ''}
     <div class="sl" style="margin-top:0">Destinataire${(_nvCompose && _nvCompose.mode === 'candToCompanies') ? '(s)' : ''}</div>
     <input id="nv-to" class="nv-input" value="${E(o.to)}" placeholder="email@entreprise.fr">
     <div class="sl">Objet</div>
@@ -1000,7 +1001,7 @@ async function nvSendCompose(){
       const co = coById(_nvCompose.coId);
       const need = _nvCompose.needId ? nById(_nvCompose.needId) : null;
       const ok = await nvPostEmail(apiBase, { to, subject, body, from_name: u.name + ' — NOVALEM', attachments });
-      if (!ok) throw new Error('Envoi refusé par le serveur');
+      if (!ok) throw new Error('Réponse inattendue du serveur email');
       nvAfterSent(co, _nvCompose.items, need);
       toast('✅ Email envoyé à ' + co.name + ' — relance J+' + NV_FOLLOWUP_DAYS + ' planifiée', 's');
     } else {
@@ -1008,14 +1009,16 @@ async function nvSendCompose(){
       const cand = cById(_nvCompose.candId);
       const cos = _nvCompose.coIds.map(coById).filter(c => c && c.email);
       // Le corps édité par l'utilisateur est conservé ; seule la civilité change par entreprise.
-      let sent = 0;
+      let sent = 0, lastErr = null;
       for (const co of cos) {
         const need = DB.needs.find(n => n.company_id === co.id && n.status === 'open') || null;
         const perBody = nvSwapGreeting(body, co);
-        const ok = await nvPostEmail(apiBase, { to: co.email, subject, body: perBody, from_name: u.name + ' — NOVALEM', attachments });
-        if (ok) { nvAfterSent(co, _nvCompose.items, need); sent++; }
+        try {
+          const ok = await nvPostEmail(apiBase, { to: co.email, subject, body: perBody, from_name: u.name + ' — NOVALEM', attachments });
+          if (ok) { nvAfterSent(co, _nvCompose.items, need); sent++; }
+        } catch (err) { lastErr = err.message; }
       }
-      if (!sent) throw new Error('Aucun envoi abouti (emails manquants ?)');
+      if (!sent) throw new Error(lastErr || 'Aucun envoi abouti (emails manquants ?)');
       toast('✅ ' + E(cand.name) + ' envoyé à ' + sent + ' entreprise(s) — relances planifiées', 's');
     }
 
@@ -1045,7 +1048,7 @@ async function nvPostEmail(apiBase, payload){
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) { console.warn('[NV] send-email:', data); return false; }
+  if (!resp.ok) { console.warn('[NV] send-email:', data); throw new Error(data.hint || data.error || ('Serveur email : HTTP ' + resp.status)); }
   return !!(data.sent || data.id);
 }
 
