@@ -1054,6 +1054,7 @@ async function submitDossier(){
    notes:    document.getElementById('f-notes')?.value||'',
   },
   experiences: collectExperiences(),
+  self_employed: !!(document.getElementById('f-self-employed') && document.getElementById('f-self-employed').checked),
   signature: {
    signed_at: new Date().toISOString(),
    signed_by: document.getElementById('f-prenom').value.trim()+' '+document.getElementById('f-nom').value.trim(),
@@ -1368,105 +1369,151 @@ function buildDossierDoc(d){
  if(!jsPDFLib){ return null; }
  var doc = new jsPDFLib.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
- var W=210,H=297,ML=18,MR=18,MT=16,CW=174;
- var C={n:[26,22,20],o:[201,137,26],g:[85,85,85],f:[245,243,239],l:[232,228,220]};
+ var W=210,H=297,ML=18,MR=18,MT=16;
+ var LBLW=50, VALX=ML+LBLW, VALW=W-MR-VALX;     // colonnes libellé / valeur
+ var C={n:[26,22,20],o:[201,137,26],g:[120,113,104],muted:[156,150,142],f:[247,245,241],l:[228,224,216]};
  var y=MT;
 
  function sf(s,sz){doc.setFont('helvetica',s);doc.setFontSize(sz);}
  function tc(){doc.setTextColor.apply(doc,arguments);}
- function wt(t,x,yy,o){doc.text(t,x,yy,o||{});}
- function sep(){doc.setDrawColor(...C.l);doc.setLineWidth(0.3);doc.line(ML,y,W-MR,y);y+=5;}
+ // Assainit le texte pour la police PDF standard (flèches Unicode non dessinables → tiret)
+ function safe(t){return String(t==null?'':t).replace(/[\u2190-\u21FF\u2794\u2798-\u27BF\u2B00-\u2BFF]/g,'\u2013').replace(/[\u00A0\u2007\u2009\u202F]/g,' ');}
+ function pageBreak(h){ if(y+h>H-15){ doc.addPage(); y=MT; return true; } return false; }
+
+ var CATLBL={go:'Gros Œuvre',tp:'Travaux Publics',vrd:'VRD',elec:'Électricité',plomb:'Plomberie / CVC',charp:'Charpente / Couverture',fin:'Second œuvre / Finitions',archi:"Bureau d'études / Architecture",autre:'Autre'};
+ var EXPL={moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'};
+ var UEL={ue:'Ressortissant UE / EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'};
+
  function section(title){
-  if(y>H-40){doc.addPage();y=MT;}
-  sf('bold',9);tc(...C.o);wt(title,ML,y);y+=5;
-  doc.setDrawColor(...C.o);doc.setLineWidth(0.3);doc.line(ML,y,ML+60,y);y+=4;
+  pageBreak(15);
+  y+=2.5;
+  sf('bold',9.5);tc(...C.o);doc.text(String(title).toUpperCase(),ML,y);y+=2.5;
+  doc.setDrawColor(...C.o);doc.setLineWidth(0.5);doc.line(ML,y,ML+58,y);y+=5.5;
  }
+ // Ligne « libellé : valeur » avec retour à la ligne propre des DEUX côtés.
  function row(label,val){
-  if(y>H-20){doc.addPage();y=MT;}
-  sf('normal',8);tc(...C.g);wt(label,ML,y);
-  sf('normal',8.5);tc(...C.n);
-  var lines=doc.splitTextToSize(String(val||'—'),CW-60);
-  wt(lines,ML+60,y);
-  y+=lines.length*4+1.5;
+  var empty=(val===undefined||val===null||String(val).trim()===''||String(val).trim()==='—');
+  var text=empty?'Non renseigné':String(val);
+  sf('normal',8); var lblLines=doc.splitTextToSize(String(label),LBLW-2);
+  sf(empty?'italic':'normal',8.5); var valLines=doc.splitTextToSize(safe(text),VALW);
+  var lineH=4.2, h=Math.max(lblLines.length,valLines.length)*lineH+1.6;
+  pageBreak(h);
+  sf('normal',8);tc(...C.g);doc.text(lblLines,ML,y);
+  if(empty){sf('italic',8.5);tc(...C.muted);}else{sf('normal',8.5);tc(...C.n);}
+  doc.text(valLines,VALX,y);
+  y+=h;
+ }
+ // Carte d'expérience encadrée — référent mis en évidence (or)
+ function expCard(e,i){
+  var pad=4, innerW=W-ML-MR-2*pad;
+  var titleTxt=(i+1)+'.  '+(e.societe||'Expérience non nommée')+(e.fonction?'   —   '+e.fonction:'');
+  sf('bold',8.8); var titleLines=doc.splitTextToSize(safe(titleTxt),innerW);
+  var blocks=[];
+  titleLines.forEach(function(t){ blocks.push({s:'bold',z:8.8,c:C.n,t:t}); });
+  var meta=[e.contrat,e.periode].filter(Boolean).join('     ·     ');
+  if(meta){ sf('normal',7.8); doc.splitTextToSize(safe(meta),innerW).forEach(function(t){ blocks.push({s:'normal',z:7.8,c:C.g,t:t}); }); }
+  if(e.motif){ sf('normal',7.8); doc.splitTextToSize(safe('Motif de fin de contrat : '+e.motif),innerW).forEach(function(t){ blocks.push({s:'normal',z:7.8,c:C.g,t:t}); }); }
+  var refLines=[];
+  if(e.ref_nom||e.ref_fonction||e.ref_tel){
+   sf('bold',7.8);
+   refLines=doc.splitTextToSize(safe('Référent : '+[e.ref_nom,e.ref_fonction,e.ref_tel].filter(Boolean).join('   ·   ')),innerW);
+  }
+  var lineH=3.95, refH=3.95;
+  var bodyH=blocks.length*lineH;
+  var boxH=bodyH + (refLines.length?(refLines.length*refH+2.5):0) + 2*pad;
+  pageBreak(boxH+3.5);
+  doc.setFillColor(...C.f);doc.setDrawColor(...C.l);doc.setLineWidth(0.2);
+  doc.roundedRect(ML,y,W-ML-MR,boxH,1.6,1.6,'FD');
+  var yy=y+pad+3.1;
+  blocks.forEach(function(b){ sf(b.s,b.z);tc(...b.c);doc.text(b.t,ML+pad,yy);yy+=lineH; });
+  if(refLines.length){ yy+=1.4; sf('bold',7.8);tc(...C.o);doc.text(refLines,ML+pad,yy); }
+  y+=boxH+3.5;
  }
 
- // Header
- sf('bold',20);tc(...C.n);wt('NOVA',ML,y+7);
+ // ── En-tête ──
+ sf('bold',20);tc(...C.n);doc.text('NOVA',ML,y+7);
  var nw=doc.getTextWidth('NOVA');
- tc(...C.o);wt('LEM',ML+nw,y+7);
+ tc(...C.o);doc.text('LEM',ML+nw,y+7);
  sf('normal',7.5);tc(...C.g);
- wt('contact@novalem-recrutement.fr  ·  06 58 21 20 96',W-MR,y+4,{align:'right'});
- y+=10;sf('normal',8);tc(...C.o);wt('RECRUTEMENT BTP - CDI',ML,y+2);
+ doc.text('contact@novalem-recrutement.fr   ·   06 58 21 20 96',W-MR,y+4,{align:'right'});
+ y+=10;sf('normal',8);tc(...C.o);doc.text('RECRUTEMENT BTP - CDI',ML,y+2);
  y+=5;doc.setDrawColor(...C.o);doc.setLineWidth(0.8);doc.line(ML,y,W-MR,y);y+=7;
 
- sf('bold',13);tc(...C.n);wt('DOSSIER DE CANDIDATURE',ML,y);y+=5;
- sf('normal',8.5);tc(...C.g);wt('Document confidentiel — '+new Date(d.signature.signed_at).toLocaleDateString('fr-FR'),ML,y);y+=9;
+ sf('bold',13);tc(...C.n);doc.text('DOSSIER DE CANDIDATURE',ML,y);y+=5;
+ sf('normal',8.5);tc(...C.g);
+ doc.text('Document confidentiel — établi le '+new Date(d.signature.signed_at).toLocaleDateString('fr-FR'),ML,y);y+=9;
 
- section('IDENTITÉ');
- row('Civilité + Prénom Nom', d.identite.civilite+' '+d.identite.prenom+' '+d.identite.nom);
+ // ── 1. IDENTITÉ ──
+ section('Identité du candidat');
+ row('Civilité', d.identite.civilite);
+ row('Prénom', d.identite.prenom);
+ row('Nom', d.identite.nom);
  row('Date de naissance', d.identite.ddn);
  row('Nationalité', d.identite.nationalite);
- row('Adresse', d.identite.adresse+', '+d.identite.cp+' '+d.identite.ville);
+ row('Adresse', [d.identite.adresse, [d.identite.cp,d.identite.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
  row('Téléphone', d.identite.tel);
  row('Email', d.identite.email);
 
- section('SITUATION PROFESSIONNELLE');
+ // ── 2. SITUATION PROFESSIONNELLE ──
+ section('Situation professionnelle');
+ row('Secteur BTP', CATLBL[d.pro.cat]||d.pro.cat);
  row('Poste recherché', d.pro.poste);
- row('Expérience', {moins5:'Moins de 5 ans','5a15':'5 à 15 ans',plus15:'Plus de 15 ans'}[d.pro.experience]||d.pro.experience);
- row('Salaire actuel', d.pro.sal_actuel ? d.pro.sal_actuel+' €/an' : 'Non communiqué');
- row('Salaire souhaité', d.pro.sal_souhaite+' €/an');
+ row('Expérience', EXPL[d.pro.experience]||d.pro.experience);
+ row('Salaire actuel', d.pro.sal_actuel ? d.pro.sal_actuel+' €/an' : '');
+ row('Salaire souhaité', d.pro.sal_souhaite ? d.pro.sal_souhaite+' €/an' : '');
  row('Disponibilité', d.pro.dispo);
  row('Type de contrat', d.pro.contrat);
- row('Mobilité', d.pro.mobilite);
- row('Permis', d.pro.permis==='oui'?'Oui — Permis B'+(d.pro.permis_detail?' ('+d.pro.permis_detail+')':''):d.pro.permis==='non'?'Non':d.pro.permis_detail||d.pro.permis);
+ row('Mobilité géographique', d.pro.mobilite);
+ row('Permis de conduire', d.pro.permis==='oui'?('Oui'+(d.pro.permis_detail?' — '+d.pro.permis_detail:'')):(d.pro.permis==='non'?'Non':(d.pro.permis_detail||d.pro.permis)));
 
- section('SITUATION ADMINISTRATIVE');
- var ueLabels={ue:'Ressortissant UE/EEE','non-ue':'Titre de séjour hors UE',fr:'Nationalité française'};
- row('Situation', ueLabels[d.admin.situation_ue]||d.admin.situation_ue);
+ // ── 3. SITUATION ADMINISTRATIVE ──
+ section('Situation administrative');
+ row('Statut', UEL[d.admin.situation_ue]||d.admin.situation_ue);
  if(d.admin.situation_ue==='non-ue'){
-  row('Type de titre', d.admin.titre_type);
-  row('Expiration titre', d.admin.titre_exp);
-  row('Pays d\'origine', d.admin.pays_origine);
+  row('Type de titre de séjour', d.admin.titre_type);
+  row('Expiration du titre', d.admin.titre_exp);
+  row("Pays d'origine", d.admin.pays_origine);
  }
- if(d.admin.secu) row('N° Sécu (partiel)', d.admin.secu);
+ row('N° de sécurité sociale', d.admin.secu);
 
- section('COMPÉTENCES');
- if(d.competences.caces.length) row('CACES', d.competences.caces.join(', '));
- if(d.competences.electrique.length) row('Habilitations élec.', d.competences.electrique.join(', '));
- if(d.competences.securite.length) row('Formations sécurité', d.competences.securite.join(', '));
- if(d.competences.logiciels.length) row('Logiciels', d.competences.logiciels.join(', '));
- if(d.competences.langues) row('Langues', d.competences.langues);
- if(d.competences.notes) row('Notes', d.competences.notes);
+ // ── 4. COMPÉTENCES & QUALIFICATIONS ──
+ section('Compétences & qualifications');
+ row('CACES', (d.competences.caces||[]).length ? d.competences.caces.join(', ') : 'Aucun renseigné');
+ row('Habilitations électriques', (d.competences.electrique||[]).length ? d.competences.electrique.join(', ') : 'Aucune renseignée');
+ row('Formations sécurité', (d.competences.securite||[]).length ? d.competences.securite.join(', ') : 'Aucune renseignée');
+ row('Logiciels maîtrisés', (d.competences.logiciels||[]).length ? d.competences.logiciels.join(', ') : 'Aucun renseigné');
+ row('Langues', d.competences.langues);
+ row('Informations complémentaires', d.competences.notes);
 
+ // ── 5. EXPÉRIENCES PROFESSIONNELLES & RÉFÉRENTS ──
+ section('Expériences professionnelles & référents');
  var _exps=(d.experiences||[]);
  if(_exps.length){
-  section('EXPÉRIENCES PROFESSIONNELLES');
-  _exps.forEach(function(e,i){
-   if(y>H-30){doc.addPage();y=MT;}
-   sf('bold',8.5);tc(...C.n);wt((i+1)+'. '+(e.societe||'—')+(e.fonction?' — '+e.fonction:''),ML,y);y+=4.5;
-   if(e.contrat||e.periode){sf('normal',8);tc(...C.g);wt([e.contrat,e.periode].filter(Boolean).join('   ·   '),ML,y);y+=4;}
-   if(e.motif){sf('normal',8);tc(...C.g);wt('Motif de fin : '+e.motif,ML,y);y+=4;}
-   if(e.ref_nom||e.ref_tel){sf('normal',8);tc(...C.g);wt('Référent : '+[e.ref_nom,e.ref_fonction,e.ref_tel].filter(Boolean).join('  ·  '),ML,y);y+=4;}
-   y+=2;
-  });
+  _exps.forEach(function(e,i){ expCard(e,i); });
+ } else if(d.self_employed){
+  sf('italic',8.5);tc(...C.muted);
+  var sl=doc.splitTextToSize("Candidat indépendant / à son compte sur les 10 dernières années — aucun référent externe à fournir.",W-ML-MR);
+  pageBreak(sl.length*4.4+2);doc.text(sl,ML,y);y+=sl.length*4.4+2;
+ } else {
+  sf('italic',8.5);tc(...C.muted);doc.text('Aucune expérience renseignée.',ML,y);y+=5;
  }
 
- sep();
- section('SIGNATURE ÉLECTRONIQUE');
- sf('italic',12);tc(...C.o);wt(d.signature.signed_by,ML,y);y+=6;
+ // ── 6. SIGNATURE ──
+ section('Signature électronique');
+ sf('italic',13);tc(...C.o);doc.text(safe(String(d.signature.signed_by||'')),ML,y);y+=6.5;
  sf('normal',7.5);tc(...C.g);
- wt('Signé le '+new Date(d.signature.signed_at).toLocaleString('fr-FR'),ML,y);y+=5;
- wt('Signature électronique simple — valeur juridique conforme eIDAS (UE n°910/2014)',ML,y);y+=5;
- wt('Le candidat certifie l\'exactitude des informations et consent au traitement RGPD par NOVALEM.',ML,y);
+ doc.text('Signé électroniquement le '+new Date(d.signature.signed_at).toLocaleString('fr-FR'),ML,y);y+=4.6;
+ doc.text('Signature électronique simple — valeur juridique conforme eIDAS (Règlement UE n°910/2014).',ML,y);y+=4.6;
+ doc.text("Le candidat certifie l'exactitude des informations ci-dessus et consent au traitement de ses données par NOVALEM (RGPD).",ML,y);
 
- // Footer
+ // ── Pied de page ──
  var np=doc.getNumberOfPages();
  for(var p=1;p<=np;p++){
   doc.setPage(p);
   doc.setDrawColor(...C.l);doc.setLineWidth(0.3);doc.line(ML,H-12,W-MR,H-12);
   sf('normal',6.5);tc(...C.g);
-  wt('NOVALEM · Cabinet de recrutement BTP · contact@novalem-recrutement.fr · Document confidentiel',ML,H-8);
-  wt(p+' / '+np,W-MR,H-8,{align:'right'});
+  doc.text('NOVALEM · Cabinet de recrutement BTP · contact@novalem-recrutement.fr · Document confidentiel',ML,H-8);
+  doc.text(p+' / '+np,W-MR,H-8,{align:'right'});
  }
 
  return doc;
