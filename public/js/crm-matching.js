@@ -373,103 +373,138 @@ function nvCVPDF(cand, S){
   const lib = window.jspdf; if (!lib) return null;
   const doc = new lib.jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const W = 210, H = 297, ML = 18, MR = 18, CW = W - ML - MR;
+  const FOOT = 12;                       // hauteur réservée au pied de page
   const C = { dark:[26,22,20], gold:[201,137,26], grey:[110,104,96], soft:[245,243,239], line:[228,224,216] };
   const sf = (s, z) => { doc.setFont('helvetica', s); doc.setFontSize(z); };
   const tc = (...a) => doc.setTextColor(...a);
-  const wrap = (t, w) => doc.splitTextToSize(String(t || ''), w);
-  const need = (yy, m) => { if (yy > H - (m || 26)) { doc.addPage(); return 16; } return yy; };
+  // Assainit le texte : la police PDF standard (Helvetica/WinAnsi) ne sait pas
+  // dessiner les flèches Unicode (→) ni certains espaces fins → caractères de
+  // remplacement propres, sinon on obtient des glyphes parasites ("!'").
+  const safe = (t) => String(t == null ? '' : t)
+    .replace(/[\u2190-\u21FF\u2794\u2798-\u27BF\u2B00-\u2BFF]/g, '\u2013')
+    .replace(/[\u00A0\u2007\u2009\u202F]/g, ' ');
+  const wrap = (t, w) => doc.splitTextToSize(safe(t), w);
+  // Saut de page si la hauteur restante est insuffisante
+  const room = (h) => { if (y + h > H - FOOT - 2) { doc.addPage(); y = 16; return true; } return false; };
 
-  // En-tête
+  // ── En-tête (bandeau sombre) — titre borné pour ne jamais chevaucher NOVALEM ──
   doc.setFillColor(...C.dark); doc.rect(0, 0, W, 34, 'F');
-  sf('bold', 18); tc(255,255,255); doc.text(S.titre || S.metier || 'Profil BTP', ML, 15);
-  sf('normal', 9); tc(...C.gold); doc.text(getCatLabel(cand.cat) + (S.annees_experience ? '  ·  ' + S.annees_experience + ' ans d\'expérience' : ''), ML, 22);
+  const RIGHT_BLOCK = 46;                 // zone réservée à droite (PRÉSENTÉ PAR / NOVALEM)
+  const titleMaxW = W - MR - RIGHT_BLOCK - ML;
+  let titleTxt = String(S.titre || S.metier || 'Profil BTP');
+  let tz = 18; sf('bold', tz);
+  while (doc.getTextWidth(titleTxt) > titleMaxW && tz > 11) { tz -= 0.5; sf('bold', tz); }
+  let titleLines = wrap(titleTxt, titleMaxW);
+  if (titleLines.length > 2) titleLines = titleLines.slice(0, 2); // garde-fou : 2 lignes max
+  tc(255,255,255);
+  if (titleLines.length === 1) { doc.text(titleLines[0], ML, 15); }
+  else { doc.text(titleLines[0], ML, 12); doc.text(titleLines[1], ML, 12 + tz * 0.42); }
+  sf('normal', 9); tc(...C.gold);
+  doc.text(wrap(getCatLabel(cand.cat) + (S.annees_experience ? '   ·   ' + S.annees_experience + ' ans d\'expérience' : ''), titleMaxW)[0], ML, 27);
   sf('bold', 8); tc(180,170,160); doc.text('PRÉSENTÉ PAR', W - MR, 11, { align:'right' });
   sf('bold', 12); tc(...C.gold); doc.text('NOVALEM', W - MR, 18, { align:'right' });
   sf('normal', 7); tc(150,142,134); doc.text('Recrutement BTP', W - MR, 23, { align:'right' });
 
-  // Bandeau infos clés
+  // ── Bandeau infos clés — chaque paire mesurée, retour à la ligne propre ──
   const kv = [
     nvDispo(cand) ? ['Disponibilité', nvDispo(cand).replace(/^Disponible\s*/i, '')] : null,
     cand.salary ? ['Salaire souhaité', fM(cand.salary) + '/an'] : null,
     cand.mobility ? ['Mobilité', cand.mobility] : null,
     (S.permis && S.permis.length) ? ['Permis', S.permis.join(', ')] : null,
   ].filter(Boolean);
-  let y = 41; let kx = ML; sf('normal', 8);
+  let y = 41, kx = ML;
   kv.forEach(([k, v]) => {
-    tc(160,150,140); doc.text(k + ' : ', kx, y);
-    const kw = doc.getTextWidth(k + ' : ');
-    tc(...C.dark); doc.text(String(v), kx + kw, y);
-    kx += kw + doc.getTextWidth(String(v)) + 10;
-    if (kx > W - MR - 20) { kx = ML; y += 5; }
+    const kl = k + ' : ';
+    sf('normal', 8);  const kw = doc.getTextWidth(kl);
+    sf('bold', 8);    const vw = doc.getTextWidth(safe(v));
+    const pairW = kw + vw + 9;
+    if (kx + kw + vw > W - MR) { kx = ML; y += 5; }   // passe à la ligne AVANT de déborder
+    sf('normal', 8); tc(160,150,140); doc.text(kl, kx, y);
+    sf('bold', 8);   tc(...C.dark);   doc.text(safe(v), kx + kw, y);
+    kx += pairW;
   });
-  y += 7;
+  y += 8;
 
   const section = (label, w) => {
-    y = need(y, 30);
-    sf('bold', 9); tc(...C.gold); doc.text(label, ML, y); y += 2;
+    room(16);
+    sf('bold', 9); tc(...C.gold); doc.text(String(label).toUpperCase(), ML, y); y += 2;
     doc.setDrawColor(...C.gold); doc.setLineWidth(0.5); doc.line(ML, y, ML + (w || 50), y); y += 5;
   };
 
+  // ── Accroche (encadré beige, hauteur calée sur le texte) ──
   if (S.accroche) {
     const lines = wrap(S.accroche, CW - 10);
-    const hgt = lines.length * 4.4 + 7;
+    const hgt = lines.length * 4.4 + 8;
+    room(hgt + 2);
     doc.setFillColor(...C.soft); doc.roundedRect(ML, y, CW, hgt, 2, 2, 'F');
     sf('italic', 9.5); tc(...C.grey); doc.text(lines, ML + 5, y + 6); y += hgt + 6;
   }
 
+  // ── Points forts (3 cartes de hauteur égale, texte borné dans la carte) ──
   if (Array.isArray(S.points_forts) && S.points_forts.length) {
-    section('POINTS FORTS', 34);
+    section('Points forts', 34);
     const pts = S.points_forts.slice(0, 3);
-    const colW = (CW - (pts.length - 1) * 4) / pts.length;
-    let maxH = 0;
+    const gap = 4, colW = (CW - (pts.length - 1) * gap) / pts.length;
     const wrapped = pts.map(p => wrap(p, colW - 6));
-    wrapped.forEach(w => { maxH = Math.max(maxH, w.length * 3.6 + 7); });
+    let maxH = 0; wrapped.forEach(w => { maxH = Math.max(maxH, w.length * 3.7 + 7); });
+    room(maxH + 7);
     pts.forEach((p, i) => {
-      const x = ML + i * (colW + 4);
+      const x = ML + i * (colW + gap);
       doc.setFillColor(...C.soft); doc.roundedRect(x, y, colW, maxH, 2, 2, 'F');
-      sf('bold', 8); tc(...C.dark); doc.text(wrapped[i], x + 3, y + 4.5);
+      sf('bold', 8); tc(...C.dark); doc.text(wrapped[i], x + 3, y + 5);
     });
     y += maxH + 7;
   }
 
+  // ── Expériences (poste borné pour ne pas chevaucher la période) ──
   if (Array.isArray(S.experiences) && S.experiences.length) {
-    section('EXPÉRIENCES PROFESSIONNELLES', 76);
+    section('Expériences professionnelles', 76);
     S.experiences.forEach(x => {
-      y = need(y, 34);
-      sf('bold', 9.5); tc(...C.dark); doc.text(String(x.poste || ''), ML, y);
-      if (x.periode) { sf('normal', 8); tc(...C.grey); doc.text(String(x.periode), W - MR, y, { align:'right' }); }
-      y += 4.6;
-      const sub = [x.secteur, x.ville].filter(Boolean).join(' · ');
-      if (sub) { sf('italic', 8); tc(...C.grey); doc.text(wrap(sub, CW), ML, y); y += 4.4; }
+      room(18);
+      sf('normal', 8); const perW = x.periode ? doc.getTextWidth(String(x.periode)) + 4 : 0;
+      sf('bold', 9.5);
+      const posteLines = wrap(String(x.poste || ''), CW - perW);
+      tc(...C.dark); doc.text(posteLines, ML, y);
+      if (x.periode) { sf('normal', 8); tc(...C.grey); doc.text(safe(x.periode), W - MR, y, { align:'right' }); }
+      y += posteLines.length * 4.3 + 0.6;
+      const sub = [x.secteur, x.ville].filter(Boolean).join('  ·  ');
+      if (sub) { sf('italic', 8); tc(...C.grey); const sl = wrap(sub, CW); doc.text(sl, ML, y); y += sl.length * 3.9 + 0.6; }
       (x.realisations || []).forEach(r => {
-        y = need(y, 18);
-        sf('normal', 8.5); tc(...C.dark);
-        const rl = wrap('•  ' + r, CW - 4); doc.text(rl, ML + 2, y); y += rl.length * 3.9 + 1;
+        sf('normal', 8.5); const rl = wrap('•  ' + r, CW - 4);
+        room(rl.length * 3.9 + 2); tc(...C.dark); doc.text(rl, ML + 2, y); y += rl.length * 3.9 + 1.2;
       });
       y += 3.5;
     });
   }
 
+  // ── Compétences (2 colonnes, avance = hauteur réelle de la ligne) ──
   if (Array.isArray(S.competences) && S.competences.length) {
-    section('COMPÉTENCES', 50);
-    const cols = 2, cw2 = (CW - 6) / cols;
+    section('Compétences', 50);
+    const cols = 2, gap = 6, cw2 = (CW - gap) / cols;
     for (let i = 0; i < S.competences.length; i += cols) {
-      y = need(y, 16);
+      let rowLines = 1;
+      const cells = [];
       for (let j = 0; j < cols && i + j < S.competences.length; j++) {
-        sf('normal', 8.5); tc(...C.dark);
-        doc.text(wrap('›  ' + S.competences[i + j], cw2 - 4), ML + j * (cw2 + 6), y);
+        const cl = wrap('›  ' + S.competences[i + j], cw2 - 4);
+        cells.push(cl); rowLines = Math.max(rowLines, cl.length);
       }
-      y += 4.8;
+      room(rowLines * 4 + 1.5);
+      cells.forEach((cl, j) => { sf('normal', 8.5); tc(...C.dark); doc.text(cl, ML + j * (cw2 + gap), y); });
+      y += rowLines * 4 + 1.5;
     }
     y += 3;
   }
 
+  // ── Formations & certifications (avance = hauteur réelle) ──
   if (Array.isArray(S.formations_certs) && S.formations_certs.length) {
-    section('FORMATIONS & CERTIFICATIONS', 66);
-    S.formations_certs.forEach(f => { y = need(y, 14); sf('normal', 8.5); tc(...C.dark); doc.text(wrap('›  ' + f, CW - 4), ML, y); y += 4.8; });
+    section('Formations & certifications', 66);
+    S.formations_certs.forEach(f => {
+      sf('normal', 8.5); const fl = wrap('›  ' + f, CW - 4);
+      room(fl.length * 4 + 1.5); tc(...C.dark); doc.text(fl, ML, y); y += fl.length * 4 + 1.5;
+    });
   }
 
-  // Pied de page sur chaque page
+  // ── Pied de page sur chaque page ──
   const np = doc.getNumberOfPages();
   for (let p = 1; p <= np; p++) {
     doc.setPage(p);
