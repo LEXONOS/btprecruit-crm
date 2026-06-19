@@ -1388,9 +1388,10 @@ function rDossiers(){
  return new Date(b.updated)-new Date(a.updated);
  });
 
- // Pièces réellement attendues = les 5 types de DOCS_LIST (le 'rgpd' n'est PAS
- // une pièce mais une case de consentement → l'exiger bloquait la barre à <100%).
- const DOCS_REQUIRED=DOCS_LIST.map(d=>d.id);
+ // Pièces réellement OBLIGATOIRES = celles marquées required dans DOCS_LIST
+ // (CV, pièce d'identité, dossier signé). Le permis et la carte vitale sont
+ // FACULTATIFs : leur absence ne doit JAMAIS afficher « dossier incomplet ».
+ const DOCS_REQUIRED=DOCS_LIST.filter(d=>d.required).map(d=>d.id);
  const today=todayKey();
 
  function docPct(c){
@@ -4934,11 +4935,13 @@ function openFullDossier(candId){
  const piecesRows=DOCS_LIST.map(d=>{
   const existing=(c.docs||[]).find(x=>x.id===d.id);
   const present=docHasFile(existing);
+  const optTag=d.required?'':' <span style="font-size:9px;color:var(--mu2);font-weight:400;background:var(--s3);padding:1px 6px;border-radius:8px;vertical-align:middle">facultatif</span>';
+  const emptyLabel=d.required?'Non reçu':'Non fourni — facultatif';
   return `<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid ${present?'rgba(45,212,160,.25)':'var(--bd)'};background:${present?'rgba(45,212,160,.05)':'var(--s2)'};border-radius:var(--r2);margin-bottom:6px">
     <span style="font-size:17px;width:22px;text-align:center;flex-shrink:0">${d.ico}</span>
     <div style="flex:1;min-width:0">
-     <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(d.l)}</div>
-     <div style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${present?esc((existing.name||d.l)+(existing.size?' · '+existing.size:''))+' · '+fD(existing.date):'Non reçu'}</div>
+     <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(d.l)}${optTag}</div>
+     <div style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${present?esc((existing.name||d.l)+(existing.size?' · '+existing.size:''))+' · '+fD(existing.date):emptyLabel}</div>
     </div>
     ${present
       ?`<button class="btn bp bxs" style="flex-shrink:0" onclick="openDocPreview('${c.id}','${d.id}')">👁 Ouvrir</button>`
@@ -4946,10 +4949,13 @@ function openFullDossier(candId){
    </div>`;
  }).join('');
 
- const piecesCount=(c.docs||[]).filter(docHasFile).length;
+ const reqDocs=DOCS_LIST.filter(d=>d.required);
+ const reqDone=reqDocs.filter(d=>findDoc(c,d.id)).length;
+ const optDone=DOCS_LIST.filter(d=>!d.required&&findDoc(c,d.id)).length;
+ const allReq=reqDone===reqDocs.length;
  const dossierPdf=findDoc(c,'dossier');
  const piecesBlock=`
-  <div class="sl" style="margin-top:0">Pièces du dossier <span style="font-weight:400;color:var(--mu)">${piecesCount}/${DOCS_LIST.length} reçues</span></div>
+  <div class="sl" style="margin-top:0">Pièces du dossier <span style="font-weight:400;color:${allReq?'var(--ac2)':'var(--ac4)'}">${reqDone}/${reqDocs.length} obligatoires${allReq?' ✓':''}</span>${optDone?`<span style="font-weight:400;color:var(--mu2);font-size:10px"> · +${optDone} facultative${optDone>1?'s':''}</span>`:''}</div>
   ${piecesRows}
   ${dossierPdf?`<button class="btn bg btn-full bsm" style="margin-top:4px" onclick="openDocPreview('${c.id}','dossier')">📄 Ouvrir le dossier PDF signé</button>`:''}`;
 
