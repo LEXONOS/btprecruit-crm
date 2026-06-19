@@ -7351,6 +7351,7 @@ function emRenderCompose(cands,cos,nom,tel){
     </div>
     <!-- Corps -->
     <textarea id="em-body" style="flex:1;background:transparent;border:none;padding:14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--tx);resize:none;outline:none;line-height:1.7;min-height:0">${esc(initBody)}</textarea>
+    ${emAttachmentsHtml()}
     <!-- Footer -->
     <div style="padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:center;flex-shrink:0;background:var(--s2)">
       <button id="em-send-btn" class="btn bp bsm" onclick="emSend()">Envoyer</button>
@@ -7384,7 +7385,14 @@ async function emSend(){
     const contractName = sessionStorage.getItem('_contract_pdf_name')   || 'Contrat_Novalem.pdf';
     const payload = { to, cc, subject: sub, body };
     if (contractHtml) payload.html = contractHtml;
-    if (contractPdf)  payload.attachments = [{ filename: contractName, content: contractPdf, type: 'application/pdf' }];
+    const attachments = [];
+    if (contractPdf) attachments.push({ filename: contractName, content: contractPdf, type: 'application/pdf' });
+    // Pièces jointes additionnelles (CV anonymisés du module présentation de profils, etc.)
+    try {
+      const extra = JSON.parse(sessionStorage.getItem('_nv_email_attachments') || '[]');
+      if (Array.isArray(extra)) extra.forEach(a => { if (a && a.content) attachments.push({ filename: a.filename || 'piece-jointe.pdf', content: a.content, type: a.type || 'application/pdf' }); });
+    } catch(_){}
+    if (attachments.length) payload.attachments = attachments;
     const resp=await fetch(`${apiBase}/api/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await resp.json();
     if(resp.ok&&(data.sent||data.id)){
@@ -7393,6 +7401,9 @@ async function emSend(){
       sessionStorage.removeItem('_contract_email_html');
       sessionStorage.removeItem('_contract_pdf_b64');
       sessionStorage.removeItem('_contract_pdf_name');
+      // Pièces jointes profils + suivi (statut « présenté » + relance) si envoi de profil(s)
+      sessionStorage.removeItem('_nv_email_attachments');
+      try { if (typeof window.nvApplyPendingFollowup === 'function') window.nvApplyPendingFollowup(to); } catch(_){}
       emLogEmail(to,sub,body,true);
       toast(`Email envoye a ${to}`,'s');
       if(btn){btn.textContent='Envoye !';btn.style.background='var(--green)';btn.style.color='#0a0a08';}
@@ -7452,6 +7463,45 @@ function emDeleteDraft(i){
 function emClear(){
   EM={to:'',subject:'',body:'',candId:null,coId:null,tplKey:null};
   ['em-to','em-cc','em-sub','em-body'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  // Jeter les pièces jointes profils et le contexte de suivi en attente
+  sessionStorage.removeItem('_nv_email_attachments');
+  sessionStorage.removeItem('_nv_pending_followup');
+}
+
+// ── Pièces jointes du composer interne (CV profils + contrat) ─────────
+function emComposeAttachments(){
+  const list=[];
+  try{ const pdf=sessionStorage.getItem('_contract_pdf_b64'); if(pdf) list.push({filename:sessionStorage.getItem('_contract_pdf_name')||'Contrat.pdf',_locked:true}); }catch(_){}
+  try{ const extra=JSON.parse(sessionStorage.getItem('_nv_email_attachments')||'[]'); if(Array.isArray(extra)) extra.forEach((a,i)=>list.push({filename:a.filename||'piece-jointe.pdf',_idx:i})); }catch(_){}
+  return list;
+}
+function emAttachmentsHtml(){
+  const list=emComposeAttachments();
+  if(!list.length) return '';
+  return `<div id="em-attach-bar" style="flex-shrink:0;border-top:1px solid var(--bd);padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--s1)">
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu2)">Pièces jointes</span>
+    ${list.map(a=>`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bd2);border-radius:12px;padding:3px 10px;font-size:10px;color:var(--tx)">📎 ${esc(a.filename)}${a._locked?'':`<span onclick="emRemoveAttachment(${a._idx})" style="cursor:pointer;color:var(--mu);font-weight:700;font-size:12px;line-height:1" title="Retirer">×</span>`}</span>`).join('')}
+  </div>`;
+}
+function emRemoveAttachment(i){
+  try{ const extra=JSON.parse(sessionStorage.getItem('_nv_email_attachments')||'[]'); if(Array.isArray(extra)){ extra.splice(i,1); sessionStorage.setItem('_nv_email_attachments',JSON.stringify(extra)); } }catch(_){}
+  const bar=document.getElementById('em-attach-bar');
+  if(bar) bar.outerHTML=emAttachmentsHtml(); // re-render uniquement la barre (préserve le texte saisi)
+}
+
+// Ouvre la MESSAGERIE INTERNE pré-remplie + pièces jointes (présentation de profils, etc.).
+// opts: {to, subject, body, coId, attachments:[{filename,content,type}], followup:{...}}
+// Le destinataire/objet/corps remplissent le composer ; les CV partent en pièce jointe
+// via emSend (même mécanisme que l'envoi de contrat). Bascule sur l'onglet Emails.
+function nvOpenMailboxCompose(opts){
+  opts=opts||{};
+  try{ sessionStorage.setItem('_nv_email_attachments', JSON.stringify(opts.attachments||[])); }catch(_){}
+  if(opts.followup){ try{ sessionStorage.setItem('_nv_pending_followup', JSON.stringify(opts.followup)); }catch(_){} }
+  else sessionStorage.removeItem('_nv_pending_followup');
+  EM={to:opts.to||'',subject:opts.subject||'',body:opts.body||'',candId:null,coId:opts.coId||null,tplKey:null};
+  EM_VIEW='compose';
+  if(typeof closeMo==='function')closeMo();
+  setTimeout(()=>{ if(typeof go==='function') go('emails'); },100);
 }
 
 // ── Envoyés ───────────────────────────────────────────
