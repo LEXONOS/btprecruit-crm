@@ -886,12 +886,23 @@ async function nvComposeToCompany(coId, candIds, needId){
   const body = nvEmailBody({ company: co, need, items, userName: u.name, userPhone: u.phone, plain: false });
 
   _nvCompose = { mode: 'toCompany', coId, needId, candIds, items, catId };
-  nvRenderCompose({
-    title: 'Présenter ' + items.length + ' profil' + (items.length > 1 ? 's' : '') + (co ? ' — ' + co.name : ''),
-    to: (co && co.email) || '',
-    subject, body, items,
-    note: co && !co.email ? 'Cette entreprise n\'a pas d\'email enregistré — renseignez-le ci-dessus.' : null,
-  });
+
+  const atts = items.filter(it => it.b64).map(it => ({ filename: it.filename, content: it.b64, type: 'application/pdf' }));
+  const followup = { mode: 'toCompany', coId, needId, candIds, emails: (co && co.email) ? [co.email] : [] };
+
+  if (typeof window.nvOpenMailboxCompose === 'function') {
+    window.nvOpenMailboxCompose({ to: (co && co.email) || '', subject, body, coId, attachments: atts, followup });
+    const n = atts.length;
+    toast('Email prêt dans la messagerie' + (n ? ` — ${n} CV joint${n > 1 ? 's' : ''}` : '') + (co && !co.email ? ' · ⚠ ajoutez l\'email de l\'entreprise' : ' · vérifiez puis « Envoyer »'), (co && !co.email) ? 'w' : 's');
+  } else {
+    // Repli : ancienne fenêtre de composition intégrée (si crm-app.js non mis à jour)
+    nvRenderCompose({
+      title: 'Présenter ' + items.length + ' profil' + (items.length > 1 ? 's' : '') + (co ? ' — ' + co.name : ''),
+      to: (co && co.email) || '',
+      subject, body, items,
+      note: co && !co.email ? 'Cette entreprise n\'a pas d\'email enregistré — renseignez-le ci-dessus.' : null,
+    });
+  }
 }
 
 // ── 7b. Email d'1 profil vers 1..N entreprises (candidat → entreprises) ──
@@ -911,12 +922,27 @@ async function nvComposeCandidateToCompanies(candId, coIds){
   const body = nvEmailBody({ company: sample, need, items, userName: u.name, userPhone: u.phone, plain: false });
 
   _nvCompose = { mode: 'candToCompanies', candId, coIds, items, catId: cand.cat };
-  nvRenderCompose({
-    title: 'Présenter ' + E(cand.name) + ' à ' + cos.length + ' entreprise' + (cos.length > 1 ? 's' : ''),
-    to: cos.map(c => c.email).filter(Boolean).join(', '),
-    subject, body, items,
-    multiNote: cos.length > 1 ? `L'email sera personnalisé et envoyé séparément à chaque entreprise (${cos.length}). La formule de politesse (« Bonjour Monsieur/Madame… ») est adaptée automatiquement à chaque destinataire.` : null,
-  });
+
+  const toList = cos.map(c => c.email).filter(Boolean).join(', ');
+  // Email combiné vers plusieurs entreprises → formule de politesse neutre
+  let outBody = body;
+  if (cos.length > 1) outBody = outBody.replace(/^Bonjour[^\n]*/, 'Bonjour Madame, Monsieur,');
+  const atts = items.filter(it => it.b64).map(it => ({ filename: it.filename, content: it.b64, type: 'application/pdf' }));
+  const followup = { mode: 'candToCompanies', candId, coIds, emails: cos.map(c => c.email).filter(Boolean) };
+
+  if (typeof window.nvOpenMailboxCompose === 'function') {
+    window.nvOpenMailboxCompose({ to: toList, subject, body: outBody, coId: (cos[0] && cos[0].id) || null, attachments: atts, followup });
+    const n = atts.length;
+    toast('Email prêt dans la messagerie' + (n ? ` — ${n} CV joint${n > 1 ? 's' : ''}` : '') + (!toList ? ' · ⚠ aucune entreprise avec email' : ' · vérifiez puis « Envoyer »'), !toList ? 'w' : 's');
+  } else {
+    // Repli : ancienne fenêtre de composition intégrée (si crm-app.js non mis à jour)
+    nvRenderCompose({
+      title: 'Présenter ' + E(cand.name) + ' à ' + cos.length + ' entreprise' + (cos.length > 1 ? 's' : ''),
+      to: toList,
+      subject, body, items,
+      multiNote: cos.length > 1 ? `L'email sera personnalisé et envoyé séparément à chaque entreprise (${cos.length}). La formule de politesse (« Bonjour Monsieur/Madame… ») est adaptée automatiquement à chaque destinataire.` : null,
+    });
+  }
 }
 
 function nvRenderCompose(o){
@@ -991,6 +1017,43 @@ function nvAfterSent(co, items, need){
       _auto: true,
     });
   }
+}
+
+// Applique le suivi (statut « présenté » + relance J+1) APRÈS l'envoi réel d'un profil
+// depuis la messagerie interne du CRM. Appelée par emSend (crm-app.js) en cas de succès.
+// Le contexte est posé par nvOpenMailboxCompose via sessionStorage('_nv_pending_followup').
+function nvApplyPendingFollowup(sentTo){
+  let ctx;
+  try { ctx = JSON.parse(sessionStorage.getItem('_nv_pending_followup') || 'null'); } catch (_) { ctx = null; }
+  sessionStorage.removeItem('_nv_pending_followup'); // consommé dans tous les cas
+  if (!ctx) return;
+
+  // Sécurité : le destinataire réellement envoyé doit recouper les emails attendus,
+  // sinon on n'applique PAS le suivi (l'utilisateur a composé un autre email entre-temps).
+  const sent = String(sentTo || '').toLowerCase();
+  const expected = (ctx.emails || []).map(e => String(e).toLowerCase()).filter(Boolean);
+  if (expected.length && sent && !expected.some(e => sent.includes(e))) return;
+
+  try {
+    if (ctx.mode === 'toCompany') {
+      const co = coById(ctx.coId);
+      const need = ctx.needId ? nById(ctx.needId) : null;
+      const items = (ctx.candIds || []).map(id => ({ cand: cById(id) })).filter(x => x.cand);
+      if (co && items.length) nvAfterSent(co, items, need);
+    } else {
+      const items = ctx.candId ? [{ cand: cById(ctx.candId) }].filter(x => x.cand) : [];
+      (ctx.coIds || []).forEach(coId => {
+        const co = coById(coId); if (!co) return;
+        const need = DB.needs.find(n => n.company_id === co.id && n.status === 'open') || null;
+        if (items.length) nvAfterSent(co, items, need);
+      });
+    }
+    save();
+    if (typeof rCands === 'function') rCands();
+    if (typeof rNeeds === 'function') rNeeds();
+    if (typeof badges === 'function') badges();
+    if (typeof UI !== 'undefined' && UI && UI.view === 'dash' && typeof rDash === 'function') rDash();
+  } catch (e) { console.warn('[NV] suivi profil:', e); }
 }
 
 async function nvSendCompose(){
@@ -1199,6 +1262,7 @@ G.nvComposeFallback = nvComposeFallback;
 G.nvComposeVia = nvComposeVia;
 G.nvShowExternalConfirm = nvShowExternalConfirm;
 G.nvConfirmExternalSent = nvConfirmExternalSent;
+G.nvApplyPendingFollowup = nvApplyPendingFollowup;
 // utilitaires éventuellement utiles ailleurs
 G.nvScore = nvScore;
 G.nvBuildStruct = nvBuildStruct;
