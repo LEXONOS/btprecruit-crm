@@ -927,10 +927,12 @@ function nvRenderCompose(o){
       ${it.b64 ? `<button class="btn bg bxs" onclick="nvOpenPdfBlob('${it.cand.id}')">Aperçu</button>` : '<span class="nv-chip" style="background:var(--red-dim);color:var(--ac3)">PDF KO</span>'}
     </div>`).join('');
 
+  const isMulti = !!(_nvCompose && _nvCompose.mode === 'candToCompanies' && (_nvCompose.coIds || []).length > 1);
+
   MB().innerHTML = `
     ${o.note ? `<div style="margin-bottom:10px;font-size:10px;color:var(--ac3);background:var(--red-dim);border-radius:var(--r);padding:7px 10px">${E(o.note)}</div>` : ''}
     ${o.multiNote ? `<div style="margin-bottom:10px;font-size:10px;color:var(--ac5);background:var(--blue-dim);border-radius:var(--r);padding:7px 10px">${E(o.multiNote)}</div>` : ''}
-    ${!apiBase ? `<div style="margin-bottom:10px;font-size:10.5px;color:var(--ac4);background:rgba(201,137,26,.1);border:1px solid rgba(201,137,26,.3);border-radius:var(--r);padding:9px 11px;line-height:1.55">⚠ <strong>Envoi direct indisponible ici.</strong> Vous consultez le CRM en local — l'envoi d'email passe par le serveur. Ouvrez le CRM depuis votre <strong>adresse en ligne (Vercel)</strong> pour envoyer en un clic, ou utilisez « ⬇ CV + ma messagerie » pour télécharger le CV et ouvrir votre logiciel d'email.</div>` : ''}
+    ${!apiBase ? `<div style="margin-bottom:10px;font-size:10.5px;color:var(--ac4);background:rgba(201,137,26,.1);border:1px solid rgba(201,137,26,.3);border-radius:var(--r);padding:9px 11px;line-height:1.55">⚠ <strong>Envoi automatique (serveur) indisponible ici.</strong> Aucun souci&nbsp;: utilisez le bloc <strong>« Envoyer depuis MA messagerie »</strong> juste en dessous (Gmail, Outlook…) pour ouvrir l'email tout prêt et l'envoyer depuis votre propre boîte. L'envoi automatique en 1 clic se débloque depuis l'adresse en ligne (Vercel).</div>` : ''}
     <div class="sl" style="margin-top:0">Destinataire${(_nvCompose && _nvCompose.mode === 'candToCompanies') ? '(s)' : ''}</div>
     <input id="nv-to" class="nv-input" value="${E(o.to)}" placeholder="email@entreprise.fr">
     <div class="sl">Objet</div>
@@ -939,12 +941,22 @@ function nvRenderCompose(o){
     <textarea id="nv-body" class="nv-input" style="min-height:230px;line-height:1.55;font-family:'DM Mono',monospace;font-size:11px">${E(o.body)}</textarea>
     <div class="sl">Pièces jointes — CV anonymisés (${o.items.length})</div>
     ${att}
-    <div style="margin-top:8px;font-size:10px;color:var(--mu2)">Relance automatique programmée à J+${NV_FOLLOWUP_DAYS} (reportable d'un clic depuis l'agenda si la personne n'est pas joignable).</div>`;
+    <div style="margin-top:14px;border:1.5px solid ${apiBase ? 'var(--bd2)' : 'var(--ac-border)'};border-radius:var(--r2);overflow:hidden">
+      <div style="background:${apiBase ? 'var(--s3)' : 'var(--ac-dim)'};padding:8px 11px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:${apiBase ? 'var(--mu)' : 'var(--ac)'};border-bottom:1px solid var(--bd)">📤 Envoyer depuis MA messagerie${apiBase ? '' : ' — recommandé ici'}</div>
+      <div style="padding:11px">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn bg bsm" onclick="nvComposeVia('gmail')" style="flex:1;min-width:116px">📧 Gmail</button>
+          <button class="btn bg bsm" onclick="nvComposeVia('outlook')" style="flex:1;min-width:116px">📨 Outlook</button>
+          <button class="btn bg bsm" onclick="nvComposeVia('mailto')" style="flex:1;min-width:116px">💻 Logiciel mail</button>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--mu2);line-height:1.5">Ouvre l'email pré-rédigé dans votre messagerie. ${o.items.length > 1 ? 'Les CV anonymisés seront téléchargés' : 'Le CV anonymisé sera téléchargé'} automatiquement — il ne reste qu'à ${o.items.length > 1 ? 'les' : 'le'} glisser en pièce jointe avant d'envoyer.${isMulti ? '<br><strong style="color:var(--ac4)">Plusieurs destinataires&nbsp;:</strong> ils figureront sur le même email. Pour un envoi séparé et personnalisé par entreprise, préférez « Envoyer directement ».' : ''}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:var(--mu2)">Relance automatique programmée à J+${NV_FOLLOWUP_DAYS} (reportable d'un clic depuis l'agenda si la personne n'est pas joignable).</div>`;
 
   MF().innerHTML =
     `<button class="btn bg bsm" onclick="closeMo()">Annuler</button>
-     <button class="btn bg bsm" onclick="nvComposeFallback()">⬇ CV + ma messagerie</button>
-     <button class="btn bp bsm" id="nv-send-btn" onclick="nvSendCompose()" ${apiBase ? '' : 'title="Indisponible en local — utilisez « CV + ma messagerie » ou déployez sur Vercel"'}>✉ Envoyer${apiBase ? '' : ' (serveur requis)'}</button>`;
+     <button class="btn bp bsm" id="nv-send-btn" onclick="nvSendCompose()" ${apiBase ? '' : 'title="Envoi automatique indisponible en local — utilisez le bloc « Envoyer depuis MA messagerie » (Gmail/Outlook) ci-dessus"'}>✉ Envoyer directement${apiBase ? '' : ' (serveur requis)'}</button>`;
 }
 
 // Effets post-envoi : statut « présenté », timelines, compteurs, relance J+1.
@@ -984,7 +996,7 @@ function nvAfterSent(co, items, need){
 async function nvSendCompose(){
   if (!_nvCompose) return;
   const apiBase = (typeof getApiBase === 'function') ? getApiBase() : null;
-  if (!apiBase) { toast('Envoi serveur indisponible en local — utilisez « CV + ma messagerie »', 'w'); return; }
+  if (!apiBase) { toast('Envoi automatique indisponible en local — utilisez Gmail / Outlook ci-dessus', 'w'); return; }
 
   const to = ($('#nv-to').value || '').trim();
   const subject = ($('#nv-subj').value || '').trim();
@@ -1029,7 +1041,7 @@ async function nvSendCompose(){
     if (UI.view === 'dash' && typeof rDash === 'function') rDash();
     closeMo();
   } catch (e) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '✉ Envoyer'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '✉ Envoyer directement'; }
     toast('Erreur : ' + e.message, 'e');
   }
 }
@@ -1052,32 +1064,115 @@ async function nvPostEmail(apiBase, payload){
   return !!(data.sent || data.id);
 }
 
-// Repli « ouvrir ma messagerie » : télécharge les CV puis ouvre un mailto pré-rempli.
-function nvComposeFallback(){
+// Corps texte propre (sans markdown) à partir de ce que l'utilisateur a sous les yeux.
+function nvPlainBody(){
+  let b = ($('#nv-body') ? $('#nv-body').value : '') || '';
+  return b.replace(/\*\*/g, '')                 // gras markdown
+          .replace(/^▸[ \t]*/gm, '• ')          // puces ▸ → •
+          .replace(/^---+$/gm, '—————————————'); // séparateur
+}
+
+// Ouvre l'email TOUT PRÊT dans la messagerie de l'utilisateur (Gmail / Outlook / logiciel),
+// télécharge les CV à joindre, puis propose de planifier le suivi.
+function nvComposeVia(provider){
   if (!_nvCompose) return;
-  const to = ($('#nv-to') ? $('#nv-to').value : '') || '';
-  const subject = ($('#nv-subj') ? $('#nv-subj').value : '') || '';
-  // version texte propre (pas de markdown) pour le mailto
-  const u = nvUser();
-  let plainBody;
-  if (_nvCompose.mode === 'toCompany') {
-    const co = coById(_nvCompose.coId);
-    const need = _nvCompose.needId ? nById(_nvCompose.needId) : null;
-    plainBody = nvEmailBody({ company: co, need, items: _nvCompose.items, userName: u.name, userPhone: u.phone, plain: true });
+  const to = ($('#nv-to') ? $('#nv-to').value : '').trim();
+  const subject = ($('#nv-subj') ? $('#nv-subj').value : '').trim();
+  if (!to) { toast('Renseignez au moins un destinataire', 'e'); return; }
+
+  const recipients = to.split(',').map(s => s.trim()).filter(Boolean);
+  const toJoined = recipients.join(',');
+  let body = nvPlainBody();
+  // Email combiné vers plusieurs entreprises → formule de politesse neutre.
+  if (recipients.length > 1) body = body.replace(/^Bonjour[^\n]*/, 'Bonjour Madame, Monsieur,');
+
+  let url, label, externalTab = true;
+  if (provider === 'gmail') {
+    label = 'Gmail';
+    url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(toJoined)
+        + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  } else if (provider === 'outlook') {
+    label = 'Outlook';
+    url = 'https://outlook.office.com/mail/deeplink/compose?to=' + encodeURIComponent(toJoined)
+        + '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   } else {
-    const cos = _nvCompose.coIds.map(coById).filter(Boolean);
-    const co = cos[0] || { contact: '' };
-    const need = DB.needs.find(n => cos[0] && n.company_id === cos[0].id && n.status === 'open') || null;
-    plainBody = nvEmailBody({ company: co, need, items: _nvCompose.items, userName: u.name, userPhone: u.phone, plain: true });
+    label = 'votre logiciel de messagerie';
+    externalTab = false;
+    url = 'mailto:' + encodeURIComponent(recipients[0] || '')
+        + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   }
 
-  // Télécharger chaque CV pour pièce jointe manuelle
-  _nvCompose.items.forEach((it, i) => { if (it.b64) setTimeout(() => nvDownloadBase64Pdf(it.b64, it.filename), i * 250); });
+  // Ouverture (déclenchée par le clic → non bloquée par le navigateur).
+  // NB : pas de 'noopener' en 3e argument — il ferait retourner null même en cas de succès,
+  // ce qui fausserait la détection de blocage ci-dessous. Les navigateurs modernes isolent
+  // déjà les onglets _blank cross-origin par défaut.
+  if (externalTab) {
+    const w = window.open(url, '_blank');
+    if (!w) { toast('Autorisez les fenêtres pop-up pour ouvrir ' + label, 'w'); return; }
+  } else {
+    window.location.href = url; // un mailto: ne recharge pas la page
+  }
 
-  const firstTo = to.split(',')[0].trim();
-  const href = 'mailto:' + encodeURIComponent(firstTo) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(plainBody);
-  setTimeout(() => { window.location.href = href; }, 300);
-  toast('CV téléchargé(s) — à joindre dans votre messagerie qui vient de s\'ouvrir', 'i');
+  // Télécharger les CV (impossible de joindre un fichier via une URL de messagerie)
+  const atts = (_nvCompose.items || []).filter(it => it.b64);
+  atts.forEach((it, i) => setTimeout(() => nvDownloadBase64Pdf(it.b64, it.filename), 150 + i * 350));
+  if (atts.length) toast(`${atts.length} CV téléchargé${atts.length > 1 ? 's' : ''} — à glisser en pièce jointe`, 'i');
+
+  nvShowExternalConfirm(label, provider, atts.length);
+}
+
+// Repli historique conservé (anciens onclick) → délègue au logiciel de messagerie.
+function nvComposeFallback(){ nvComposeVia('mailto'); }
+
+// Écran de confirmation : l'email est ouvert dans la messagerie ; on planifie le suivi
+// seulement une fois l'envoi RÉELLEMENT effectué par l'utilisateur (évite les faux « présenté »).
+function nvShowExternalConfirm(label, provider, nCv){
+  const reopen = provider && provider !== 'mailto';
+  MB().innerHTML = `
+    <div style="text-align:center;padding:8px 4px 4px">
+      <div style="font-size:34px;margin-bottom:6px">📧</div>
+      <div style="font-size:14px;font-weight:700;color:var(--tx);margin-bottom:6px">Email ouvert dans ${E(label)}</div>
+      <div style="font-size:11.5px;color:var(--mu);line-height:1.6;max-width:440px;margin:0 auto">
+        L'email pré-rédigé vient de s'ouvrir${reopen ? ' dans un nouvel onglet' : ''}.${nCv ? ` <strong style="color:var(--ac4)">${nCv} CV anonymisé${nCv > 1 ? 's ont' : ' a'} été téléchargé${nCv > 1 ? 's' : ''}</strong> — glissez-${nCv > 1 ? 'les' : 'le'} en pièce jointe, puis envoyez.` : ''}
+      </div>
+      <div style="margin-top:16px;padding:11px 13px;background:var(--ac-dim);border:1px solid var(--ac-border);border-radius:var(--r2);font-size:11px;color:var(--tx);line-height:1.55;max-width:440px;margin-left:auto;margin-right:auto">
+        Une fois l'email <strong>réellement envoyé</strong> depuis votre messagerie, cliquez sur « C'est envoyé » pour mettre à jour le suivi : statut « présenté » + relance automatique J+${NV_FOLLOWUP_DAYS}.
+      </div>
+    </div>`;
+  MF().innerHTML = `
+    <button class="btn bg bsm" onclick="closeMo()">Fermer sans suivi</button>
+    ${reopen ? `<button class="btn bg bsm" onclick="nvComposeVia('${provider}')">↻ Rouvrir l'email</button>` : ''}
+    <button class="btn bp bsm" onclick="nvConfirmExternalSent()">✓ C'est envoyé — planifier le suivi</button>`;
+}
+
+// Applique les effets « envoyé » (timeline, statut, relance) après un envoi via messagerie perso.
+function nvConfirmExternalSent(){
+  if (!_nvCompose) { closeMo(); return; }
+  const items = _nvCompose.items || [];
+  let label = '';
+  try {
+    if (_nvCompose.mode === 'toCompany') {
+      const co = coById(_nvCompose.coId);
+      const need = _nvCompose.needId ? nById(_nvCompose.needId) : null;
+      if (co) { nvAfterSent(co, items, need); label = co.name; }
+    } else {
+      const cos = _nvCompose.coIds.map(coById).filter(Boolean);
+      cos.forEach(co => {
+        const need = DB.needs.find(n => n.company_id === co.id && n.status === 'open') || null;
+        nvAfterSent(co, items, need);
+      });
+      label = cos.length + ' entreprise' + (cos.length > 1 ? 's' : '');
+    }
+    save();
+    if (typeof rCands === 'function') rCands();
+    if (typeof rNeeds === 'function') rNeeds();
+    if (typeof badges === 'function') badges();
+    if (UI.view === 'dash' && typeof rDash === 'function') rDash();
+    toast('✅ Suivi mis à jour' + (label ? ' — ' + label : '') + ' · relance J+' + NV_FOLLOWUP_DAYS + ' planifiée', 's');
+  } catch (e) {
+    toast('Suivi : ' + e.message, 'e');
+  }
+  closeMo();
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1101,6 +1196,9 @@ G.nvComposeFromNeed = nvComposeFromNeed;
 G.nvComposeFromCandMatch = nvComposeFromCandMatch;
 G.nvSendCompose = nvSendCompose;
 G.nvComposeFallback = nvComposeFallback;
+G.nvComposeVia = nvComposeVia;
+G.nvShowExternalConfirm = nvShowExternalConfirm;
+G.nvConfirmExternalSent = nvConfirmExternalSent;
 // utilitaires éventuellement utiles ailleurs
 G.nvScore = nvScore;
 G.nvBuildStruct = nvBuildStruct;
