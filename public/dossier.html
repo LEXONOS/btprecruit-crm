@@ -86,6 +86,7 @@ textarea.inp{resize:vertical;min-height:70px}
 .btn-primary{flex:1;padding:13px;background:#C9891A;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:9px;cursor:pointer;transition:.15s}
 .btn-primary:hover{background:#B37A16}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.submit-missing{background:rgba(201,137,26,.08);border:1px solid rgba(201,137,26,.28);border-radius:9px;padding:11px 14px;margin-bottom:12px;font-size:12px;line-height:1.55;color:#9a6510}
 .btn-secondary{padding:13px 20px;background:transparent;color:#888;font-size:13px;border:1.5px solid #E8E4DC;border-radius:9px;cursor:pointer;transition:.15s}
 .btn-secondary:hover{border-color:#C9891A;color:#C9891A}
 
@@ -616,7 +617,11 @@ textarea.inp{resize:vertical;min-height:70px}
   <div style="font-size:11px;color:#aaa;margin-bottom:8px">Votre signature électronique</div>
   <div class="sig-name" id="sig-preview">Votre nom s'affichera ici</div>
   <div style="font-size:10px;color:#bbb;margin-top:6px">Signature simple — valeur juridique conforme eIDAS (UE n°910/2014)</div>
+  <div style="font-size:11px;color:#8a837b;margin-top:10px;line-height:1.5">Pour signer, cliquez simplement sur le bouton ci-dessous : votre nom vaut signature électronique. Il n'y a aucun tracé à dessiner.</div>
  </div>
+
+ <!-- Ce qui reste à compléter avant de pouvoir signer (feedback candidat) -->
+ <div id="submit-missing" class="submit-missing" style="display:none"></div>
 
  <div class="btn-nav">
   <button class="btn-secondary" onclick="goStep(4)">← Retour</button>
@@ -828,8 +833,26 @@ function checkSubmit(){
  var elPermisWrap = document.getElementById('cbl-permis-wrap');
  if(elPermisWrap) elPermisWrap.style.display = needsPermisAttest ? '' : 'none';
 
- var ok = agreedRgpd && agreedExact && hasPermisAttest && hasCV && hasId && hasTitre && hasPermis;
- document.getElementById('btn-submit').disabled = !ok;
+ // Liste précise de ce qu'il reste à faire — affichée au candidat
+ var manque = [];
+ if(!hasCV)           manque.push('joindre votre CV');
+ if(!hasId)           manque.push('joindre votre pièce d\'identité');
+ if(!hasTitre)        manque.push('joindre votre titre de séjour');
+ if(!hasPermis)       manque.push('joindre votre permis de conduire');
+ if(!agreedRgpd)      manque.push('accepter les conditions RGPD');
+ if(!agreedExact)     manque.push('certifier l\'exactitude des informations');
+ if(!hasPermisAttest) manque.push('cocher l\'attestation sur l\'honneur du permis');
+
+ var ok = manque.length === 0;
+ var btnS = document.getElementById('btn-submit');
+ // Bouton verrouillé tant que toutes les pièces et cases obligatoires ne sont pas remplies
+ if(btnS) btnS.disabled = !ok;
+ // Mais on affiche en permanence, juste au-dessus, ce qu'il reste à faire (jamais de bouton gris muet)
+ var miss = document.getElementById('submit-missing');
+ if(miss){
+  if(ok){ miss.style.display = 'none'; miss.textContent = ''; }
+  else { miss.style.display = ''; miss.innerHTML = 'Pour pouvoir signer, il reste à : ' + manque.map(escHtml).join(', ') + '.'; }
+ }
 
  // Mettre à jour l'indication des documents
  var hint = document.getElementById('docs-hint');
