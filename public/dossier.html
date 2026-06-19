@@ -565,6 +565,20 @@ textarea.inp{resize:vertical;min-height:70px}
   <div id="file-titre-ok" style="display:none"></div>
  </div>
 
+ <!-- Upload Carte Vitale — FACULTATIF (toujours visible, ne bloque jamais l'envoi) -->
+ <div id="upload-carte_vit" class="fgrp">
+  <label class="lbl">Carte vitale <span style="font-weight:400;color:#aaa;font-size:11px">— Facultatif</span></label>
+  <div style="background:rgba(45,212,160,.07);border:1px solid rgba(45,212,160,.22);border-radius:8px;padding:9px 12px;margin-bottom:8px;font-size:11px;color:#1a7a5a;line-height:1.5">
+   Non obligatoire pour valider votre dossier. La joindre dès maintenant nous fait simplement gagner du temps à l'embauche (le numéro de sécurité sociale est nécessaire à la déclaration DPAE).
+  </div>
+  <div class="upload-zone" id="uz-carte_vit" onclick="document.getElementById('fi-carte_vit').click()" ondrop="dropFile(event,'carte_vit')" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+   <input type="file" id="fi-carte_vit" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'carte_vit')">
+   <div class="ico">💳</div>
+   <div class="lbl2">Carte vitale ou attestation de droits<br><span style="font-size:10px">PDF ou image — max 5 Mo · facultatif</span></div>
+  </div>
+  <div id="file-carte_vit-ok" style="display:none"></div>
+ </div>
+
  <div class="sep"></div>
 
  <!-- RGPD -->
@@ -824,7 +838,7 @@ function checkSubmit(){
   if(needsId)    required.push('Pièce d’identité');
   if(needsTitre) required.push('Titre de séjour');
   if(needsPermis)required.push('Permis de conduire');
-  hint.textContent = 'Documents obligatoires : ' + required.join(', ') + '.';
+  hint.textContent = 'Documents obligatoires : ' + required.join(', ') + '. · Facultatif : Carte vitale.';
  }
 }
 
