@@ -644,6 +644,31 @@ async function findCandidateById(sb, cid) {
   return { cand };
 }
 
+// Ensemble des créneaux (clé = dt ISO) DÉJÀ réservés par d'AUTRES candidats.
+// Permet : (1) de masquer ces créneaux dans les invitations encore ouvertes,
+// (2) d'empêcher une double réservation du même créneau (concurrence).
+async function getOthersBookedDts(sb, excludeCid) {
+  const set = new Set();
+  let rows = null;
+  // 1) Tentative ciblée : uniquement les candidats avec un créneau réservé
+  try {
+    const r = await sb.from('crm_candidats').select('id,data').eq('data->booking->>status', 'booked');
+    if (!r.error && Array.isArray(r.data)) rows = r.data;
+  } catch (_) {}
+  // 2) Repli robuste : tout récupérer si le filtre jsonb n'est pas supporté
+  if (!rows) {
+    try { const r = await sb.from('crm_candidats').select('id,data'); if (!r.error && Array.isArray(r.data)) rows = r.data; } catch (_) {}
+  }
+  for (const row of (rows || [])) {
+    if (!row || row.id === excludeCid) continue;
+    let data = row.data;
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch (_) { data = null; } }
+    const b = data && data.booking;
+    if (b && b.status === 'booked' && b.picked && b.picked.dt) set.add(b.picked.dt);
+  }
+  return set;
+}
+
 async function handleGetBooking(req, res) {
   const { cid, bk } = req.body || {};
   if (!cid || !bk) return res.status(400).json({ error: 'cid et bk requis' });
@@ -655,7 +680,9 @@ async function handleGetBooking(req, res) {
     if (!cand.booking) return res.status(404).json({ error: 'Aucune invitation active' });
     if (cand.booking.token !== bk) return res.status(403).json({ error: 'Lien invalide ou expiré' });
     const now = Date.now();
-    const slots = (cand.booking.slots || []).filter(s => new Date(s.dt).getTime() > now);
+    // Créneaux futurs ET non déjà réservés par un AUTRE candidat (disponibilités « intelligentes »)
+    const othersBooked = await getOthersBookedDts(sb, cid);
+    const slots = (cand.booking.slots || []).filter(s => new Date(s.dt).getTime() > now && !othersBooked.has(s.dt));
     // Données de pré-remplissage issues de la fiche / extraction CV
     const ex = cand.cv_extracted || {};
     const fullName = cand.name || '';
@@ -701,6 +728,12 @@ async function handleBookSlot(req, res) {
     if (!valid) return res.status(400).json({ error: 'Créneau non proposé' });
     if (new Date(picked.dt).getTime() <= Date.now()) {
       return res.status(400).json({ error: 'Créneau expiré, choisissez-en un autre' });
+    }
+    // Anti double-réservation : un AUTRE candidat a-t-il déjà pris ce créneau ?
+    // (le client reçoit 409 → recharge la liste, le créneau aura disparu)
+    const othersBooked = await getOthersBookedDts(sb, cid);
+    if (othersBooked.has(picked.dt)) {
+      return res.status(409).json({ error: 'Ce créneau vient d\'être réservé par un autre candidat', taken: true });
     }
     // Lien visio généré côté serveur (le candidat le reçoit immédiatement)
     const visioLink = 'https://meet.jit.si/novalem-' + Math.random().toString(36).slice(2, 10);
