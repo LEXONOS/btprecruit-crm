@@ -19,6 +19,15 @@ function getSB() {
   });
 }
 
+// Borne une promesse dans le temps (empêche une fonction serverless de rester
+// bloquée si Supabase ou Resend ne répond pas). Renvoie `fallback` au timeout.
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    Promise.resolve(promise).catch(() => fallback),
+    new Promise(res => setTimeout(() => res(fallback), ms)),
+  ]);
+}
+
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -63,6 +72,9 @@ module.exports = async function handler(req, res) {
   // ══ Auto-booking — PUBLIC (lien candidat, protégé par token) ══
   if (action === 'get_booking')     return handleGetBooking(req, res);
   if (action === 'book_slot')       return handleBookSlot(req, res);
+
+  // ══ Suivi de complétion du dossier — PUBLIC (lien candidat) ══
+  if (action === 'dossier_event')   return handleDossierEvent(req, res);
 
   // ══ France Travail — vérification JCMO seulement (la publication est manuelle) ══
   if (action === 'verify_offer')    return handleVerifyOffer(req, res);
@@ -485,13 +497,16 @@ async function handleSubmitDossier(req, res) {
 
   const ref = 'DOS-' + Date.now().toString(36).toUpperCase();
 
-  // ── Enregistrer en Supabase ────────────────────────────────────────
+  // ── Enregistrer en Supabase (borné, jamais bloquant) ───────────────
   let sb;
   try { sb = getSB(); } catch(e) {}
 
+  let candidateSaved = false;
+
   if (sb) {
-    try {
-      await sb.from('novalem_dossiers').insert({
+    // Insertion du dossier (table de suivi) — non critique, bornée à 8s.
+    await withTimeout(
+      sb.from('novalem_dossiers').insert({
         ref,
         cand_id: candId,
         prenom: id.prenom,
@@ -511,17 +526,24 @@ async function handleSubmitDossier(req, res) {
         signed_by: sig.signed_by,
         status: 'received',
         created_at: new Date().toISOString(),
-      });
-    } catch(e) {
-      console.warn('[dossier] Supabase insert error (non-bloquant):', e.message);
-    }
+      }).then(() => null, (e) => { console.warn('[dossier] insert novalem_dossiers:', e.message); return null; }),
+      8000, null
+    );
 
-    // Mettre à jour la fiche candidat (table dédiée crm_candidats) + pièces dans le bucket
+    // Rattachement à la fiche candidat + pièces — c'est le sink durable côté CRM.
+    // Borné à 12s : si Supabase est lent/restreint, on ne bloque pas la réponse.
     if (candId) {
-      try { await attachDossierToCandidate(sb, candId, { ref, sig, pro, admin, comp, dossier, attachments, id }); }
-      catch(e) { console.warn('[dossier] mise à jour fiche candidat:', e.message); }
+      try {
+        const ok = await withTimeout(
+          attachDossierToCandidate(sb, candId, { ref, sig, pro, admin, comp, dossier, attachments, id }),
+          12000, false
+        );
+        candidateSaved = !!ok;
+      } catch(e) { console.warn('[dossier] mise à jour fiche candidat:', e.message); }
     }
   }
+
+  let novalemEmailed = false;
 
   if (RESEND_KEY) {
     // ── Email récap à NOVALEM ──────────────────────────────────────
@@ -530,6 +552,32 @@ async function handleSubmitDossier(req, res) {
 
     const rows = (pairs) => pairs.filter(([,v])=>v)
       .map(([k,v]) => `<tr style="background:${pairs.indexOf([k,v])%2?'#F8F5EF':'#fff'}"><td style="padding:7px 10px;color:#888;font-size:12px;width:140px">${k}</td><td style="padding:7px 10px;font-size:12px;font-weight:600">${v}</td></tr>`).join('');
+
+    // Liens de téléchargement (URL signées du bucket) — fonctionnent même si
+    // les pièces jointes ne passent pas. Filet de sécurité documents pour Louis.
+    const docLabel = { cv:'CV', id_card:"Pièce d'identité", permis:'Permis', carte_vit:'Carte vitale', dossier:'Dossier signé (PDF)' };
+    const atts = Array.isArray(attachments) ? attachments : [];
+    const docLinks = atts.filter(a => a && a.url).map(a => {
+      const label = docLabel[a.key] || a.filename || 'Document';
+      return `<tr><td style="padding:6px 0"><a href="${a.url}" style="color:#C9891A;font-weight:600;text-decoration:none">&#8595; ${label}</a> <span style="color:#aaa;font-size:11px">${a.filename||''}</span></td></tr>`;
+    }).join('');
+    const docsBlockHtml = docLinks
+      ? `<div style="margin:0 0 16px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#C9891A;margin-bottom:6px">Documents</div><table style="width:100%;border-collapse:collapse">${docLinks}</table></div>`
+      : '';
+
+    // Pièces jointes Resend : base64 (content) si présent, sinon lien bucket (path).
+    // Plafond ~18 Mo de base64 cumulé pour rester sous la limite Resend.
+    let b64Budget = 18 * 1024 * 1024;
+    const emailAttachments = [];
+    for (const a of atts) {
+      if (!a || !a.filename) continue;
+      if (a.content && (b64Budget - a.content.length) > 0) {
+        emailAttachments.push({ filename: a.filename, content: a.content });
+        b64Budget -= a.content.length;
+      } else if (a.url) {
+        emailAttachments.push({ filename: a.filename, path: a.url });
+      }
+    }
 
     const htmlNovalem = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#F5F3EF;font-family:Arial,sans-serif">
@@ -560,6 +608,7 @@ async function handleSubmitDossier(req, res) {
         ['Référence', ref],
       ])}
     </table>
+    ${docsBlockHtml}
     ${candId ? `<p style="font-size:12px;color:#888">ID CRM : <code>${candId}</code> — Ouvrez la fiche candidat dans le CRM pour voir le dossier complet.</p>` : ''}
   </div>
   <div style="background:#F8F5EF;padding:10px 24px;border-top:1px solid #E8E4DC;font-size:10px;color:#aaa">
@@ -574,20 +623,18 @@ async function handleSubmitDossier(req, res) {
       html: htmlNovalem,
     };
 
-    // Joindre les documents si présents
-    if (attachments?.length) {
-      emailPayload.attachments = attachments.map(a => ({
-        filename: a.filename,
-        content: a.content,
-        type: a.type || 'application/octet-stream',
-      }));
-    }
+    // Joindre les documents (base64 ou lien bucket) si présents
+    if (emailAttachments.length) emailPayload.attachments = emailAttachments;
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(emailPayload),
-    }).catch(e => console.warn('[dossier] email novalem:', e.message));
+    // Envoi borné à 15s — on retient si l'email est bien parti (sink durable).
+    novalemEmailed = await withTimeout(
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailPayload),
+      }).then(r => r.ok, () => false),
+      15000, false
+    );
 
     // ── Email de confirmation au candidat ─────────────────────────
     if (id.email) {
@@ -617,20 +664,75 @@ async function handleSubmitDossier(req, res) {
   </div>
 </div></body></html>`;
 
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: `Louis RENAULT — NOVALEM <${SENDER_EMAIL}>`,
-          to: [id.email],
-          subject: `Confirmation de dépôt — Dossier NOVALEM (${ref})`,
-          html: htmlCand,
-        }),
-      }).catch(e => console.warn('[dossier] email candidat:', e.message));
+      await withTimeout(
+        fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: `Louis RENAULT — NOVALEM <${SENDER_EMAIL}>`,
+            to: [id.email],
+            subject: `Confirmation de dépôt — Dossier NOVALEM (${ref})`,
+            html: htmlCand,
+          }),
+        }).catch(e => console.warn('[dossier] email candidat:', e.message)),
+        12000, null
+      );
     }
   }
 
-  return res.status(200).json({ success: true, ref, message: 'Dossier reçu' });
+  // Succès uniquement si le dossier est arrivé quelque part de durable :
+  // soit la fiche candidat (CRM), soit l'email récap (avec pièces/liens).
+  // Sinon on renvoie une erreur pour que le candidat puisse réessayer.
+  if (!candidateSaved && !novalemEmailed) {
+    return res.status(503).json({ error: "Le dossier n'a pas pu être enregistré pour le moment. Merci de réessayer dans un instant." });
+  }
+  return res.status(200).json({ success: true, ref, message: 'Dossier reçu', saved: candidateSaved, emailed: novalemEmailed });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SUIVI DE COMPLÉTION DU DOSSIER (funnel)
+// Reçoit les signaux légers de dossier.html (ouverture + étape atteinte)
+// et les enregistre sur la fiche candidat (_dossier_tracking). Toujours
+// rapide et borné : ça ne doit jamais ralentir le formulaire du candidat.
+// ═══════════════════════════════════════════════════════════════════
+async function handleDossierEvent(req, res) {
+  // sendBeacon peut transmettre le corps en texte → on parse défensivement.
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(_) { body = {}; } }
+  body = body || {};
+  const cid = body.cid;
+  const ev = body.ev || 'opened';
+  let step = parseInt(body.step, 10); if (!(step >= 1 && step <= 5)) step = 1;
+  if (!cid) return res.status(200).json({ ok: true });
+
+  let sb;
+  try { sb = getSB(); } catch(_) { return res.status(200).json({ ok: true }); }
+  if (!sb) return res.status(200).json({ ok: true });
+
+  try {
+    const r = await withTimeout(
+      sb.from('crm_candidats').select('data').eq('id', cid).maybeSingle(),
+      6000, null
+    );
+    const row = r && r.data;
+    if (!row || !row.data) return res.status(200).json({ ok: true });
+    const cand = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+
+    const now = new Date().toISOString();
+    const t = cand._dossier_tracking || {};
+    if (!t.opened_at) t.opened_at = now;
+    t.last_seen_at = now;
+    t.max_step = Math.max(t.max_step || 1, step);
+    if (ev === 'opened') t.opened_count = (t.opened_count || 0) + 1;
+    cand._dossier_tracking = t;
+
+    await withTimeout(
+      sb.from('crm_candidats').update({ data: cand, updated_at: now }).eq('id', cid),
+      6000, null
+    );
+  } catch (e) { console.warn('[dossier_event]', e.message); }
+
+  return res.status(200).json({ ok: true });
 }
 
 // ═══════════════════════════════════════════════════════════════════
