@@ -54,9 +54,85 @@ const DOCS=DOCS_LIST.map(d=>d.l);
 // stockage bucket (storage_path) OU une URL signée (url). Les pièces d'un
 // dossier envoyé en ligne arrivent en storage_path/url SANS base64 : il faut
 // donc les trois conditions, sinon elles sont comptées comme manquantes.
-function docHasFile(d){ return !!(d && !d.missing && (d.file || d.storage_path || d.url)); }
+// _pg : le contenu (base64) a été déchargé hors de la fiche, dans la table
+// crm_candidat_files (pour ne plus alourdir chaque chargement). Le fichier est
+// récupéré à la demande via pgFileBase64() au moment de l'aperçu / de l'IA.
+function docHasFile(d){ return !!(d && !d.missing && (d.file || d.storage_path || d.url || d._pg)); }
 // Pièce d'un type donné, présente, dans la liste de pièces d'un candidat.
 function findDoc(c,id){ return (c&&c.docs?c.docs:[]).find(d=>d&&d.id===id&&docHasFile(d)); }
+
+// base64 -> Blob (aperçu robuste des gros PDF, sans URL data géante)
+function _b64ToBlobApp(b64, mime){
+ const bin=atob(b64||''); const len=bin.length; const arr=new Uint8Array(len);
+ for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
+ return new Blob([arr], { type: mime||'application/octet-stream' });
+}
+// Récupère le base64 d'une pièce déchargée dans crm_candidat_files (à la demande).
+// Renvoie { mediaType, base64, filename } ou null.
+async function pgFileBase64(candId, slot){
+ const sb=getSB(); if(!sb||!candId) return null;
+ try{
+  const { data, error }=await sb.from('crm_candidat_files')
+    .select('b64,mime,filename').eq('cand_id',candId).eq('slot',slot||'cv').maybeSingle();
+  if(error||!data||!data.b64) return null;
+  return { mediaType:data.mime||'application/pdf', base64:data.b64, filename:data.filename||null };
+ }catch(_){ return null; }
+}
+// Dépose une pièce dans la table de décharge (utilisé en repli si le bucket échoue).
+async function pgFilePut(candId, slot, file, base64){
+ const sb=getSB(); if(!sb||!candId) return false;
+ try{
+  let b64=base64;
+  if(!b64 && file){ b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(((r.result||'')+'').split(',')[1]||''); r.onerror=rej; r.readAsDataURL(file); }); }
+  if(!b64) return false;
+  const { error }=await sb.from('crm_candidat_files').upsert(
+    { cand_id:candId, slot:slot||'cv', filename:(file&&file.name)||null, mime:(file&&file.type)||'application/pdf', b64 },
+    { onConflict:'cand_id,slot' }
+  );
+  return !error;
+ }catch(_){ return false; }
+}
+// Borne une promesse dans le temps : si elle n'a pas répondu à temps, on
+// continue sans elle (empêche les chargements / uploads bloqués à l'infini
+// quand le cloud est lent ou restreint).
+function _withTimeout(promise, ms, fallback){
+ return Promise.race([
+   Promise.resolve(promise).catch(()=>fallback),
+   new Promise(res=>setTimeout(()=>res(fallback), ms))
+ ]);
+}
+// Anti-régression : décharge tout base64 résiduel d'une fiche vers
+// crm_candidat_files et remplace la pièce par une référence légère (_pg).
+// Garantit qu'aucune fiche ne peut ré-alourdir crm_candidats lors d'une
+// écriture, même si le cache local contient encore d'anciens CV en base64.
+// Renvoie true si la fiche a été modifiée.
+async function _offloadBase64Docs(c){
+ const sb=getSB(); if(!sb || !c || !Array.isArray(c.docs)) return false;
+ let changed=false;
+ for(let i=0;i<c.docs.length;i++){
+   const d=c.docs[i];
+   if(d && typeof d.file==='string' && d.file.startsWith('data:')){
+     const comma=d.file.indexOf(',');
+     if(comma<0) continue;
+     const meta=d.file.slice(5, comma);              // ex : application/pdf;base64
+     const mime=(meta.split(';')[0]) || d.type || 'application/pdf';
+     const b64=d.file.slice(comma+1);
+     if(!b64) continue;
+     try{
+       const slot=d.id||'cv';
+       const { error }=await sb.from('crm_candidat_files').upsert(
+         { cand_id:c.id, slot, filename:d.name||null, mime, b64 },
+         { onConflict:'cand_id,slot' }
+       );
+       if(error) throw error;
+       const light=Object.assign({}, d); delete light.file; light._pg=true; light.type=light.type||mime;
+       c.docs[i]=light;
+       changed=true;
+     }catch(e){ console.warn('[offload] doc', d.id, e.message); /* base64 conservé → réessai au prochain sync */ }
+   }
+ }
+ return changed;
+}
 // Meilleure source immédiatement affichable (data URL ou URL http) pour un aperçu
 // rapide sans régénérer d'URL signée. openDocPreview gère le rafraîchissement.
 function docDirectSrc(d){
@@ -266,6 +342,7 @@ function saveLocal(){
 // ══════════════════════════════════════════════════════════════════
 
 let _candSnap = {};        // empreinte du dernier état persisté (id -> JSON)
+let _candUpdatedAt = {};   // dernier updated_at connu par candidat (delta-load)
 let _candRefreshTimer = null;
 
 // Construit la ligne SQL d'un candidat (colonnes filtrables + objet complet).
@@ -328,6 +405,18 @@ function syncCandidates(){
 async function _doCandSync(){
  const sb=getSB(); if(!sb)return;
  try{
+   // Anti-régression : on décharge tout base64 résiduel hors des fiches AVANT
+   // de les écrire vers Supabase, pour ne jamais ré-alourdir crm_candidats
+   // (et donc ne jamais relancer le dépassement de bande passante).
+   let _sanitized=false;
+   for(const c of (DB.candidates||[])){
+     if(Array.isArray(c.docs) && c.docs.some(d=>d&&typeof d.file==='string'&&d.file.startsWith('data:'))){
+       const ch=await _offloadBase64Docs(c);
+       if(ch) _sanitized=true;
+     }
+   }
+   if(_sanitized) saveLocal();
+
    const rows=[]; const seen={};
    for(const c of (DB.candidates||[])){
      if(!c.id) c.id=(typeof uid==='function'?uid():Date.now().toString(36));
@@ -645,10 +734,19 @@ function _addProposedItem(){
 async function openDocPreview(candId,docId){
   const cand=cById(candId);if(!cand)return;
   const doc=(cand.docs||[]).find(d=>d.id===docId);
-  if(!doc || (!doc.file && !doc.storage_path && !doc.url)){toast('Aucun fichier','w');return;}
+  if(!doc || (!doc.file && !doc.storage_path && !doc.url && !doc._pg)){toast('Aucun fichier','w');return;}
   // Pièce dans le bucket → on régénère une URL signée fraîche (robuste à l'expiration)
   let src=(typeof doc.file==='string'&&doc.file.startsWith('data:'))?doc.file:(doc.url||doc.file||null);
   if(doc.storage_path){ const fresh=await freshDocUrl(doc.storage_path); if(fresh) src=fresh; }
+  // Pièce déchargée hors fiche → on va chercher le base64 dans crm_candidat_files
+  if(!src && doc._pg){
+    toast('Chargement du document…','i');
+    const pg=await pgFileBase64(candId, doc.id);
+    if(pg && pg.base64){
+      try{ src=URL.createObjectURL(_b64ToBlobApp(pg.base64, pg.mediaType||doc.type||'application/pdf')); }
+      catch(_){ src='data:'+(pg.mediaType||doc.type||'application/pdf')+';base64,'+pg.base64; }
+    }
+  }
   if(!src){toast('Fichier indisponible','w');return;}
   const ref=(doc.name||doc.storage_path||'');
   const isPdf=doc.type==='application/pdf'||(typeof src==='string'&&src.startsWith('data:application/pdf'))||/\.pdf(\?|$)/i.test(ref);
@@ -711,7 +809,7 @@ async function loadAllFromCloud(){
  try{ window.DB=DB; }catch(_){}
  saveLocal();
  // 3. Rafraîchissement périodique sûr (remplace l'ancien minuteur destructeur)
- if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshCandidates, 45000);
+ if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshCandidates, 60000);
  return true;
 }
 
@@ -720,10 +818,14 @@ async function loadCandidates(){
  const sb=getSB(); if(!sb)return;
  const {data,error}=await sb.from('crm_candidats').select('data,updated_at').order('updated_at',{ascending:false});
  if(error)throw error;
- const list=(data||[]).map(r=> typeof r.data==='string'?JSON.parse(r.data):r.data ).filter(Boolean);
+ const rows=(data||[]).filter(r=>r && r.data);
+ const list=rows.map(r=> typeof r.data==='string'?JSON.parse(r.data):r.data ).filter(Boolean);
  DB.candidates=list;
- _candSnap={};
- for(const c of list){ if(c && c.id) _candSnap[c.id]=JSON.stringify(c); }
+ _candSnap={}; _candUpdatedAt={};
+ for(const r of rows){
+   const c = typeof r.data==='string'?JSON.parse(r.data):r.data;
+   if(c && c.id){ _candSnap[c.id]=JSON.stringify(c); _candUpdatedAt[c.id]=r.updated_at; }
+ }
  try{ window.DB=DB; }catch(_){}
 }
 
@@ -732,16 +834,37 @@ async function loadCandidates(){
 // modifications locales en cours.
 async function refreshCandidates(){
  const sb=getSB(); if(!sb)return;
+ // 1. On ne tire d'abord QUE les empreintes légères (id + updated_at) : quelques
+ //    octets, même avec des centaines de fiches. On ne télécharge le contenu
+ //    complet que des fiches réellement nouvelles ou modifiées côté serveur.
+ let metas;
+ try{
+   const r=await sb.from('crm_candidats').select('id,updated_at').order('updated_at',{ascending:false});
+   if(r.error)throw r.error;
+   metas=r.data||[];
+ }catch(e){ console.warn('[refresh] empreintes candidats:',e); return; }
+
+ const toFetch=[];
+ for(const m of metas){
+   if(!m || !m.id) continue;
+   const known=_candUpdatedAt[m.id];
+   const present=(DB.candidates||[]).some(x=>x.id===m.id);
+   if(!present || known!==m.updated_at) toFetch.push(m.id);
+ }
+ if(!toFetch.length) return; // rien de neuf → zéro téléchargement
+
  let rows;
  try{
-   const r=await sb.from('crm_candidats').select('data').order('updated_at',{ascending:false});
+   const r=await sb.from('crm_candidats').select('data,updated_at').in('id', toFetch);
    if(r.error)throw r.error;
    rows=r.data||[];
- }catch(e){ console.warn('[refresh] candidats:',e); return; }
+ }catch(e){ console.warn('[refresh] contenu candidats:',e); return; }
+
  let changed=false;
  for(const row of rows){
    const cc = typeof row.data==='string'?JSON.parse(row.data):row.data;
    if(!cc || !cc.id) continue;
+   _candUpdatedAt[cc.id]=row.updated_at;
    const idx=(DB.candidates||[]).findIndex(x=>x.id===cc.id);
    if(idx<0){
      DB.candidates.unshift(cc);
@@ -775,7 +898,7 @@ async function refreshCandidates(){
 // Champs écrits EXCLUSIVEMENT par le serveur (réception dossier / réservation).
 function _mergeServerFields(local,cloud){
  const out=Object.assign({},local);
- ['_dossier_validated','_dossier_validated_at','_dossier_ref','_dossier_data','_dossier_signed_at','_dossier_notif_seen','booking_notif_seen'].forEach(f=>{
+ ['_dossier_validated','_dossier_validated_at','_dossier_ref','_dossier_data','_dossier_signed_at','_dossier_notif_seen','_dossier_tracking','booking_notif_seen'].forEach(f=>{
    if(cloud[f]!==undefined) out[f]=cloud[f];
  });
  // booking : on prend la version cloud mais on garde le flag local _agenda_added
@@ -784,11 +907,23 @@ function _mergeServerFields(local,cloud){
    if(local.booking && local.booking._agenda_added) b._agenda_added=true;
    out.booking=b;
  }
- // documents : union par id (ne perd ni les tiens ni ceux du dossier)
+ // documents : union par id (ne perd ni les tiens ni ceux du dossier).
+ // Si une pièce existe des deux côtés et que la version locale est encore en
+ // base64 alors que le cloud l'a allégée (_pg / bucket), on prend le cloud.
  if(Array.isArray(cloud.docs)){
-   const have={}; (out.docs||[]).forEach(d=>{ if(d&&d.id) have[d.id]=true; });
-   out.docs=(out.docs||[]).slice();
-   cloud.docs.forEach(d=>{ if(d && d.id && !have[d.id]) out.docs.push(d); });
+   const localDocs=(out.docs||[]).slice();
+   const idx={}; localDocs.forEach((d,i)=>{ if(d&&d.id) idx[d.id]=i; });
+   cloud.docs.forEach(cd=>{
+     if(!cd||!cd.id) return;
+     if(idx[cd.id]===undefined){ localDocs.push(cd); }
+     else{
+       const ld=localDocs[idx[cd.id]];
+       const localIsB64 = ld && typeof ld.file==='string' && ld.file.startsWith('data:');
+       const cloudIsLight = !(cd.file && typeof cd.file==='string' && cd.file.startsWith('data:'));
+       if(localIsB64 && cloudIsLight) localDocs[idx[cd.id]]=cd;
+     }
+   });
+   out.docs=localDocs;
  }
  return out;
 }
@@ -802,13 +937,17 @@ async function load(){
  }catch(e){/* DB vierge */}
  // 2. Indicateur de connexion
  if(typeof updateConnIndicator==='function')updateConnIndicator();
- // 3. Config d'agence partagée (clé Anthropic, taux, objectif CA)
- await loadSharedConfig();
+ // 3. Config d'agence partagée (clé Anthropic, taux, objectif CA) — bornée
+ await _withTimeout(loadSharedConfig(), 8000, null);
  // 4. Données cloud (partagé + candidats)
  const sb=getSB();
  if(!sb)return; // Pas de client — cache local seul
  try{
-   await loadAllFromCloud();
+   // Borné : si le cloud est lent/restreint, on n'attend pas indéfiniment.
+   // Le cache local est déjà chargé ci-dessus ; les fiches arriveront au
+   // prochain refresh dès que le cloud répond.
+   await _withTimeout(loadAllFromCloud(), 9000, false);
+   if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshCandidates, 60000);
    if(typeof rDash==='function')rDash();
    if(typeof badges==='function')badges();
    const ind=document.getElementById('sync-ind');
@@ -1636,27 +1775,33 @@ function saveEntrantSplitEdits(id){
  toast('Modifications enregistrées ✓','s');
 }
 
-function uploadCvFromSplit(event,candId){
+async function uploadCvFromSplit(event,candId){
  const file=event.target.files[0];if(!file)return;
- if(file.size>5*1024*1024){toast('Fichier trop lourd (max 5MB)','e');return;}
- const reader=new FileReader();
- reader.onload=(e)=>{
+ if(file.size>10*1024*1024){toast('Fichier trop lourd (max 10 Mo)','e');return;}
  const c=cById(candId);if(!c)return;
+ toast('Envoi du CV…','i');
+ // 1. On tente le bucket (léger pour la fiche). Borné à 15s pour ne jamais bloquer.
+ let entry=null;
+ try{
+   const up=await _withTimeout(cvBucketUpload(candId,'cv',file), 15000, null);
+   if(up && up.storage_path){
+     entry={id:'cv',name:file.name,size:formatSize(file.size),date:now_(),type:file.type,storage_path:up.storage_path,url:up.url};
+   }
+ }catch(_){}
+ // 2. Repli : décharge dans crm_candidat_files (PAS de base64 dans la fiche).
+ if(!entry){
+   const ok=await _withTimeout(pgFilePut(candId,'cv',file), 20000, false);
+   if(ok) entry={id:'cv',name:file.name,size:formatSize(file.size),date:now_(),type:file.type,_pg:true};
+ }
+ if(!entry){ toast('Échec de l\'envoi du CV — réessayez','e'); return; }
  c.docs=c.docs||[];
  const idx=c.docs.findIndex(d=>d.id==='cv');
- const docData={id:'cv',name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:e.target.result};
- if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
+ if(idx>=0)c.docs[idx]=entry;else c.docs.push(entry);
  c.updated=now_();save();
- // Refresh split view
  document.getElementById('ent-split-ov')?.remove();
  openEntrantSplit(candId);
- toast(`CV uploadé ✓`,'s');
- // Auto-lancer l'IA si clé configurée
- if(getApiKey()){
- setTimeout(()=>aiExtractCVSplit(candId),300);
- }
- };
- reader.readAsDataURL(file);
+ toast('CV uploadé','s');
+ if(getApiKey()){ setTimeout(()=>aiExtractCVSplit(candId),300); }
 }
 
 // Wrapper pour l'IA depuis le split view (refresh le split après)
@@ -1927,8 +2072,8 @@ async function processOneCvFile(f){
   f._apiDone=true; // l'animation va alors filer vers 100 %
   f.extracted=extracted;
 
-  // 3) Création du candidat
-  const candId=createCandidateFromCv(f,extracted);
+  // 3) Création du candidat (upload CV inclus, jamais de base64 durable dans la fiche)
+  const candId=await createCandidateFromCv(f,extracted);
   f.candId=candId;
 
   // Force la fin de l'animation à 100 %
@@ -1986,7 +2131,7 @@ async function callCvExtractionApi(mediaType,dataUrl){
 }
 
 // ── Crée la fiche candidat depuis l'extraction ───────────────────
-function createCandidateFromCv(f,extracted){
+async function createCandidateFromCv(f,extracted){
  const n=now_();
  const postId=document.getElementById('cv-batch-post')?.value||null;
  const postObj=postId?DB.posts.find(p=>p.id===postId):null;
@@ -2019,20 +2164,34 @@ function createCandidateFromCv(f,extracted){
   post_id:postId||null,
   source:postObj?`Annonce: ${postObj.title}`:'Import CV (batch)',
   status:'entrant',
-  docs:[{
-   id:'cv',
-   name:f.name,
-   size:f.size,
-   date:n,
-   type:f.type,
-   file:f._dataUrl
-  }],
+  docs:[],
   pepite:false,
   cv_extracted:extracted,
   created:n,
   updated:n,
  };
  DB.candidates.unshift(c);
+
+ // CV → bucket (léger pour la fiche). Repli : table de décharge. Dernier
+ // recours seulement (cloud momentanément indisponible) : base64 dans la
+ // fiche, qui sera déchargé automatiquement par _doCandSync au prochain sync.
+ // Objectif : ne JAMAIS stocker durablement un CV en base64 dans crm_candidats.
+ let entry=null;
+ try{
+   const up=await _withTimeout(cvBucketUpload(c.id,'cv',f.file), 15000, null);
+   if(up && up.storage_path){
+     entry={id:'cv',name:f.name,size:formatSize(f.size),date:n,type:f.type,storage_path:up.storage_path,url:up.url};
+   }
+ }catch(_){}
+ if(!entry){
+   const ok=await _withTimeout(pgFilePut(c.id,'cv',f.file), 20000, false);
+   if(ok) entry={id:'cv',name:f.name,size:formatSize(f.size),date:n,type:f.type,_pg:true};
+ }
+ if(!entry){
+   entry={id:'cv',name:f.name,size:formatSize(f.size),date:n,type:f.type,file:f._dataUrl};
+ }
+ c.docs=[entry];
+ c.updated=now_();
  return c.id;
 }
 
@@ -2517,10 +2676,15 @@ async function freshDocUrl(storage_path){
  try{ const { data:s }=await sb.storage.from('candidat-docs').createSignedUrl(storage_path, 60*60); return (s&&s.signedUrl)||null; }catch(_){ return null; }
 }
 // Renvoie {mediaType, base64} d'une pièce (bucket OU base64 hérité) — pour l'IA.
-async function docToBase64(doc){
+async function docToBase64(doc, candId){
  if(!doc) return null;
  if(typeof doc.file==='string' && doc.file.startsWith('data:')){
    return { mediaType: doc.type||'application/pdf', base64: doc.file.split(',')[1]||'' };
+ }
+ // Pièce déchargée hors fiche → base64 récupéré dans crm_candidat_files
+ if(doc._pg && candId){
+   const pg=await pgFileBase64(candId, doc.id);
+   if(pg && pg.base64) return { mediaType: pg.mediaType||doc.type||'application/pdf', base64: pg.base64 };
  }
  let url=null;
  if(doc.storage_path) url=await freshDocUrl(doc.storage_path);
@@ -2562,7 +2726,15 @@ async function handleSmartUpload(event, candId){
      const entry={ id:slot, name:file.name, size:formatSize(file.size), date:now_(), type:file.type, storage_path, url, file:url };
      const idx=c.docs.findIndex(d=>d.id===slot);
      if(idx>=0)c.docs[idx]=entry; else c.docs.push(entry);
-   }catch(e){ toast('Échec upload '+file.name+' : '+(e.message||e),'e'); }
+   }catch(e){
+     // Repli : décharge dans crm_candidat_files (jamais de base64 dans la fiche)
+     const ok=await _withTimeout(pgFilePut(candId, slot, file), 20000, false);
+     if(ok){
+       const entry={ id:slot, name:file.name, size:formatSize(file.size), date:now_(), type:file.type, _pg:true };
+       const idx=c.docs.findIndex(d=>d.id===slot);
+       if(idx>=0)c.docs[idx]=entry; else c.docs.push(entry);
+     } else { toast('Échec upload '+file.name+' : '+(e.message||e),'e'); }
+   }
  }
  c.updated=now_(); save();
  if(typeof renderCandPanelTab==='function') renderCandPanelTab(candId);
@@ -2587,11 +2759,16 @@ async function handleFileUpload(event){
    if(typeof renderCandPanelTab==='function') renderCandPanelTab(candId);
    toast(`${file.name} uploadé ✓`,'s');
  }catch(e){
-   // Repli base64 si l'upload bucket échoue (petits fichiers seulement)
-   if(file.size<=3*1024*1024){
-     const reader=new FileReader();
-     reader.onload=(ev)=>{ c.docs=c.docs||[]; const idx=c.docs.findIndex(d=>d.id===docId); const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,file:ev.target.result}; if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData); c.updated=now_();save(); if(typeof renderCandPanelTab==='function')renderCandPanelTab(candId); toast(`${file.name} uploadé ✓`,'s'); };
-     reader.readAsDataURL(file);
+   // Repli : décharge dans crm_candidat_files (PAS de base64 dans la fiche, pour ne pas alourdir les chargements)
+   const ok=await _withTimeout(pgFilePut(candId, docId, file), 20000, false);
+   if(ok){
+     c.docs=c.docs||[];
+     const idx=c.docs.findIndex(d=>d.id===docId);
+     const docData={id:docId,name:file.name,size:formatSize(file.size),date:now_(),type:file.type,_pg:true};
+     if(idx>=0)c.docs[idx]=docData;else c.docs.push(docData);
+     c.updated=now_();save();
+     if(typeof renderCandPanelTab==='function')renderCandPanelTab(candId);
+     toast(`${file.name} uploadé`,'s');
    } else { toast('Échec upload : '+(e.message||e),'e'); }
  }
  input.value='';
@@ -2601,6 +2778,7 @@ function removeDoc(candId,docId){
  const c=cById(candId);if(!c)return;
  const doc=(c.docs||[]).find(d=>d.id===docId);
  if(doc&&doc.storage_path){ const sb=getSB(); if(sb){ try{ sb.storage.from('candidat-docs').remove([doc.storage_path]); }catch(_){} } }
+ if(doc&&doc._pg){ const sb=getSB(); if(sb){ try{ sb.from('crm_candidat_files').delete().eq('cand_id',candId).eq('slot',docId); }catch(_){} } }
  c.docs=(c.docs||[]).filter(d=>d.id!==docId);c.updated=now_();save();
  if(typeof renderCandPanelTab==='function') renderCandPanelTab(candId);
  toast('Fichier supprimé','w');
@@ -4269,7 +4447,7 @@ function openCandPanel(id){
  // 4 SUIVI — Timeline interactions + statut dossier
  `<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center">
   <span class="fs10 mu_">${(c.timeline||[]).length} interaction(s)</span>
-  ${c._dossier_validated?'<span style="font-size:9px;padding:2px 8px;background:rgba(45,212,160,.1);border:1px solid rgba(45,212,160,.25);border-radius:10px;color:var(--ac2)">&#x2705; Dossier validé</span>':''}
+  ${(function(){const f=dossierFunnelStatus(c);if(f.key==='sent')return '';return '<span style="font-size:9px;padding:2px 8px;background:'+f.bg+';border:1px solid '+f.border+';border-radius:10px;color:'+f.color+'">'+f.icon+' '+f.label+'</span>';})()}
   <button class="btn bg bxs" style="margin-left:auto" onclick="addManualNote('${id}')">+ Note</button>
  </div>
  <div>${renderTimeline(id)}</div>`
@@ -4924,12 +5102,46 @@ function dossierRecapHtml(c){
 
 // ── DOSSIER DE CANDIDATURE COMPLET (pop-up unique) ────────────────────────
 // Vue de revue : toutes les pièces ouvrables d'un clic (👁) + le récap complet.
+// ── Suivi de complétion du dossier en ligne (funnel) ─────────────
+// Lit c._dossier_tracking {opened_at, last_seen_at, max_step}, alimenté par la
+// page dossier.html à chaque étape, et renvoie un statut lisible pour le CRM.
+function _agoLabel(ts){
+ if(!ts) return '';
+ const d=new Date(ts).getTime(); if(isNaN(d)) return '';
+ const s=Math.max(0,Math.round((Date.now()-d)/1000));
+ if(s<60) return "à l'instant";
+ const m=Math.round(s/60); if(m<60) return 'il y a '+m+' min';
+ const h=Math.round(m/60); if(h<24) return 'il y a '+h+' h';
+ const j=Math.round(h/24); return 'il y a '+j+' j';
+}
+const DOSSIER_STEP_NAMES={1:'Identité',2:'Poste',3:'Administratif',4:'Compétences',5:'Signature'};
+function dossierFunnelStatus(c){
+ if(c && c._dossier_validated){
+   return { key:'done', icon:'&#x2705;', label:'Dossier complété et signé', sub:(c._dossier_validated_at?fD(c._dossier_validated_at):''), color:'var(--ac2)', bg:'rgba(45,212,160,.08)', border:'rgba(45,212,160,.25)' };
+ }
+ const t=(c && c._dossier_tracking)||null;
+ if(!t || !t.opened_at){
+   return { key:'sent', icon:'&#x1f517;', label:'Lien pas encore ouvert', sub:"Le candidat n'a pas encore ouvert le dossier", color:'var(--mu)', bg:'var(--s2)', border:'var(--bd)' };
+ }
+ const step=t.max_step||1;
+ const seen=_agoLabel(t.last_seen_at||t.opened_at);
+ if(step>=5){
+   return { key:'stuck', icon:'&#x270d;&#xfe0f;', label:'Bloqué à la signature', sub:"A tout rempli mais n'a pas signé · vu "+seen, color:'var(--ac4)', bg:'rgba(201,137,26,.09)', border:'rgba(201,137,26,.3)' };
+ }
+ if(step>=2){
+   return { key:'progress', icon:'&#x270e;', label:'En cours — étape '+step+'/5', sub:(DOSSIER_STEP_NAMES[step]||'')+' · vu '+seen, color:'#3b82c4', bg:'rgba(59,130,196,.09)', border:'rgba(59,130,196,.3)' };
+ }
+ return { key:'opened', icon:'&#x23f3;', label:'Lien ouvert, pas commencé', sub:'Ouvert '+_agoLabel(t.opened_at), color:'#3b82c4', bg:'rgba(59,130,196,.06)', border:'rgba(59,130,196,.22)' };
+}
+
 function openFullDossier(candId){
  const c=cById(candId); if(!c){toast('Candidat introuvable','e');return;}
  const validated=!!c._dossier_validated;
- const banner=validated
-  ?`<div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.25);border-radius:var(--r2);margin-bottom:14px"><span style="font-size:19px">&#x2705;</span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ac2)">Dossier signé &amp; validé</div><div style="font-size:10px;color:var(--mu)">Réf. ${esc(c._dossier_ref||'—')} · signé le ${c._dossier_signed_at?fD(c._dossier_signed_at):(c._dossier_validated_at?fD(c._dossier_validated_at):'—')}</div></div></div>`
-  :`<div style="padding:10px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);margin-bottom:14px;font-size:11px;color:var(--ac4)">Dossier en ligne non encore signé — pièces disponibles ci-dessous.</div>`;
+ const _fs=dossierFunnelStatus(c);
+ const banner=`<div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:${_fs.bg};border:1px solid ${_fs.border};border-radius:var(--r2);margin-bottom:14px">
+   <span style="font-size:19px">${_fs.icon}</span>
+   <div style="flex:1"><div style="font-size:12px;font-weight:700;color:${_fs.color}">${_fs.label}</div>
+   <div style="font-size:10px;color:var(--mu)">${_fs.key==='done'?('Réf. '+esc(c._dossier_ref||'—')+' · signé le '+(c._dossier_signed_at?fD(c._dossier_signed_at):(c._dossier_validated_at?fD(c._dossier_validated_at):'—'))):esc(_fs.sub)}</div></div></div>`;
 
  // Section pièces — chaque pièce présente est ouvrable d'un clic
  const piecesRows=DOCS_LIST.map(d=>{
@@ -6370,7 +6582,7 @@ async function aiExtractCV(candId){
  return;
  }
  // Find uploaded CV doc
- const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&(d.file||d.storage_path||d.url));
+ const cvDoc=(c.docs||[]).find(d=>d.id==='cv'&&(d.file||d.storage_path||d.url||d._pg));
  if(!cvDoc){
  toast('Uploadez d\'abord le CV dans l\'onglet Fichiers','e');
  return;
@@ -6379,8 +6591,8 @@ async function aiExtractCV(candId){
  if(btn){btn.textContent='Analyse en cours…';btn.disabled=true;}
 
  try{
- // Récupère le contenu du CV (bucket ou base64 hérité) pour l'IA
- const conv=await docToBase64(cvDoc);
+ // Récupère le contenu du CV (bucket, base64 hérité, ou pièce déchargée) pour l'IA
+ const conv=await docToBase64(cvDoc, candId);
  if(!conv||!conv.base64){ toast('Impossible de lire le CV','e'); if(btn){btn.textContent='Analyser CV';btn.disabled=false;} return; }
  const mediaType=conv.mediaType||'application/pdf';
  const base64Data=conv.base64;
@@ -8203,18 +8415,40 @@ function renderRep(){
   return;
  }
  showConnGate('loading'); // affiche l'écran de chargement pendant le pull cloud
- await load(); // localStorage immédiat + Supabase en arrière-plan
- setTimeout(startSignaturePolling, 2000); // Démarrer le polling signatures
- // Si un contrat signé n'a pas encore été acquitté, afficher la notif flottante
- setTimeout(()=>{ if(DB._contract_notif) showFloatingContractNotif(); }, 2500);
- checkPendingKoEmails(); // Vérifier les emails KO en attente
- setInterval(checkPendingKoEmails, 3600000); // Revérifier toutes les heures
- rDash();
- badges();
- initUserBadge();
- if(typeof updateConnIndicator==='function')updateConnIndicator();
- hideConnGate();
+ // Filet de sécurité : quoi qu'il arrive, l'écran de chargement se ferme.
+ // Le CRM reste utilisable sur le cache local même si le cloud est injoignable.
+ const _gateSafety=setTimeout(()=>{ try{hideConnGate();}catch(_){} }, 12000);
+ try{
+  await load(); // localStorage immédiat + Supabase en arrière-plan (borné)
+  setTimeout(startSignaturePolling, 2000); // Démarrer le polling signatures
+  // Si un contrat signé n'a pas encore été acquitté, afficher la notif flottante
+  setTimeout(()=>{ if(DB._contract_notif) showFloatingContractNotif(); }, 2500);
+  checkPendingKoEmails(); // Vérifier les emails KO en attente
+  setInterval(checkPendingKoEmails, 3600000); // Revérifier toutes les heures
+  rDash();
+  badges();
+  initUserBadge();
+  if(typeof updateConnIndicator==='function')updateConnIndicator();
+ }catch(e){
+  console.warn('[boot]', e);
+ }finally{
+  clearTimeout(_gateSafety);
+  hideConnGate();
+ }
 })();
+
+// Économie de bande passante : on suspend le rafraîchissement auto quand
+// l'onglet n'est pas visible, et on resynchronise une fois au retour.
+document.addEventListener('visibilitychange', ()=>{
+ if(document.hidden){
+  if(_candRefreshTimer){ clearInterval(_candRefreshTimer); _candRefreshTimer=null; }
+ }else{
+  if(!_candRefreshTimer && getSB()){
+   _candRefreshTimer=setInterval(refreshCandidates, 60000);
+   try{ refreshCandidates(); }catch(_){}
+  }
+ }
+});
 
 // ═══════════════════════════════════════════════════════
 // ÉCRAN DE CONNEXION / CHARGEMENT (gate plein écran)
