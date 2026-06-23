@@ -1132,7 +1132,7 @@ function computeAlerts(){
   }
   if(c.status==='entrant'&&daysDiff(c.created)>2) a.push({color:'var(--ac4)',msg:`Entrant sans action (${daysDiff(c.created)}j) : ${c.name}`,act:`switchCandTab('trier');go('cands');openEntrantSplit('${c.id}')`});
  if(c.status==='precal'&&daysDiff(c.updated)>5&&!c.int_date_planned) a.push({color:'var(--ac6)',msg:`Entretien non planifié (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
- if(c.status==='dossier'&&daysDiff(c.updated)>2) a.push({color:'var(--ac3)',msg:`Dossier sans retour (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
+ if(c.status==='dossier'&&!c._dossier_validated&&daysDiff(c.updated)>2) a.push({color:'var(--ac3)',msg:`Dossier sans retour (${daysDiff(c.updated)}j) : ${c.name}`,act:`openCandPanel('${c.id}')`});
  if(c.status==='presented'&&daysDiff(c.updated)>3) a.push({color:'var(--ac3)',msg:`Client sans retour (${daysDiff(c.updated)}j) sur ${c.name}`,act:`openCandPanel('${c.id}')`});
  if(c.status==='interview'&&daysDiff(c.updated)>3) a.push({color:'var(--ac5)',msg:`Synthèse entretien manquante : ${c.name}`,act:`openCandPanel('${c.id}')`});
  });
