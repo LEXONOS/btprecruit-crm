@@ -2610,7 +2610,7 @@ function renderCPFichiers(c){
  const hasDossierPdf=!!findDoc(c,'dossier');
  const dossierBadge=c._dossier_validated
   ?'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.25);border-radius:var(--r2);margin-bottom:12px"><span style="font-size:18px">&#x2705;</span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ac2)">Dossier signé &amp; validé</div><div style="font-size:10px;color:var(--mu)">Réf. '+(c._dossier_ref||'—')+' · '+(c._dossier_validated_at?fD(c._dossier_validated_at):'—')+'</div></div></div>'
-  :'<div style="padding:9px 12px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);margin-bottom:12px;font-size:11px;color:var(--ac4)">⚠ Dossier non reçu — <a href="https://novalem-crm.vercel.app/dossier.html?cid='+c.id+'&n='+encodeURIComponent(c.name)+'" target="_blank" style="color:var(--ac4);font-weight:700">Envoyer le lien</a></div>';
+  :'<div style="padding:9px 12px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);margin-bottom:12px;font-size:11px;color:var(--ac4)">⚠ Dossier non reçu — <span onclick="resendDossierLink(\''+c.id+'\')" style="color:var(--ac4);font-weight:700;cursor:pointer;text-decoration:underline">📨 Renvoyer le lien</span></div>';
  // Bouton principal : ouvrir le dossier de candidature complet (récap + pièces)
  const fullBtn=(c._dossier_validated||c._dossier_data||hasDossierPdf||uploaded>0)
   ?`<button class="btn bp btn-full" style="margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:7px" onclick="openFullDossier('${c.id}')"><span style="font-size:15px">📂</span> Ouvrir le dossier de candidature complet</button>`
@@ -5068,7 +5068,7 @@ function dossierRecapHtml(c){
  const hasComp=(comp.caces&&comp.caces.length)||(comp.electrique&&comp.electrique.length)||(comp.securite&&comp.securite.length)||(comp.logiciels&&comp.logiciels.length)||comp.langues;
  const hasAnyDossier=c._dossier_validated||c._dossier_data||(exps&&exps.length)||pro.poste;
  if(!hasAnyDossier){
-  return `<div style="padding:11px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);font-size:11px;color:var(--ac4)">Aucune donnée de dossier en ligne — seules les pièces ci-dessus sont disponibles.<br><span style="cursor:pointer;font-weight:700;color:var(--ac4)" onclick="cpText('https://novalem-crm.vercel.app/dossier.html?cid=${c.id}&amp;n=${encodeURIComponent(c.name)}')">Copier le lien du dossier à envoyer</span></div>`;
+  return `<div style="padding:11px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);font-size:11px;color:var(--ac4)">Aucune donnée de dossier en ligne — seules les pièces ci-dessus sont disponibles.<br><span style="cursor:pointer;font-weight:700;color:var(--ac4);text-decoration:underline" onclick="resendDossierLink('${c.id}')">📨 Renvoyer le lien du dossier</span></div>`;
  }
  return `
    <div class="sl">Identité &amp; contact</div>
@@ -5199,7 +5199,7 @@ function openInterviewModal(candId){
  } else {
   dossierBlock=`<div style="padding:11px 13px;background:rgba(201,137,26,.07);border:1px solid rgba(201,137,26,.2);border-radius:var(--r2);font-size:11px;color:var(--ac4)">
     Dossier non encore reçu — le récap s'affichera ici une fois le dossier signé.<br>
-    <span style="cursor:pointer;font-weight:700;color:var(--ac4)" onclick="cpText('https://novalem-crm.vercel.app/dossier.html?cid=${c.id}&amp;n=${encodeURIComponent(c.name)}')">Copier le lien du dossier</span></div>`;
+    <span style="cursor:pointer;font-weight:700;color:var(--ac4);text-decoration:underline" onclick="resendDossierLink('${c.id}')">📨 Renvoyer le lien du dossier</span></div>`;
  }
 
  const notesBlock=`
@@ -6995,6 +6995,45 @@ let _inboxSearch='';
 let _inboxFilter='all'; // 'all'|'unread'|'starred'
 let AI_PANEL_OPEN=false;
 
+// ── Lien dossier de candidature (source unique) ───────
+// Construit l'URL de la page dossier.html en ligne pour un candidat.
+// Réutilisé partout (renvoi du lien, invitation…) pour éviter les liens
+// codés en dur et incohérents.
+function dossierFormUrl(c){
+  if(!c) return '';
+  const base=(typeof getApiBase==='function' && getApiBase()) || 'https://novalem-crm.vercel.app';
+  let url=base+'/dossier.html?cid='+encodeURIComponent(c.id||'');
+  if(c.booking && c.booking.token) url+='&bk='+encodeURIComponent(c.booking.token);
+  url+='&n='+encodeURIComponent(c.name||'');
+  return url;
+}
+
+// ── RENVOYER LE LIEN DU DOSSIER ───────────────────────
+// Ouvre la messagerie interne pré-remplie : destinataire = candidat,
+// objet + corps « comme convenu par téléphone, je vous retransmets le
+// dossier de candidature… » avec le lien cliquable vers le dossier en ligne.
+// Bascule directement sur l'onglet Emails (vue Rédiger).
+function resendDossierLink(candId){
+  const c=cById(candId);
+  if(!c){toast('Candidat introuvable','e');return;}
+  const nom=localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'';
+  const tel=localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
+  const tpl=EMAIL_TPLS.renvoi_lien;
+  // Pré-remplir le composeur (destinataire, objet, corps) + lien candidat associé
+  EM={to:c.email||'', subject:tpl.subject(c), body:tpl.body(c,nom,tel), candId:c.id, coId:null, tplKey:'renvoi_lien'};
+  EM_VIEW='compose';
+  // Fermer toute pop-up / panneau latéral avant de basculer sur les emails
+  if(typeof closeMo==='function')   closeMo();
+  if(typeof closePanel==='function')closePanel();
+  // Trace légère : date du dernier renvoi du lien (visible si besoin plus tard)
+  c._dossier_link_sent_at=now_();
+  c.updated=now_();
+  save();
+  go('emails');
+  if(c.email) toast('Email de renvoi prêt — vérifiez puis envoyez ✓','s');
+  else        toast('Aucun email enregistré — complétez le destinataire','w');
+}
+
 // ── Templates ────────────────────────────────────────
 const EMAIL_TPLS={
   invitation_booking:{
@@ -7059,6 +7098,35 @@ Pourriez-vous me faire parvenir les éléments manquants dans les meilleurs dél
 Merci pour votre réactivité,
 ${nom||'[Votre nom]'}${tel?'\n'+tel:''}
 Novalem — Cabinet de recrutement`
+  },
+  renvoi_lien:{
+    label:'Renvoi lien dossier',
+    to:(c)=>c.email||'',
+    subject:(c)=>`Novalem — Votre dossier de candidature${c.role?(' | '+c.role):''}`,
+    body:(c,nom,tel)=>{
+      const link=(c&&c.id)?dossierFormUrl(c):'[LIEN DOSSIER]';
+      return `Bonjour ${greetCand(c)},
+
+Comme convenu par téléphone, je vous retransmets le lien vers votre dossier de candidature.
+
+Merci de le compléter et de le signer en ligne en cliquant sur le bouton ci-dessous — cela ne prend que quelques minutes :
+
+[Compléter mon dossier de candidature](${link})
+
+Une fois le dossier validé, je pourrai présenter votre profil aux entreprises qui recrutent.
+
+Documents à préparer :
+  - CV à jour
+  - Pièce d'identité (recto/verso)
+  - Carte vitale
+  - Permis de conduire (si applicable)
+
+Je reste disponible si vous avez la moindre question.
+
+Bien cordialement,
+${nom||'[Votre nom]'}${tel?'\n'+tel:''}
+Novalem — Cabinet de recrutement BTP`;
+    }
   },
   envoi_profil:{
     label:'Envoi profil au client',
