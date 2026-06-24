@@ -376,24 +376,34 @@ function _syncErr(e){
 
 // ── Sync des DONNÉES PARTAGÉES (tout sauf les candidats) vers crm_data ──
 let _syncTimer=null;
+async function _doSharedSync(){
+ const sb=getSB(); if(!sb)return;
+ try{
+   const shared={
+     companies:   DB.companies||[],
+     needs:       DB.needs||[],
+     agenda:      DB.agenda||[],
+     posts:       DB.posts||[],
+     invoices:    DB.invoices||[],
+     email_rules: DB.email_rules||[]
+   };
+   const {error}=await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:JSON.stringify(shared),updated_at:new Date().toISOString()},{onConflict:'id'});
+   if(error)throw error;
+   _syncOk();
+ }catch(e){ _syncErr(e); console.warn('Supabase sync (partagé) error:',e); }
+}
 function syncToSupabase(){
  clearTimeout(_syncTimer);
- _syncTimer=setTimeout(async()=>{
-  const sb=getSB(); if(!sb)return;
-  try{
-    const shared={
-      companies:   DB.companies||[],
-      needs:       DB.needs||[],
-      agenda:      DB.agenda||[],
-      posts:       DB.posts||[],
-      invoices:    DB.invoices||[],
-      email_rules: DB.email_rules||[]
-    };
-    const {error}=await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:JSON.stringify(shared),updated_at:new Date().toISOString()},{onConflict:'id'});
-    if(error)throw error;
-    _syncOk();
-  }catch(e){ _syncErr(e); console.warn('Supabase sync (partagé) error:',e); }
- },800);
+ _syncTimer=setTimeout(_doSharedSync,800);
+}
+
+// ── Flush immédiat sans debounce (fermeture onglet / arrière-plan / retour réseau) ──
+function flushSave(){
+ saveLocal();
+ clearTimeout(_syncTimer);
+ clearTimeout(_candSyncTimer);
+ _doSharedSync();
+ _doCandSync();
 }
 
 // ── Sync des CANDIDATS modifiés vers crm_candidats (une ligne chacun) ──
@@ -9817,6 +9827,16 @@ document.addEventListener('DOMContentLoaded',()=>{
  if(q) q.addEventListener('input',e=>renderGS(e.target.value));
  if(ov) ov.addEventListener('click',e=>{if(e.target===ov)closeGS();});
 });
+
+// ── Sauvegarde forcée : arrière-plan, fermeture onglet, retour réseau ──
+// visibilitychange : tab en arrière-plan ou écran verrouillé → flush immédiat
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='hidden') flushSave();
+});
+// pagehide : fermeture onglet / navigation (déclenché même quand beforeunload ne l'est pas)
+window.addEventListener('pagehide',()=>{ saveLocal(); flushSave(); });
+// online : retour réseau après coupure → on ré-essaie la sync cloud
+window.addEventListener('online',()=>{ if(typeof save==='function') save(); });
 
 // ═══════════════════════════════════════════════════════
 // MATCHING ENGINE — score candidat ↔ besoin
