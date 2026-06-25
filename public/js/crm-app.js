@@ -2048,7 +2048,7 @@ async function uploadCvFromSplit(event,candId){
  document.getElementById('ent-split-ov')?.remove();
  openEntrantSplit(candId);
  toast('CV uploadé','s');
- if(getApiKey()){ setTimeout(()=>aiExtractCVSplit(candId),300); }
+ if(aiReady()){ setTimeout(()=>aiExtractCVSplit(candId),300); }
 }
 
 // Wrapper pour l'IA depuis le split view (refresh le split après)
@@ -2089,7 +2089,7 @@ Règles:
 - Si info absente: chaîne vide "". Aucun null.`;
 
 function openAddCVModal(){
- const apiOk=!!getApiKey();
+ const apiOk=aiReady();
  openMo('Ajouter des candidats via CV',`
  <div class="info-box mb12">
  Glissez 1 ou plusieurs CV → l'IA analyse chaque fichier et crée les fiches candidat automatiquement.
@@ -2350,27 +2350,16 @@ function readFileAsDataURL(file){
 
 // ── Appel IA centralisé — toujours mêmes champs, modèle économique ─
 async function callCvExtractionApi(mediaType,dataUrl){
- const key=getApiKey();
- if(!key)throw new Error('Clé API manquante (Paramètres)');
  const base64=dataUrl.split(',')[1]||dataUrl;
  const blockType=mediaType==='application/pdf'?'document':'image';
- const resp=await fetch('https://api.anthropic.com/v1/messages',{
-  method:'POST',
-  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-  body:JSON.stringify({
-   model:CV_AI_MODEL,
-   max_tokens:CV_AI_MAX_TOKENS,
-   messages:[{role:'user',content:[
-    {type:blockType,source:{type:'base64',media_type:mediaType,data:base64}},
-    {type:'text',text:CV_PROMPT}
-   ]}]
-  })
+ const data=await aiCall({
+  model:CV_AI_MODEL,
+  max_tokens:CV_AI_MAX_TOKENS,
+  messages:[{role:'user',content:[
+   {type:blockType,source:{type:'base64',media_type:mediaType,data:base64}},
+   {type:'text',text:CV_PROMPT}
+  ]}]
  });
- if(!resp.ok){
-  const e=await resp.json().catch(()=>({}));
-  throw new Error(e.error?.message||`HTTP ${resp.status}`);
- }
- const data=await resp.json();
  const raw=data.content?.[0]?.text||'{}';
  const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
  try{return JSON.parse(clean);}
@@ -4051,8 +4040,7 @@ const FR_MONTHS_SHORT=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','
 // ═══════════════════════════════════════════════════════
 async function aiProfileAdvice(candId) {
  const cand = cById(candId); if(!cand) return;
- const key = getApiKey();
- if(!key){ toast('Clé API manquante — Paramètres','e'); return; }
+ if(!aiReady()){ toast('IA indisponible (mode local) — déployez sur Vercel','e'); return; }
 
  // Construire le contexte profil
  const profil = [
@@ -4073,11 +4061,8 @@ async function aiProfileAdvice(candId) {
   </div>`, '');
 
  try {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-   method:'POST',
-   headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-   body: JSON.stringify({
-    model:'claude-sonnet-4-20250514',
+  const data = await aiCall({
+    model:'claude-sonnet-4-6',
     max_tokens:1000,
     system:`Tu es un expert en recrutement BTP. Analyse ce profil candidat et retourne UNIQUEMENT un JSON valide sans markdown ni backtick avec cette structure exacte:
 {
@@ -4088,9 +4073,7 @@ async function aiProfileAdvice(candId) {
  "accroche": "Une phrase d'accroche de 1-2 lignes pour présenter ce profil à un client"
 }`,
     messages:[{role:'user',content:'Profil candidat BTP :\n'+profil}]
-   })
   });
-  const data = await resp.json();
   const txt = data.content?.find(b=>b.type==='text')?.text || data.content?.[0]?.text || '';
   let parsed = null;
   try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
@@ -5133,22 +5116,16 @@ function autoAg(c){
 async function siretLookup(nameFieldId, siretFieldId) {
  const name = document.getElementById(nameFieldId)?.value?.trim();
  if(!name || name.length < 3){ toast('Entrez d\'abord le nom de l\'entreprise','w'); return; }
- const key = getApiKey();
- if(!key){ toast('Clé API Anthropic manquante','e'); return; }
+ if(!aiReady()){ toast('IA indisponible (mode local) — déployez sur Vercel','e'); return; }
  const btn = event.target;
  if(btn){ btn.disabled=true; btn.textContent='⏳'; }
  try {
-  const resp = await fetch('https://api.anthropic.com/v1/messages',{
-   method:'POST',
-   headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-   body:JSON.stringify({
-    model:'claude-sonnet-4-20250514',
-    max_tokens:100,
-    system:'Tu es un assistant France. Si tu connais le SIRET de cette entreprise française, réponds UNIQUEMENT avec le numéro SIRET (14 chiffres sans espaces). Sinon réponds INCONNU.',
-    messages:[{role:'user',content:'SIRET de l\'entreprise : '+name}]
-   })
+  const data = await aiCall({
+   model:'claude-sonnet-4-6',
+   max_tokens:100,
+   system:'Tu es un assistant France. Si tu connais le SIRET de cette entreprise française, réponds UNIQUEMENT avec le numéro SIRET (14 chiffres sans espaces). Sinon réponds INCONNU.',
+   messages:[{role:'user',content:'SIRET de l\'entreprise : '+name}]
   });
-  const data = await resp.json();
   const txt = (data.content?.[0]?.text||'').trim();
   const siret = txt.replace(/\s/g,'').match(/\d{14}/)?.[0];
   if(siret){
@@ -5259,7 +5236,7 @@ function openPostForm(id=null){
  <div class="fgrp ff">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
  <span class="lbl" style="margin:0">Texte de l'annonce</span>
- ${getApiKey()?`<button id="ai-post-btn" type="button" class="btn bxs" style="background:rgba(154,74,224,.15);color:var(--ac6);border:1px solid rgba(154,74,224,.3)" onclick="aiGeneratePost('${id||'__new__'}')"> Générer avec IA</button>`:`<span class="ai-badge" style="cursor:pointer" onclick="openSettings()"> Configurer IA →</span>`}
+ ${aiReady()?`<button id="ai-post-btn" type="button" class="btn bxs" style="background:rgba(154,74,224,.15);color:var(--ac6);border:1px solid rgba(154,74,224,.3)" onclick="aiGeneratePost('${id||'__new__'}')"> Générer avec IA</button>`:`<span class="ai-badge" style="cursor:pointer" onclick="openSettings()"> Configurer IA →</span>`}
  </div>
  <textarea id="pf-body" style="min-height:120px">${esc(p.body||'')}</textarea>
  </div>
@@ -5653,7 +5630,7 @@ async function confirmSendProfiles(candId) {
 
  const cand = cById(candId); if(!cand) return;
  const key = getApiKey();
- if(!key){ toast('Clé API Anthropic manquante — Paramètres','e'); return; }
+ if(!aiReady()){ toast('IA indisponible (mode local) — déployez sur Vercel','e'); return; }
 
  closeMo();
  toast('Génération du CV anonymisé en cours…','i');
@@ -5766,7 +5743,6 @@ function presentationCompleteness(cand){
 
 // ── Email de présentation généré par l'IA, adapté au besoin entreprise ──
 async function generateTailoredEmail(cand, co, need, key){
- if(!key) throw new Error('Clé API manquante');
  const userName = localStorage.getItem(uKey('btp_user_name'))||localStorage.getItem('btp_user_name')||'Louis RENAULT';
  const userPhone = localStorage.getItem(uKey('btp_user_tel'))||localStorage.getItem('btp_user_tel')||'';
  const prenomCo = greetCo(co)||'';
@@ -5787,13 +5763,7 @@ STRUCTURE EXACTE du corps :
 ${userName}${userPhone?'\n'+userPhone:''}\nNovalem — Recrutement BTP\ncontact@novalem-recrutement.fr
 - Ton professionnel, direct, chaleureux mais sobre. Pas d'emojis, pas de gras markdown. Réponds UNIQUEMENT par le corps de l'email (texte brut + puces "- ").`;
  const user = `ENTREPRISE CIBLE : ${co.name||''}${co.city?(' ('+co.city+')'):''}\nCONTACT : ${co.contact||'inconnu'}\nBESOIN DE L'ENTREPRISE : ${besoin}\nPRÉNOM DU CANDIDAT À UTILISER : ${prenomCand}\n\nDONNÉES DU CANDIDAT :\n${buildCandidateBrief(cand)}`;
- const resp = await fetch('https://api.anthropic.com/v1/messages', {
-  method:'POST',
-  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-  body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, system:sys, messages:[{role:'user',content:user}] })
- });
- if(!resp.ok){ const e=await resp.json().catch(()=>({})); throw new Error(e.error?.message||('HTTP '+resp.status)); }
- const data = await resp.json();
+ const data = await aiCall({ model:'claude-sonnet-4-6', max_tokens:1000, system:sys, messages:[{role:'user',content:user}] });
  const txt = (data.content||[]).find(b=>b.type==='text')?.text || '';
  return txt.trim();
 }
@@ -5802,11 +5772,8 @@ ${userName}${userPhone?'\n'+userPhone:''}\nNovalem — Recrutement BTP\ncontact@
 async function generateAnonCVText(cand, key) {
  const profile = buildCandidateBrief(cand);
 
- const resp = await fetch('https://api.anthropic.com/v1/messages', {
-  method:'POST',
-  headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-  body: JSON.stringify({
-   model:'claude-sonnet-4-20250514',
+ const data = await aiCall({
+   model:'claude-sonnet-4-6',
    max_tokens:1200,
    system:`Tu es expert en recrutement BTP. Génère un CV anonyme professionnel. 
 RÈGLES STRICTES :
@@ -5825,10 +5792,8 @@ RÈGLES STRICTES :
  "points_forts": ["","",""]
 }`,
    messages:[{role:'user', content:'Profil à anonymiser :\n'+profile}]
-  })
  });
 
- const data = await resp.json();
  const txt = data.content?.find(b=>b.type==='text')?.text || '';
  let parsed = null;
  try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
@@ -6061,8 +6026,7 @@ async function sendProfileEmailToCompany(cand, co, need, hasContract, pdfB64, ke
 // ═══════════════════════════════════════════════════════════════
 async function aiMatchEnterprises(candId) {
  const cand = cById(candId); if(!cand) return;
- const key = getApiKey();
- if(!key){ toast('Clé API manquante — Paramètres','e'); return; }
+ if(!aiReady()){ toast('IA indisponible (mode local) — déployez sur Vercel','e'); return; }
 
  const now = Date.now();
  const week = 7*24*3600*1000;
@@ -6118,20 +6082,15 @@ async function aiMatchEnterprises(candId) {
  ).join('\n');
 
  try {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-   method: 'POST',
-   headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
-   body: JSON.stringify({
-    model: 'claude-sonnet-4-20250514',
+  const data = await aiCall({
+    model: 'claude-sonnet-4-6',
     max_tokens: 800,
     system: `Tu es expert en recrutement BTP. Pour un profil candidat, analyse les entreprises et retourne un JSON strict (sans markdown) :
 {"matches":[{"id":"id_entreprise","score":85,"raison":"1 phrase max","match":"fort|moyen|faible"}]}
 Trie par score décroissant. Max 10 entreprises. Score : 90+ = profil idéal pour le besoin exact, 70-89 = bon match catégorie/besoins, 50-69 = possible, <50 = ne pas inclure.`,
     messages:[{role:'user',content:'PROFIL:\n'+profil+'\n\nENTREPRISES:\n'+coList}]
-   })
   });
 
-  const data = await resp.json();
   const txt = data.content?.find(b=>b.type==='text')?.text || '';
   let parsed = null;
   try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
@@ -6202,7 +6161,7 @@ async function sendFromAIMatch(candId) {
 
  const cand = cById(candId); if(!cand) return;
  const key = getApiKey();
- if(!key){ toast('Clé API Anthropic manquante','e'); return; }
+ if(!aiReady()){ toast('IA indisponible (mode local) — déployez sur Vercel','e'); return; }
 
  closeMo();
  toast('Génération et envoi en cours…','i');
@@ -6934,9 +6893,8 @@ function resetAllData(){
 // ═══════════════════════════════════════════════════════
 async function aiExtractCV(candId){
  const c=cById(candId);if(!c)return;
- const key=getApiKey();
- if(!key){
- toast('Clé API manquante — configurez-la dans · Paramètres','e');
+ if(!aiReady()){
+ toast('IA indisponible (mode local) — déployez sur Vercel','e');
  return;
  }
  // Find uploaded CV doc
@@ -6972,17 +6930,7 @@ async function aiExtractCV(candId){
  return;
  }
 
- const resp=await fetch('https://api.anthropic.com/v1/messages',{
- method:'POST',
- headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
- body:JSON.stringify({model:CV_AI_MODEL,max_tokens:CV_AI_MAX_TOKENS,messages})
- });
-
- if(!resp.ok){
- const err=await resp.json().catch(()=>({}));
- throw new Error(err.error?.message||`HTTP ${resp.status}`);
- }
- const data=await resp.json();
+ const data=await aiCall({model:CV_AI_MODEL,max_tokens:CV_AI_MAX_TOKENS,messages});
  const raw=data.content?.[0]?.text||'';
 
  // Parse JSON — strip potential markdown fences
@@ -7035,8 +6983,7 @@ async function aiExtractCV(candId){
 // IA — GÉNÉRATION ANNONCE (Anthropic API)
 // ═══════════════════════════════════════════════════════
 async function aiGeneratePost(postId){
- const key=getApiKey();
- if(!key){toast('Clé API manquante — configurez-la dans · Paramètres','e');return;}
+ if(!aiReady()){toast('IA indisponible (mode local) — déployez sur Vercel','e');return;}
 
  // Read directly from the open form fields (works for new and existing posts)
  const title=document.getElementById('pf-t')?.value?.trim()||'';
@@ -7069,13 +7016,7 @@ Ton professionnel mais humain. Maximum 350 mots. Termine par une ligne "CDI · [
 Réponds UNIQUEMENT avec le texte de l'annonce, sans titre, sans markdown, sans balises.`;
 
  try{
- const resp=await fetch('https://api.anthropic.com/v1/messages',{
- method:'POST',
- headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':key,'anthropic-dangerous-direct-browser-access':'true'},
- body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:900,messages:[{role:'user',content:prompt}]})
- });
- if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${resp.status}`);}
- const data=await resp.json();
+ const data=await aiCall({model:'claude-sonnet-4-6',max_tokens:900,messages:[{role:'user',content:prompt}]});
  const text=data.content?.[0]?.text||'';
  const ta=document.getElementById('pf-body');
  if(ta){ta.value=text;ta.style.minHeight='200px';}
@@ -7196,6 +7137,69 @@ const BOARD_CONFIG={
 // ─── Publication job boards ────────────────────────────────
 // Détecte si le CRM tourne sur Vercel (API auto-post disponible)
 // ou en local (liens manuels uniquement)
+// ═══════════════════════════════════════════════════════════════════
+// COUCHE IA CENTRALISÉE — tous les appels Claude passent par le proxy
+// serveur /api/ai (la clé ANTHROPIC_API_KEY vit côté Vercel, jamais dans
+// le navigateur). Remplace les anciens fetch directs vers api.anthropic.com
+// (clé exposée + appels qui « tournaient dans le vide » sans clé client).
+// ═══════════════════════════════════════════════════════════════════
+const AI_DEFAULT_MODEL = 'claude-haiku-4-5-20251001'; // le moins coûteux, par défaut
+const AI_MODEL_ALIASES = {
+ 'claude-sonnet-4-20250514': 'claude-sonnet-4-6', // ancien snapshot Sonnet 4 → modèle courant
+};
+function _aiModel(m){ return AI_MODEL_ALIASES[m] || m || AI_DEFAULT_MODEL; }
+
+// true si un serveur est joignable pour relayer l'IA (false en mode file://).
+// Remplace les anciens tests « getApiKey() ? » qui cachaient les boutons IA.
+function aiReady(){ try { return !!getApiBase(); } catch(_) { return false; } }
+
+// Appel IA bas niveau. Renvoie l'objet de réponse Anthropic BRUT
+// (même forme qu'avant : { content:[{type:'text',text:…}], … }) pour que le
+// parsing .content[...] des appelants reste inchangé. Lève une Error au
+// message clair en cas d'échec (réseau, clé serveur absente, erreur API).
+async function aiCall(opts){
+ opts = opts || {};
+ const messages = opts.messages;
+ if(!messages || !messages.length) throw new Error('aiCall : messages requis');
+ const base = getApiBase();
+ if(!base) throw new Error('IA indisponible en mode local (file://). Déployez sur Vercel ou lancez « vercel dev ».');
+ let resp;
+ try {
+  resp = await fetch(base + '/api/ai', {
+   method:'POST',
+   headers:{ 'Content-Type':'application/json' },
+   body: JSON.stringify({
+    system: opts.system,
+    messages,
+    model: _aiModel(opts.model),
+    max_tokens: opts.max_tokens || 1000,
+   }),
+  });
+ } catch(netErr){
+  throw new Error('IA injoignable (réseau) : ' + ((netErr && netErr.message) || netErr));
+ }
+ let data = null;
+ try { data = await resp.json(); } catch(_) { data = null; }
+ if(!resp.ok){
+  const m = (data && ((data.error && data.error.message) || data.error)) || ('HTTP ' + resp.status);
+  throw new Error(typeof m === 'string' ? m : JSON.stringify(m));
+ }
+ return data;
+}
+
+// Pratique : texte concaténé de tous les blocs « text » d'une réponse.
+function aiText(data){
+ return (((data && data.content) || []).filter(function(b){ return b && b.type === 'text'; })
+  .map(function(b){ return b.text || ''; }).join('')).trim();
+}
+// Pratique : JSON parsé d'une réponse (tolère ```json … ``` et le texte autour).
+function aiParseJSON(data){
+ const raw = aiText(data);
+ const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+ try { return JSON.parse(cleaned); }
+ catch(_){ const m = cleaned.match(/\{[\s\S]*\}/); if(m){ try { return JSON.parse(m[0]); } catch(e){} } return null; }
+}
+
 function getApiBase(){
  // L'envoi d'email et les appels serveur passent par /api/... (fonctions Vercel).
  // Indisponible uniquement si la page est ouverte en fichier local (file://) :
@@ -7911,7 +7915,7 @@ async function emOpenEmail(uid){
       ${renderBodyWithLinks(email.text||email.html?.replace(/<[^>]*>/g,'\n').replace(/\n{3,}/g,'\n\n').trim()||'')}
     </div>`;
 
-  if(getApiKey())setTimeout(()=>emAnalyzeEmail(uid),1200);
+  if(aiReady())setTimeout(()=>emAnalyzeEmail(uid),1200);
 }
 
 function emMarkUnread(uid){
@@ -8228,41 +8232,142 @@ function emailFromCand(candId,tplKey){
   go('emails');
 }
 
-// ── Analyse IA ────────────────────────────────────────
+// ── Analyse IA des emails → actions structurées (LISTE BLANCHE) ───────
+// Le front ne rend et n'exécute QUE les types ci-dessous, après ton clic,
+// en appelant des fonctions déjà existantes. Jamais d'eval, jamais d'action
+// arbitraire. Ajouter un type = ajouter une entrée ici (et au prompt).
+const AI_EMAIL_ACTION_TYPES = {
+  open_candidate: { icon:'👤', label:'Ouvrir le candidat',
+    run:(a,ctx)=>{ if(!cById(a.cand_id)){toast('Candidat introuvable','w');return false;} openCandPanel(a.cand_id); return true; } },
+  open_company: { icon:'🏢', label:"Ouvrir l'entreprise",
+    run:(a,ctx)=>{ if(!coById(a.co_id)){toast('Entreprise introuvable','w');return false;} openCoPanel(a.co_id); return true; } },
+  add_agenda: { icon:'📅', label:"Ajouter à l'agenda",
+    run:(a,ctx)=>{
+      const cand_id = a.cand_id && cById(a.cand_id) ? a.cand_id : null;
+      const co_id   = a.co_id   && coById(a.co_id)  ? a.co_id   : null;
+      _proposeAgendaItem({
+        type:a.agenda_type||'task',
+        title:a.title||a.label||'Suite email',
+        notes:a.notes||'',
+        cand_id, co_id,
+        delay: Number.isFinite(+a.delay)?Math.max(0,Math.round(+a.delay)):1,
+        hour:  Number.isFinite(+a.hour)?Math.min(19,Math.max(7,Math.round(+a.hour))):9,
+        question:a.label||"Ajouter à l'agenda ?"
+      });
+      return true; // confirmation finale via la pop-up _proposeAgendaItem
+    } },
+  draft_reply: { icon:'✍️', label:'Pré-rédiger une réponse',
+    run:(a,ctx)=>{
+      emReplyTo(ctx.uid);
+      if(a.draft && typeof EM!=='undefined' && EM){ EM.body = String(a.draft).trim()+'\n'+(EM.body||''); emShowView('compose'); }
+      return true;
+    } },
+  log_timeline: { icon:'🗂️', label:"Journaliser l'email",
+    run:(a,ctx)=>{
+      const co_id = (a.co_id && coById(a.co_id)) ? a.co_id : (ctx.matchedCoId||null);
+      if(!co_id){ toast('Aucune entreprise cible pour la timeline','w'); return false; }
+      linkEmailToFiche(ctx.uid,'co',co_id,true); // journalise + crée une règle email (sender→fiche)
+      return true;
+    } },
+};
+
+// Contexte CRM fourni à l'IA : match déterministe par email de l'expéditeur
+// + listes plafonnées (id réels) pour référencer une entité citée dans le corps.
+function _emBuildAiContext(email){
+  const fe=(email.fromEmail||'').toLowerCase();
+  const matchCand = fe ? DB.candidates.find(c=>c.email&&c.email.toLowerCase()===fe) : null;
+  const matchCo   = fe ? DB.companies.find(c=>c.email&&c.email.toLowerCase()===fe) : null;
+  const cands=DB.candidates.filter(c=>c.status!=='ko').slice(0,40)
+    .map(c=>({id:c.id,name:c.name,role:c.role||(getCat(c.cat)?.l||''),status:c.status}));
+  const cos=DB.companies.slice(0,40).map(c=>({id:c.id,name:c.name,type:c.type||'',city:c.city||''}));
+  const needs = matchCo ? DB.needs.filter(n=>n.company_id===matchCo.id).map(n=>({id:n.id,title:n.title})) : [];
+  return { uid:String(email.uid), matchedCandId:matchCand?matchCand.id:null, matchedCoId:matchCo?matchCo.id:null, cands, cos, needs };
+}
+
+function _emAnalysisSystem(){
+  return `Tu es l'assistant d'un cabinet de recrutement BTP (Novalem). Tu analyses un email RECU et tu proposes des ACTIONS CONCRETES à faire dans le CRM.
+
+Réponds UNIQUEMENT par un JSON valide (sans markdown), de la forme :
+{"summary":"résumé en 1-2 phrases","actions":[{"type":"...","label":"texte du bouton","reason":"pourquoi, 1 phrase courte", ...params}]}
+
+Types d'actions AUTORISES (n'en invente AUCUN autre) et leurs paramètres :
+- "open_candidate" {cand_id}          → ouvrir la fiche d'un candidat
+- "open_company"   {co_id}            → ouvrir la fiche d'une entreprise/prospect
+- "add_agenda"     {title, delay, hour, cand_id?, co_id?, notes?}  → proposer un évènement. delay = nombre de jours OUVRES à partir d'aujourd'hui (0 = aujourd'hui), hour = heure entre 7 et 19
+- "draft_reply"    {draft}            → pré-rédiger une réponse. draft = corps complet proposé, en français, ton pro sobre, sans inventer d'information, signé Novalem
+- "log_timeline"   {co_id}            → journaliser cet email dans la timeline d'une entreprise
+
+RÈGLES ABSOLUES :
+- Utilise UNIQUEMENT les id présents dans le CONTEXTE CRM ci-dessous. N'invente JAMAIS d'id. Si tu n'es pas certain de l'entité, mets l'id à null ou n'inclus pas l'action.
+- Propose 1 à 4 actions maximum, les plus utiles d'abord. Si rien n'est actionnable, renvoie "actions":[].
+- "reason" : court et concret (ex : "Le candidat confirme sa disponibilité jeudi").`;
+}
+
+function _emAnalysisUserPayload(email,ctx){
+  const L=[];
+  L.push('EMAIL RECU');
+  L.push('De : '+(email.from||email.fromEmail||''));
+  L.push('Email expéditeur : '+(email.fromEmail||''));
+  L.push('Objet : '+(email.subject||''));
+  L.push('Date : '+(email.date||''));
+  L.push('');
+  L.push('Corps :');
+  L.push((email.text||'').slice(0,2500));
+  L.push('');
+  L.push('────── CONTEXTE CRM ──────');
+  L.push("Candidat correspondant à l'expéditeur : "+(ctx.matchedCandId?('id='+ctx.matchedCandId):'aucun'));
+  L.push("Entreprise correspondant à l'expéditeur : "+(ctx.matchedCoId?('id='+ctx.matchedCoId):'aucune'));
+  if(ctx.needs.length) L.push('Besoins ouverts de cette entreprise : '+JSON.stringify(ctx.needs));
+  L.push('');
+  L.push('Candidats (id → nom · poste · statut) :');
+  L.push(ctx.cands.map(c=>`${c.id} → ${c.name} · ${c.role||''} · ${c.status}`).join('\n')||'(aucun)');
+  L.push('');
+  L.push('Entreprises (id → nom · type · ville) :');
+  L.push(ctx.cos.map(c=>`${c.id} → ${c.name} · ${c.type||''} · ${c.city||''}`).join('\n')||'(aucune)');
+  return L.join('\n');
+}
+
+// Filtre liste blanche + validation des id contre la base réelle.
+function _emSanitizeActions(actions, ctx){
+  if(!Array.isArray(actions)) return [];
+  const out=[];
+  for(const a of actions){
+    if(!a||typeof a!=='object') continue;
+    const def=AI_EMAIL_ACTION_TYPES[a.type];
+    if(!def) continue;                                  // type hors liste blanche → rejeté
+    if(a.cand_id && !cById(a.cand_id)) a.cand_id=null;  // id inventé → neutralisé
+    if(a.co_id   && !coById(a.co_id))  a.co_id=null;
+    if(a.type==='open_candidate' && !a.cand_id) continue;
+    if(a.type==='open_company'   && !a.co_id)   continue;
+    if(a.type==='log_timeline'   && !a.co_id && !ctx.matchedCoId) continue;
+    if(!a.label) a.label=def.label;
+    out.push(a);
+    if(out.length>=4) break;
+  }
+  return out;
+}
+
 async function emAnalyzeEmail(uid){
-  if(!getApiKey())return;
+  if(!aiReady())return;
   if(!INBOX_CACHE?.emails)return;
   const email=INBOX_CACHE.emails.find(e=>String(e.uid)===String(uid));
   if(!email)return;
   showAiPanelLoading();
   try{
-    const apiBase=window.location.hostname==='localhost'||window.location.hostname===''?null:window.location.origin;
-    if(!apiBase){closeAiPanel();return;}
-    const resp=await fetch(`${apiBase}/api/ai`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        messages:[{role:'user',content:`Analyse cet email recu dans un CRM de recrutement BTP. Extrait les informations cles et propose des actions concretes.\n\nDe: ${email.from||email.fromEmail}\nObjet: ${email.subject}\nDate: ${email.date}\n\nCorps:\n${(email.text||'').slice(0,2000)}`}],
-        system:'Tu es un assistant CRM de recrutement specialise BTP. Reponds en JSON: {summary:string,actions:[{label:string,type:string,urgence:"haute"|"normale"|"basse"}],entityType:"candidat"|"client"|"prospect"|null,entityName:string|null}',
-        max_tokens:600,
-      })
+    const ctx=_emBuildAiContext(email);
+    const data=await aiCall({
+      model:'claude-sonnet-4-6',
+      max_tokens:900,
+      system:_emAnalysisSystem(),
+      messages:[{role:'user',content:_emAnalysisUserPayload(email,ctx)}]
     });
-    const data=await resp.json();
-    const txt=data.content?.find(b=>b.type==='text')?.text||data.content?.[0]?.text||'';
-    let parsed=null;
-    try{
-     // Essai 1 : JSON direct
-     parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
-    }catch(e){
-     // Essai 2 : extraire le JSON du texte
-     const m=txt.match(/\{[\s\S]*\}/);
-     if(m){try{parsed=JSON.parse(m[0]);}catch(e2){parsed=null;}}
+    let parsed=aiParseJSON(data);
+    if(!parsed||typeof parsed!=='object'){
+      parsed={summary:(aiText(data)||'').slice(0,300)||'Analyse non disponible',actions:[]};
     }
-    if(!parsed){
-     // Fallback : créer un résumé depuis le texte brut
-     parsed={summary:txt.slice(0,300)||'Analyse non disponible',actions:[{label:'Marquer comme lu',type:'note',urgence:'normale'}],entityType:null,entityName:null};
-    }
-    showAiActionPanel(parsed,email,uid);
-  }catch(e){closeAiPanel();console.warn('AI email analysis error:',e);}
+    parsed.actions=_emSanitizeActions(parsed.actions, ctx);
+    showAiActionPanel(parsed,email,uid,ctx);
+  }catch(e){closeAiPanel();console.warn('AI email analysis error:',e);toast('Analyse IA indisponible : '+(e.message||e),'e');}
 }
 
 function showAiPanelLoading(){
@@ -8281,40 +8386,45 @@ function showAiPanelLoading(){
   document.body.appendChild(el);
 }
 
-function showAiActionPanel(analysis,email,uid){
+function showAiActionPanel(analysis,email,uid,ctx){
   document.getElementById('ai-action-panel')?.remove();
   AI_PANEL_OPEN=true;
+  window._lastAiAnalysis=analysis;
+  window._lastAiCtx=ctx||_emBuildAiContext(email);
+  const actions=analysis.actions||[];
   const el=document.createElement('div');el.id='ai-action-panel';el.className='ai-panel';
-  const urgColors={haute:'var(--red)',normale:'var(--ac)',basse:'var(--mu)'};
   el.innerHTML=`
     <div class="ai-panel-head">
       <div class="ai-panel-title">Analyse IA</div>
       <div class="ai-panel-close" onclick="closeAiPanel()">×</div>
     </div>
     <div class="ai-panel-body">
-      ${analysis.entityName?`<div class="ai-panel-cand">${esc(analysis.entityName)}</div>`:''}
       ${analysis.summary?`<div class="ai-panel-resume">${esc(analysis.summary)}</div>`:''}
-      ${(analysis.actions||[]).map((a,i)=>`
-        <button class="ai-action-btn" onclick="executeAiAction(${i},'${uid}')">
-          <span style="flex:1">${esc(a.label)}</span>
-          <span class="ai-urgence" style="background:${a.urgence==='haute'?'var(--red-dim)':'var(--s3)'};color:${urgColors[a.urgence]||'var(--mu)'}">${a.urgence||'normale'}</span>
-        </button>`).join('')}
+      ${actions.length?actions.map((a,i)=>{
+        const ico=(AI_EMAIL_ACTION_TYPES[a.type]&&AI_EMAIL_ACTION_TYPES[a.type].icon)||'•';
+        return `<button class="ai-action-btn" onclick="executeAiAction(${i},'${esc(String(uid))}')">
+          <span style="flex-shrink:0;font-size:14px">${ico}</span>
+          <span style="flex:1;text-align:left;min-width:0">
+            <span style="display:block;font-weight:600">${esc(a.label)}</span>
+            ${a.reason?`<span style="display:block;font-size:10px;color:var(--mu);margin-top:1px;white-space:normal">${esc(a.reason)}</span>`:''}
+          </span>
+        </button>`;
+      }).join(''):`<div style="color:var(--mu);font-size:11px;padding:8px 2px">Aucune action proposée pour cet email.</div>`}
     </div>`;
-  window._lastAiAnalysis=analysis;
   document.body.appendChild(el);
 }
 
 function executeAiAction(actionIndex,emailUid){
   const analysis=window._lastAiAnalysis;if(!analysis)return;
   const action=(analysis.actions||[])[actionIndex];if(!action)return;
-  const email=INBOX_CACHE?.emails?.find(e=>String(e.uid)===String(emailUid));
-  const type=action.type||'note';
-  if(type==='reply'||type==='repondre'){emReplyTo(emailUid);closeAiPanel();return;}
-  if(type==='agenda'||type==='rdv'){go('agenda');closeAiPanel();return;}
-  if(type==='prospect'||type==='contact'){go('pros');closeAiPanel();return;}
-  if(type==='candidat'){go('cands');closeAiPanel();return;}
-  toast(`Action: ${action.label}`,'i');
-  closeAiPanel();
+  const def=AI_EMAIL_ACTION_TYPES[action.type];
+  if(!def){ toast('Action non autorisée','w'); return; }   // double garde liste blanche
+  const ctx=window._lastAiCtx||{};
+  ctx.uid=String(emailUid);
+  let ok=false;
+  try{ ok=def.run(action,ctx); }
+  catch(e){ console.warn('executeAiAction error:',e); toast("Échec de l'action : "+(e.message||e),'e'); ok=false; }
+  if(ok!==false) closeAiPanel();
 }
 
 
