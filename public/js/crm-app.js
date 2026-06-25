@@ -374,26 +374,255 @@ function _syncErr(e){
  if(ind){ind.textContent='· Sync ×';ind.style.color='var(--ac3)';ind.title='Erreur sync: '+((e&&e.message)||e);}
 }
 
-// ── Sync des DONNÉES PARTAGÉES (tout sauf les candidats) vers crm_data ──
+// ══════════════════════════════════════════════════════════════════
+// SYNC PARTAGÉE — modèle ligne-par-ligne (anti-perte de données multi-user)
+// ------------------------------------------------------------------
+// AVANT : entreprises / besoins / agenda / annonces / factures / règles
+//   vivaient dans UN SEUL bloc JSON (crm_data id=1). Chaque sauvegarde
+//   réécrivait ce bloc entier depuis la copie locale → si deux personnes
+//   travaillaient en même temps, le dernier à sauvegarder écrasait
+//   (= supprimait) les ajouts de l'autre, sans que personne ne le voie.
+// APRÈS : chaque enregistrement = sa propre ligne dans crm_records
+//   (colonnes collection + id). On ne pousse QUE les lignes réellement
+//   modifiées (comparaison d'empreinte) et on ne supprime QUE celles
+//   réellement retirées en local. Ajouter un prospect ne touche plus
+//   aux fiches des autres. Même logique éprouvée que pour les candidats.
+// ══════════════════════════════════════════════════════════════════
+
+// Collections partagées : nom logique (= colonne `collection`) → propriété de DB
+const SHARED_COLLECTIONS = ['companies','needs','agenda','posts','invoices','email_rules'];
+
+let _sharedSnap = {};        // { "companies:<id>": jsonString } — dernier état persisté
+let _sharedUpdatedAt = {};   // { "companies:<id>": updated_at } — version cloud connue
+
+// Garantit un id stable sur un enregistrement partagé
+function _recId(item){
+  if(item && !item.id){ item.id = (typeof uid==='function'?uid():Date.now().toString(36)); }
+  return item ? String(item.id) : null;
+}
+
+// ── Utilitaires Supabase robustes ──────────────────────────────────
+// PostgREST plafonne une requête à 1000 lignes. _sbSelectAll pagine pour
+// tout récupérer (sinon, au-delà de 1000 fiches, des données deviennent
+// invisibles localement). builderFn() doit renvoyer une requête fraîche.
+async function _sbSelectAll(builderFn){
+  const PAGE=1000; const out=[]; let from=0;
+  for(let guard=0; guard<1000; guard++){
+    const { data, error } = await builderFn().range(from, from+PAGE-1);
+    if(error) throw error;
+    const rows=data||[];
+    out.push(...rows);
+    if(rows.length<PAGE) break;
+    from+=PAGE;
+  }
+  return out;
+}
+// Upsert par lots (évite les charges utiles trop grosses sur gros volumes).
+async function _sbUpsertChunked(sb, table, rows, conflict){
+  const SIZE=500;
+  for(let i=0;i<rows.length;i+=SIZE){
+    const { error } = await sb.from(table).upsert(rows.slice(i,i+SIZE),{onConflict:conflict});
+    if(error) throw error;
+  }
+}
+// Découpe une liste d'ids en lots (pour les .in() volumineux).
+function _chunk(arr, size){
+  const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out;
+}
+
+// ── Sync des DONNÉES PARTAGÉES (tout sauf les candidats) → crm_records ──
 let _syncTimer=null;
 function syncToSupabase(){
  clearTimeout(_syncTimer);
- _syncTimer=setTimeout(async()=>{
+ _syncTimer=setTimeout(_doSharedSync,800);
+}
+async function _doSharedSync(){
   const sb=getSB(); if(!sb)return;
   try{
-    const shared={
-      companies:   DB.companies||[],
-      needs:       DB.needs||[],
-      agenda:      DB.agenda||[],
-      posts:       DB.posts||[],
-      invoices:    DB.invoices||[],
-      email_rules: DB.email_rules||[]
-    };
-    const {error}=await sb.from('crm_data').upsert({id:AGENCY_DATA_ROW,data:JSON.stringify(shared),updated_at:new Date().toISOString()},{onConflict:'id'});
-    if(error)throw error;
+    const rows=[]; const seen={};
+    for(const coll of SHARED_COLLECTIONS){
+      const arr = DB[coll]||[];
+      for(const item of arr){
+        const id=_recId(item); if(!id) continue;
+        const key=coll+':'+id; seen[key]=true;
+        const snap=JSON.stringify(item);
+        if(_sharedSnap[key]!==snap){
+          rows.push({collection:coll, id, data:item, updated_at:new Date().toISOString()});
+          _sharedSnap[key]=snap;
+        }
+      }
+    }
+    if(rows.length){
+      await _sbUpsertChunked(sb,'crm_records',rows,'collection,id');
+    }
+    // Suppressions : clés présentes dans l'empreinte mais plus en local.
+    // (empreinte vide = on ne supprime rien — mode sûr après un load échoué)
+    const toDel=Object.keys(_sharedSnap).filter(k=>!seen[k]);
+    if(toDel.length){
+      const groups={};
+      toDel.forEach(k=>{ const i=k.indexOf(':'); (groups[k.slice(0,i)]=groups[k.slice(0,i)]||[]).push(k.slice(i+1)); });
+      for(const coll of Object.keys(groups)){
+        for(const batch of _chunk(groups[coll],500)){
+          const {error}=await sb.from('crm_records').delete().eq('collection',coll).in('id',batch);
+          if(error)throw error;
+        }
+      }
+      toDel.forEach(k=>{ delete _sharedSnap[k]; delete _sharedUpdatedAt[k]; });
+    }
     _syncOk();
-  }catch(e){ _syncErr(e); console.warn('Supabase sync (partagé) error:',e); }
- },800);
+  }catch(e){ _syncErr(e); console.warn('Supabase sync (partagé/records) error:',e); }
+}
+
+// ── Chargement des données partagées depuis crm_records (+ migration auto) ──
+async function loadSharedRecords(){
+  const sb=getSB(); if(!sb)return false;
+  let rows;
+  try{
+    rows=await _sbSelectAll(()=>sb.from('crm_records').select('collection,id,data,updated_at'));
+  }catch(e){ console.warn('[load] crm_records:',e); return false; }
+
+  // Cloud vide ? Deux cas : soit première bascule (données encore dans l'ancien
+  // bloc crm_data → on migre), soit cloud réellement vierge (→ on amorce depuis
+  // le cache local sans rien écraser).
+  if(!rows.length){
+    const migrated = await _migrateBlobToRecords();
+    if(migrated){
+      try{
+        rows=await _sbSelectAll(()=>sb.from('crm_records').select('collection,id,data,updated_at'));
+      }catch(_){ rows=[]; }
+    }
+    if(!rows.length){
+      // Rien dans le cloud : NE PAS vider le cache local. On pousse le local.
+      _sharedSnap={}; _sharedUpdatedAt={};
+      syncToSupabase();
+      return true;
+    }
+  }
+
+  // Distribuer les lignes du cloud dans DB (le cloud fait foi au chargement)
+  const buckets={}; SHARED_COLLECTIONS.forEach(c=>buckets[c]=[]);
+  _sharedSnap={}; _sharedUpdatedAt={};
+  for(const r of rows){
+    if(!r || !r.collection || !buckets[r.collection]) continue;
+    const obj = typeof r.data==='string'?JSON.parse(r.data):r.data;
+    if(!obj) continue;
+    if(!obj.id) obj.id=String(r.id);
+    buckets[r.collection].push(obj);
+    const key=r.collection+':'+obj.id;
+    _sharedSnap[key]=JSON.stringify(obj);
+    _sharedUpdatedAt[key]=r.updated_at;
+  }
+  SHARED_COLLECTIONS.forEach(c=>{ DB[c]=buckets[c]; });
+  try{ window.DB=DB; }catch(_){}
+  return true;
+}
+
+// Migration unique : recopie l'ancien bloc crm_data(id=1) en lignes crm_records.
+// Idempotente (upsert par collection+id) — sûre même si lancée par 2 postes.
+async function _migrateBlobToRecords(){
+  const sb=getSB(); if(!sb)return false;
+  try{
+    const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
+    if(error||!data||!data.data) return false;
+    const shared = typeof data.data==='string'?JSON.parse(data.data):data.data;
+    if(!shared) return false;
+    const rows=[];
+    for(const coll of SHARED_COLLECTIONS){
+      const arr=shared[coll]||[];
+      for(const item of arr){
+        if(!item) continue;
+        if(!item.id) item.id=(typeof uid==='function'?uid():Date.now().toString(36));
+        rows.push({collection:coll,id:String(item.id),data:item,updated_at:new Date().toISOString()});
+      }
+    }
+    if(!rows.length) return false;
+    await _sbUpsertChunked(sb,'crm_records',rows,'collection,id');
+    console.info('[migration] '+rows.length+' enregistrements partagés migrés vers crm_records ✓');
+    return true;
+  }catch(e){ console.warn('[migration] échec:',e); return false; }
+}
+
+// ── Rafraîchissement des données partagées (voir les changements des collègues) ──
+// Ne télécharge que les lignes réellement nouvelles/modifiées côté serveur,
+// et ne fusionne jamais par-dessus une modif locale non sauvegardée.
+async function refreshShared(){
+  const sb=getSB(); if(!sb)return;
+  let metas;
+  try{
+    metas=await _sbSelectAll(()=>sb.from('crm_records').select('collection,id,updated_at'));
+  }catch(e){ console.warn('[refresh] empreintes records:',e); return; }
+
+  // ⚠️ SÉCURITÉ : on ne déduit JAMAIS une suppression de l'absence d'une ligne.
+  // Un résultat vide/tronqué (hoquet réseau, pagination) ne doit pas pouvoir
+  // effacer des fiches en local. Même prudence que pour les candidats.
+  // Les suppressions se propagent au cloud côté envoi (snapshot local) et
+  // chez les collègues à leur prochain rechargement de page.
+  const toFetch=[];
+  for(const m of metas){
+    if(!m||!m.collection||m.id==null) continue;
+    const key=m.collection+':'+m.id;
+    if(_sharedUpdatedAt[key]!==m.updated_at) toFetch.push(m);
+  }
+  if(!toFetch.length) return;
+
+  let changed=false;
+  const byColl={};
+  toFetch.forEach(m=>{ (byColl[m.collection]=byColl[m.collection]||[]).push(String(m.id)); });
+  for(const coll of Object.keys(byColl)){
+    for(const batch of _chunk(byColl[coll],500)){
+      let rows;
+      try{
+        const r=await sb.from('crm_records').select('id,data,updated_at').eq('collection',coll).in('id',batch);
+        if(r.error)throw r.error;
+        rows=r.data||[];
+      }catch(e){ console.warn('[refresh] contenu '+coll+':',e); continue; }
+      const arr=DB[coll]=DB[coll]||[];
+      for(const row of rows){
+        const obj = typeof row.data==='string'?JSON.parse(row.data):row.data;
+        if(!obj) continue;
+        if(!obj.id) obj.id=String(row.id);
+        const key=coll+':'+obj.id;
+        const idx=arr.findIndex(x=>String(x.id)===String(obj.id));
+        if(idx<0){
+          arr.unshift(obj);
+          _sharedSnap[key]=JSON.stringify(obj); _sharedUpdatedAt[key]=row.updated_at; changed=true;
+        }else{
+          const localStr=JSON.stringify(arr[idx]);
+          if(_sharedSnap[key]===localStr){
+            const objStr=JSON.stringify(obj);
+            if(objStr!==localStr){ arr[idx]=obj; _sharedSnap[key]=objStr; changed=true; }
+            _sharedUpdatedAt[key]=row.updated_at;
+          }else{
+            // modif locale non sauvegardée → on garde le local (poussé au prochain save)
+            _sharedUpdatedAt[key]=row.updated_at;
+          }
+        }
+      }
+    }
+  }
+
+  if(changed){
+    saveLocal();
+    if(typeof badges==='function'){ try{badges();}catch(_){} }
+    if(typeof UI!=='undefined' && UI){
+      const v=UI.view;
+      try{
+        if(v==='pros'&&typeof rPros==='function')rPros();
+        else if(v==='clients'&&typeof rClients==='function')rClients();
+        else if(v==='needs'&&typeof rNeeds==='function')rNeeds();
+        else if(v==='agenda'&&typeof rAgenda==='function')rAgenda();
+        else if(v==='posts'&&typeof rPosts==='function')rPosts();
+        else if(v==='facturation'&&typeof rFacturation==='function')rFacturation();
+        else if(v==='dash'&&typeof rDash==='function')rDash();
+      }catch(_){}
+    }
+  }
+}
+
+// Rafraîchissement combiné (candidats + partagé) lancé par les minuteurs
+function refreshAll(){
+  try{ refreshCandidates(); }catch(_){}
+  try{ refreshShared(); }catch(_){}
 }
 
 // ── Sync des CANDIDATS modifiés vers crm_candidats (une ligne chacun) ──
@@ -425,13 +654,15 @@ async function _doCandSync(){
      if(_candSnap[c.id]!==snap){ rows.push(_candRow(c)); _candSnap[c.id]=snap; }
    }
    if(rows.length){
-     const {error}=await sb.from('crm_candidats').upsert(rows,{onConflict:'id'});
-     if(error)throw error;
+     await _sbUpsertChunked(sb,'crm_candidats',rows,'id');
    }
    // Suppressions : présents dans l'empreinte mais plus dans DB.candidates
    const toDel=Object.keys(_candSnap).filter(id=>!seen[id]);
    if(toDel.length){
-     await sb.from('crm_candidats').delete().in('id',toDel);
+     for(const batch of _chunk(toDel,500)){
+       const {error}=await sb.from('crm_candidats').delete().in('id',batch);
+       if(error)throw error;
+     }
      toDel.forEach(id=>delete _candSnap[id]);
    }
    _syncOk();
@@ -779,7 +1010,7 @@ loadTheme();
 setInterval(_tickClocks,1000);_tickClocks();
 
 // ── save() = cache local immédiat + cloud en arrière-plan ──
-// Pousse les données partagées (crm_data) ET les candidats modifiés (crm_candidats).
+// Pousse les données partagées (crm_records) ET les candidats modifiés (crm_candidats).
 function save(){
  saveLocal();
  syncToSupabase();
@@ -789,35 +1020,21 @@ function save(){
 // ── Chargement complet depuis le cloud (partagé + candidats) ──
 async function loadAllFromCloud(){
  const sb=getSB(); if(!sb) return false;
- // 1. Données partagées (entreprises, besoins, agenda, posts, factures, règles)
- try{
-   const {data,error}=await sb.from('crm_data').select('data').eq('id',AGENCY_DATA_ROW).maybeSingle();
-   if(!error && data && data.data){
-     const shared = typeof data.data==='string' ? JSON.parse(data.data) : data.data;
-     if(shared){
-       DB.companies   = shared.companies   || [];
-       DB.needs       = shared.needs       || [];
-       DB.agenda      = shared.agenda      || [];
-       DB.posts       = shared.posts       || [];
-       DB.invoices    = shared.invoices    || [];
-       DB.email_rules = shared.email_rules || [];
-     }
-   }
- }catch(e){ console.warn('[load] données partagées:',e); }
+ // 1. Données partagées — désormais lignes individuelles (crm_records)
+ try{ await loadSharedRecords(); }catch(e){ console.warn('[load] partagé:',e); }
  // 2. Candidats (table dédiée — une ligne chacun)
  try{ await loadCandidates(); }catch(e){ console.warn('[load] candidats:',e); }
  try{ window.DB=DB; }catch(_){}
  saveLocal();
- // 3. Rafraîchissement périodique sûr (remplace l'ancien minuteur destructeur)
- if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshCandidates, 60000);
+ // 3. Rafraîchissement périodique sûr (candidats + partagé)
+ if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshAll, 60000);
  return true;
 }
 
 // Charge tous les candidats depuis crm_candidats dans DB.candidates.
 async function loadCandidates(){
  const sb=getSB(); if(!sb)return;
- const {data,error}=await sb.from('crm_candidats').select('data,updated_at').order('updated_at',{ascending:false});
- if(error)throw error;
+ const data=await _sbSelectAll(()=>sb.from('crm_candidats').select('data,updated_at').order('updated_at',{ascending:false}));
  const rows=(data||[]).filter(r=>r && r.data);
  const list=rows.map(r=> typeof r.data==='string'?JSON.parse(r.data):r.data ).filter(Boolean);
  DB.candidates=list;
@@ -839,9 +1056,7 @@ async function refreshCandidates(){
  //    complet que des fiches réellement nouvelles ou modifiées côté serveur.
  let metas;
  try{
-   const r=await sb.from('crm_candidats').select('id,updated_at').order('updated_at',{ascending:false});
-   if(r.error)throw r.error;
-   metas=r.data||[];
+   metas=await _sbSelectAll(()=>sb.from('crm_candidats').select('id,updated_at').order('updated_at',{ascending:false}));
  }catch(e){ console.warn('[refresh] empreintes candidats:',e); return; }
 
  const toFetch=[];
@@ -853,11 +1068,13 @@ async function refreshCandidates(){
  }
  if(!toFetch.length) return; // rien de neuf → zéro téléchargement
 
- let rows;
+ let rows=[];
  try{
-   const r=await sb.from('crm_candidats').select('data,updated_at').in('id', toFetch);
-   if(r.error)throw r.error;
-   rows=r.data||[];
+   for(const batch of _chunk(toFetch,500)){
+     const r=await sb.from('crm_candidats').select('data,updated_at').in('id', batch);
+     if(r.error)throw r.error;
+     rows.push(...(r.data||[]));
+   }
  }catch(e){ console.warn('[refresh] contenu candidats:',e); return; }
 
  let changed=false;
@@ -947,7 +1164,7 @@ async function load(){
    // Le cache local est déjà chargé ci-dessus ; les fiches arriveront au
    // prochain refresh dès que le cloud répond.
    await _withTimeout(loadAllFromCloud(), 9000, false);
-   if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshCandidates, 60000);
+   if(!_candRefreshTimer) _candRefreshTimer=setInterval(refreshAll, 60000);
    if(typeof rDash==='function')rDash();
    if(typeof badges==='function')badges();
    const ind=document.getElementById('sync-ind');
@@ -1059,6 +1276,36 @@ const cById=(id)=>DB.candidates.find(c=>c.id===id);
 const coById=(id)=>DB.companies.find(c=>c.id===id);
 const nById=(id)=>DB.needs.find(n=>n.id===id);
 const agById=(id)=>DB.agenda.find(a=>a.id===id);
+
+// ══════════════════════════════════════════════════════════════════
+// RELATION CANDIDAT ↔ BESOINS (plusieurs-à-plusieurs)
+// ------------------------------------------------------------------
+// Avant : un candidat n'avait qu'UN seul besoin (champ scalaire
+//   `linked_need`) → lier un 2e besoin écrasait le 1er. Absurde en
+//   recrutement (un profil peut coller à plusieurs postes/clients).
+// Après : `linked_needs` est un TABLEAU d'ids de besoins.
+// Compatibilité ascendante : l'ancien champ `linked_need` est lu
+//   automatiquement (et migré au 1er changement), donc aucune donnée
+//   existante n'est perdue.
+// ══════════════════════════════════════════════════════════════════
+function candNeedIds(c){
+  if(!c) return [];
+  if(Array.isArray(c.linked_needs)) return c.linked_needs.filter(Boolean);
+  if(c.linked_need) return [c.linked_need];   // ancien format scalaire → tableau
+  return [];
+}
+function isLinked(c,needId){ return !!needId && candNeedIds(c).indexOf(needId)>=0; }
+function candPrimaryNeedId(c){ const a=candNeedIds(c); return a.length?a[0]:null; }
+function candPrimaryNeed(c){ const id=candPrimaryNeedId(c); return id?nById(id):null; }
+function _setCandNeeds(c,ids){
+  c.linked_needs = Array.from(new Set((ids||[]).filter(Boolean)));
+  if('linked_need' in c) delete c.linked_need;   // on retire définitivement l'ancien champ
+}
+function linkCandNeed(c,needId){ if(!c||!needId) return; const s=candNeedIds(c); if(s.indexOf(needId)<0) s.push(needId); _setCandNeeds(c,s); }
+function unlinkCandNeed(c,needId){ if(!c) return; _setCandNeeds(c, candNeedIds(c).filter(x=>x!==needId)); }
+function toggleCandNeed(c,needId){ if(!c||!needId) return; if(isLinked(c,needId)) unlinkCandNeed(c,needId); else linkCandNeed(c,needId); }
+// Candidats rattachés à un besoin donné
+function candsForNeed(needId){ return (DB.candidates||[]).filter(c=>isLinked(c,needId)); }
 // Timezone-safe : compare des JOURNÉES locales, jamais des instants UTC.
 const isToday=(iso)=>!!iso&&dayKey(iso)===todayKey();
 const isTomorrow=(iso)=>!!iso&&dayKey(iso)===shiftDayKey(todayKey(),1);
@@ -1584,8 +1831,8 @@ function rDossiers(){
 
  <!-- Matching besoins -->
  ${(()=>{
- if(c.linked_need){
- const ln=DB.needs.find(n=>n.id===c.linked_need);
+ if(candPrimaryNeedId(c)){
+ const ln=candPrimaryNeed(c);
  const lco=ln?DB.companies.find(co=>co.id===ln.company_id):null;
  const score=ln?computeMatchScore(c,ln):0;
  const scoreClass=score>=75?'hi':score>=50?'med':'lo';
@@ -2263,7 +2510,7 @@ function candCard(c,st){
  <div class="cc-name">${esc(c.name)}${c.pepite?'':''}</div>
  <div class="cc-role">${esc(c.role||'—')}${c.salary?` · <span style="color:var(--ac2)">${fM(c.salary)}</span>`:''}
  </div>
- <div class="cc-row"><span class="tag ${cat.cls}">${cat.l}</span><span class="fs10 mu_">${esc(c.source||'')}</span>${c.linked_need?`<span class="fs10 ac5"></span>`:''}</div>
+ <div class="cc-row"><span class="tag ${cat.cls}">${cat.l}</span><span class="fs10 mu_">${esc(c.source||'')}</span>${candNeedIds(c).length?`<span class="fs10 ac5"></span>`:''}</div>
  <div class="cc-row"><span class="fs10 mu_">Docs${docs}/${DOCS_LIST.length}</span><span class="fs10 mu_">Màj:${fD(c.updated)}</span></div>
  ${st.nxt?`<div class="cc-nxt">${st.nxt}</div>`:''}
  </div>`;
@@ -2316,7 +2563,7 @@ function startPrecal(id){
  <div class="fgrp"><span class="lbl">Correspond à un besoin ?</span>
  <select id="pre-need">
  <option value="">— Pas de besoin correspondant</option>
- ${matchedNeeds.length?matchedNeeds.map(n=>`<option value="${n.id}" ${c.linked_need===n.id?'selected':''}>${esc(n.title)} — ${coById(n.company_id)?.name||'?'}</option>`).join(''):''}
+ ${matchedNeeds.length?matchedNeeds.map(n=>`<option value="${n.id}" ${candPrimaryNeedId(c)===n.id?'selected':''}>${esc(n.title)} — ${coById(n.company_id)?.name||'?'}</option>`).join(''):''}
  ${!matchedNeeds.length?`<option disabled>Aucun besoin ouvert en ${cat.l}</option>`:''}
  </select>
  </div>
@@ -2342,7 +2589,7 @@ function savePrecalThenInvite(id){
  c.avail=document.getElementById('pre-av').value;
  c.mobility=document.getElementById('pre-mob').value;
  c.notes_pre=document.getElementById('pre-notes').value;
- c.linked_need=document.getElementById('pre-need').value||null;
+ (function(){var _pn=document.getElementById('pre-need').value;if(_pn)linkCandNeed(c,_pn);})();
  c.pepite=document.getElementById('pre-profile').value==='pepite';
  c.status='precal';c.updated=now_();
  save();
@@ -2358,7 +2605,7 @@ function savePrecalStep1(id){
  c.avail=document.getElementById('pre-av').value;
  c.mobility=document.getElementById('pre-mob').value;
  c.notes_pre=notes;
- c.linked_need=document.getElementById('pre-need').value||null;
+ (function(){var _pn=document.getElementById('pre-need').value;if(_pn)linkCandNeed(c,_pn);})();
  c.pepite=document.getElementById('pre-profile').value==='pepite';
  c.status='precal';c.updated=now_();
  save();
@@ -2585,7 +2832,7 @@ function renderCPProfil(c){
  <div class="sl">Statut pipeline <span><button class="btn bg bxs" onclick="openStatusTree('${c.id}')">Voir pipeline</button></span></div>
  <div class="st-sel">${CAND_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCS('${c.id}','${s.id}')">${s.l}</div>`).join('')}</div>
  <div class="sl">Matchage besoin</div>
- <div class="flex fw" style="gap:4px">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn bxs ${c.linked_need===n.id?'bp':'bg'}" onclick="toggleNeedLink('${c.id}','${n.id}')">${c.linked_need===n.id?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>`;
+ <div class="flex fw" style="gap:4px">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn bxs ${isLinked(c,n.id)?'bp':'bg'}" onclick="toggleNeedLink('${c.id}','${n.id}')">${isLinked(c,n.id)?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>`;
 }
 
 // TAB 1 — ENTRETIEN
@@ -2831,7 +3078,7 @@ function rNeeds(){
 function needCard(n){
  const co=coById(n.company_id);
  const cat=getCat(n.cat);
- const cands=DB.candidates.filter(c=>c.linked_need===n.id);
+ const cands=candsForNeed(n.id);
  const NST=[{id:'open',l:'Ouvert',p:'ppre'},{id:'sent',l:'CV envoyés',p:'pdos'},{id:'interview',l:'Entretiens',p:'pvis'},{id:'won',l:'Placé',p:'pplac'},{id:'lost',l:'Perdu',p:'pko'}];
  const st=NST.find(s=>s.id===n.status)||NST[0];
  const ucls={h:'var(--ac3)',m:'var(--ac4)',l:'var(--mu2)'}[n.urgency]||'var(--mu2)';
@@ -3102,7 +3349,7 @@ function deleteSelectedPros(){
  openMo(`Supprimer ${n} prospect(s) ?`,
  `<div style="font-size:12px;color:var(--mu)">Cette action est irréversible.</div>`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button>
- <button class="btn bd_" onclick="(()=>{DB.companies=DB.companies.filter(c=>!_proSelected.has(c.id));_proSelected.clear();_proSelectMode=false;save();closeMo();rPros();badges();toast('${n} supprimé(s)','w');})()">Supprimer ${n}</button>`
+ <button class="btn bd_" onclick="(()=>{[..._proSelected].forEach(id=>_doDeleteCompany(id));_proSelected.clear();_proSelectMode=false;save();closeMo();rPros();badges();toast('${n} supprimé(s)','w');})()">Supprimer ${n}</button>`
 );
 }
 
@@ -3685,7 +3932,7 @@ function rClients(){
  ${clients.length?`<div class="g3">${clients.map(c=>{
  const cat=getCat(c.cat);
  const needs=DB.needs.filter(n=>n.company_id===c.id);
- const placed=DB.candidates.filter(x=>x.linked_need&&needs.find(n=>n.id===x.linked_need)&&x.status==='placed').length;
+ const placed=DB.candidates.filter(x=>x.status==='placed'&&candNeedIds(x).some(id=>needs.find(n=>n.id===id))).length;
  const openNeeds=needs.filter(n=>n.status==='open').length;
  const lastTl=c.timeline&&c.timeline[0]?c.timeline[0]:null;
  const daysSince=lastTl?Math.floor((Date.now()-new Date(lastTl.date))/86400000):null;
@@ -4412,7 +4659,7 @@ function openCandPanel(id){
  <div class="sl">Statut <span><button class="btn bg bxs" onclick="openStatusMo('cand','${id}')">Changer →</button></span></div>
  <div class="st-sel">${CAND_ST.map(s=>`<div class="st-btn ${s.id===c.status?'cur':''}" onclick="setCS('${id}','${s.id}')">${s.l}</div>`).join('')}</div>
  <div class="sl mt12">Matchage besoin</div>
- <div class="flex fg5 fw">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn ${c.linked_need===n.id?'bp':'bg'} bxs" onclick="toggleLink('${id}','${n.id}')">${c.linked_need===n.id?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>
+ <div class="flex fg5 fw">${DB.needs.filter(n=>n.status==='open').map(n=>`<button class="btn ${isLinked(c,n.id)?'bp':'bg'} bxs" onclick="toggleLink('${id}','${n.id}')">${isLinked(c,n.id)?'✓ ':''} ${esc(n.title)}</button>`).join('')||'<span class="mu_ fs10">Aucun besoin ouvert</span>'}</div>
  ${renderLinkedAgenda('cand',id)}`,
  // 1 FICHIERS — rendered via renderCPFichiers
  renderCPFichiers(c),
@@ -4483,7 +4730,7 @@ function openCoPanel(id){
  ${needs.length?`
  <div class="sl">Besoins en cours <span><button class="btn bp bxs" onclick="setCoTab(1,'${id}')">Voir tous →</button></span></div>
  ${needs.filter(n=>n.status==='open').slice(0,3).map(n=>{
- const ns=getNS(n.status);const matched=DB.candidates.filter(cx=>cx.linked_need===n.id).length;
+ const ns=getNS(n.status);const matched=candsForNeed(n.id).length;
  return`<div class="nc u${n.urgency||'l'} mb8" onclick="openNeedPanel('${n.id}')" style="cursor:pointer">
  <div class="nc-t" style="font-size:12px">${esc(n.title)}</div>
  <div class="nc-ft">
@@ -4498,7 +4745,7 @@ function openCoPanel(id){
  ${renderLinkedAgenda('co',id)}`,
  // 1 BESOINS
  `<div class="flex fjb fac mb8"><span class="fs11">${needs.length} besoin(s)</span><button class="btn bp bxs" onclick="openNeedForm('${id}')">+ Besoin</button></div>
- ${needs.map(n=>{const ns=getNS(n.status);const matched=DB.candidates.filter(cx=>cx.linked_need===n.id).length;return`<div class="nc u${n.urgency||'l'} mb8" onclick="openNeedPanel('${n.id}')"><div class="nc-t">${esc(n.title)}</div><div class="nc-ft"><span class="pill ppre">${ns.l}</span><span class="fs10 mu_">${esc(n.location||'')}</span><span class="fs10 mu_ ml-auto" style="margin-left:auto">${matched}</span></div></div>`;}).join('')||'<div class="mu_ fs11">Aucun besoin</div>'}`,
+ ${needs.map(n=>{const ns=getNS(n.status);const matched=candsForNeed(n.id).length;return`<div class="nc u${n.urgency||'l'} mb8" onclick="openNeedPanel('${n.id}')"><div class="nc-t">${esc(n.title)}</div><div class="nc-ft"><span class="pill ppre">${ns.l}</span><span class="fs10 mu_">${esc(n.location||'')}</span><span class="fs10 mu_ ml-auto" style="margin-left:auto">${matched}</span></div></div>`;}).join('')||'<div class="mu_ fs11">Aucun besoin</div>'}`,
  // 2 TIMELINE
  `<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center">
  <span class="fs10 mu_">${tl.length} interaction(s)</span>
@@ -4521,7 +4768,7 @@ function openNeedPanel(id){
  const n=nById(id);if(!n)return;
  const co=coById(n.company_id);
  const cat=getCat(n.cat);
- const matched=DB.candidates.filter(c=>c.linked_need===id);
+ const matched=candsForNeed(id);
  const NST=[{id:'open',l:'Ouvert'},{id:'sent',l:'CV envoyés'},{id:'interview',l:'Entretiens'},{id:'won',l:'Placé'},{id:'lost',l:'Perdu'}];
  const tabs=['Détail','Candidats'].map((t,i)=>`<div class="ptab ${i===UI.ptab?'act':''}" onclick="setPTab(${i})">${t}</div>`).join('');
  const B=[
@@ -4540,7 +4787,7 @@ function openNeedPanel(id){
  `<div class="flex fjb fac mb8"><span class="fs11">${matched.length} candidat(s) matchés</span><button class="btn bp bxs" onclick="findForNeed('${id}')"> Trouver</button></div>
  ${matched.map(c=>{const cs=getCS(c.status);return`<div class="aitem" onclick="openCandPanel('${c.id}')"><span class="pill ${cs.p}">${cs.l}</span><span style="flex:1">${esc(c.name)}</span><span class="mu_ fs10">${fM(c.salary)}</span><button class="btn bd_ bxs" onclick="event.stopPropagation();toggleLink('${c.id}','${id}')">×</button></div>`;}).join('')||'<div class="mu_ fs11">Aucun candidat lié</div>'}
  <div class="sl mt12">Lier un candidat</div>
- <select id="nc-sel" style="margin-bottom:7px"><option value="">Choisir…</option>${DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==id).map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.role||'')}</option>`).join('')}</select>
+ <select id="nc-sel" style="margin-bottom:7px"><option value="">Choisir…</option>${DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&!isLinked(c,id)).map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.role||'')}</option>`).join('')}</select>
  <button class="btn bp bsm" onclick="linkFromSel('${id}')">Lier</button>`,
  ];
  const acts=`<button class="btn bp bsm" onclick="openNeedForm('${n.company_id||''}','${id}')">✎ Modifier</button><button class="btn bd_ bsm" onclick="delNeed('${id}')"></button>`;
@@ -4815,13 +5062,61 @@ function updJobOpts(){
  const el=document.getElementById('cf-role');
  if(el)el.innerHTML=jobs.map(j=>`<option>${esc(j)}</option>`).join('');
 }
+// ══════════════════════════════════════════════════════════════════
+// GARDE-FOU ANTI-DOUBLON à la création manuelle (candidat / entreprise)
+// Détecte une fiche très probablement identique (même email, téléphone
+// ou nom) et laisse choisir : ouvrir l'existante ou créer quand même.
+// Ne bloque jamais une création légitime.
+// ══════════════════════════════════════════════════════════════════
+let _pendingNew=null;
+const _dupPhone=(s)=>String(s||'').replace(/[\s.\-()]/g,'');
+const _dupTxt=(s)=>String(s||'').trim().toLowerCase();
+function _dupCandidate(data){
+  const em=_dupTxt(data.email), ph=_dupPhone(data.phone), nm=_dupTxt(data.name);
+  return (DB.candidates||[]).find(c=>{
+    if(em && _dupTxt(c.email)===em) return true;
+    if(ph && ph.length>=6 && _dupPhone(c.phone)===ph) return true;
+    if(nm && _dupTxt(c.name)===nm) return true;
+    return false;
+  });
+}
+function _dupCompany(data){
+  const ph=_dupPhone(data.phone), nm=_dupTxt(data.name);
+  return (DB.companies||[]).find(c=>{
+    if(nm && _dupTxt(c.name)===nm) return true;
+    if(ph && ph.length>=6 && _dupPhone(c.phone)===ph) return true;
+    return false;
+  });
+}
+function _warnDup(kind,dup){
+  const label=kind==='cand'?'candidat':'entreprise';
+  const openFn=kind==='cand'?`openCandPanel('${dup.id}')`:`openCoPanel('${dup.id}')`;
+  const extra=[dup.email,dup.phone].filter(Boolean).map(esc).join(' · ');
+  openMo('Doublon possible',
+    `<div style="font-size:12px;color:var(--mu);line-height:1.6">Une fiche ${label} ressemble déjà à celle-ci :<br><strong>${esc(dup.name)}</strong>${extra?'<br>'+extra:''}.<br><br>Que veux-tu faire ?</div>`,
+    `<button class="btn bg" onclick="_pendingNew=null;closeMo()">Annuler</button>
+     <button class="btn bp" onclick="_pendingNew=null;closeMo();${openFn}">Ouvrir l'existante</button>
+     <button class="btn bd_" onclick="_forceCreatePending()">Créer quand même</button>`);
+}
+function _forceCreatePending(){
+  if(!_pendingNew) return;
+  const k=_pendingNew.kind, data=_pendingNew.data; _pendingNew=null;
+  data.id=uid(); data.created=now_();
+  if(k==='cand'){ data.docs=data.docs||[]; DB.candidates.unshift(data); if(typeof autoAg==='function')autoAg(data); }
+  else { DB.companies.unshift(data); }
+  save(); closeMo();
+  if(k==='cand'){ if(UI.view==='cands')rCands(); else if(UI.view==='dash')rDash(); }
+  else { if(UI.view==='pros')rPros(); else if(UI.view==='clients')rClients(); }
+  badges(); toast(k==='cand'?'Candidat ajouté ✓':'Ajouté ✓','s');
+}
+
 function saveCandForm(id){
  const name=document.getElementById('cf-n').value.trim();
  if(!name){toast('Nom requis','e');return;}
  const n=now_();
  const data={name,siret:document.getElementById('cof-siret')?.value?.trim()||'',cat:document.getElementById('cf-cat').value,role:document.getElementById('cf-role').value,salary:document.getElementById('cf-sal').value,phone:document.getElementById('cf-ph').value,email:document.getElementById('cf-em').value,source:document.getElementById('cf-src').value,status:document.getElementById('cf-st').value,avail:document.getElementById('cf-av').value,mobility:document.getElementById('cf-mob').value,notes_pre:document.getElementById('cf-npre').value,notes:document.getElementById('cf-notes').value,pepite:document.getElementById('cf-pep').checked,updated:n};
  if(id){const c=cById(id);Object.assign(c,data);}
- else{data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
+ else{const dup=_dupCandidate(data);if(dup){_pendingNew={kind:'cand',data};_warnDup('cand',dup);return;}data.id=uid();data.created=n;data.docs=[];DB.candidates.unshift(data);autoAg(data);}
  save();closeMo();
  if(id&&UI.pid===id)openCandPanel(id);
  if(UI.view==='cands')rCands();else if(UI.view==='dash')rDash();
@@ -4897,7 +5192,7 @@ function saveCoForm(id,ft){
  const n=now_();
  const data={name,contact:document.getElementById('cof-ct').value,ctitle:document.getElementById('cof-ctt').value,phone:document.getElementById('cof-ph').value,email:document.getElementById('cof-em').value,city:document.getElementById('cof-city').value,size:document.getElementById('cof-sz').value,cat:document.getElementById('cof-cat').value,status:document.getElementById('cof-st').value,source:document.getElementById('cof-src').value,notes:document.getElementById('cof-notes').value,marge:document.getElementById('cof-marge')?.value||'',type:ft,updated:n};
  if(id){const c=coById(id);Object.assign(c,data);}
- else{data.id=uid();data.created=n;DB.companies.unshift(data);}
+ else{const dup=_dupCompany(data);if(dup){_pendingNew={kind:'co',data};_warnDup('co',dup);return;}data.id=uid();data.created=n;DB.companies.unshift(data);}
  save();closeMo();
  if(id&&UI.pid===id)openCoPanel(id);
  if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();else if(UI.view==='dash')rDash();
@@ -5005,7 +5300,7 @@ function setCS(id,st){
  const existing=(DB.invoices||[]).find(inv=>inv.cand_id===id);
  if(!existing){
  setTimeout(()=>{
- const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const need=candPrimaryNeed(c);
  const co=need?coById(need.company_id):null;
  toast(`Créer la facture pour ${c.name} ?`,'i');
  openMo('Facturation — Placement confirmé',`
@@ -5041,7 +5336,7 @@ function setCS(id,st){
 }
 function setCmpS(id,st){const c=coById(id);if(!c)return;c.status=st;c.updated=now_();save();if(UI.pid===id)openCoPanel(id);if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast(`→ ${getCmpS(st).l}`,'s');}
 function setNS(id,st){const n=nById(id);if(!n)return;n.status=st;n.updated=now_();save();if(UI.pid===id)openNeedPanel(id);rNeeds();badges();toast(`→ ${st}`,'s');}
-function toggleLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(c.linked_need?'Candidat lié ✓':'Lien supprimé','s');}
+function toggleLink(candId,needId){const c=cById(candId);if(!c)return;toggleCandNeed(c,needId);c.updated=now_();save();if(UI.pid===candId)openCandPanel(candId);else if(UI.pid===needId)openNeedPanel(needId);rCands();toast(isLinked(c,needId)?'Candidat lié ✓':'Lien retiré','s');}
 function linkFromSel(needId){const sel=document.getElementById('nc-sel');if(!sel||!sel.value)return;toggleLink(sel.value,needId);}
 function togDoc(id,doc,checked){const c=cById(id);if(!c)return;c.docs=c.docs||[];if(checked&&!c.docs.includes(doc))c.docs.push(doc);else if(!checked)c.docs=c.docs.filter(d=>d!==doc);c.updated=now_();save();rCands();}
 function saveIntNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('int-note-'+id);if(!el)return;c.notes_int=el.value;c.int_done=!!el.value;if(el.value)c.int_date=now_();c.updated=now_();save();toast('Synthèse sauvegardée ✓','s');}
@@ -5228,7 +5523,7 @@ function markIntDoneFromModal(candId){
  toast('Entretien marqué fait ✓','s');
 }
 function openStatusTree(id){openStatusMo('cand',id);}
-function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;c.linked_need=c.linked_need===needId?null:needId;c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(c.linked_need?'Besoin lié ✓':'Lien retiré','s');}
+function toggleNeedLink(candId,needId){const c=cById(candId);if(!c)return;toggleCandNeed(c,needId);c.updated=now_();save();if(UI.pid===candId)renderCandPanelTab(candId);toast(isLinked(c,needId)?'Besoin lié ✓':'Lien retiré','s');}
 function saveGNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
 // Alias — lit gen-note-{id} ou gnote-{id} selon le panel
 function saveGenNote(id){const c=cById(id);if(!c)return;const el=document.getElementById('gen-note-'+id)||document.getElementById('gnote-'+id);if(!el)return;c.notes=el.value;c.updated=now_();save();toast('Note sauvegardée ✓','s');}
@@ -5950,7 +6245,58 @@ function emailTpl(id){const c=cById(id);if(!c)return;const fn=greetCand(c);const
 function cpTpl(){const ta=document.querySelector('#mb textarea');if(!ta)return;navigator.clipboard.writeText(ta.value).then(()=>toast('Copié ✓','i'));}
 function genBoardTexts(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;const txt=`═ FRANCE TRAVAIL ═\nIntitulé: ${p.title}\nLocalisation: ${p.location||'—'}\nType: CDI\nSalaire: ${p.salary||'—'}\n\n${p.body||''}\n\n═ INDEED ═\n${p.title} | ${p.location||''}\n${p.salary||''}\n\n${(p.body||'').slice(0,280)}…\n\n═ LINKEDIN ═\nNous recrutons pour notre client : ${p.title}\n${p.location||'France'} | ${p.salary||'—'}\n\n${p.body||''}`;openMo('Textes adaptés',`<textarea style="min-height:220px;font-size:11px;line-height:1.6">${txt}</textarea>`,`<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="cpTpl()">Copier tout</button>`);}
 function togPostSt(id){const p=DB.posts.find(x=>x.id===id);if(!p)return;p.status=p.status==='active'?'closed':'active';p.updated=now_();save();openPostPanel(id);rPosts();toast(`Annonce ${p.status==='active'?'activée':'clôturée'}`,'s');}
-function findForNeed(needId){const n=nById(needId);if(!n)return;const cands=DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&c.linked_need!==needId);openMo('Candidats disponibles — '+n.title,`<div>${cands.length?cands.map(c=>`<div class="aitem">${esc(c.name)} <span class="mu_ fs10 flex" style="flex:1;margin-left:8px">${esc(c.role||'')}</span><button class="btn bp bxs" onclick="toggleLink('${c.id}','${needId}');closeMo()">Lier</button></div>`).join(''):'<div class="mu_ fs11">Aucun disponible dans cette catégorie</div>'}</div>`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
+// ══════════════════════════════════════════════════════════════════
+// VEILLE PROSPECTS — France Travail (entreprises BTP qui recrutent)
+// Câble le bouton « Trouver via FT » : recherche par département via
+// l'API /api/find-prospects, regroupe par entreprise, et permet
+// d'ajouter chaque société en prospect (avec dé-doublonnage par nom).
+// ══════════════════════════════════════════════════════════════════
+let _ftResults=[];
+function openBonnesBoites(){
+  let lastDept=''; try{ lastDept=localStorage.getItem('nv_ft_dept')||''; }catch(_){}
+  openMo('Trouver des prospects — France Travail',
+    `<div style="font-size:11px;color:var(--mu);line-height:1.6;margin-bottom:12px">Liste les entreprises BTP qui publient des offres sur France Travail dans un département. Ajoute chaque société en prospect en un clic.</div>
+     <div class="fg"><div class="fgrp"><span class="lbl">Département (ex. 69, 75, 13)</span><input id="ft-dept" value="${esc(lastDept)}" placeholder="69" maxlength="3"></div></div>
+     <div id="ft-results" style="margin-top:12px;max-height:46vh;overflow:auto"></div>`,
+    `<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="_runBonnesBoites()">Rechercher</button>`);
+}
+async function _runBonnesBoites(){
+  const apiBase=(typeof getApiBase==='function')?getApiBase():'';
+  const dept=(document.getElementById('ft-dept')?.value||'').trim();
+  const box=document.getElementById('ft-results');
+  if(!dept){ toast('Indique un département','e'); return; }
+  if(!apiBase){ if(box)box.innerHTML='<div class="mu_ fs11" style="color:var(--ac3)">Connecte le CRM au serveur pour utiliser cette fonction.</div>'; return; }
+  try{ localStorage.setItem('nv_ft_dept',dept); }catch(_){}
+  if(box)box.innerHTML='<div class="mu_ fs11">Recherche en cours…</div>';
+  try{
+    const resp=await fetch(apiBase+'/api/find-prospects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dept})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok){ if(box)box.innerHTML=`<div class="mu_ fs11" style="color:var(--ac3)">${esc(data.error||('Erreur HTTP '+resp.status))}</div>`; return; }
+    const offers=data.offers||[];
+    const byCo={};
+    offers.forEach(o=>{ if(!o.company)return; const k=o.company; if(!byCo[k]) byCo[k]={company:o.company,location:o.location||'',title:o.title||'',count:0}; byCo[k].count++; });
+    _ftResults=Object.values(byCo);
+    if(!_ftResults.length){ if(box)box.innerHTML='<div class="mu_ fs11">Aucune entreprise trouvée pour ce département.</div>'; return; }
+    if(box)box.innerHTML=_ftResults.map((r,i)=>{
+      const exists=DB.companies.some(c=>c.name&&c.name.toLowerCase()===r.company.toLowerCase());
+      return `<div class="aitem" style="align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:12px">${esc(r.company)}</div>
+        <div class="mu_ fs10">${esc(r.location)} · ${r.count} offre(s)${r.title?' · '+esc(r.title):''}</div></div>
+        ${exists?'<span class="mu_ fs10">déjà en base</span>':`<button class="btn bp bxs" onclick="_addProspectFromFT(${i},this)">+ Prospect</button>`}</div>`;
+    }).join('');
+  }catch(e){ if(box)box.innerHTML=`<div class="mu_ fs11" style="color:var(--ac3)">${esc(e.message||'Erreur réseau')}</div>`; }
+}
+function _addProspectFromFT(i,btn){
+  const r=(_ftResults||[])[i]; if(!r) return;
+  if(DB.companies.some(c=>c.name&&c.name.toLowerCase()===r.company.toLowerCase())){ if(btn)btn.outerHTML='<span class="mu_ fs10">déjà en base</span>'; toast('Déjà en base','w'); return; }
+  const co={id:uid(),name:r.company,type:'prospect',status:'tocall',source:'France Travail',city:r.location||'',notes:r.title?('Recrute : '+r.title):'',created:now_(),updated:now_()};
+  DB.companies.unshift(co); save();
+  if(btn) btn.outerHTML='<span class="ac2 fs10">✓ ajouté</span>';
+  toast(`${r.company} ajouté en prospect`,'s'); badges();
+  if(UI.view==='pros')rPros();
+}
+
+function findForNeed(needId){const n=nById(needId);if(!n)return;const cands=DB.candidates.filter(c=>c.cat===n.cat&&!['ko','placed'].includes(c.status)&&!isLinked(c,needId));openMo('Candidats disponibles — '+n.title,`<div>${cands.length?cands.map(c=>`<div class="aitem">${esc(c.name)} <span class="mu_ fs10 flex" style="flex:1;margin-left:8px">${esc(c.role||'')}</span><button class="btn bp bxs" onclick="toggleLink('${c.id}','${needId}');closeMo()">Lier</button></div>`).join(''):'<div class="mu_ fs11">Aucun disponible dans cette catégorie</div>'}</div>`,`<button class="btn bg" onclick="closeMo()">Fermer</button>`);}
 function openStatusMo(type,id){
  if(type==='co'){
  openMo('Pipeline Prospect — Arbre de décision',`
@@ -6240,16 +6586,28 @@ function delCand(id){
  openMo('Supprimer ce candidat ?',`<div style="font-size:12px;color:var(--mu);line-height:1.6">Voulez-vous vraiment supprimer <strong>${esc(c.name)}</strong> ?<br>Cette action est irréversible.</div>`,
  `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="DB.candidates=DB.candidates.filter(x=>x.id!=='${id}');save();closePanel();closeMo();rCands();badges();toast('${esc(c.name)} supprimé','w')">Supprimer</button>`);
 }
+// Suppression d'une entreprise AVEC nettoyage en cascade (ne sauvegarde pas) :
+// supprime ses besoins, delie ces besoins des candidats, et detache les
+// evenements d'agenda qui la referencent. Evite toute donnee orpheline.
+function _doDeleteCompany(id){
+  const needIds=(DB.needs||[]).filter(n=>n.company_id===id).map(n=>n.id);
+  if(needIds.length){
+    (DB.candidates||[]).forEach(c=>{ needIds.forEach(nid=>{ if(isLinked(c,nid)){ unlinkCandNeed(c,nid); c.updated=now_(); } }); });
+  }
+  DB.needs=(DB.needs||[]).filter(n=>n.company_id!==id);
+  (DB.agenda||[]).forEach(a=>{ if(a.comp_id===id) a.comp_id=null; });
+  DB.companies=(DB.companies||[]).filter(x=>x.id!==id);
+}
 function delCo(id){
  const c=coById(id);if(!c)return;
  openMo(`Supprimer ${esc(c.name)} ?`,`<div style="font-size:12px;color:var(--mu);line-height:1.6">Voulez-vous vraiment supprimer <strong>${esc(c.name)}</strong> ?<br>Cette action est irréversible.</div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.companies=DB.companies.filter(x=>x.id!=='${id}');save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');})()">Supprimer</button>`);
+ `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{_doDeleteCompany('${id}');save();closePanel();closeMo();if(UI.view==='pros')rPros();else if(UI.view==='clients')rClients();badges();toast('Supprimé','w');})()">Supprimer</button>`);
 }
 function delCoConfirm(id){delCo(id);}
 function delNeed(id){
  const n=nById(id);if(!n)return;
  openMo(`Supprimer ce besoin ?`,`<div style="font-size:12px;color:var(--mu);line-height:1.6">Supprimer <strong>${esc(n.title)}</strong> ?<br>Cette action est irréversible.</div>`,
- `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.needs=DB.needs.filter(x=>x.id!=='${id}');DB.candidates.forEach(c=>{if(c.linked_need==='${id}')c.linked_need=null;});save();closePanel();closeMo();rNeeds();badges();toast('Besoin supprimé','w');})()">Supprimer</button>`);
+ `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bd_" onclick="(()=>{DB.needs=DB.needs.filter(x=>x.id!=='${id}');DB.candidates.forEach(c=>{if(isLinked(c,'${id}'))unlinkCandNeed(c,'${id}');});save();closePanel();closeMo();rNeeds();badges();toast('Besoin supprimé','w');})()">Supprimer</button>`);
 }
 function delAg(id){const a=agById(id);const co=a&&a.comp_id,ca=a&&a.cand_id;DB.agenda=DB.agenda.filter(a=>a.id!==id);save();if(typeof rAgenda==='function'&&UI.view==='agenda')rAgenda();badges();if(UI.view==='dash')rDash();if(UI.ptype==='co'&&co===UI.pid)openCoPanel(UI.pid);else if(UI.ptype==='cand'&&ca===UI.pid)openCandPanel(UI.pid);else closePanel();toast('Événement supprimé','w');}
 function delPost(id){DB.posts=DB.posts.filter(p=>p.id!==id);save();closePanel();rPosts();toast('Supprimé','w');}
@@ -8512,8 +8870,8 @@ document.addEventListener('visibilitychange', ()=>{
   if(_candRefreshTimer){ clearInterval(_candRefreshTimer); _candRefreshTimer=null; }
  }else{
   if(!_candRefreshTimer && getSB()){
-   _candRefreshTimer=setInterval(refreshCandidates, 60000);
-   try{ refreshCandidates(); }catch(_){}
+   _candRefreshTimer=setInterval(refreshAll, 60000);
+   try{ refreshAll(); }catch(_){}
   }
  }
 });
@@ -8677,7 +9035,7 @@ function openContractModal(coId) {
      if(!cl.length) return '<div style="font-size:10px;color:var(--mu)">Aucun candidat lié à un besoin de ce client. Vous pourrez l\'associer après la signature.</div>';
      const cur=(ct.candidat_id)||cl[0].id;
      return '<select id="ct-candidat" style="width:100%;font-size:12px;padding:6px 8px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--tx)">'
-      +cl.map(c=>{const ln=c.linked_need?nById(c.linked_need):null;return '<option value="'+c.id+'"'+(c.id===cur?' selected':'')+'>'+esc(c.name)+(ln?' — '+esc(ln.title):'')+'</option>';}).join('')
+      +cl.map(c=>{const ln=candPrimaryNeed(c);return '<option value="'+c.id+'"'+(c.id===cur?' selected':'')+'>'+esc(c.name)+(ln?' — '+esc(ln.title):'')+'</option>';}).join('')
       +'</select><div style="font-size:9px;color:var(--mu2);margin-top:4px">Affiché automatiquement dans la pop-up de validation à la signature</div>';
    })()}
   </div>
@@ -9308,7 +9666,7 @@ function openInvoiceForm(candId){
   return;
  }
  const candOpts=cands.map(c=>{
-  const n=c.linked_need?DB.needs.find(nd=>nd.id===c.linked_need):null;
+  const n=candPrimaryNeed(c);
   const co=n?coById(n.company_id):null;
   return`<option value="${c.id}" ${c.id===candId?'selected':''}>${esc(c.name)}${co?' — '+esc(co.name):''}</option>`;
  }).join('');
@@ -9366,7 +9724,7 @@ function _invCandChanged(){
  const info=document.getElementById('nif-contract-info');
  if(!candId){if(info)info.style.display='none';return;}
  const c=cById(candId);if(!c)return;
- const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const need=candPrimaryNeed(c);
  const co=need?coById(need.company_id):null;
  if(c.salary){const el=document.getElementById('nif-sal');if(el)el.value=c.salary;}
  if(info){
@@ -9389,7 +9747,7 @@ function _invResetTaux(){
  const candId=document.getElementById('nif-cand')?.value;
  if(!candId)return;
  const c=cById(candId);if(!c)return;
- const need=c.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const need=candPrimaryNeed(c);
  const co=need?coById(need.company_id):null;
  const isCadre=document.getElementById('nif-cadre')?.value==='1';
  const exp=Number(document.getElementById('nif-exp')?.value||0);
@@ -9436,11 +9794,23 @@ function saveInvoiceForm(){
  closeMo();
 }
 
+// Connecteur du bouton « Créer la facture » (modale rapide après passage en « Placé »).
+// Lit le salaire + le taux saisis dans la modale et délègue à _createInvoice.
+function createInvoiceFromModal(candId){
+  const salEl=document.getElementById('inv-sal');
+  const tauxEl=document.getElementById('inv-taux');
+  const sal=parseFloat(salEl&&salEl.value)||0;
+  const taux=parseFloat(tauxEl&&tauxEl.value)|| (typeof getTauxHon==='function'?getTauxHon():12);
+  if(!sal){ toast('Renseigne le salaire brut annuel','e'); return; }
+  closeMo();
+  _createInvoice(candId, sal, taux, '', {});
+}
+
 function _createInvoice(candId,salary,taux,notes,extra){
  DB.invoices=DB.invoices||[];
  extra=extra||{};
  const c=cById(candId);
- const need=c?.linked_need?DB.needs.find(n=>n.id===c.linked_need):null;
+ const need=c?candPrimaryNeed(c):null;
  const co=need?coById(need.company_id):null;
  const amount=Math.round(Number(salary)*taux/100);
  const today=todayKey();
@@ -9996,7 +10366,7 @@ function savePrecalScriptAndPlan(id){
  // Matcher automatiquement avec un besoin si possible
  const matches=getTopMatches(id,1);
  if(matches.length&&matches[0].score>=60){
- c.linked_need=matches[0].need.id;
+ linkCandNeed(c,matches[0].need.id);
  save();
  toast(`Match auto : ${matches[0].co?.name||'?'} (${matches[0].score}%)`, 'i');
  }
@@ -10180,7 +10550,7 @@ function renderContractTab(co) {
 function candidatsForClient(coId) {
  const needIds = DB.needs.filter(n => n.company_id === coId).map(n => n.id);
  if (!needIds.length) return [];
- const cands = DB.candidates.filter(c => c.linked_need && needIds.includes(c.linked_need));
+ const cands = DB.candidates.filter(c => candNeedIds(c).some(id => needIds.includes(id)));
  // Tri : les plus avancés dans le process d'abord
  const rank = { presented: 0, interview: 1, dossier: 2, precal: 3, new: 4, entrant: 5, placed: 6, ko: 7 };
  return cands.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9));
@@ -10241,7 +10611,7 @@ function openContractValidationModal(coId) {
    <div style="display:flex;flex-direction:column;gap:6px">
     ${cands.map(c => {
       const cat = getCat(c.cat);
-      const ln = c.linked_need ? nById(c.linked_need) : null;
+      const ln = candPrimaryNeed(c);
       const checked = c.id === preselId;
       return `<label style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--s3);border:1.5px solid ${checked?'var(--ac)':'var(--bd)'};border-radius:var(--r2);cursor:pointer" onclick="_selectValidCand('${c.id}')">
         <input type="radio" name="valid-cand" value="${c.id}" ${checked?'checked':''} style="accent-color:var(--ac);width:15px;height:15px;flex-shrink:0">
@@ -10334,7 +10704,7 @@ function _emailContactToClient(coId, candId) {
  const co = coById(coId), cand = cById(candId);
  if (!co || !cand) return;
  const prenom = greetCo(co);
- const poste = (cand.linked_need && nById(cand.linked_need)) ? nById(cand.linked_need).title : (cand.poste || cand.title || 'le poste');
+ const poste = candPrimaryNeed(cand) ? candPrimaryNeed(cand).title : (cand.poste || cand.title || 'le poste');
  const subj = 'Coordonnées de votre candidat — ' + cand.name;
  const body = `Bonjour ${prenom || ''},\n\n`
   + `Nous vous remercions de votre confiance et sommes ravis de vous compter parmi les partenaires de NOVALEM.\n\n`
