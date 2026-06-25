@@ -267,7 +267,7 @@ async function nvBuildStruct(cand){
   const key = nvGetKey();
   let struct = null;
 
-  if (key) {
+  if (typeof aiReady === 'function' && aiReady()) {
     try { struct = await nvGenStructAI(cand, key); }
     catch (e) { console.warn('[NV] IA CV indispo, repli template :', e && e.message); }
   }
@@ -348,18 +348,7 @@ SORTIE : un objet JSON STRICT, sans markdown, exactement :
     (cv ? 'Anonymise et normalise ce CV en respectant strictement les règles.\n\n' : 'Construis un CV anonymisé à partir de ces informations.\n\n')
     + 'Contexte recruteur :\n' + ctx });
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-      'x-api-key': key,
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({ model: NV_AI_MODEL, max_tokens: NV_AI_MAX_TOK, system, messages: [{ role:'user', content }] }),
-  });
-  if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error((e.error && e.error.message) || ('HTTP ' + resp.status)); }
-  const data = await resp.json();
+  const data = await aiCall({ model: NV_AI_MODEL, max_tokens: NV_AI_MAX_TOK, system, messages: [{ role:'user', content }] });
   const raw = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   let parsed = null;
   try { parsed = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
