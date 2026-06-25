@@ -19,7 +19,7 @@
      3. Gestionnaire « En ligne » — voir / retirer ce qui est réellement publié.
 
    Réutilise tes helpers : openMo, closeMo, toast, esc, uid, now_, save,
-   getApiKey, getApiBase, getCat, BTP_CATS, DB, cfgGet, saveSharedConfig.
+   aiCall, aiReady, getApiBase, getCat, BTP_CATS, DB, cfgGet, saveSharedConfig.
    ════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -235,28 +235,13 @@
 
   // Appel IA principal
   async function generateAnnonceAI(post) {
-    const key = window.getApiKey ? getApiKey() : '';
-    if (!key) { toast('Clé API manquante — Réglages', 'e'); return null; }
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': key,
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 3000,
-        system: buildSystem(),
-        messages: [{ role: 'user', content: buildUserPayload(post) }],
-      }),
+    if (!(window.aiReady && aiReady())) { toast('IA indisponible (mode local) — déployez sur Vercel', 'e'); return null; }
+    const data = await aiCall({
+      model: MODEL,
+      max_tokens: 3000,
+      system: buildSystem(),
+      messages: [{ role: 'user', content: buildUserPayload(post) }],
     });
-    if (!resp.ok) {
-      const e = await resp.json().catch(() => ({}));
-      throw new Error(e.error?.message || `HTTP ${resp.status}`);
-    }
-    const data = await resp.json();
     const txt = data.content?.find((b) => b.type === 'text')?.text || data.content?.[0]?.text || '';
     const j = parseAiJson(txt);
     if (!j || !j.site_md) throw new Error('Réponse IA illisible — réessaie');
@@ -701,7 +686,7 @@
       `<button class="btn bg" onclick="closeMo()">Annuler</button>
        ${id ? `<button class="btn bd_" onclick="delPost('${id}')">Supprimer</button>` : ''}
        <button class="btn bg" onclick="savePostForm('${id || ''}',false)">Enregistrer</button>
-       ${window.getApiKey && getApiKey() ? `<button class="btn bp" onclick="savePostForm('${id || ''}',true)">Enregistrer & générer ✨</button>` : ''}`
+       ${window.aiReady && aiReady() ? `<button class="btn bp" onclick="savePostForm('${id || ''}',true)">Enregistrer & générer ✨</button>` : ''}`
     );
   };
 
