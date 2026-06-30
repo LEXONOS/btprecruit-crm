@@ -3138,6 +3138,7 @@ function renderProSub() {
  if (!el) return;
  if (proTab === 'active') renderProActive(el);
  else if (proTab === 'nobiz') renderProNobiz(el);
+ else if (proTab === 'accept_cv') renderProAcceptCv(el);
  else renderProRefused(el);
 }
 
@@ -3200,7 +3201,10 @@ function _sortPros(arr) {
 function renderProActive(el) {
  const today = new Date(); today.setHours(0, 0, 0, 0);
 
- let pros = DB.companies.filter(c => c.type === 'prospect' && !['nobiz', 'refused'].includes(c.status));
+ // 'accept_cv' est exclu : dès qu'une entreprise accepte de recevoir des CV,
+ // elle quitte la liste « À appeler / En cours » (et bascule dans l'onglet
+ // « ✉ Accepte CV » + la CVthèque) pour ne jamais être rappelée par erreur.
+ let pros = DB.companies.filter(c => c.type === 'prospect' && !['nobiz', 'refused', 'accept_cv'].includes(c.status));
 
  // Logique « NRP → jour suivant » : si NRP et date de rappel atteinte, repasse en à appeler
  pros.forEach(c => {
@@ -3402,11 +3406,52 @@ function renderProRefused(el) {
  </table>`;
 }
 
+// ── ACCEPTE CV TAB ─────────────────────────────────────
+// Entreprises qui ont accepté de recevoir des CV (statut 'accept_cv').
+// Elles ne sont plus dans la liste « À appeler » : on les retrouve ici
+// (et dans la CVthèque) pour ne jamais les rappeler par erreur.
+function renderProAcceptCv(el) {
+ const pros = DB.companies.filter(c => c.type === 'prospect' && c.status === 'accept_cv');
+ pros.sort((a, b) => new Date(b._accept_cv_date || b.updated || 0) - new Date(a._accept_cv_date || a.updated || 0));
+
+ el.innerHTML = `
+ <div style="padding:12px 0 8px;font-size:11px;color:var(--mu);line-height:1.7;border-bottom:1px solid var(--bd);margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+ <span style="flex:1;min-width:200px">✉ Entreprises qui acceptent de recevoir des CV. Retirées des appels pour éviter les doublons — envoyez-leur des profils depuis la <strong>CVthèque</strong>.</span>
+ <button class="btn bi bxs" onclick="go('cvtheque')" style="flex:0 0 auto">Ouvrir la CVthèque →</button>
+ </div>
+ <table class="tbl">
+ <thead><tr><th>Raison sociale</th><th>Ville</th><th>Email</th><th>Profils acceptés</th><th>Depuis le</th><th></th></tr></thead>
+ <tbody>
+ ${pros.length ? pros.map(c => {
+ const cats = (c._accept_cv_cats || []).map(id => getCat(id).l);
+ const catHtml = cats.length
+ ? cats.map(l => `<span style="font-size:9px;padding:1px 6px;background:rgba(201,137,26,.1);color:var(--ac4);border-radius:8px;margin-right:3px;white-space:nowrap">${esc(l)}</span>`).join('')
+ : '<span style="font-size:10px;color:var(--mu2)">Tous profils</span>';
+ return `<tr onclick="openProPopup('${c.id}')" style="cursor:pointer">
+ <td><strong>${esc(c.name)}</strong></td>
+ <td>${esc(c.city || '—')}</td>
+ <td style="font-size:11px">${esc(c.email || '—')}</td>
+ <td style="line-height:1.9">${catHtml}</td>
+ <td style="font-size:10px;color:var(--mu)">${fD(c._accept_cv_date || c.updated)}</td>
+ <td><button class="btn bi bxs" onclick="event.stopPropagation();resetPros('${c.id}')" title="Remettre dans la liste des prospects à appeler (retire de la CVthèque)">↺ Remettre</button></td>
+ </tr>`;
+ }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--mu);padding:24px">Aucune entreprise n'accepte encore de recevoir des CV.<br><span style="font-size:10px">Lors d'un appel, cliquez « Accepte de recevoir des CV » pour en ajouter ici.</span></td></tr>`}
+ </tbody>
+ </table>`;
+}
+
 function resetPros(id) {
  const c = coById(id);
  if (!c) return;
+ const wasAcceptCv = c.status === 'accept_cv';
  c.status = 'tocall'; c.nobiz_remind = null; c.next_call_date = null; c.updated = now_();
- save(); renderProSub(); toast(`${c.name} remis en liste ✓`, 's');
+ // Si l'entreprise revient en liste d'appels, elle quitte aussi la CVthèque
+ // (un seul état à la fois) — on nettoie donc les drapeaux « accepte CV ».
+ if (wasAcceptCv) {
+ c._accept_cv = false; c._accept_cv_cats = []; c._accept_cv_note = ''; c._accept_cv_date = null;
+ }
+ save(); renderProSub();
+ toast(`${c.name} remis en liste ✓${wasAcceptCv ? ' (retiré de la CVthèque)' : ''}`, 's');
 }
 
 // ═══════════════════════════════════════════════════════

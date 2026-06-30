@@ -70,3 +70,28 @@ de suite, mais :
 **Évolution recommandée** (quand le volume grandit) : uploader CV/CNI/permis directement vers
 Supabase Storage depuis le navigateur (comme `api/apply.js` le fait déjà pour les CV du site),
 ne stocker que les liens sur la fiche, et lire l'aperçu via une URL signée.
+
+## Prospection — entreprise « Accepte de recevoir des CV » qui restait dans les appels — CORRIGÉ
+**Symptôme :** après avoir mis un prospect en « Accepte de recevoir des CV » (email saisi + sauvegardé),
+l'entreprise **restait parfois dans la liste « À appeler / En cours »**, ce qui a conduit à rappeler
+la même personne — peu professionnel.
+
+**Causes (deux bugs cumulés) :** `public/js/crm-app.js`
+1. `renderProActive()` filtrait les prospects actifs avec `!['nobiz','refused']` — le statut
+   `accept_cv` n'était **pas exclu**, donc l'entreprise restait visible dans les appels.
+2. `renderProSub()` n'avait **aucune branche** pour le sous-onglet « ✉ Accepte CV » : le clic
+   retombait sur `renderProRefused()` → l'onglet affichait les **refus**, pas les entreprises
+   qui acceptent les CV.
+
+**Correctif :**
+- `renderProActive()` : `accept_cv` ajouté aux statuts exclus → l'entreprise quitte immédiatement
+  la liste d'appels dès qu'elle accepte les CV.
+- `renderProSub()` : nouvelle branche `accept_cv` → `renderProAcceptCv()`.
+- Nouvelle fonction `renderProAcceptCv()` : liste dédiée des entreprises qui acceptent les CV
+  (ville, email, types de profils acceptés, date), avec accès direct à la CVthèque et bouton
+  « ↺ Remettre » pour les renvoyer en liste d'appels.
+- `resetPros()` : « Remettre en liste » nettoie aussi les drapeaux `_accept_cv*` (un seul état
+  à la fois — l'entreprise quitte alors la CVthèque).
+
+**Résultat :** une entreprise qui accepte les CV → (1) disparaît des appels, (2) apparaît dans
+l'onglet « ✉ Accepte CV », (3) apparaît dans la CVthèque. Plus aucun risque de double appel.
