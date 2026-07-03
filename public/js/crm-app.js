@@ -390,7 +390,7 @@ function _syncErr(e){
 // ══════════════════════════════════════════════════════════════════
 
 // Collections partagées : nom logique (= colonne `collection`) → propriété de DB
-const SHARED_COLLECTIONS = ['companies','needs','agenda','posts','invoices','email_rules'];
+const SHARED_COLLECTIONS = ['companies','needs','agenda','posts','invoices','email_rules','pilotage_costs','pilotage_config'];
 
 let _sharedSnap = {};        // { "companies:<id>": jsonString } — dernier état persisté
 let _sharedUpdatedAt = {};   // { "companies:<id>": updated_at } — version cloud connue
@@ -436,6 +436,8 @@ function syncToSupabase(){
  clearTimeout(_syncTimer);
  _syncTimer=setTimeout(_doSharedSync,800);
 }
+// Force l'envoi immédiat (sans attendre les 800ms) — utilisé avant fermeture d'onglet
+function flushSharedSync(){ clearTimeout(_syncTimer); return _doSharedSync(); }
 async function _doSharedSync(){
   const sb=getSB(); if(!sb)return;
   try{
@@ -631,6 +633,8 @@ function syncCandidates(){
  clearTimeout(_candSyncTimer);
  _candSyncTimer=setTimeout(_doCandSync,800);
 }
+// Force l'envoi immédiat (sans attendre les 800ms) — utilisé avant fermeture d'onglet
+function flushCandSync(){ clearTimeout(_candSyncTimer); return _doCandSync(); }
 async function _doCandSync(){
  const sb=getSB(); if(!sb)return;
  try{
@@ -1331,11 +1335,11 @@ function go(v){
  document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('act',el.dataset.v===v));
  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
  document.getElementById('view-'+v).classList.add('active');
- const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting',facturation:'Facturation'};
+ const T={dash:'Dashboard',cands:'Candidats',needs:'Besoins',pros:'Prospects',clients:'Clients',agenda:'Agenda',posts:'Annonces',emails:'Emails',reporting:'Reporting',facturation:'Facturation',pilotage:'Pilotage'};
  document.getElementById('tbt').textContent=T[v]||v;
- const A={dash:'',facturation:`<button class="btn bp bsm" onclick="openInvoiceForm()">+ Facture</button>`,cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<button class="btn bg bsm" onclick="downloadCsvTemplate()">↓ Modèle</button><label class="btn bg bsm" style="cursor:pointer">↑ Import Excel / CSV<input type="file" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="importProspects(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`};
+ const A={dash:'',facturation:`<button class="btn bp bsm" onclick="openInvoiceForm()">+ Facture</button>`,cands:`<button class="btn bp bsm" onclick="openCandForm()">+ Candidat</button><label class="btn bg bsm" style="cursor:pointer">↑ CSV<input type="file" accept=".csv" style="display:none" onchange="importCandCsv(event)"></label>`,needs:`<button class="btn bp bsm" onclick="openNeedForm()">+ Besoin</button>`,pros:`<button class="btn bg bsm" onclick="downloadCsvTemplate()">↓ Modèle</button><label class="btn bg bsm" style="cursor:pointer">↑ Import Excel / CSV<input type="file" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="importProspects(event)"></label><button class="btn bp bsm" onclick="openCoForm()">+ Prospect</button>`,clients:``,agenda:`<button class="btn bp bsm" onclick="openAgForm()">+ Événement</button>`,posts:`<button class="btn bp bsm" onclick="openPostForm()">+ Annonce</button>`,pilotage:`<button class="btn bg bsm" onclick="openPilotageObjectifs()">⚙ Objectifs</button><button class="btn bg bsm" onclick="openPilotageCout()">+ Coût</button>`};
  document.getElementById('tba').innerHTML=A[v]||'';
- ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,cvtheque:rCVtheque,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting,facturation:rFacturation})[v]?.();
+ ({dash:rDash,cands:rCands,needs:rNeeds,pros:rPros,clients:rClients,cvtheque:rCVtheque,agenda:rAgenda,posts:rPosts,emails:rEmails,reporting:rReporting,facturation:rFacturation,pilotage:rPilotage})[v]?.();
  badges();
 }
 
@@ -5097,8 +5101,16 @@ function updJobOpts(){
 // Ne bloque jamais une création légitime.
 // ══════════════════════════════════════════════════════════════════
 let _pendingNew=null;
-const _dupPhone=(s)=>String(s||'').replace(/[\s.\-()]/g,'');
-const _dupTxt=(s)=>String(s||'').trim().toLowerCase();
+// Normalise un tel : vire espaces/points/tirets/parenthèses + ramène +33/0033 → 0
+const _dupPhone=(s)=>{
+  let v=String(s||'').replace(/[\s.\-()]/g,'');
+  v=v.replace(/^\+33/,'0').replace(/^0033/,'0');
+  return v;
+};
+// Normalise un texte : trim + minuscule + accents retirés + espaces multiples réduits
+const _dupTxt=(s)=>String(s||'').trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/\s+/g,' ');
 function _dupCandidate(data){
   const em=_dupTxt(data.email), ph=_dupPhone(data.phone), nm=_dupTxt(data.name);
   return (DB.candidates||[]).find(c=>{
@@ -5109,26 +5121,40 @@ function _dupCandidate(data){
   });
 }
 function _dupCompany(data){
-  const ph=_dupPhone(data.phone), nm=_dupTxt(data.name);
+  const ph=_dupPhone(data.phone), nm=_dupTxt(data.name), em=_dupTxt(data.email);
   return (DB.companies||[]).find(c=>{
     if(nm && _dupTxt(c.name)===nm) return true;
     if(ph && ph.length>=6 && _dupPhone(c.phone)===ph) return true;
+    if(em && _dupTxt(c.email)===em) return true;
     return false;
   });
 }
+const _DRAFT_KEY='novalem_pending_draft';
+function _persistDraft(){
+  try{
+    if(_pendingNew) localStorage.setItem(_DRAFT_KEY, JSON.stringify(_pendingNew));
+    else localStorage.removeItem(_DRAFT_KEY);
+  }catch(_){}
+}
 function _warnDup(kind,dup){
+  _persistDraft(); // sécurité : rien ne peut plus se perdre même si l'onglet plante ici
   const label=kind==='cand'?'candidat':'entreprise';
   const openFn=kind==='cand'?`openCandPanel('${dup.id}')`:`openCoPanel('${dup.id}')`;
   const extra=[dup.email,dup.phone].filter(Boolean).map(esc).join(' · ');
   openMo('Doublon possible',
     `<div style="font-size:12px;color:var(--mu);line-height:1.6">Une fiche ${label} ressemble déjà à celle-ci :<br><strong>${esc(dup.name)}</strong>${extra?'<br>'+extra:''}.<br><br>Que veux-tu faire ?</div>`,
-    `<button class="btn bg" onclick="_pendingNew=null;closeMo()">Annuler</button>
-     <button class="btn bp" onclick="_pendingNew=null;closeMo();${openFn}">Ouvrir l'existante</button>
+    `<button class="btn bg" onclick="_cancelPendingDup()">Annuler</button>
+     <button class="btn bp" onclick="_persistDraft();_pendingNew=null;_persistDraft();closeMo();${openFn}">Ouvrir l'existante</button>
      <button class="btn bd_" onclick="_forceCreatePending()">Créer quand même</button>`);
+}
+// Annuler = destructif (les infos tapées sont perdues) → on demande confirmation explicite
+function _cancelPendingDup(){
+  if(_pendingNew && !confirm('Cette fiche non enregistrée ("'+(_pendingNew.data.name||'')+'") va être définitivement perdue. Confirmer ?')) return;
+  _pendingNew=null; _persistDraft(); closeMo();
 }
 function _forceCreatePending(){
   if(!_pendingNew) return;
-  const k=_pendingNew.kind, data=_pendingNew.data; _pendingNew=null;
+  const k=_pendingNew.kind, data=_pendingNew.data; _pendingNew=null; _persistDraft();
   data.id=uid(); data.created=now_();
   if(k==='cand'){ data.docs=data.docs||[]; DB.candidates.unshift(data); if(typeof autoAg==='function')autoAg(data); }
   else { DB.companies.unshift(data); }
@@ -5136,6 +5162,20 @@ function _forceCreatePending(){
   if(k==='cand'){ if(UI.view==='cands')rCands(); else if(UI.view==='dash')rDash(); }
   else { if(UI.view==='pros')rPros(); else if(UI.view==='clients')rClients(); }
   badges(); toast(k==='cand'?'Candidat ajouté ✓':'Ajouté ✓','s');
+}
+// Au chargement de l'app : si un brouillon traîne (crash, fermeture d'onglet pendant
+// la popup doublon), on propose de le récupérer au lieu de le perdre en silence.
+function _checkRecoverableDraft(){
+  let raw; try{ raw=localStorage.getItem(_DRAFT_KEY); }catch(_){ return; }
+  if(!raw) return;
+  let pending; try{ pending=JSON.parse(raw); }catch(_){ localStorage.removeItem(_DRAFT_KEY); return; }
+  if(!pending||!pending.data) { localStorage.removeItem(_DRAFT_KEY); return; }
+  _pendingNew=pending;
+  const label=pending.kind==='cand'?'candidat':'entreprise';
+  openMo('Brouillon récupéré',
+    `<div style="font-size:12px;color:var(--mu);line-height:1.6">Une fiche ${label} n'avait pas été enregistrée (session précédente) :<br><strong>${esc(pending.data.name||'')}</strong><br>${[pending.data.email,pending.data.phone].filter(Boolean).map(esc).join(' · ')}<br><br>Tu veux la récupérer ?</div>`,
+    `<button class="btn bg" onclick="_pendingNew=null;_persistDraft();closeMo()">Supprimer le brouillon</button>
+     <button class="btn bp" onclick="_forceCreatePending()">Récupérer et enregistrer</button>`);
 }
 
 function saveCandForm(id){
@@ -6571,7 +6611,7 @@ function downloadCsvTemplate(){
 }
 
 
-function importCandCsv(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const lines=ev.target.result.trim().split('\n').filter(l=>l.trim());let n=0;lines.forEach(l=>{const cols=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));if(!cols[0])return;const c={id:uid(),name:cols[0],role:cols[1]||'',phone:cols[2]||'',email:cols[3]||'',source:cols[4]||'Import CSV',cat:'go',status:'entrant',docs:[],pepite:false,created:now_(),updated:now_()};DB.candidates.unshift(c);n++;});save();rCands();badges();toast(`${n} entrant(s) importés → onglet À trier`,'s');};r.readAsText(f,'UTF-8');}
+function importCandCsv(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const lines=ev.target.result.trim().split('\n').filter(l=>l.trim());let n=0,skipped=0;lines.forEach(l=>{const cols=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));if(!cols[0])return;const c={id:uid(),name:cols[0],role:cols[1]||'',phone:cols[2]||'',email:cols[3]||'',source:cols[4]||'Import CSV',cat:'go',status:'entrant',docs:[],pepite:false,created:now_(),updated:now_()};if(_dupCandidate(c)){skipped++;return;}DB.candidates.unshift(c);n++;});save();rCands();badges();toast(`${n} entrant(s) importés${skipped>0?` · ${skipped} doublon(s) ignoré(s)`:''} → onglet À trier`,'s');};r.readAsText(f,'UTF-8');}
 function importCandCSV(){
  // Programmatically trigger a hidden file input
  let inp=document.getElementById('_csv-cand-input');
@@ -9010,6 +9050,7 @@ function renderRep(){
   badges();
   initUserBadge();
   if(typeof updateConnIndicator==='function')updateConnIndicator();
+  setTimeout(()=>{ try{_checkRecoverableDraft();}catch(_){} }, 800);
  }catch(e){
   console.warn('[boot]', e);
  }finally{
@@ -9023,11 +9064,26 @@ function renderRep(){
 document.addEventListener('visibilitychange', ()=>{
  if(document.hidden){
   if(_candRefreshTimer){ clearInterval(_candRefreshTimer); _candRefreshTimer=null; }
+  // On force l'envoi immédiat de tout ce qui attendait les 800ms de debounce :
+  // sinon un changement d'onglet ou une mise en veille pendant cette fenêtre = perte silencieuse.
+  try{ flushSharedSync(); }catch(_){}
+  try{ flushCandSync(); }catch(_){}
  }else{
   if(!_candRefreshTimer && getSB()){
    _candRefreshTimer=setInterval(refreshAll, 60000);
    try{ refreshAll(); }catch(_){}
   }
+ }
+});
+// Si des modifs n'ont pas encore été confirmées synchronisées (timer encore actif),
+// on avertit avant de fermer l'onglet plutôt que de perdre en silence.
+window.addEventListener('beforeunload', (e)=>{
+ if(_syncTimer || _candSyncTimer){
+  try{ flushSharedSync(); }catch(_){}
+  try{ flushCandSync(); }catch(_){}
+  e.preventDefault();
+  e.returnValue='Des modifications sont en cours de synchronisation.';
+  return e.returnValue;
  }
 });
 
@@ -9699,6 +9755,196 @@ function computeHonoraireRate(co, isCadre, expYears){
   isCadre,
   geste:ct.geste?Number(ct.geste_val||0):0,
  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PILOTAGE — objectifs, discipline, coûts anticipés, calendrier de charge
+// ══════════════════════════════════════════════════════════════════
+function getPilotageConfig(){
+ DB.pilotage_config=DB.pilotage_config||[];
+ let c=DB.pilotage_config.find(x=>x.id==='main');
+ if(!c){
+  c={id:'main',dailyCalls:15,weeklyProspects:20,weeklyCandidatures:8,monthlyBudget:120,targetContract:5000,updated:now_()};
+  DB.pilotage_config.unshift(c);
+ }
+ return c;
+}
+function openPilotageObjectifs(){
+ const c=getPilotageConfig();
+ openMo('Objectifs pilotage',`
+ <div class="fg">
+ <div class="fgrp"><span class="lbl">Appels / jour</span><input id="pf-calls" type="number" value="${c.dailyCalls}"></div>
+ <div class="fgrp"><span class="lbl">Nouveaux prospects / semaine</span><input id="pf-pros" type="number" value="${c.weeklyProspects}"></div>
+ <div class="fgrp"><span class="lbl">Candidatures/dossiers envoyés / semaine</span><input id="pf-candid" type="number" value="${c.weeklyCandidatures}"></div>
+ <div class="fgrp"><span class="lbl">Budget mensuel dispo (€)</span><input id="pf-budget" type="number" value="${c.monthlyBudget}"></div>
+ <div class="fgrp"><span class="lbl">Objectif honoraires / 1er contrat (€)</span><input id="pf-target" type="number" value="${c.targetContract}"></div>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="savePilotageObjectifs()">Enregistrer</button>`);
+}
+function savePilotageObjectifs(){
+ const c=getPilotageConfig();
+ c.dailyCalls=Number(document.getElementById('pf-calls').value)||0;
+ c.weeklyProspects=Number(document.getElementById('pf-pros').value)||0;
+ c.weeklyCandidatures=Number(document.getElementById('pf-candid').value)||0;
+ c.monthlyBudget=Number(document.getElementById('pf-budget').value)||0;
+ c.targetContract=Number(document.getElementById('pf-target').value)||0;
+ c.updated=now_();
+ save();closeMo();rPilotage();toast('Objectifs mis à jour ✓','s');
+}
+function openPilotageCout(){
+ openMo('Ajouter un coût',`
+ <div class="fg">
+ <div class="fgrp ff"><span class="lbl">Libellé *</span><input id="pc-label" placeholder="Annonce Indeed Nice"></div>
+ <div class="fgrp"><span class="lbl">Montant (€) *</span><input id="pc-amount" type="number" step="0.01" placeholder="5"></div>
+ <div class="fgrp"><span class="lbl">Catégorie</span><select id="pc-cat"><option value="ads">Annonces (Indeed, etc)</option><option value="tools">Outils / SaaS</option><option value="admin">Administratif</option><option value="autre">Autre</option></select></div>
+ <div class="fgrp"><span class="lbl">Récurrence</span><select id="pc-rec"><option value="once">Ponctuel</option><option value="daily">Journalier</option><option value="weekly">Hebdomadaire</option><option value="monthly">Mensuel</option></select></div>
+ </div>`,
+ `<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="savePilotageCout()">Ajouter</button>`);
+}
+function savePilotageCout(){
+ const label=document.getElementById('pc-label').value.trim();
+ const amount=Number(document.getElementById('pc-amount').value);
+ if(!label||!amount){toast('Libellé et montant requis','e');return;}
+ DB.pilotage_costs=DB.pilotage_costs||[];
+ DB.pilotage_costs.unshift({id:uid(),label,amount,cat:document.getElementById('pc-cat').value,rec:document.getElementById('pc-rec').value,date:now_(),created:now_(),updated:now_()});
+ save();closeMo();rPilotage();toast('Coût ajouté ✓','s');
+}
+function delPilotageCout(id){
+ DB.pilotage_costs=(DB.pilotage_costs||[]).filter(x=>x.id!==id);
+ save();rPilotage();toast('Supprimé','w');
+}
+// Coût réel du mois en cours, en tenant compte de la récurrence
+function _pilotageMonthBurn(){
+ const now=new Date();const mStart=new Date(now.getFullYear(),now.getMonth(),1);
+ let total=0;
+ (DB.pilotage_costs||[]).forEach(c=>{
+  const d=new Date(c.date);
+  if(c.rec==='once'){ if(d>=mStart) total+=c.amount; }
+  else if(c.rec==='monthly'){ total+=c.amount; }
+  else if(c.rec==='weekly'){ total+=c.amount*4; }
+  else if(c.rec==='daily'){ const daysElapsed=Math.floor((now-mStart)/86400000)+1; total+=c.amount*daysElapsed; }
+ });
+ return Math.round(total*100)/100;
+}
+// Jours ouvrés consécutifs où l'objectif d'appels quotidien a été atteint
+function _pilotageStreak(target){
+ if(!target) return 0;
+ const byDay={};
+ (DB.agenda||[]).filter(a=>a.done&&a.type==='call').forEach(a=>{
+  const k=dayKey(a.date); byDay[k]=(byDay[k]||0)+1;
+ });
+ let streak=0, k=todayKey();
+ for(let i=0;i<60;i++){
+  if((byDay[k]||0)>=target) streak++; else break;
+  k=shiftDayKey(k,-1);
+ }
+ return streak;
+}
+function _pilotagePhase(){
+ const today=new Date();
+ const d=(y,m,day)=>new Date(y,m-1,day);
+ const phases=[
+  {end:d(2026,7,17),  l:'Parents présents — temps réduit',       detail:'Créneaux courts, priorité aux appels les plus stratégiques.'},
+  {end:d(2026,7,31),  l:'Grind à distance + cours jeu/ven',        detail:'2h–6h du matin sur NOVALEM, cours jeudi/vendredi après-midi.'},
+  {end:d(2026,8,31),  l:'Août — temps plein NOVALEM',              detail:'Aucun cours. Fenêtre la plus dense de l\'année pour driver le pipeline.'},
+  {end:d(2026,11,11), l:'Septembre → épreuves — cours repris',     detail:'Rythme scolaire repris, NOVALEM en parallèle.'},
+  {end:d(2026,11,15), l:'Épreuves finales',                        detail:'12–15 novembre. Sanctuariser ces jours.'},
+  {end:d(2027,1,1),   l:'Post-diplôme — bascule full-time',        detail:'Relocalisation prévue, NOVALEM à temps plein.'},
+ ];
+ for(const p of phases){ if(today<=p.end) return p; }
+ return phases[phases.length-1];
+}
+function rPilotage(){
+ const el=document.getElementById('view-pilotage');
+ const cfg=getPilotageConfig();
+ const cands=DB.candidates||[];
+ const comps=DB.companies||[];
+
+ // Réalisé aujourd'hui / cette semaine
+ const callsToday=(DB.agenda||[]).filter(a=>a.done&&a.type==='call'&&isToday(a.date)).length;
+ const weekStart=(()=>{ const d=new Date();const day=d.getDay()||7; d.setDate(d.getDate()-day+1); d.setHours(0,0,0,0); return d; })();
+ const callsWeek=(DB.agenda||[]).filter(a=>a.done&&a.type==='call'&&new Date(a.date)>=weekStart).length;
+ const prosWeek=comps.filter(c=>c.type==='prospect'&&new Date(c.created)>=weekStart).length;
+ const candidWeek=cands.filter(c=>['dossier','presented','interview'].includes(c.status)&&new Date(c.updated)>=weekStart).length;
+ const contracts=cands.filter(c=>c.status==='placed').length;
+
+ const burn=_pilotageMonthBurn();
+ const streak=_pilotageStreak(cfg.dailyCalls);
+ const phase=_pilotagePhase();
+ const daysToExam=Math.max(0,Math.ceil((new Date(2026,10,12)-new Date())/86400000));
+ const daysToParentsEnd=Math.ceil((new Date(2026,6,17)-new Date())/86400000);
+
+ const bar=(label,done,target,unit='')=>{
+  const pct=target?Math.min(100,Math.round(done/target*100)):0;
+  const color=pct>=100?'var(--green)':pct>=60?'var(--gold)':'var(--ac3)';
+  return `<div style="margin-bottom:14px">
+   <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px">
+    <span style="color:var(--mu)">${label}</span>
+    <strong>${done} / ${target}${unit}</strong>
+   </div>
+   <div style="height:8px;background:var(--s3);border-radius:99px;overflow:hidden">
+    <div style="height:100%;width:${pct}%;background:${color};border-radius:99px;transition:width .3s"></div>
+   </div>
+  </div>`;
+ };
+
+ const costRows=(DB.pilotage_costs||[]).slice(0,15).map(c=>`
+  <tr>
+   <td style="font-size:11px">${esc(c.label)}</td>
+   <td style="font-size:11px;color:var(--mu)">${({ads:'Annonces',tools:'Outils',admin:'Admin',autre:'Autre'})[c.cat]||c.cat}</td>
+   <td style="font-size:11px;color:var(--mu)">${({once:'Ponctuel',daily:'/jour',weekly:'/sem',monthly:'/mois'})[c.rec]||c.rec}</td>
+   <td style="font-size:11px;font-family:'DM Mono',monospace;text-align:right">${c.amount}€</td>
+   <td style="width:24px"><span onclick="delPilotageCout('${c.id}')" style="cursor:pointer;color:var(--mu2)">×</span></td>
+  </tr>`).join('');
+
+ el.innerHTML=`
+ <div style="padding:16px;max-width:1100px">
+
+ <div class="rep-card" style="margin-bottom:16px">
+  <div class="rep-card-t">Phase actuelle</div>
+  <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(phase.l)}</div>
+  <div style="font-size:11px;color:var(--mu);margin-bottom:10px">${esc(phase.detail)}</div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--mu)">
+   ${daysToParentsEnd>0?`<div>J-${daysToParentsEnd} avant le grind à temps plein (17 juillet)</div>`:''}
+   <div>J-${daysToExam} avant les épreuves (12 nov)</div>
+   <div>🔥 Streak objectif appels : <strong style="color:${streak>0?'var(--gold)':'var(--mu)'}">${streak} jour(s)</strong></div>
+  </div>
+ </div>
+
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="rep-card">
+   <div class="rep-card-t">Discipline — aujourd'hui / cette semaine</div>
+   ${bar('Appels aujourd\'hui',callsToday,cfg.dailyCalls)}
+   ${bar('Appels cette semaine',callsWeek,cfg.dailyCalls*5)}
+   ${bar('Nouveaux prospects cette semaine',prosWeek,cfg.weeklyProspects)}
+   ${bar('Dossiers/candidatures avancés cette semaine',candidWeek,cfg.weeklyCandidatures)}
+  </div>
+  <div class="rep-card">
+   <div class="rep-card-t">Objectif business</div>
+   <div style="font-size:11px;color:var(--mu);line-height:1.7">
+    Contrats signés à date : <strong>${contracts}</strong><br>
+    1 contrat à ${cfg.targetContract}€ ≈ 3 mois de sécurité.<br>
+    Aucun contrat signé pour l'instant : chaque appel compte double tant que le pipeline n'a pas converti une première fois.
+   </div>
+  </div>
+ </div>
+
+ <div class="rep-card">
+  <div class="rep-card-t">Coûts anticipés — mois en cours</div>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+   <div style="font-size:22px;font-weight:800;font-family:'DM Mono',monospace">${burn}€ <span style="font-size:11px;font-weight:400;color:var(--mu)">/ ${cfg.monthlyBudget}€ budget</span></div>
+   <div style="font-size:11px;color:${burn>cfg.monthlyBudget?'var(--ac3)':'var(--mu)'}">${burn>cfg.monthlyBudget?'⚠ budget dépassé':(cfg.monthlyBudget-burn)+'€ restants'}</div>
+  </div>
+  <div style="height:8px;background:var(--s3);border-radius:99px;overflow:hidden;margin-bottom:14px">
+   <div style="height:100%;width:${cfg.monthlyBudget?Math.min(100,Math.round(burn/cfg.monthlyBudget*100)):0}%;background:${burn>cfg.monthlyBudget?'var(--ac3)':'var(--gold)'};border-radius:99px"></div>
+  </div>
+  <table class="tbl" style="width:100%">
+   <thead><tr><th>Libellé</th><th>Catégorie</th><th>Récurrence</th><th style="text-align:right">Montant</th><th></th></tr></thead>
+   <tbody>${costRows||'<tr><td colspan="5" style="font-size:11px;color:var(--mu);padding:12px 0">Aucun coût enregistré. Ajoute Indeed (5€/jour) ou toute autre dépense récurrente.</td></tr>'}</tbody>
+  </table>
+ </div>
+
+ </div>`;
 }
 
 function rFacturation(){
