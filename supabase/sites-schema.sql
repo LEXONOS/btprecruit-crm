@@ -35,17 +35,12 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_superviseur()
-RETURNS BOOLEAN
-LANGUAGE SQL
-SECURITY DEFINER STABLE
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.users
-    WHERE id = auth.uid() AND role = 'superviseur' AND actif = true
-  );
-$$;
+-- NB : la fonction public.is_superviseur() n'est PAS recreee ici.
+--   - Les policies par defaut ci-dessous n'en ont pas besoin (elles utilisent
+--     "TO authenticated USING (true)").
+--   - Elle existe deja dans ta base (installee par le schema recrutement) et
+--     n'est requise que si tu actives la "VARIANTE STRICTE" en bas de fichier.
+--   On evite ainsi toute erreur liee aux colonnes exactes de la table users.
 
 
 -- ────────────────────────────────────────────────────────────────────────
@@ -466,6 +461,46 @@ CREATE POLICY "web_devsig_auth_insert" ON public.web_devis_signatures
 GRANT EXECUTE ON FUNCTION public.web_next_number(TEXT, INTEGER)      TO authenticated;
 GRANT EXECUTE ON FUNCTION public.web_devis_public(UUID, TEXT)        TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.web_devis_token_valid(UUID, TEXT)   TO anon, authenticated;
+
+
+-- ────────────────────────────────────────────────────────────────────────
+-- 11 bis. FICHES DE CADRAGE (outil de l'appel de decouverte)
+--     Alimente par public/sites-cadrage.html. Une fiche = une ligne.
+--     id = identifiant local de la fiche (texte, ex : f_xxx).
+-- ────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.web_cadrages (
+  id          TEXT          PRIMARY KEY,
+  client_id   UUID          REFERENCES public.web_clients(id) ON DELETE SET NULL,
+  nom         TEXT,
+  data        JSONB         NOT NULL DEFAULT '{}'::jsonb,
+  total_ht    NUMERIC(10,2) DEFAULT 0,
+  owner       UUID          REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_web_cadrages_client  ON public.web_cadrages(client_id);
+CREATE INDEX IF NOT EXISTS idx_web_cadrages_updated ON public.web_cadrages(updated_at DESC);
+
+DROP TRIGGER IF EXISTS trg_web_cadrages_updated ON public.web_cadrages;
+CREATE TRIGGER trg_web_cadrages_updated
+  BEFORE UPDATE ON public.web_cadrages FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_web_cadrages_owner ON public.web_cadrages;
+CREATE TRIGGER trg_web_cadrages_owner
+  BEFORE INSERT ON public.web_cadrages FOR EACH ROW EXECUTE FUNCTION public.web_stamp_owner();
+
+ALTER TABLE public.web_cadrages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "web_cadrages_auth_all" ON public.web_cadrages;
+CREATE POLICY "web_cadrages_auth_all" ON public.web_cadrages
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+
+-- ────────────────────────────────────────────────────────────────────────
+-- 12. RECHARGEMENT DU CACHE DE SCHEMA POSTGREST
+--     Force l'API Supabase a voir immediatement les nouvelles tables web_*.
+--     (Corrige l'erreur "Could not find the table ... in the schema cache".)
+-- ────────────────────────────────────────────────────────────────────────
+NOTIFY pgrst, 'reload schema';
 
 
 -- ════════════════════════════════════════════════════════════════════════

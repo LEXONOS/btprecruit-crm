@@ -12,35 +12,48 @@ Aucune fonction serverless ajoutee (toujours 10 dans /api, limite 12).
 
 FICHIERS NOUVEAUX (ajoutes)
 ---------------------------
-  supabase/sites-schema.sql      Migration base (tables web_*, RLS, numeros, signature)
+  supabase/sites-schema.sql      Migration base (tables web_*, RLS, numeros, signature, cadrages)
   public/sites.html              Page de l'espace Sites
   public/js/sites-app.js         Logique de l'espace Sites
   public/css/sites-styles.css    Declinaison de la charte (accent or ambre)
   public/sites-sign.html         Page publique de signature des devis (bon pour accord)
+  public/sites-cadrage.html      Fiche de cadrage (appel de decouverte), branchee sur Supabase
 
 FICHIERS MODIFIES (uniquement des ajouts)
 -----------------------------------------
-  vercel.json                    Routes /sites et /sites-sign
+  vercel.json                    Routes /sites, /sites-sign, /sites-cadrage
   public/hub.html                Tuile "NOVALEM Sites" a cote de la tuile CRM
 
 
 LA SEULE ETAPE MANUELLE : la base de donnees
 --------------------------------------------
-1. Ouvre Supabase > SQL Editor > New query.
+1. Ouvre Supabase > SQL Editor > New query (projet hfdkkdyyhpymrwiqmitn).
 2. Colle TOUT le contenu de supabase/sites-schema.sql.
-3. Clique Run. (Le script est idempotent : rejouable sans risque, ne touche
-   aucune table recrutement.)
+3. Clique Run. Le script est idempotent : rejouable sans risque. Il finit par
+   un rechargement du cache API (corrige l'erreur "table not found in schema cache").
+   -> A relancer si tu mets a jour depuis une version precedente (ajoute la table
+      web_cadrages utilisee par la fiche de cadrage).
 
-Puis pousse sur GitHub et laisse Vercel deployer comme d'habitude.
-L'espace est accessible depuis le hub (tuile "NOVALEM Sites") ou sur /sites.
+Puis pousse sur GitHub et laisse Vercel deployer.
+Espace accessible : tuile "NOVALEM Sites" du hub, ou /sites.
+
+
+LA FICHE DE CADRAGE
+-------------------
+- Accessible depuis la barre laterale du CRM ("+ Fiche de cadrage") et depuis
+  chaque fiche client (bouton "Ouvrir la fiche de cadrage"), pre-remplie.
+- Elle enregistre dans Supabase (table web_cadrages), plus dans window.storage.
+- Bouton "Envoyer vers le CRM" : cree le client (si besoin) et un devis brouillon
+  a partir de la formule et des options cochees.
+- Prix des formules alignes sur la plaquette : 390 / 790 / 1190. La fiche d'origine
+  affichait 490 / 890 / 1690. Si ces prix-la etaient les bons, il suffit de le dire.
 
 
 BON A SAVOIR
 ------------
-- Envoi de devis : passe par /api/send-email (inchange), avec repli mailto.
-- Signature eIDAS : lien /sites-sign genere a l'envoi du devis, protege par jeton.
-  Aucune fonction serveur ajoutee, tout passe par Supabase (RLS + trigger).
-- Factures : acompte 40% et solde, une facture emise est inalterable (avoir).
-- RLS par defaut : espace partage entre utilisateurs internes. Pour un
-  cloisonnement strict par proprietaire, un bloc commente "VARIANTE STRICTE"
-  est fourni en bas de sites-schema.sql.
+- Envoi de devis : /api/send-email (inchange), repli mailto.
+- Signature eIDAS : lien /sites-sign genere a l'envoi, protege par jeton. Aucune
+  fonction serveur ajoutee (RLS + trigger Supabase).
+- Factures : acompte 40 % et solde, une facture emise est inalterable (avoir).
+- RLS par defaut : espace partage entre utilisateurs internes. Variante stricte
+  par proprietaire disponible en commentaire en bas de sites-schema.sql.

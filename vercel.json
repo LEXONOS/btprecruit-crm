@@ -13,6 +13,7 @@
     { "src": "/dossier", "dest": "/dossier.html" },
     { "src": "/rejoindre", "dest": "/rejoindre.html" },
     { "src": "/sites-sign", "dest": "/sites-sign.html" },
+    { "src": "/sites-cadrage", "dest": "/sites-cadrage.html" },
     { "src": "/sites", "dest": "/sites.html" },
     { "src": "/", "dest": "/index.html" }
   ],

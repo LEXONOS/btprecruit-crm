@@ -42,7 +42,35 @@ var PIPE_LABELS = {
 var PIPE_ACTIVE = ['prospect', 'contacte', 'devis_envoye', 'signe', 'en_cours'];
 
 var FORMULE_LABELS = { essentiel: 'Essentiel', vitrine: 'Vitrine', signature: 'Signature', sur_mesure: 'Sur mesure' };
-var FORMULE_PRICE  = { essentiel: 990, vitrine: 1900, signature: 3500, sur_mesure: 0 };
+var FORMULE_PRICE  = { essentiel: 390, vitrine: 790, signature: 1190, sur_mesure: 0 };
+var FORMULE_DELAI  = { essentiel: 'livre en 7 jours', vitrine: 'livre en 10 a 14 jours', signature: 'livre en 3 semaines', sur_mesure: 'delai selon perimetre' };
+
+// Catalogue chiffre (prestations ponctuelles) pour composer un devis en un clic.
+var CATALOG = [
+  { label: 'Site Essentiel', prix: 390 },
+  { label: 'Site Vitrine', prix: 790 },
+  { label: 'Site Signature', prix: 1190 },
+  { label: 'Page supplementaire', prix: 90 },
+  { label: 'Formulaire de devis multi-etapes', prix: 150 },
+  { label: 'Prise de rendez-vous en ligne', prix: 190 },
+  { label: 'Espace client securise', prix: 450 },
+  { label: 'Version multilingue (par langue)', prix: 290 },
+  { label: 'Boutique en ligne (a partir de)', prix: 900 },
+  { label: 'Avis Google en direct', prix: 90 },
+  { label: 'WhatsApp et messagerie', prix: 60 },
+  { label: 'SEO technique (jusqu a 10 pages)', prix: 290 },
+  { label: 'Fiche Google Business', prix: 150 },
+  { label: 'Blog SEO', prix: 350 },
+  { label: 'Redaction article (1000 mots)', prix: 70 },
+  { label: 'GEO (IA generatives)', prix: 350 },
+  { label: 'Google Ads, lancement', prix: 350 }
+];
+// Prestations recurrentes (mensuelles), a facturer separement.
+var CATALOG_RECURRENT = [
+  { label: 'Abonnement contenu (4 articles/mois)', prix: 250 },
+  { label: 'Google Ads, pilotage', prix: 190 },
+  { label: 'Rapport de performance mensuel', prix: 90 }
+];
 
 var PROJ_ORDER  = ['cadrage', 'maquette', 'developpement', 'mise_en_ligne', 'livre'];
 var PROJ_LABELS = { cadrage: 'Cadrage', maquette: 'Maquette', developpement: 'Developpement', mise_en_ligne: 'Mise en ligne', livre: 'Livre' };
@@ -52,15 +80,15 @@ var FACT_TYPE_LABELS = { acompte: 'Acompte', solde: 'Solde' };
 var FACT_LABELS = { brouillon: 'Brouillon', emise: 'Emise', relancee: 'Relancee', payee: 'Payee', annulee: 'Annulee' };
 
 var OPTIONS_CATALOG = [
-  'Nom de domaine', 'Hebergement 1 an', 'Redaction de contenu', 'Creation de logo',
-  'SEO de base', 'Formulaire de contact', 'Prise de rendez-vous en ligne', 'Site multilingue',
-  'Maintenance annuelle', 'Boutique en ligne'
+  'Page supplementaire', 'Formulaire de devis', 'Prise de rendez-vous', 'Espace client securise',
+  'Version multilingue', 'Boutique en ligne', 'Avis Google en direct', 'WhatsApp et messagerie',
+  'SEO technique', 'Fiche Google Business', 'Blog SEO', 'GEO (IA generatives)'
 ];
 
 // ═══════════════════════════════════════════════════════════════════
 // ETAT
 // ═══════════════════════════════════════════════════════════════════
-var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [] };
+var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [], cadrages: [] };
 var UI = { view: 'dash', pid: null };
 var _dvLines = [];      // lignes de l'editeur de devis en cours
 var _dvOptions = [];    // options selectionnees pour le projet en cours
@@ -143,6 +171,11 @@ function interactionsOfClient(id) {
   return DB.interactions.filter(function (i) { return i.client_id === id; })
     .sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
 }
+function cadragesOfClient(id) {
+  return DB.cadrages.filter(function (c) { return c.client_id === id; })
+    .sort(function (a, b) { return (b.updated_at || '').localeCompare(a.updated_at || ''); });
+}
+function openCadrage(id) { window.location = '/sites-cadrage' + (id ? '?client=' + id : ''); }
 
 // ═══════════════════════════════════════════════════════════════════
 // CHARGEMENT DES DONNEES (tables web_ uniquement)
@@ -167,6 +200,11 @@ async function loadAll() {
     DB.factures = res[3].data || [];
     DB.hebergements = res[4].data || [];
     DB.interactions = res[5].data || [];
+    // Fiches de cadrage : chargement optionnel (table ajoutee via la migration).
+    try {
+      var rc = await sb.from('web_cadrages').select('id,nom,client_id,total_ht,updated_at').order('updated_at', { ascending: false });
+      if (!rc.error) DB.cadrages = rc.data || [];
+    } catch (e) { /* table absente : on ignore */ }
   } catch (e) { console.warn(e); toast('Erreur reseau au chargement', 'e'); }
 }
 async function reload() { await loadAll(); go(UI.view); }
@@ -397,9 +435,14 @@ function openClientPanel(id) {
     return '<div class="board-row" onclick="openHebergForm(\'' + id + '\',\'' + h.id + '\')" style="cursor:pointer;padding:8px 0;border-bottom:1px solid var(--bd)"><div style="font-size:11px">' + esc(h.nom_domaine || '-') + ' <span style="color:var(--mu)">' + esc(h.hebergeur || '') + '</span></div><div class="' + cl + '" style="font-size:10px">Renouvellement : ' + fmtDateFR(h.date_renouvellement) + (h.cout_annuel ? ' &middot; ' + fmtEUR(h.cout_annuel) + '/an' : '') + '</div></div>';
   }).join('') || '<div class="empty">Aucun hebergement</div>';
 
+  var cad = cadragesOfClient(id).map(function (k) {
+    return '<div class="board-row" onclick="openCadrage(\'' + id + '\')" style="cursor:pointer;padding:8px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span style="font-size:11px">' + esc(k.nom || 'Fiche') + '</span><span style="font-size:10px;color:var(--mu)">' + (num(k.total_ht) ? fmtEUR(k.total_ht) + ' &middot; ' : '') + fmtDateFR(k.updated_at) + '</span></div>';
+  }).join('') || '<div class="empty">Aucune fiche de cadrage</div>';
+
   el('pb').innerHTML =
     section('Coordonnees', infos) +
     section('Etape du pipeline', '<div style="display:flex;gap:4px;flex-wrap:wrap">' + stepBtns + '</div>') +
+    section('Cadrage', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openCadrage(\'' + id + '\')">Ouvrir la fiche de cadrage</button>' + cad) +
     section('Interactions', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openInteractionForm(\'' + id + '\')">+ Ajouter</button>' + interHtml) +
     section('Projets', projets) +
     section('Devis', devis) +
@@ -514,7 +557,7 @@ function openProjetForm(clientId, id) {
   var clients = DB.clients;
   if (!clients.length) { toast('Cree d\'abord un client', 'w'); return; }
   var cliOpts = clients.map(function (c) { return '<option value="' + c.id + '"' + (clientId === c.id ? ' selected' : '') + '>' + esc(c.entreprise) + '</option>'; }).join('');
-  var fmOpts = Object.keys(FORMULE_LABELS).map(function (k) { return '<option value="' + k + '"' + (p && p.formule === k ? ' selected' : (!p && k === 'vitrine' ? ' selected' : '')) + '>' + FORMULE_LABELS[k] + ' (' + (FORMULE_PRICE[k] ? fmtEUR(FORMULE_PRICE[k]) : 'sur devis') + ')</option>'; }).join('');
+  var fmOpts = Object.keys(FORMULE_LABELS).map(function (k) { return '<option value="' + k + '"' + (p && p.formule === k ? ' selected' : (!p && k === 'vitrine' ? ' selected' : '')) + '>' + FORMULE_LABELS[k] + ' - ' + (FORMULE_PRICE[k] ? fmtEUR(FORMULE_PRICE[k]) : 'sur devis') + ' - ' + FORMULE_DELAI[k] + '</option>'; }).join('');
   var stOpts = PROJ_ORDER.map(function (s) { return '<option value="' + s + '"' + (p && p.statut === s ? ' selected' : '') + '>' + PROJ_LABELS[s] + '</option>'; }).join('');
   _dvOptions = (p && p.options) ? p.options.slice() : [];
   var optChips = OPTIONS_CATALOG.map(function (o) {
@@ -635,9 +678,14 @@ function openDevisForm(clientId, projetId, id) {
     '<div class="fg"><div class="fgrp"><label class="lbl">Date d\'emission</label><input id="d-date" type="date" value="' + (d ? esc(d.date_emission) : todayISO()) + '"></div>' +
     '<div class="fgrp"><label class="lbl">Validite jusqu\'au</label><input id="d-validite" type="date" value="' + (d && d.validite ? esc(d.validite) : addDaysISO(30)) + '"></div></div>' +
     '<div class="fgrp"><label class="lbl">Lignes</label><div class="dv-line-h"><span>Designation</span><span>Qte</span><span>PU HT</span><span>Total</span><span></span></div><div id="d-lines"></div>' +
-    '<button class="btn bg bsm" style="margin-top:6px" onclick="dvAddLine()">+ Ligne</button></div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">' +
+    '<button class="btn bg bsm" onclick="dvAddLine()">+ Ligne libre</button>' +
+    '<select id="d-cat" class="ff" style="max-width:280px" onchange="dvAddFromCatalog(this.value);this.value=\'\'"><option value="">+ Depuis le catalogue...</option>' +
+      CATALOG.map(function (c, i) { return '<option value="' + i + '">' + esc(c.label) + ' (' + fmtEUR(c.prix) + ')</option>'; }).join('') +
+    '</select></div>' +
+    '<div style="font-size:9px;color:var(--mu2);margin-top:5px">Prestations mensuelles a facturer separement : ' + CATALOG_RECURRENT.map(function (c) { return esc(c.label) + ' ' + fmtEUR(c.prix) + '/mois'; }).join(' ; ') + '</div></div>' +
     '<div style="text-align:right;font-family:Syne,sans-serif;font-weight:700;font-size:16px;margin:8px 0" id="d-total">Total HT : ' + fmtEUR(0, 2) + '</div>' +
-    '<div class="sites-legal">Mentions portees automatiquement sur le devis :<br>SIRET <b>' + SIRET + '</b><br><b>' + TVA_MENTION + '</b><br>' + CESSION_CLAUSE + '</div>';
+    '<div class="sites-legal">Mentions portees automatiquement sur le devis :<br>SIRET <b>' + SIRET + '</b> &middot; <b>' + TVA_MENTION + '</b><br>Acompte de 40 % a la commande, solde a la mise en ligne &middot; Offre valable 30 jours<br>' + CESSION_CLAUSE + '</div>';
   var f = '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
     (id ? '<button class="btn bd_" onclick="deleteDevis(\'' + id + '\')">Supprimer</button>' : '') +
     '<button class="btn bp" onclick="saveDevis(' + (id ? '\'' + id + '\'' : '') + ')">Enregistrer</button>';
@@ -663,9 +711,23 @@ function dvRenderLines() {
 }
 function dvEdit(i, k, v) { _dvLines[i][k] = (k === 'designation') ? v : num(v); if (k !== 'designation') dvRenderLines(); else el('d-total').textContent = 'Total HT : ' + fmtEUR(dvTotal(), 2); }
 function dvAddLine() { _dvLines.push({ designation: '', quantite: 1, pu_ht: 0 }); dvRenderLines(); }
+function dvAddFromCatalog(i) {
+  if (i === '' || i == null) return;
+  var c = CATALOG[parseInt(i, 10)]; if (!c) return;
+  var empty = _dvLines.findIndex(function (l) { return !(l.designation || '').trim(); });
+  var line = { designation: c.label, quantite: 1, pu_ht: c.prix };
+  if (empty >= 0) _dvLines[empty] = line; else _dvLines.push(line);
+  dvRenderLines();
+}
 function dvRemoveLine(i) { _dvLines.splice(i, 1); if (!_dvLines.length) _dvLines.push({ designation: '', quantite: 1, pu_ht: 0 }); dvRenderLines(); }
 function dvTotal() { return _dvLines.reduce(function (a, l) { return a + num(l.quantite) * num(l.pu_ht); }, 0); }
-function defaultMentions() { return 'SIRET ' + SIRET + '. ' + TVA_MENTION + '. ' + CESSION_CLAUSE; }
+function defaultMentions() {
+  return 'SIRET ' + SIRET + '. ' + TVA_MENTION + '. ' +
+    'Acompte de 40 % a la commande, solde a la mise en ligne. Offre valable 30 jours. ' +
+    'Maquette validee avant developpement, deux tours de modifications inclus. ' +
+    CESSION_CLAUSE + ' ' +
+    'SAV technique gratuit, sans limite de duree. Contenus textes et visuels fournis par le client.';
+}
 
 async function saveDevis(id) {
   var clientId = el('d-client').value;
@@ -727,9 +789,10 @@ async function sendDevis(id) {
   var body =
     'Bonjour' + (c && c.contact_nom ? ' ' + c.contact_nom : '') + ',\n\n' +
     'Veuillez trouver votre devis ' + d.numero + ' pour un montant de ' + fmtEUR(d.total_ht, 2) + ' HT.\n\n' +
-    TVA_MENTION + '.\n\n' +
+    TVA_MENTION + '.\n' +
+    'Acompte de 40 % a la commande, solde a la mise en ligne. Offre valable 30 jours.\n\n' +
     'Pour donner votre bon pour accord en ligne (signature electronique) :\n[Signer le devis](' + link + ')\n\n' +
-    'Bien cordialement,\nNOVALEM';
+    'Bien cordialement,\nLouis - NOVALEM\nCreation de sites internet\n+590 690 31 79 99 / +33 6 58 21 20 90\nlouisprorenault@gmail.com';
 
   // set statut envoye
   await updateRow('web_devis', id, { statut: 'envoye' }); d.statut = 'envoye';
@@ -814,8 +877,11 @@ function devisPDF(id) {
 
   y += 12;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(110, 110, 100);
-  var mentions = 'SIRET ' + SIRET + '  -  ' + TVA_MENTION + '.  ' + CESSION_CLAUSE;
+  var mentions = (d.mentions || defaultMentions()).replace(/\u00a0/g, ' ');
   doc.text(doc.splitTextToSize(mentions, 210 - 2 * M), M, y);
+
+  doc.setTextColor(150, 150, 142); doc.setFontSize(7);
+  doc.text('NOVALEM  -  louisprorenault@gmail.com  -  +590 690 31 79 99  -  +33 6 58 21 20 90', M, 288);
 
   doc.save(d.numero + '.pdf');
   toast('PDF genere', 's');
@@ -1075,12 +1141,12 @@ document.addEventListener('click', function (e) {
 var API = {
   go: go, openClientForm: openClientForm, saveClient: saveClient, deleteClient: deleteClient,
   openClientPanel: openClientPanel, moveClient: moveClient, setClientStage: setClientStage,
-  openInteractionForm: openInteractionForm, saveInteraction: saveInteraction,
+  openInteractionForm: openInteractionForm, saveInteraction: saveInteraction, openCadrage: openCadrage,
   openProjetForm: openProjetForm, saveProjet: saveProjet, deleteProjet: deleteProjet,
   toggleProjOption: toggleProjOption, onFormuleChange: onFormuleChange,
   openDevisForm: openDevisForm, saveDevis: saveDevis, deleteDevis: deleteDevis,
   openDevisPanel: openDevisPanel, onDevisClientChange: onDevisClientChange,
-  dvAddLine: dvAddLine, dvRemoveLine: dvRemoveLine, dvEdit: dvEdit,
+  dvAddLine: dvAddLine, dvRemoveLine: dvRemoveLine, dvEdit: dvEdit, dvAddFromCatalog: dvAddFromCatalog,
   devisPDF: devisPDF, sendDevis: sendDevis, setDevisStatut: setDevisStatut,
   convertDevis: convertDevis, onCvType: onCvType, doConvertDevis: doConvertDevis,
   openFactureForm: openFactureForm, saveFacture: saveFacture, deleteFacture: deleteFacture,
