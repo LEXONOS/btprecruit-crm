@@ -1,0 +1,46 @@
+NOVALEM - Espace "Sites Internet" (creation de sites web)
+==========================================================
+
+Cette archive s'extrait A LA RACINE du depot btprecruit-crm-main.
+Les chemins sont deja bons : Git ne verra que les vraies differences.
+
+Le CRM recrutement n'est PAS modifie. Verifie par empreinte : crm-app.js,
+crm-auth.js, crm-styles.css, crm.html, sign.html, index.html, jobs.js,
+send-email.js et schema.sql sont strictement identiques a l'origine.
+Aucune fonction serverless ajoutee (toujours 10 dans /api, limite 12).
+
+
+FICHIERS NOUVEAUX (ajoutes)
+---------------------------
+  supabase/sites-schema.sql      Migration base (tables web_*, RLS, numeros, signature)
+  public/sites.html              Page de l'espace Sites
+  public/js/sites-app.js         Logique de l'espace Sites
+  public/css/sites-styles.css    Declinaison de la charte (accent or ambre)
+  public/sites-sign.html         Page publique de signature des devis (bon pour accord)
+
+FICHIERS MODIFIES (uniquement des ajouts)
+-----------------------------------------
+  vercel.json                    Routes /sites et /sites-sign
+  public/hub.html                Tuile "NOVALEM Sites" a cote de la tuile CRM
+
+
+LA SEULE ETAPE MANUELLE : la base de donnees
+--------------------------------------------
+1. Ouvre Supabase > SQL Editor > New query.
+2. Colle TOUT le contenu de supabase/sites-schema.sql.
+3. Clique Run. (Le script est idempotent : rejouable sans risque, ne touche
+   aucune table recrutement.)
+
+Puis pousse sur GitHub et laisse Vercel deployer comme d'habitude.
+L'espace est accessible depuis le hub (tuile "NOVALEM Sites") ou sur /sites.
+
+
+BON A SAVOIR
+------------
+- Envoi de devis : passe par /api/send-email (inchange), avec repli mailto.
+- Signature eIDAS : lien /sites-sign genere a l'envoi du devis, protege par jeton.
+  Aucune fonction serveur ajoutee, tout passe par Supabase (RLS + trigger).
+- Factures : acompte 40% et solde, une facture emise est inalterable (avoir).
+- RLS par defaut : espace partage entre utilisateurs internes. Pour un
+  cloisonnement strict par proprietaire, un bloc commente "VARIANTE STRICTE"
+  est fourni en bas de sites-schema.sql.
