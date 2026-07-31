@@ -533,3 +533,75 @@ NOTIFY pgrst, 'reload schema';
 --   USING (client_id IN (SELECT id FROM public.web_clients WHERE owner = auth.uid()))
 --   WITH CHECK (client_id IN (SELECT id FROM public.web_clients WHERE owner = auth.uid()));
 -- ════════════════════════════════════════════════════════════════════════
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 13. AGENDA / RAPPELS + LIENS  (ajout : organisation intelligente)
+--     Rattaches a la fiche client. Idempotent, meme modele RLS que le reste.
+--     A rejouer si tu mets a jour depuis une version precedente.
+-- ════════════════════════════════════════════════════════════════════════
+
+DO $$ BEGIN
+  CREATE TYPE web_evenement_type AS ENUM ('rappel', 'rdv_physique', 'rdv_visio', 'tache', 'echeance');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE web_evenement_statut AS ENUM ('a_faire', 'fait', 'annule');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 13.1 web_evenements — agenda unifie (rappels + rendez-vous + taches + echeances)
+--      client_id nullable : un evenement peut ne pas etre rattache a un client.
+--      auto = TRUE : rappel genere automatiquement par une transition de pipeline.
+CREATE TABLE IF NOT EXISTS public.web_evenements (
+  id               UUID                 PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id        UUID                 REFERENCES public.web_clients(id) ON DELETE CASCADE,
+  projet_id        UUID                 REFERENCES public.web_projets(id) ON DELETE SET NULL,
+  titre            TEXT                 NOT NULL,
+  type             web_evenement_type   NOT NULL DEFAULT 'rappel',
+  date_debut       TIMESTAMPTZ          NOT NULL,
+  date_fin         TIMESTAMPTZ,
+  lieu             TEXT,
+  notes            TEXT,
+  statut           web_evenement_statut NOT NULL DEFAULT 'a_faire',
+  rappel_avant_min INTEGER              NOT NULL DEFAULT 1440,
+  auto             BOOLEAN              NOT NULL DEFAULT FALSE,
+  owner            UUID                 REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at       TIMESTAMPTZ          NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ          NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_web_evenements_client ON public.web_evenements(client_id);
+CREATE INDEX IF NOT EXISTS idx_web_evenements_debut  ON public.web_evenements(date_debut);
+
+DROP TRIGGER IF EXISTS trg_web_evenements_updated ON public.web_evenements;
+CREATE TRIGGER trg_web_evenements_updated
+  BEFORE UPDATE ON public.web_evenements FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+DROP TRIGGER IF EXISTS trg_web_evenements_owner ON public.web_evenements;
+CREATE TRIGGER trg_web_evenements_owner
+  BEFORE INSERT ON public.web_evenements FOR EACH ROW EXECUTE FUNCTION public.web_stamp_owner();
+
+ALTER TABLE public.web_evenements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "web_evenements_auth_all" ON public.web_evenements;
+CREATE POLICY "web_evenements_auth_all" ON public.web_evenements
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 13.2 web_liens — liens utiles rattaches a une fiche client
+CREATE TABLE IF NOT EXISTS public.web_liens (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id   UUID        NOT NULL REFERENCES public.web_clients(id) ON DELETE CASCADE,
+  libelle     TEXT,
+  url         TEXT        NOT NULL,
+  owner       UUID        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_web_liens_client ON public.web_liens(client_id);
+
+DROP TRIGGER IF EXISTS trg_web_liens_owner ON public.web_liens;
+CREATE TRIGGER trg_web_liens_owner
+  BEFORE INSERT ON public.web_liens FOR EACH ROW EXECUTE FUNCTION public.web_stamp_owner();
+
+ALTER TABLE public.web_liens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "web_liens_auth_all" ON public.web_liens;
+CREATE POLICY "web_liens_auth_all" ON public.web_liens
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';

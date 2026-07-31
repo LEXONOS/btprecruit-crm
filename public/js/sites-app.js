@@ -85,10 +85,22 @@ var OPTIONS_CATALOG = [
   'SEO technique', 'Fiche Google Business', 'Blog SEO', 'GEO (IA generatives)'
 ];
 
+// Agenda / rappels
+var EVT_TYPE_LABELS = { rappel: 'Rappel', rdv_physique: 'RDV physique', rdv_visio: 'RDV visio', tache: 'Tache', echeance: 'Echeance' };
+var EVT_TYPE_ORDER  = ['rappel', 'rdv_physique', 'rdv_visio', 'tache', 'echeance'];
+// Rappels generes automatiquement a chaque transition de pipeline (le cote "assiste")
+var AUTO_RAPPELS = {
+  contacte:     { j: 0,   titre: 'Envoyer la fiche tarifaire et demander les disponibilites' },
+  devis_envoye: { j: 4,   titre: 'Relancer le devis si pas de reponse' },
+  signe:        { j: 2,   titre: 'Verifier l\'encaissement de l\'acompte, puis demarrer la maquette' },
+  en_cours:     { j: 2,   titre: 'Envoyer l\'apercu du site (lien maquette) au client' },
+  livre:        { j: 330, titre: 'Anticiper le renouvellement de l\'hebergement et du domaine' }
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // ETAT
 // ═══════════════════════════════════════════════════════════════════
-var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [], cadrages: [] };
+var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [], cadrages: [], evenements: [], liens: [] };
 var UI = { view: 'dash', pid: null };
 var _dvLines = [];      // lignes de l'editeur de devis en cours
 var _dvOptions = [];    // options selectionnees pour le projet en cours
@@ -205,6 +217,15 @@ async function loadAll() {
       var rc = await sb.from('web_cadrages').select('id,nom,client_id,total_ht,updated_at').order('updated_at', { ascending: false });
       if (!rc.error) DB.cadrages = rc.data || [];
     } catch (e) { /* table absente : on ignore */ }
+    // Agenda / rappels + liens (tables ajoutees via la migration sites-schema.sql).
+    try {
+      var re = await sb.from('web_evenements').select('*').order('date_debut', { ascending: true });
+      if (!re.error) DB.evenements = re.data || [];
+    } catch (e) { /* table absente : on ignore */ }
+    try {
+      var rl = await sb.from('web_liens').select('*').order('created_at', { ascending: false });
+      if (!rl.error) DB.liens = rl.data || [];
+    } catch (e) { /* table absente : on ignore */ }
   } catch (e) { console.warn(e); toast('Erreur reseau au chargement', 'e'); }
 }
 async function reload() { await loadAll(); go(UI.view); }
@@ -240,10 +261,11 @@ function go(v) {
   for (var j = 0; j < vs.length; j++) { vs[j].classList.remove('active'); }
   var target = el('view-' + v); if (target) target.classList.add('active');
 
-  var T = { dash: 'Tableau de bord', pipeline: 'Pipeline de prospection', devis: 'Devis', factures: 'Factures', projets: 'Projets', hebergement: 'Hebergement et domaines' };
+  var T = { dash: 'Tableau de bord', agenda: 'Agenda et rappels', prospection: 'Prospection sur carte', pipeline: 'Pipeline de prospection', devis: 'Devis', factures: 'Factures', projets: 'Projets', hebergement: 'Hebergement et domaines' };
   el('tbt').textContent = T[v] || v;
 
   var A = {
+    agenda: '<button class="btn bp bsm" onclick="openEventForm()">+ Rappel</button>',
     pipeline: '<button class="btn bp bsm" onclick="openClientForm()">+ Client</button>',
     devis: '<button class="btn bp bsm" onclick="openDevisForm()">+ Devis</button>',
     factures: '<button class="btn bp bsm" onclick="openFactureForm()">+ Facture</button>',
@@ -252,7 +274,7 @@ function go(v) {
   };
   el('tba').innerHTML = A[v] || '';
 
-  var R = { dash: renderDash, pipeline: renderPipeline, devis: renderDevis, factures: renderFactures, projets: renderProjets, hebergement: renderHebergement };
+  var R = { dash: renderDash, agenda: renderAgenda, prospection: renderProspection, pipeline: renderPipeline, devis: renderDevis, factures: renderFactures, projets: renderProjets, hebergement: renderHebergement };
   if (R[v]) R[v]();
   badges();
 }
@@ -269,6 +291,7 @@ function badges() {
   setBadge('badge-fact', fa, true);
   setBadge('badge-proj', pj, false);
   setBadge('badge-heb', hb, true);
+  setBadge('badge-agenda', evDueList().length, true);
 
   var ca = DB.devis.filter(function (d) { return d.statut === 'accepte'; }).reduce(function (a, d) { return a + num(d.total_ht); }, 0);
   el('nf-ca').textContent = fmtEUR(ca);
@@ -329,7 +352,22 @@ function renderDash() {
     return '<div class="board-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:11px;color:var(--tx)">' + esc(e.label) + '</div><div style="font-size:10px;color:var(--mu2)">' + esc(e.sub) + '</div></div><div style="font-size:10px;color:' + col + ';text-align:right">' + fmtDateFR(e.date) + '<br>' + (e.d == null ? '' : (e.d < 0 ? Math.abs(e.d) + 'j de retard' : 'dans ' + e.d + 'j')) + '</div></div>';
   }).join('') || '<div class="empty">Aucune echeance dans les 60 jours</div>';
 
+  var due = evDueList();
+  var dueHtml = due.slice(0, 10).map(function (e) {
+    var d = daysUntilTs(e.date_debut);
+    var late = d < 0;
+    var when = late ? Math.abs(d) + 'j de retard' : (d === 0 ? 'aujourd\'hui' : 'dans ' + d + 'j');
+    return '<div class="board-row todo-row" onclick="openEventDetail(\'' + e.id + '\')" style="display:flex;justify-content:space-between;align-items:center;padding:8px 6px;border-bottom:1px solid var(--bd);cursor:pointer;border-radius:6px">' +
+      '<div style="min-width:0"><div style="font-size:11px;color:var(--tx)"><span class="ev-dot t-' + e.type + '"></span>' + esc(e.titre) + '</div>' +
+      '<div style="font-size:10px;color:var(--mu2)">' + (e.client_id ? esc(clientName(e.client_id)) + ' &middot; ' : '') + esc(EVT_TYPE_LABELS[e.type]) + '</div></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' +
+        '<span style="font-size:10px;color:' + (late ? 'var(--red)' : 'var(--orange)') + '">' + when + '</span>' +
+        '<span class="btn bg bxs" onclick="event.stopPropagation();setEventDone(\'' + e.id + '\')" title="Marquer fait">&#10003;</span>' +
+      '</div></div>';
+  }).join('') || '<div class="empty">Rien de prevu, tu es a jour</div>';
+
   el('view-dash').innerHTML =
+    '<div style="margin-bottom:14px">' + card('A faire' + (due.length ? ' (' + due.length + ')' : ''), dueHtml) + '</div>' +
     '<div class="sw-kpis">' + kpis + '</div>' +
     '<div class="g2" style="align-items:start">' +
       '<div>' +
@@ -379,7 +417,8 @@ async function moveClient(id, dir) {
   var ni = Math.max(0, Math.min(PIPE_ORDER.length - 1, idx + dir));
   if (ni === idx) return;
   await updateRow('web_clients', id, { statut_pipeline: PIPE_ORDER[ni] });
-  c.statut_pipeline = PIPE_ORDER[ni];
+  await maybeAutoRappel(id, PIPE_ORDER[ni]);
+  await loadAll();
   renderPipeline(); badges();
   if (UI.pid === id) openClientPanel(id);
 }
@@ -439,10 +478,33 @@ function openClientPanel(id) {
     return '<div class="board-row" onclick="openCadrage(\'' + id + '\')" style="cursor:pointer;padding:8px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span style="font-size:11px">' + esc(k.nom || 'Fiche') + '</span><span style="font-size:10px;color:var(--mu)">' + (num(k.total_ht) ? fmtEUR(k.total_ht) + ' &middot; ' : '') + fmtDateFR(k.updated_at) + '</span></div>';
   }).join('') || '<div class="empty">Aucune fiche de cadrage</div>';
 
+  var evs = evOfClient(id).filter(function (e) { return e.statut !== 'annule'; });
+  var rappelsHtml = evs.map(function (e) {
+    var d = daysUntilTs(e.date_debut);
+    var late = e.statut === 'a_faire' && d < 0;
+    var done = e.statut === 'fait';
+    return '<div class="board-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)">' +
+      '<div onclick="openEventForm(\'' + e.id + '\')" style="cursor:pointer;flex:1;min-width:0">' +
+        '<div style="font-size:11px;color:' + (done ? 'var(--mu2)' : 'var(--tx)') + (done ? ';text-decoration:line-through' : '') + '"><span class="ev-dot t-' + e.type + '"></span>' + esc(e.titre) + '</div>' +
+        '<div style="font-size:10px;color:' + (late ? 'var(--red)' : 'var(--mu2)') + '">' + esc(EVT_TYPE_LABELS[e.type]) + ' &middot; ' + fmtDateHeureFR(e.date_debut) + (late ? ' (en retard)' : '') + '</div>' +
+      '</div>' +
+      (e.statut === 'a_faire' ? '<span class="btn bg bxs" onclick="event.stopPropagation();setEventDone(\'' + e.id + '\')" title="Marquer fait">&#10003;</span>' : '') +
+    '</div>';
+  }).join('') || '<div class="empty">Aucun rappel ni rendez-vous</div>';
+
+  var liensHtml = liensOfClient(id).map(function (l) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd)">' +
+      '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--ac);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">' + esc(l.libelle || l.url) + '</a>' +
+      '<span class="dv-x" onclick="deleteLien(\'' + l.id + '\',\'' + id + '\')" title="Supprimer">&times;</span>' +
+    '</div>';
+  }).join('') || '<div class="empty">Aucun lien</div>';
+
   el('pb').innerHTML =
     section('Coordonnees', infos) +
     section('Etape du pipeline', '<div style="display:flex;gap:4px;flex-wrap:wrap">' + stepBtns + '</div>') +
-    section('Cadrage', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openCadrage(\'' + id + '\')">Ouvrir la fiche de cadrage</button>' + cad) +
+    section('Rappels et rendez-vous', '<div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn bg bsm" onclick="quickRappel(\'' + id + '\')">+ Rappel</button><button class="btn bg bsm" onclick="quickRdv(\'' + id + '\')">+ RDV</button></div>' + rappelsHtml) +
+    section('Cadrage (questionnaire)', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openCadrage(\'' + id + '\')">Ouvrir la fiche de cadrage</button>' + cad) +
+    section('Liens', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openLienForm(\'' + id + '\')">+ Ajouter un lien</button>' + liensHtml) +
     section('Interactions', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openInteractionForm(\'' + id + '\')">+ Ajouter</button>' + interHtml) +
     section('Projets', projets) +
     section('Devis', devis) +
@@ -456,7 +518,8 @@ function section(title, body) { return '<div style="margin-bottom:16px"><div cla
 
 async function setClientStage(id, st) {
   await updateRow('web_clients', id, { statut_pipeline: st });
-  var c = clientById(id); if (c) c.statut_pipeline = st;
+  await maybeAutoRappel(id, st);
+  await loadAll();
   openClientPanel(id); if (UI.view === 'pipeline') renderPipeline(); badges();
 }
 
@@ -1136,6 +1199,392 @@ document.addEventListener('click', function (e) {
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// AGENDA / RAPPELS / LIENS  (organisation intelligente)
+// ═══════════════════════════════════════════════════════════════════
+var _agMonth = null; // mois affiche (Date positionnee sur le 1er du mois)
+
+function evOfClient(id) {
+  return DB.evenements.filter(function (e) { return e.client_id === id; })
+    .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); });
+}
+function liensOfClient(id) { return DB.liens.filter(function (l) { return l.client_id === id; }); }
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+// date locale au format AAAA-MM-JJ (sans passage par UTC : evite le decalage de jour)
+function localISODate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function fmtDateHeureFR(iso) {
+  if (!iso) return '-';
+  try { return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+  catch (e) { return iso; }
+}
+// nombre de jours (calendaires) d'ici la date donnee : <0 = passe, 0 = aujourd'hui
+function daysUntilTs(iso) {
+  var d = new Date(iso), t = new Date();
+  var a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var b = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.round((a - b) / 86400000);
+}
+// evenements "a faire" en retard ou aujourd'hui (badge + tableau de bord)
+function evDueList() {
+  var end = new Date(); end.setHours(23, 59, 59, 999);
+  return DB.evenements.filter(function (e) { return e.statut === 'a_faire' && new Date(e.date_debut) <= end; })
+    .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); });
+}
+
+// ── Vue Agenda : calendrier du mois + liste des prochains rappels ──
+function renderAgenda() {
+  if (!_agMonth) { var t0 = new Date(); _agMonth = new Date(t0.getFullYear(), t0.getMonth(), 1); }
+  var y = _agMonth.getFullYear(), m = _agMonth.getMonth();
+  var moisFR = _agMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+  var first = new Date(y, m, 1);
+  var startOffset = (first.getDay() + 6) % 7; // lundi = 0
+  var gridStart = new Date(y, m, 1 - startOffset);
+  var head = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    .map(function (j) { return '<div class="ag-dow">' + j + '</div>'; }).join('');
+
+  var cells = '', today = new Date();
+  for (var i = 0; i < 42; i++) {
+    var day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+    var inMonth = day.getMonth() === m;
+    var evs = DB.evenements.filter(function (e) { return isSameDay(new Date(e.date_debut), day); })
+      .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); });
+    var evHtml = evs.slice(0, 3).map(function (e) {
+      var extra = e.statut === 'fait' ? ' done' : (e.statut === 'annule' ? ' annule' : '');
+      var lbl = e.client_id ? clientName(e.client_id) : e.titre;
+      return '<div class="ag-ev t-' + e.type + extra + '" onclick="event.stopPropagation();openEventDetail(\'' + e.id + '\')" title="' + esc(e.titre) + '">' + esc(lbl) + '</div>';
+    }).join('');
+    var more = evs.length > 3 ? '<div class="ag-more">+' + (evs.length - 3) + '</div>' : '';
+    var cls = 'ag-cell' + (inMonth ? '' : ' out') + (isSameDay(day, today) ? ' today' : '');
+    cells += '<div class="' + cls + '" onclick="openEventForm(null,\'' + localISODate(day) + '\')"><div class="ag-dnum">' + day.getDate() + '</div>' + evHtml + more + '</div>';
+  }
+
+  var up = DB.evenements.filter(function (e) { return e.statut === 'a_faire'; })
+    .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); }).slice(0, 14);
+  var upHtml = up.map(function (e) {
+    var d = daysUntilTs(e.date_debut), late = d < 0;
+    var when = late ? Math.abs(d) + 'j de retard' : (d === 0 ? 'aujourd\'hui' : 'dans ' + d + 'j');
+    return '<div class="ag-up" onclick="openEventDetail(\'' + e.id + '\')">' +
+      '<div class="ag-up-dot t-' + e.type + '"></div>' +
+      '<div style="flex:1;min-width:0"><div class="ag-up-t">' + esc(e.titre) + '</div>' +
+      '<div class="ag-up-s">' + (e.client_id ? esc(clientName(e.client_id)) + ' &middot; ' : '') + fmtDateHeureFR(e.date_debut) + '</div></div>' +
+      '<div class="ag-up-w ' + (late ? 'late' : '') + '">' + when + '</div>' +
+    '</div>';
+  }).join('') || '<div class="empty">Aucun rappel a venir</div>';
+
+  el('view-agenda').innerHTML =
+    '<div class="ag-wrap">' +
+      '<div class="ag-cal">' +
+        '<div class="ag-nav"><button class="btn bg bxs" onclick="agShift(-1)">&larr;</button>' +
+          '<div class="ag-title">' + esc(moisFR.charAt(0).toUpperCase() + moisFR.slice(1)) + '</div>' +
+          '<button class="btn bg bxs" onclick="agShift(1)">&rarr;</button>' +
+          '<button class="btn bg bxs" style="margin-left:8px" onclick="agToday()">Aujourd\'hui</button></div>' +
+        '<div class="ag-dows">' + head + '</div>' +
+        '<div class="ag-grid">' + cells + '</div>' +
+      '</div>' +
+      '<div class="ag-side">' +
+        '<div class="syne" style="font-weight:700;font-size:12px;margin-bottom:10px">Prochains rappels</div>' + upHtml +
+      '</div>' +
+    '</div>';
+}
+function agShift(n) { _agMonth = new Date(_agMonth.getFullYear(), _agMonth.getMonth() + n, 1); renderAgenda(); }
+function agToday() { var t = new Date(); _agMonth = new Date(t.getFullYear(), t.getMonth(), 1); renderAgenda(); }
+
+// Clic sur un evenement : ouvre la fiche client si rattache, sinon le formulaire
+function openEventDetail(id) {
+  var e = DB.evenements.find(function (x) { return x.id === id; });
+  if (!e) return;
+  if (e.client_id && clientById(e.client_id)) { openClientPanel(e.client_id); return; }
+  openEventForm(id);
+}
+
+// ── Formulaire evenement (rappel / RDV / tache) ──
+function openEventForm(id, prefillDateISO, prefillClientId, prefillType) {
+  var e = id ? DB.evenements.find(function (x) { return x.id === id; }) : null;
+  var typeVal = e ? e.type : (prefillType || 'rappel');
+  var typeOpts = EVT_TYPE_ORDER.map(function (t) { return '<option value="' + t + '"' + (typeVal === t ? ' selected' : '') + '>' + EVT_TYPE_LABELS[t] + '</option>'; }).join('');
+  var clientVal = e ? e.client_id : (prefillClientId || '');
+  var clientOpts = '<option value="">Aucun (evenement general)</option>' + DB.clients.map(function (c) {
+    return '<option value="' + c.id + '"' + (clientVal === c.id ? ' selected' : '') + '>' + esc(c.entreprise) + '</option>';
+  }).join('');
+  var dtVal = e ? toLocalInput(e.date_debut) : (prefillDateISO ? prefillDateISO + 'T09:00' : toLocalInput(new Date().toISOString()));
+
+  var b =
+    '<div class="fgrp"><label class="lbl">Intitule *</label><input id="e-titre" value="' + esc(e && e.titre) + '" placeholder="Relancer le devis, appeler, RDV cadrage..."></div>' +
+    '<div class="fg"><div class="fgrp"><label class="lbl">Type</label><select id="e-type">' + typeOpts + '</select></div>' +
+    '<div class="fgrp"><label class="lbl">Date et heure</label><input id="e-date" type="datetime-local" value="' + dtVal + '"></div></div>' +
+    '<div class="fgrp"><label class="lbl">Client rattache</label><select id="e-client">' + clientOpts + '</select></div>' +
+    '<div class="fgrp"><label class="lbl">Lieu (pour un RDV)</label><input id="e-lieu" value="' + esc(e && e.lieu) + '" placeholder="Adresse, visio, telephone..."></div>' +
+    '<div class="fgrp"><label class="lbl">Notes</label><textarea id="e-notes">' + esc(e && e.notes) + '</textarea></div>';
+  var f = '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
+    (id ? '<button class="btn bd_" onclick="deleteEvent(\'' + id + '\')">Supprimer</button>' : '') +
+    (id && e && e.statut === 'a_faire' ? '<button class="btn bg" onclick="setEventDone(\'' + id + '\')">Marquer fait</button>' : '') +
+    '<button class="btn bp" onclick="saveEvent(' + (id ? '\'' + id + '\'' : '') + ')">Enregistrer</button>';
+  openMo(id ? 'Modifier l\'evenement' : 'Nouvel evenement', b, f);
+}
+// convertit un ISO (UTC) en valeur pour <input type=datetime-local> (heure locale)
+function toLocalInput(iso) {
+  try {
+    var d = new Date(iso);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  } catch (e) { return ''; }
+}
+async function saveEvent(id) {
+  var titre = el('e-titre').value.trim();
+  if (!titre) { toast('Intitule requis', 'e'); return; }
+  var dv = el('e-date').value;
+  if (!dv) { toast('Date requise', 'e'); return; }
+  var payload = {
+    titre: titre, type: el('e-type').value, date_debut: new Date(dv).toISOString(),
+    client_id: el('e-client').value || null, lieu: el('e-lieu').value.trim() || null,
+    notes: el('e-notes').value.trim() || null
+  };
+  var sb = getSB();
+  var r = id ? await sb.from('web_evenements').update(payload).eq('id', id)
+             : await sb.from('web_evenements').insert(payload);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  closeMo(); toast('Evenement enregistre', 's');
+  await loadAll(); refreshCurrent();
+}
+async function deleteEvent(id) {
+  if (!confirm('Supprimer cet evenement ?')) return;
+  var r = await getSB().from('web_evenements').delete().eq('id', id);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  closeMo(); toast('Evenement supprime', 's');
+  await loadAll(); refreshCurrent();
+}
+async function setEventDone(id) {
+  var r = await getSB().from('web_evenements').update({ statut: 'fait' }).eq('id', id);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  closeMo(); toast('Marque comme fait', 's');
+  await loadAll(); refreshCurrent();
+}
+// rafraichit la vue courante + le panneau ouvert le cas echeant
+function refreshCurrent() { go(UI.view); if (UI.pid) openClientPanel(UI.pid); }
+
+// rappels rapides depuis la fiche client
+function quickRappel(clientId) { openEventForm(null, todayISO(), clientId, 'rappel'); }
+function quickRdv(clientId) { openEventForm(null, todayISO(), clientId, 'rdv_physique'); }
+
+// ── Auto-rappels : generes aux transitions de pipeline (le cote "assiste") ──
+async function maybeAutoRappel(clientId, statut) {
+  var conf = AUTO_RAPPELS[statut];
+  if (!conf) return;
+  // anti-doublon : on ne recree pas un auto-rappel deja pose (meme client, meme intitule, encore a faire)
+  var exists = DB.evenements.some(function (e) {
+    return e.client_id === clientId && e.auto && e.titre === conf.titre && e.statut === 'a_faire';
+  });
+  if (exists) return;
+  var when = new Date(); when.setDate(when.getDate() + conf.j); when.setHours(9, 0, 0, 0);
+  try {
+    await getSB().from('web_evenements').insert({
+      client_id: clientId, titre: conf.titre, type: 'rappel', date_debut: when.toISOString(), auto: true
+    });
+  } catch (e) { /* best effort */ }
+}
+
+// ── Liens rattaches a la fiche ──
+function openLienForm(clientId) {
+  var b =
+    '<div class="fgrp"><label class="lbl">Libelle</label><input id="l-libelle" placeholder="Repo GitHub, apercu Vercel, Drive, site du client..."></div>' +
+    '<div class="fgrp"><label class="lbl">URL *</label><input id="l-url" placeholder="https://..."></div>';
+  openMo('Ajouter un lien', b,
+    '<button class="btn bg" onclick="openClientPanel(\'' + clientId + '\')">Annuler</button><button class="btn bp" onclick="saveLien(\'' + clientId + '\')">Ajouter</button>');
+}
+async function saveLien(clientId) {
+  var url = el('l-url').value.trim();
+  if (!url) { toast('URL requise', 'e'); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  var r = await getSB().from('web_liens').insert({ client_id: clientId, libelle: el('l-libelle').value.trim() || null, url: url });
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  closeMo(); toast('Lien ajoute', 's');
+  await loadAll(); openClientPanel(clientId);
+}
+async function deleteLien(id, clientId) {
+  var r = await getSB().from('web_liens').delete().eq('id', id);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  toast('Lien supprime', 's');
+  await loadAll(); openClientPanel(clientId);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROSPECTION SUR CARTE  (OpenStreetMap + Overpass, sans cle ni cout)
+// ═══════════════════════════════════════════════════════════════════
+var _map = null, _markers = null, _prospInit = false;
+var _prospById = {};       // "type/id" -> commerce
+var _prospNoSite = false;  // filtre : uniquement les entreprises sans site web
+
+// libelles FR des categories OSM les plus frequentes
+var OSM_CAT = {
+  restaurant: 'Restaurant', cafe: 'Cafe', bar: 'Bar', fast_food: 'Restauration rapide', pub: 'Pub',
+  bakery: 'Boulangerie', butcher: 'Boucherie', hairdresser: 'Coiffeur', beauty: 'Institut de beaute',
+  clothes: 'Pret-a-porter', shoes: 'Chaussures', florist: 'Fleuriste', jewelry: 'Bijouterie',
+  car_repair: 'Garage', car: 'Concession auto', optician: 'Opticien', pharmacy: 'Pharmacie',
+  dentist: 'Dentiste', doctors: 'Cabinet medical', veterinary: 'Veterinaire', estate_agent: 'Agence immo',
+  bank: 'Banque', supermarket: 'Supermarche', hardware: 'Quincaillerie', furniture: 'Ameublement',
+  electronics: 'Electronique', mobile_phone: 'Telephonie', bicycle: 'Velo', sports: 'Sport',
+  driving_school: 'Auto-ecole', travel_agency: 'Agence de voyage', photographer: 'Photographe',
+  plumber: 'Plombier', electrician: 'Electricien', carpenter: 'Menuisier', painter: 'Peintre',
+  tiler: 'Carreleur', roofer: 'Couvreur', locksmith: 'Serrurier', gardener: 'Paysagiste'
+};
+function osmCat(t) {
+  var v = t.shop || t.craft || t.office || t.amenity || '';
+  return OSM_CAT[v] || (v ? v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, ' ') : 'Etablissement');
+}
+function osmAddr(t) {
+  var p = [];
+  if (t['addr:housenumber'] || t['addr:street']) p.push(((t['addr:housenumber'] || '') + ' ' + (t['addr:street'] || '')).trim());
+  if (t['addr:postcode'] || t['addr:city']) p.push(((t['addr:postcode'] || '') + ' ' + (t['addr:city'] || '')).trim());
+  return p.join(', ');
+}
+function osmSite(t) { return t.website || t['contact:website'] || ''; }
+function osmPhone(t) { return t.phone || t['contact:phone'] || t['contact:mobile'] || ''; }
+
+function renderProspection() {
+  if (_prospInit) { if (_map) setTimeout(function () { _map.invalidateSize(); }, 60); return; }
+  el('view-prospection').innerHTML =
+    '<div class="pr-bar">' +
+      '<input id="prosp-q" class="pr-q" placeholder="Ville ou quartier (ex : Nice centre, Antibes, Cannes...)" onkeydown="if(event.key===\'Enter\')prospSearch()">' +
+      '<button class="btn bp bsm" onclick="prospSearch()">Rechercher</button>' +
+      '<button class="btn bg bsm" onclick="prospLocate()">Ma position</button>' +
+      '<button class="btn bg bsm" onclick="prospLoad()">Chercher ici</button>' +
+      '<label class="pr-toggle"><input type="checkbox" id="prosp-nosite" onchange="prospToggleNoSite()"> Sans site web seulement</label>' +
+    '</div>' +
+    '<div class="pr-wrap">' +
+      '<div id="prosp-map" class="pr-map"></div>' +
+      '<div id="prosp-list" class="pr-list"><div class="empty">Cherche une zone, deplace la carte, puis clique "Chercher ici" pour lister les entreprises.</div></div>' +
+    '</div>';
+  try {
+    _map = L.map('prosp-map', { zoomControl: true }).setView([43.7009, 7.2683], 14); // Nice par defaut
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(_map);
+    _markers = L.layerGroup().addTo(_map);
+    _prospInit = true;
+    setTimeout(function () { if (_map) _map.invalidateSize(); }, 120);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        if (_map) _map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+      }, function () {}, { timeout: 5000 });
+    }
+  } catch (e) { el('prosp-map').innerHTML = '<div class="empty" style="padding:20px">Carte indisponible (recharge la page)</div>'; }
+}
+
+// recherche d'une zone via Nominatim (gratuit)
+async function prospSearch() {
+  var q = el('prosp-q').value.trim();
+  if (!q || !_map) return;
+  toast('Recherche de la zone...', 'i');
+  try {
+    var r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } });
+    var j = await r.json();
+    if (!j || !j.length) { toast('Zone introuvable', 'w'); return; }
+    _map.setView([parseFloat(j[0].lat), parseFloat(j[0].lon)], 15);
+    setTimeout(prospLoad, 300);
+  } catch (e) { toast('Recherche impossible', 'e'); }
+}
+function prospLocate() {
+  if (!navigator.geolocation) { toast('Geolocalisation indisponible', 'w'); return; }
+  toast('Localisation...', 'i');
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    if (_map) { _map.setView([pos.coords.latitude, pos.coords.longitude], 15); setTimeout(prospLoad, 300); }
+  }, function () { toast('Localisation refusee', 'w'); }, { timeout: 7000 });
+}
+
+// interroge Overpass sur l'emprise visible
+async function prospLoad() {
+  if (!_map) return;
+  if (_map.getZoom() < 14) { toast('Zoome un peu plus pour lister les entreprises', 'w'); return; }
+  var b = _map.getBounds();
+  var bbox = b.getSouth().toFixed(5) + ',' + b.getWest().toFixed(5) + ',' + b.getNorth().toFixed(5) + ',' + b.getEast().toFixed(5);
+  var amen = 'restaurant|cafe|bar|fast_food|pub|pharmacy|dentist|doctors|clinic|veterinary|driving_school|fuel|bank';
+  var q = '[out:json][timeout:25];(' +
+    'node["shop"](' + bbox + ');way["shop"](' + bbox + ');' +
+    'node["craft"](' + bbox + ');way["craft"](' + bbox + ');' +
+    'node["office"](' + bbox + ');' +
+    'node["amenity"~"^(' + amen + ')$"](' + bbox + ');way["amenity"~"^(' + amen + ')$"](' + bbox + ');' +
+    ');out center 200;';
+  el('prosp-list').innerHTML = '<div class="empty">Recherche des entreprises...</div>';
+  try {
+    var r = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q)
+    });
+    var j = await r.json();
+    var list = (j.elements || []).map(function (e) {
+      var t = e.tags || {};
+      if (!t.name) return null;
+      var lat = e.lat != null ? e.lat : (e.center && e.center.lat);
+      var lon = e.lon != null ? e.lon : (e.center && e.center.lon);
+      if (lat == null || lon == null) return null;
+      return { key: e.type + '/' + e.id, name: t.name, cat: osmCat(t), site: osmSite(t), phone: osmPhone(t), addr: osmAddr(t), ville: t['addr:city'] || '', lat: lat, lon: lon };
+    }).filter(Boolean);
+    _prospById = {};
+    list.forEach(function (x) { _prospById[x.key] = x; });
+    prospRerender();
+  } catch (e) {
+    el('prosp-list').innerHTML = '<div class="empty">Recherche indisponible (Overpass surcharge), reessaie dans un instant.</div>';
+    toast('Overpass momentanement indisponible', 'e');
+  }
+}
+function prospRerender() { prospRender(Object.keys(_prospById).map(function (k) { return _prospById[k]; })); }
+function prospToggleNoSite() { _prospNoSite = el('prosp-nosite').checked; prospRerender(); }
+
+function prospRender(list) {
+  if (_prospNoSite) list = list.filter(function (x) { return !x.site; });
+  if (_markers) _markers.clearLayers();
+  var known = {};
+  DB.clients.forEach(function (c) { if (c.entreprise) known[c.entreprise.trim().toLowerCase()] = true; });
+
+  var rows = list.slice(0, 200).map(function (x) {
+    var inCrm = known[x.name.trim().toLowerCase()];
+    var noSite = !x.site;
+    var color = noSite ? '#e0a92e' : '#8c8c84';
+    if (_markers && typeof L !== 'undefined') {
+      var mk = L.circleMarker([x.lat, x.lon], { radius: 7, color: color, fillColor: color, fillOpacity: 0.85, weight: 1 });
+      var pop = '<div style="min-width:180px"><b>' + esc(x.name) + '</b><br><span style="color:#888">' + esc(x.cat) + '</span>' +
+        (x.addr ? '<br>' + esc(x.addr) : '') +
+        '<br>' + (noSite ? '<b style="color:#c98a10">Pas de site web</b>' : '<span style="color:#888">A un site</span>') +
+        (x.phone ? '<br><a href="tel:' + esc(x.phone) + '">' + esc(x.phone) + '</a>' : '') +
+        '<br>' + (inCrm ? '<span style="color:#1a9c72">Deja au CRM</span>' : '<button onclick="prospAdd(\'' + x.key + '\')">Ajouter au CRM</button>') +
+        '</div>';
+      mk.bindPopup(pop);
+      _markers.addLayer(mk);
+    }
+    return '<div class="pr-item" onclick="prospFocus(\'' + x.key + '\')">' +
+      '<div style="flex:1;min-width:0"><div class="pr-item-t">' + esc(x.name) + (noSite ? ' <span class="pr-nosite">sans site</span>' : '') + '</div>' +
+      '<div class="pr-item-s">' + esc(x.cat) + (x.ville ? ' &middot; ' + esc(x.ville) : '') + '</div></div>' +
+      '<div class="pr-item-a">' +
+        (x.phone ? '<a class="btn bg bxs" href="tel:' + esc(x.phone) + '" onclick="event.stopPropagation()">Appeler</a>' : '') +
+        (inCrm ? '<span class="pr-incrm">au CRM</span>' : '<button class="btn bp bxs" onclick="event.stopPropagation();prospAdd(\'' + x.key + '\')">+ CRM</button>') +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  var n = list.length;
+  el('prosp-list').innerHTML =
+    '<div class="pr-count">' + n + ' entreprise' + (n > 1 ? 's' : '') + (_prospNoSite ? ' sans site' : '') + '</div>' +
+    (rows || '<div class="empty">Aucune entreprise trouvee ici</div>');
+}
+function prospFocus(key) {
+  var x = _prospById[key]; if (!x || !_map) return;
+  _map.setView([x.lat, x.lon], Math.max(_map.getZoom(), 17));
+}
+async function prospAdd(key) {
+  var x = _prospById[key]; if (!x) return;
+  var payload = {
+    entreprise: x.name, telephone: x.phone || null, ville: x.ville || null,
+    secteur: x.cat || null, source: 'Prospection carte', statut_pipeline: 'prospect',
+    notes: [x.addr, x.site ? 'Site : ' + x.site : 'Pas de site web'].filter(Boolean).join(' | ') || null
+  };
+  var u = currentUser(); if (u && u.id) payload.owner = u.id;
+  var r = await getSB().from('web_clients').insert(payload);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  toast(x.name + ' ajoute au pipeline', 's');
+  await loadAll(); prospRerender(); badges();
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // EXPOSITION GLOBALE (handlers onclick) + INIT
 // ═══════════════════════════════════════════════════════════════════
 var API = {
@@ -1153,7 +1602,12 @@ var API = {
   emitFacture: emitFacture, setFactureStatut: setFactureStatut, avoirFacture: avoirFacture,
   openHebergForm: openHebergForm, saveHeberg: saveHeberg, deleteHeberg: deleteHeberg,
   closeMo: closeMo, closePanel: closePanel, copyText: copyText,
-  toggleUserMenu: toggleUserMenu, logout: logout
+  toggleUserMenu: toggleUserMenu, logout: logout,
+  openEventForm: openEventForm, saveEvent: saveEvent, deleteEvent: deleteEvent, setEventDone: setEventDone,
+  openEventDetail: openEventDetail, agShift: agShift, agToday: agToday, quickRappel: quickRappel, quickRdv: quickRdv,
+  openLienForm: openLienForm, saveLien: saveLien, deleteLien: deleteLien,
+  prospSearch: prospSearch, prospLocate: prospLocate, prospLoad: prospLoad,
+  prospToggleNoSite: prospToggleNoSite, prospFocus: prospFocus, prospAdd: prospAdd
 };
 Object.keys(API).forEach(function (k) { window[k] = API[k]; });
 

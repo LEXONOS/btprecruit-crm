@@ -103,3 +103,72 @@
 .toast.te{border-left:3px solid var(--sw-perdu)}
 .toast.tw{border-left:3px solid var(--sw-devis)}
 .toast.ti{border-left:3px solid var(--sw-contacte)}
+
+/* ===== AGENDA / RAPPELS (ajout organisation intelligente) ===== */
+.ag-wrap{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+@media(max-width:900px){.ag-wrap{grid-template-columns:1fr}}
+.ag-cal{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px}
+.ag-nav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ag-title{font-family:'Syne',sans-serif;font-weight:800;font-size:14px;flex:1}
+.ag-dows{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.ag-dow{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu2);text-align:center;padding:2px 0}
+.ag-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.ag-cell{min-height:76px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:4px;cursor:pointer;transition:.12s;overflow:hidden}
+.ag-cell:hover{background:var(--s3);border-color:var(--bd3)}
+.ag-cell.out{opacity:.4}
+.ag-cell.today{border-color:var(--ac);box-shadow:inset 0 0 0 1px var(--ac-border)}
+.ag-dnum{font-size:10px;color:var(--mu);font-weight:600;margin-bottom:3px}
+.ag-cell.today .ag-dnum{color:var(--ac)}
+.ag-ev{font-size:9px;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--s3);border-left:2px solid var(--mu2);color:var(--tx)}
+.ag-ev.t-rappel{border-left-color:var(--sw-devis)}
+.ag-ev.t-rdv_physique{border-left-color:var(--sw-signe)}
+.ag-ev.t-rdv_visio{border-left-color:var(--sw-contacte)}
+.ag-ev.t-tache{border-left-color:var(--sw-encours)}
+.ag-ev.t-echeance{border-left-color:var(--sw-perdu)}
+.ag-ev.done,.ag-ev.annule{opacity:.4;text-decoration:line-through}
+.ag-more{font-size:9px;color:var(--mu2);padding-left:4px}
+.ag-side{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px}
+.ag-up{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--bd);cursor:pointer}
+.ag-up:last-child{border-bottom:none}
+.ag-up:hover .ag-up-t{color:var(--ac)}
+.ag-up-dot{width:8px;height:8px;border-radius:50%;background:var(--mu2);flex-shrink:0}
+.ag-up-dot.t-rappel{background:var(--sw-devis)}
+.ag-up-dot.t-rdv_physique{background:var(--sw-signe)}
+.ag-up-dot.t-rdv_visio{background:var(--sw-contacte)}
+.ag-up-dot.t-tache{background:var(--sw-encours)}
+.ag-up-dot.t-echeance{background:var(--sw-perdu)}
+.ag-up-t{font-size:11px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-up-s{font-size:9px;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-up-w{font-size:9px;color:var(--mu);white-space:nowrap;flex-shrink:0}
+.ag-up-w.late{color:var(--red)}
+/* pastille de type d'evenement dans les listes (fiche, tableau de bord) */
+.ev-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mu2);margin-right:5px;vertical-align:middle}
+.ev-dot.t-rappel{background:var(--sw-devis)}
+.ev-dot.t-rdv_physique{background:var(--sw-signe)}
+.ev-dot.t-rdv_visio{background:var(--sw-contacte)}
+.ev-dot.t-tache{background:var(--sw-encours)}
+.ev-dot.t-echeance{background:var(--sw-perdu)}
+.todo-row:hover{background:var(--s3)}
+
+/* ===== PROSPECTION SUR CARTE (OpenStreetMap) ===== */
+.pr-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.pr-q{flex:1;min-width:220px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r);color:var(--tx);font-size:12px;font-family:inherit}
+.pr-q:focus{outline:none;border-color:var(--ac)}
+.pr-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu);cursor:pointer;white-space:nowrap;padding:6px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r)}
+.pr-wrap{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
+@media(max-width:900px){.pr-wrap{grid-template-columns:1fr}}
+.pr-map{height:520px;border:1px solid var(--bd);border-radius:var(--r2);z-index:0;background:#1a1a1a}
+.pr-list{height:520px;overflow-y:auto;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:10px}
+@media(max-width:900px){.pr-map{height:360px}.pr-list{height:auto;max-height:440px}}
+.pr-count{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu2);margin-bottom:8px}
+.pr-item{display:flex;align-items:center;gap:8px;padding:9px 8px;border-bottom:1px solid var(--bd);cursor:pointer;border-radius:6px}
+.pr-item:hover{background:var(--s3)}
+.pr-item-t{font-size:11px;color:var(--tx);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-item-s{font-size:10px;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-item-a{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.pr-item-a a{text-decoration:none}
+.pr-nosite{display:inline-block;font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#1a1406;background:var(--ac);padding:1px 5px;border-radius:99px;vertical-align:middle;font-weight:700}
+.pr-incrm{font-size:9px;color:var(--sw-livre);white-space:nowrap}
+/* popups Leaflet : rester lisible */
+.leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.5}
+.leaflet-popup-content button{background:var(--ac);color:#1a1406;border:none;border-radius:6px;padding:4px 10px;font-weight:600;font-size:11px}
