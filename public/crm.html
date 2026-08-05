@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- NOVALEM CRM v4.2 — Design System 2026 — build:redesign-20260408 -->
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Novalem — CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="/css/crm-styles.css">
+</head>
+<body>
+<script src="/js/crm-auth.js"></script>
+<nav id="sb">
+ <div class="logo" style="cursor:pointer" onclick="window.location='/hub'" title="Retour au Hub">
+ <div class="logo-t">Nova<b>lem</b></div>
+ <div class="logo-s">Cabinet de recrutement</div>
+ </div>
+ <a href="/hub" style="display:flex;align-items:center;gap:7px;padding:8px 14px;margin:8px 8px 4px;font-size:10px;color:var(--mu);text-decoration:none;border:1px solid var(--bd);border-radius:6px;transition:.15s;background:var(--s2)" onmouseover="this.style.borderColor='var(--bd2)';this.style.color='var(--tx)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--mu)'">← Retour au Hub</a>
+ <div class="nav">
+ <div class="ni act" data-v="dash"><span class="ni-ico">·</span>Dashboard<span class="nbadge nb-red" id="badge-urg" style="display:none">!</span></div>
+ <div class="nav-sec">Candidats</div>
+ <div class="ni" data-v="cands"><span class="ni-ico">·</span>Candidats<span class="nbadge nb-mu" id="badge-cands">0</span></div>
+ <div class="ni" data-v="needs"><span class="ni-ico">·</span>Besoins<span class="nbadge nb-grn" id="badge-needs">0</span></div>
+ <div class="nav-sec">Entreprises</div>
+ <div class="ni" data-v="pros"><span class="ni-ico">–</span>Prospects<span class="nbadge nb-yel" id="badge-pros">0</span></div>
+ <div class="ni" data-v="clients"><span class="ni-ico">·</span>Clients</div>
+      <div class="ni" data-v="cvtheque"><span class="ni-ico">✉</span>CVthèque</div>
+ <div class="nav-sec">Outils</div>
+ <div class="ni" data-v="agenda"><span class="ni-ico">·</span>Agenda<span class="nbadge nb-red" id="badge-ag" style="display:none">0</span></div>
+ <div class="ni" data-v="posts"><span class="ni-ico">·</span>Annonces</div>
+ <div class="ni" data-v="emails"><span class="ni-ico">·</span>Emails</div>
+ <div class="ni" data-v="reporting"><span class="ni-ico">·</span>Reporting</div>
+ <div class="ni" data-v="pilotage"><span class="ni-ico">◆</span>Pilotage</div>
+ <div class="ni" data-v="facturation"><span class="ni-ico">·</span>Facturation<span class="nbadge nb-red" id="badge-inv" style="display:none">0</span></div>
+ </div>
+ <div class="nav-footer">
+ <strong id="nf-rev">—</strong>
+ Revenue encaissé
+ </div>
+ <div class="nav-settings" onclick="openSettings()">Paramètres & API</div>
+</nav>
+<div id="main">
+ <div class="topbar">
+ <div class="tbt" id="tbt">Dashboard</div>
+ <div class="tba" id="tba"></div>
+ <div id="dual-clocks" style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0">
+ <div style="display:flex;align-items:center;gap:5px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:3px 9px" title="Heure France">
+ <span style="font-size:9px;color:var(--mu)">🇫🇷</span>
+ <span id="clock-fr" style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--tx)">--:--</span>
+ </div>
+ <div style="display:flex;align-items:center;gap:5px;background:var(--s3);border:1px solid rgba(200,144,10,.3);border-radius:6px;padding:3px 9px" title="Votre heure — Guadeloupe">
+ <span style="font-size:9px;color:var(--gold)">🌴</span>
+ <span id="clock-gwada" style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--gold)">--:--</span>
+ </div>
+ <span id="tz-diff" style="font-size:9px;color:var(--mu)"></span>
+</div>
+<div id="sync-ind" onclick="openConnexion()" style="font-size:10px;color:var(--mu2);cursor:pointer;margin-left:8px;white-space:nowrap;padding:4px 10px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;transition:all .15s;user-select:none" title="Connexion cloud" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--bd2)'">○ Connexion</div>
+ <!-- User badge -->
+ <div id="user-badge" onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:7px;margin-left:10px;padding:4px 10px 4px 6px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;cursor:pointer;transition:all .15s;flex-shrink:0;user-select:none" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd2)'">
+  <div id="user-avatar" style="width:22px;height:22px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0a0a08;flex-shrink:0;font-family:'Syne',sans-serif">?</div>
+  <span id="user-badge-name" style="font-size:11px;color:var(--tx);font-weight:600">—</span>
+  <span style="font-size:9px;color:var(--mu)">▾</span>
+ </div>
+ <!-- User menu dropdown -->
+ <div id="user-menu" style="display:none;position:fixed;top:52px;right:16px;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r2);min-width:180px;box-shadow:var(--sh3);z-index:100;overflow:hidden">
+  <div style="padding:12px 14px;border-bottom:1px solid var(--bd)">
+   <div id="um-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:2px">—</div>
+   <div id="um-role" style="font-size:10px;color:var(--mu)"></div>
+  </div>
+  <div style="padding:6px">
+   <div onclick="closeUserMenu();go('reporting')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'"> Reporting</div>
+   <div onclick="closeUserMenu();openSettings()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'"> Paramètres</div>
+   <div style="height:1px;background:var(--bd);margin:4px 0"></div>
+   <div onclick="logout()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--red)" onmouseover="this.style.background='var(--red-dim)'" onmouseout="this.style.background=''"> Déconnexion</div>
+  </div>
+ </div>
+ </div>
+ <div id="content">
+ <div class="view active" id="view-dash"></div>
+ <div class="view" id="view-cands"></div>
+ <div class="view" id="view-needs"></div>
+ <div class="view" id="view-pros"></div>
+ <div class="view" id="view-cvtheque"></div>
+      <div class="view" id="view-clients"></div>
+ <div class="view" id="view-agenda"></div>
+ <div class="view" id="view-posts"></div>
+ <div class="view" id="view-emails"></div>
+ <div class="view" id="view-reporting"></div>
+ <div class="view" id="view-pilotage"></div>
+ <div class="view" id="view-facturation"></div>
+ </div>
+</div>
+<aside id="panel">
+ <div class="ph"><div class="ph-l"><div class="ph-name" id="ph-name">—</div><div class="ph-sub" id="ph-sub"></div></div><div class="ph-x" onclick="closePanel()">×</div></div>
+ <div class="ptabs" id="ptabs"></div>
+ <div class="pb" id="pb"></div>
+ <div class="pa" id="pa"></div>
+</aside>
+<div id="mo" onclick="moOvClick(event)">
+ <div id="md">
+ <div class="mh" id="mhdr"><div class="mh-t" id="mht">—</div><div class="mh-x" onclick="closeMo()">×</div></div>
+ <div class="mb" id="mb"></div>
+ <div class="mf" id="mf"></div>
+ </div>
+</div>
+<div class="ctx" id="ctx" style="display:none"></div>
+<div id="toaster"></div>
+<script src="/js/crm-app.js"></script>
+<script src="/js/novalem-annonces-pro.js"></script>
+<script src="/js/crm-booking.js"></script>
+<script src="/js/crm-matching.js"></script>
+
+
+<!-- GLOBAL SEARCH OVERLAY -->
+<div id="gs-overlay">
+ <div id="gs-box">
+ <div id="gs-input-wrap">
+ <span style="font-size:14px;color:var(--mu)"></span>
+ <input id="gs-q" placeholder="Chercher un candidat, prospect, besoin…" autocomplete="off">
+ <span class="gs-key">Esc</span>
+ </div>
+ <div id="gs-results"></div>
+ <div id="gs-footer">
+ <span>↵ Ouvrir</span>
+ <span>Ctrl+K pour ouvrir</span>
+ <span style="margin-left:auto">Raccourcis: 1-6 pour naviguer</span>
+ </div>
+ </div>
+</div>
+
+</body>
+</html>
