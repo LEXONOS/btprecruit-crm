@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1">
+<title>Novalem — Connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{
+  font-family:'Inter','-apple-system','SF Pro Display',sans-serif;
+  background:#f5f3ef;color:#0a0a0c;
+  font-feature-settings:'cv11','ss01','ss03';
+  letter-spacing:-0.011em;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* FOND ANIMÉ : aurore boréale douce + grain subtil  */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.stage{position:fixed;inset:0;overflow:hidden;z-index:0}
+.aurora{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(80px);opacity:.55;will-change:transform}
+.aurora.a1{background:radial-gradient(circle,#e8a820 0%,transparent 65%);top:-25%;left:-15%;animation:drift1 28s ease-in-out infinite alternate}
+.aurora.a2{background:radial-gradient(circle,#f0c870 0%,transparent 65%);bottom:-25%;right:-15%;animation:drift2 32s ease-in-out infinite alternate}
+.aurora.a3{background:radial-gradient(circle,#d4b890 0%,transparent 70%);top:30%;right:20%;width:45vmax;height:45vmax;opacity:.35;animation:drift3 36s ease-in-out infinite alternate}
+@keyframes drift1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(8vmax,4vmax) scale(1.15)}}
+@keyframes drift2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-6vmax,-3vmax) scale(1.12)}}
+@keyframes drift3{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-4vmax,5vmax) scale(.9)}}
+
+.grain{position:absolute;inset:-50%;width:200%;height:200%;opacity:.04;pointer-events:none;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:grain 8s steps(8) infinite}
+@keyframes grain{0%,100%{transform:translate(0,0)}10%{transform:translate(-2%,-5%)}20%{transform:translate(-7%,2%)}30%{transform:translate(5%,-8%)}40%{transform:translate(-3%,7%)}50%{transform:translate(8%,2%)}60%{transform:translate(-7%,-3%)}70%{transform:translate(4%,8%)}80%{transform:translate(-5%,-2%)}90%{transform:translate(6%,-5%)}}
+
+.cursor-glow{position:fixed;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(232,168,32,.18) 0%,transparent 60%);pointer-events:none;transform:translate(-50%,-50%);z-index:1;mix-blend-mode:multiply;opacity:0;transition:opacity .6s ease}
+.cursor-glow.on{opacity:1}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CONTENEUR PRINCIPAL                              */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.shell{position:relative;z-index:2;height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CARTE GLASSMORPHISM                              */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.card{
+  width:100%;max-width:420px;
+  background:rgba(255,253,250,.55);
+  backdrop-filter:blur(40px) saturate(140%);
+  -webkit-backdrop-filter:blur(40px) saturate(140%);
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:28px;
+  padding:40px 38px 32px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 0 0 1px rgba(255,255,255,.4) inset,
+    0 30px 60px -20px rgba(80,60,20,.18),
+    0 18px 40px -18px rgba(80,60,20,.12);
+  position:relative;
+  animation:cardIn .9s cubic-bezier(.2,.9,.25,1.1) both;
+}
+@keyframes cardIn{
+  0%{opacity:0;transform:translateY(20px) scale(.96);filter:blur(8px)}
+  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+}
+
+/* highlight subtil sur le haut de la carte (effet verre) */
+.card::before{content:'';position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,1),transparent);border-radius:1px}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* HEADER : logo + sous-titre                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand-mark{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,#0a0a0c 0%,#2a2620 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Instrument Serif',serif;font-size:18px;font-style:italic;color:#f5f3ef;
+  box-shadow:0 4px 12px rgba(10,10,12,.25),0 1px 0 rgba(255,255,255,.4) inset;
+}
+.brand-name{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.brand-name span{color:#b08418;font-weight:500}
+
+h1{
+  font-family:'Instrument Serif',serif;
+  font-weight:400;font-size:36px;line-height:1.05;
+  letter-spacing:-.02em;color:#0a0a0c;
+  margin-top:22px;margin-bottom:6px;
+}
+h1 em{font-style:italic;color:#b08418}
+.subtitle{font-size:13.5px;color:#5a5650;font-weight:400;letter-spacing:-.005em;margin-bottom:28px}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* TAB SWITCHER : Connexion ↔ Créer un compte       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.tabs{
+  display:flex;background:rgba(0,0,0,.04);border-radius:12px;padding:4px;
+  margin-bottom:24px;position:relative;
+}
+.tab{
+  flex:1;border:none;background:transparent;padding:9px 12px;
+  font-family:inherit;font-size:13px;font-weight:500;color:#5a5650;
+  letter-spacing:-.005em;cursor:pointer;border-radius:9px;
+  transition:color .25s ease;position:relative;z-index:2;
+}
+.tab.on{color:#0a0a0c}
+.tab-indicator{
+  position:absolute;top:4px;bottom:4px;width:calc(50% - 4px);
+  background:#fffdf8;border-radius:9px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  transition:transform .35s cubic-bezier(.4,.0,.2,1);
+}
+.tabs.signup .tab-indicator{transform:translateX(100%)}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CHAMPS FORMULAIRE                                */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.field{margin-bottom:14px;position:relative}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.row .field{margin-bottom:0}
+
+.label{
+  display:block;font-size:11.5px;color:#7a7670;font-weight:500;
+  letter-spacing:.01em;margin-bottom:6px;padding-left:2px;
+}
+
+.input{
+  width:100%;padding:13px 15px;
+  background:rgba(255,253,250,.65);
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:11px;
+  font-family:inherit;font-size:14px;color:#0a0a0c;font-weight:400;
+  letter-spacing:-.005em;
+  transition:all .2s ease;
+  -webkit-appearance:none;appearance:none;
+}
+.input::placeholder{color:#a8a39a;font-weight:400}
+.input:hover{border-color:rgba(0,0,0,.16);background:rgba(255,253,250,.8)}
+.input:focus{
+  outline:none;
+  border-color:rgba(176,132,24,.5);
+  background:#fffdf8;
+  box-shadow:
+    0 0 0 4px rgba(232,168,32,.08),
+    0 4px 12px rgba(80,60,20,.06);
+}
+.input.err{border-color:#c44545;background:rgba(196,69,69,.04)}
+.input.err:focus{box-shadow:0 0 0 4px rgba(196,69,69,.1)}
+
+/* champ mot de passe avec œil */
+.field.pwd{position:relative}
+.field.pwd .input{padding-right:42px}
+.toggle-pwd{
+  position:absolute;right:4px;top:24px;
+  width:32px;height:32px;border:none;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:#7a7670;
+  border-radius:8px;transition:all .15s ease;
+}
+.toggle-pwd:hover{color:#0a0a0c;background:rgba(0,0,0,.04)}
+.toggle-pwd svg{width:16px;height:16px}
+
+/* aide / contraintes */
+.hint{font-size:11px;color:#8a8680;margin-top:5px;padding-left:2px;letter-spacing:-.003em}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* BOUTON SUBMIT                                    */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.submit{
+  width:100%;margin-top:18px;padding:14px;
+  background:#0a0a0c;color:#fffdf8;
+  border:none;border-radius:12px;
+  font-family:inherit;font-size:14px;font-weight:500;letter-spacing:-.005em;
+  cursor:pointer;
+  transition:all .2s ease;
+  position:relative;overflow:hidden;
+  box-shadow:0 4px 14px rgba(10,10,12,.16),0 1px 0 rgba(255,255,255,.1) inset;
+}
+.submit:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(10,10,12,.22),0 1px 0 rgba(255,255,255,.1) inset}
+.submit:active{transform:translateY(0)}
+.submit:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:0 2px 8px rgba(10,10,12,.12)}
+.submit .spinner{display:none;width:14px;height:14px;border:1.5px solid rgba(255,253,248,.3);border-top-color:#fffdf8;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:-2px}
+.submit.loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* shimmer subtil */
+.submit::before{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);transform:skewX(-20deg);transition:left .6s ease}
+.submit:hover::before{left:130%}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* MESSAGE D'ERREUR / SUCCÈS                        */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.msg{
+  margin-top:14px;padding:10px 14px;
+  font-size:12.5px;border-radius:10px;
+  display:none;align-items:flex-start;gap:8px;line-height:1.5;
+  animation:msgIn .25s ease;
+}
+.msg.show{display:flex}
+.msg.err{background:rgba(196,69,69,.08);color:#9a3535;border:1px solid rgba(196,69,69,.18)}
+.msg.ok{background:rgba(78,142,90,.1);color:#3d6b48;border:1px solid rgba(78,142,90,.2)}
+.msg svg{width:14px;height:14px;flex-shrink:0;margin-top:1px}
+@keyframes msgIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* FOOTER                                           */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.foot{margin-top:24px;text-align:center;font-size:11px;color:#8a8680;letter-spacing:.005em}
+.foot .dot{margin:0 8px;color:#c8c2b8}
+
+/* loader plein écran après succès */
+.loader-wrap{display:none;text-align:center;padding:30px 0 20px;animation:msgIn .4s ease}
+.loader-wrap.show{display:block}
+.loader-ring{display:inline-block;width:40px;height:40px;border:2px solid rgba(176,132,24,.15);border-top-color:#b08418;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:18px}
+.loader-txt{font-family:'Instrument Serif',serif;font-size:22px;font-style:italic;color:#0a0a0c;font-weight:400;letter-spacing:-.015em}
+.loader-sub{font-size:12px;color:#7a7670;margin-top:6px}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* PANNEAUX (animation entre Connexion / Création)  */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.panels{position:relative}
+.panel{display:none;animation:panelIn .35s ease both}
+.panel.on{display:block}
+@keyframes panelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* RESPONSIVE                                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media(max-width:480px){
+  .card{padding:32px 26px 26px;border-radius:24px}
+  h1{font-size:30px}
+  .row{grid-template-columns:1fr;gap:0}
+  .row .field{margin-bottom:14px}
+  .row .field:last-child{margin-bottom:0}
+}
+
+/* respect prefers-reduced-motion */
+@media(prefers-reduced-motion:reduce){
+  .aurora,.grain{animation:none}
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- Fond animé -->
+<div class="stage" aria-hidden="true">
+  <div class="aurora a1"></div>
+  <div class="aurora a2"></div>
+  <div class="aurora a3"></div>
+  <div class="grain"></div>
+</div>
+<div class="cursor-glow" id="glow" aria-hidden="true"></div>
+
+<div class="shell">
+  <div class="card" role="dialog" aria-labelledby="title">
+
+    <!-- Logo + nom -->
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-name">Nova<span>lem</span></div>
+    </div>
+
+    <!-- Bloc visible quand on est en mode formulaire -->
+    <div id="form-wrap">
+      <h1 id="title">Bienvenue <em>à nouveau</em>.</h1>
+      <p class="subtitle" id="subtitle">Connectez-vous pour accéder à votre espace.</p>
+
+      <!-- Tabs : Connexion / Créer un compte -->
+      <div class="tabs" id="tabs" role="tablist">
+        <div class="tab-indicator" aria-hidden="true"></div>
+        <button type="button" class="tab on" data-panel="signin" role="tab" aria-selected="true">Connexion</button>
+        <button type="button" class="tab"     data-panel="signup" role="tab" aria-selected="false">Créer un compte</button>
+      </div>
+
+      <div class="panels">
+
+        <!-- ───────── PANEL CONNEXION ───────── -->
+        <form class="panel on" id="panel-signin" data-name="signin" autocomplete="on" novalidate>
+          <div class="row">
+            <div class="field">
+              <label class="label" for="si-prenom">Prénom</label>
+              <input class="input" id="si-prenom" name="given-name" type="text" autocomplete="given-name" placeholder="Martin" required>
+            </div>
+            <div class="field">
+              <label class="label" for="si-nom">Nom</label>
+              <input class="input" id="si-nom" name="family-name" type="text" autocomplete="family-name" placeholder="Dupont" required>
+            </div>
+          </div>
+          <div class="field pwd">
+            <label class="label" for="si-pwd">Mot de passe</label>
+            <input class="input" id="si-pwd" type="password" autocomplete="current-password" placeholder="••••••••" required>
+            <button type="button" class="toggle-pwd" data-target="si-pwd" aria-label="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button type="submit" class="submit" id="btn-signin">
+            <span class="spinner"></span><span class="lbl">Se connecter</span>
+          </button>
+        </form>
+
+        <!-- ───────── PANEL CRÉATION COMPTE ───────── -->
+        <form class="panel" id="panel-signup" data-name="signup" autocomplete="on" novalidate>
+          <div class="row">
+            <div class="field">
+              <label class="label" for="su-prenom">Prénom</label>
+              <input class="input" id="su-prenom" name="given-name" type="text" autocomplete="given-name" placeholder="Martin" required>
+            </div>
+            <div class="field">
+              <label class="label" for="su-nom">Nom</label>
+              <input class="input" id="su-nom" name="family-name" type="text" autocomplete="family-name" placeholder="Dupont" required>
+            </div>
+          </div>
+          <div class="field pwd">
+            <label class="label" for="su-pwd">Mot de passe</label>
+            <input class="input" id="su-pwd" type="password" autocomplete="new-password" placeholder="Minimum 8 caractères" required minlength="8">
+            <button type="button" class="toggle-pwd" data-target="su-pwd" aria-label="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <div class="hint">8 caractères minimum, dont au moins 1 chiffre.</div>
+          </div>
+          <div class="field pwd">
+            <label class="label" for="su-pwd2">Confirmer le mot de passe</label>
+            <input class="input" id="su-pwd2" type="password" autocomplete="new-password" placeholder="••••••••" required>
+            <button type="button" class="toggle-pwd" data-target="su-pwd2" aria-label="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button type="submit" class="submit" id="btn-signup">
+            <span class="spinner"></span><span class="lbl">Envoyer la demande d'accès</span>
+          </button>
+          <div class="hint" style="text-align:center;margin-top:10px">Votre demande sera validée manuellement par un superviseur.</div>
+        </form>
+
+      </div>
+
+      <!-- Message global d'état -->
+      <div class="msg" id="msg" role="alert" aria-live="polite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="msg-txt"></span>
+      </div>
+    </div>
+
+    <!-- Bloc visible quand on charge -->
+    <div class="loader-wrap" id="loader">
+      <div class="loader-ring"></div>
+      <div class="loader-txt" id="loader-txt">Bienvenue</div>
+      <div class="loader-sub">Chargement de votre espace…</div>
+    </div>
+
+    <div class="foot">
+      Novalem &copy; 2026 <span class="dot">·</span> Accès privé <span class="dot">·</span> Recrutement BTP
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CONFIG SUPABASE (inchangée)                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const SUPABASE_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
+const HUB_URL = '/hub';
+const SESSION_MAX_MS = 7*24*3600000;
+
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) {}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* HELPERS                                          */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function toEmail(prenom, nom) {
+  function clean(s) {
+    return s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+  }
+  return clean(prenom) + '.' + clean(nom) + '@novalem.internal';
+}
+
+function showMsg(txt, kind) {
+  const m = document.getElementById('msg');
+  document.getElementById('msg-txt').textContent = txt;
+  m.classList.remove('err','ok');
+  if (kind) m.classList.add(kind);
+  m.classList.add('show');
+}
+function hideMsg() { document.getElementById('msg').classList.remove('show'); }
+
+function setLoading(btn, on) {
+  if (!btn) return;
+  btn.classList.toggle('loading', !!on);
+  btn.disabled = !!on;
+}
+
+function showFinalLoader(name) {
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('loader').classList.add('show');
+  if (name) document.getElementById('loader-txt').textContent = 'Bonjour ' + name;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* TAB SWITCHER                                     */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const TABS = document.getElementById('tabs');
+TABS.addEventListener('click', (e) => {
+  const tab = e.target.closest('.tab');
+  if (!tab || tab.classList.contains('on')) return;
+  const target = tab.dataset.panel;
+
+  // bascule indicateur
+  TABS.classList.toggle('signup', target === 'signup');
+
+  // bascule onglets
+  TABS.querySelectorAll('.tab').forEach(t => {
+    const on = t === tab;
+    t.classList.toggle('on', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+
+  // bascule panels
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('on', p.dataset.name === target);
+  });
+
+  // header dynamique
+  const h1 = document.getElementById('title');
+  const sub = document.getElementById('subtitle');
+  if (target === 'signup') {
+    h1.innerHTML = 'Rejoignez <em>l\u2019équipe</em>.';
+    sub.textContent = 'Créez votre compte. Un superviseur validera votre accès.';
+  } else {
+    h1.innerHTML = 'Bienvenue <em>à nouveau</em>.';
+    sub.textContent = 'Connectez-vous pour accéder à votre espace.';
+  }
+  hideMsg();
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* TOGGLE PASSWORD VISIBILITY                       */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.querySelectorAll('.toggle-pwd').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CONNEXION                                        */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.getElementById('panel-signin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!sb) { showMsg('Service indisponible. Réessayez dans un instant.', 'err'); return; }
+
+  const prenom = document.getElementById('si-prenom').value.trim();
+  const nom    = document.getElementById('si-nom').value.trim();
+  const pwd    = document.getElementById('si-pwd').value;
+
+  // validation locale
+  document.getElementById('si-prenom').classList.toggle('err', !prenom);
+  document.getElementById('si-nom').classList.toggle('err', !nom);
+  document.getElementById('si-pwd').classList.toggle('err', !pwd);
+  if (!prenom || !nom || !pwd) {
+    showMsg('Veuillez remplir tous les champs.', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('btn-signin');
+  setLoading(btn, true);
+  hideMsg();
+
+  const email = toEmail(prenom, nom);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+
+  if (error) {
+    setLoading(btn, false);
+    document.getElementById('si-pwd').classList.add('err');
+    showMsg('Identifiants incorrects. Vérifiez votre nom et votre mot de passe.', 'err');
+    return;
+  }
+
+  // récup profil
+  let profile = null;
+  try {
+    const { data: p } = await sb.from('users')
+      .select('role, nom, prenom, avatar_initials, avatar_color')
+      .eq('id', data.user.id)
+      .single();
+    profile = p;
+  } catch(e) {}
+
+  const displayName = (profile?.prenom || prenom) + ' ' + (profile?.nom || nom);
+  const initials = profile?.avatar_initials ||
+    ((prenom[0] || '') + (nom[0] || '')).toUpperCase();
+
+  localStorage.setItem('novalem_user', JSON.stringify({
+    id:       data.user.id,
+    name:     displayName.trim(),
+    role:     profile?.role || 'scout',
+    initials: initials,
+    color:    profile?.avatar_color || '#c8e040',
+    ts:       Date.now(),
+  }));
+
+  showFinalLoader(profile?.prenom || prenom);
+  setTimeout(() => { window.location.href = HUB_URL; }, 400);
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CRÉATION DE COMPTE (demande d'accès)              */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.getElementById('panel-signup').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!sb) { showMsg('Service indisponible. Réessayez dans un instant.', 'err'); return; }
+
+  const prenom = document.getElementById('su-prenom').value.trim();
+  const nom    = document.getElementById('su-nom').value.trim();
+  const pwd    = document.getElementById('su-pwd').value;
+  const pwd2   = document.getElementById('su-pwd2').value;
+
+  // validation locale
+  const inp = (id) => document.getElementById(id);
+  ['su-prenom','su-nom','su-pwd','su-pwd2'].forEach(id => inp(id).classList.remove('err'));
+  let ok = true;
+  if (!prenom)         { inp('su-prenom').classList.add('err'); ok = false; }
+  if (!nom)            { inp('su-nom').classList.add('err'); ok = false; }
+  if (!pwd || pwd.length < 8) { inp('su-pwd').classList.add('err'); ok = false; }
+  if (pwd !== pwd2)    { inp('su-pwd2').classList.add('err'); ok = false; }
+  if (!/\d/.test(pwd)) { inp('su-pwd').classList.add('err'); ok = false; }
+
+  if (!ok) {
+    if (pwd && pwd2 && pwd !== pwd2)     { showMsg('Les mots de passe ne correspondent pas.', 'err'); return; }
+    if (pwd && pwd.length < 8)           { showMsg('Mot de passe : minimum 8 caractères.', 'err'); return; }
+    if (pwd && !/\d/.test(pwd))          { showMsg('Mot de passe : au moins un chiffre requis.', 'err'); return; }
+    showMsg('Veuillez remplir tous les champs.', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('btn-signup');
+  setLoading(btn, true);
+  hideMsg();
+
+  const { error } = await sb.from('demandes_acces').insert({
+    prenom,
+    nom,
+    password_hash: pwd,
+    statut: 'en_attente',
+  });
+
+  setLoading(btn, false);
+
+  if (error) {
+    showMsg('Erreur lors de l\'envoi : ' + (error.message || 'inconnue'), 'err');
+    return;
+  }
+
+  // succès : on remplit le formulaire de connexion, on bascule, on affiche le succès
+  document.getElementById('si-prenom').value = prenom;
+  document.getElementById('si-nom').value = nom;
+  document.querySelector('.tab[data-panel="signin"]').click();
+  showMsg('Demande envoyée. Vous recevrez votre accès une fois validée par un superviseur.', 'ok');
+  // reset des champs création
+  ['su-pwd','su-pwd2'].forEach(id => { document.getElementById(id).value = ''; });
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* CURSOR GLOW (effet halo qui suit la souris)      */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+(function(){
+  const glow = document.getElementById('glow');
+  let raf = null;
+  document.addEventListener('mousemove', (e) => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      glow.style.left = e.clientX + 'px';
+      glow.style.top  = e.clientY + 'px';
+      glow.classList.add('on');
+      raf = null;
+    });
+  });
+  document.addEventListener('mouseleave', () => glow.classList.remove('on'));
+})();
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* AUTO-REDIRECT SI SESSION VALIDE < 24h            */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+(async function checkSession() {
+  const stored = localStorage.getItem('novalem_user');
+  if (stored) {
+    try {
+      const u = JSON.parse(stored);
+      if (u && u.ts && (Date.now() - u.ts) < SESSION_MAX_MS) {
+        window.location.href = HUB_URL;
+        return;
+      }
+    } catch(e) {}
+    localStorage.removeItem('novalem_user');
+  }
+
+  if (sb) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        // Âge réel de la session Supabase. Au-delà de 24h → logout forcé.
+        const issued = session.user?.last_sign_in_at
+          ? new Date(session.user.last_sign_in_at).getTime()
+          : (session.expires_at ? session.expires_at * 1000 - 3600000 : 0);
+        if (issued && (Date.now() - issued) > SESSION_MAX_MS) {
+          await sb.auth.signOut().catch(() => {});
+          return;
+        }
+        const { data: profile } = await sb.from('users')
+          .select('role, nom, prenom, avatar_initials, avatar_color')
+          .eq('id', session.user.id)
+          .single();
+        const parts  = session.user.email.split('@')[0].split('.');
+        const prenom = profile?.prenom || parts[0] || '';
+        const nom    = profile?.nom    || parts[1] || '';
+        localStorage.setItem('novalem_user', JSON.stringify({
+          id:       session.user.id,
+          name:     (prenom + ' ' + nom).trim(),
+          role:     profile?.role || 'scout',
+          initials: profile?.avatar_initials || ((prenom[0]||'') + (nom[0]||'')).toUpperCase(),
+          color:    profile?.avatar_color || '#c8e040',
+          ts:       issued || Date.now(),
+        }));
+        window.location.href = HUB_URL;
+      }
+    } catch(e) {}
+  }
+})();
+</script>
+</body>
+</html>
