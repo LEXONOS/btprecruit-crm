@@ -32,7 +32,6 @@ function currentUser() {
 var SIRET = '103 405 247 00018';
 var TVA_MENTION = 'TVA non applicable, article 293 B du CGI';
 var CESSION_CLAUSE = 'Cession des droits d\'auteur sur le code source livre au client apres paiement integral du prix.';
-var ACOMPTE_PCT = 40;
 
 var PIPE_ORDER  = ['prospect', 'contacte', 'devis_envoye', 'signe', 'en_cours', 'livre', 'sav', 'perdu'];
 var PIPE_LABELS = {
@@ -76,7 +75,7 @@ var PROJ_ORDER  = ['cadrage', 'maquette', 'developpement', 'mise_en_ligne', 'liv
 var PROJ_LABELS = { cadrage: 'Cadrage', maquette: 'Maquette', developpement: 'Developpement', mise_en_ligne: 'Mise en ligne', livre: 'Livre' };
 
 var DEVIS_LABELS = { brouillon: 'Brouillon', envoye: 'Envoye', accepte: 'Accepte', refuse: 'Refuse', expire: 'Expire' };
-var FACT_TYPE_LABELS = { acompte: 'Acompte', solde: 'Solde' };
+var FACT_TYPE_LABELS = { acompte: 'Acompte', solde: 'Facture' };
 var FACT_LABELS = { brouillon: 'Brouillon', emise: 'Emise', relancee: 'Relancee', payee: 'Payee', annulee: 'Annulee' };
 
 var OPTIONS_CATALOG = [
@@ -92,7 +91,7 @@ var EVT_TYPE_ORDER  = ['rappel', 'rdv_physique', 'rdv_visio', 'tache', 'echeance
 var AUTO_RAPPELS = {
   contacte:     { j: 0,   titre: 'Envoyer la fiche tarifaire et demander les disponibilites' },
   devis_envoye: { j: 4,   titre: 'Relancer le devis si pas de reponse' },
-  signe:        { j: 2,   titre: 'Verifier l\'encaissement de l\'acompte, puis demarrer la maquette' },
+  signe:        { j: 2,   titre: 'Demarrer la maquette du site' },
   en_cours:     { j: 2,   titre: 'Envoyer l\'apercu du site (lien maquette) au client' },
   livre:        { j: 330, titre: 'Anticiper le renouvellement de l\'hebergement et du domaine' }
 };
@@ -100,7 +99,7 @@ var AUTO_RAPPELS = {
 // ═══════════════════════════════════════════════════════════════════
 // ETAT
 // ═══════════════════════════════════════════════════════════════════
-var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [], cadrages: [], evenements: [], liens: [] };
+var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [], cadrages: [], evenements: [], liens: [], acces: [] };
 var UI = { view: 'dash', pid: null };
 var _dvLines = [];      // lignes de l'editeur de devis en cours
 var _dvOptions = [];    // options selectionnees pour le projet en cours
@@ -225,6 +224,10 @@ async function loadAll() {
     try {
       var rl = await sb.from('web_liens').select('*').order('created_at', { ascending: false });
       if (!rl.error) DB.liens = rl.data || [];
+    } catch (e) { /* table absente : on ignore */ }
+    try {
+      var ra = await sb.from('web_acces').select('*').order('created_at', { ascending: false });
+      if (!ra.error) DB.acces = ra.data || [];
     } catch (e) { /* table absente : on ignore */ }
   } catch (e) { console.warn(e); toast('Erreur reseau au chargement', 'e'); }
 }
@@ -499,7 +502,21 @@ function openClientPanel(id) {
     '</div>';
   }).join('') || '<div class="empty">Aucun lien</div>';
 
+  var accesHtml = accesOfClient(id).map(function (a) {
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--bd)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">' +
+        '<div style="min-width:0;flex:1"><span class="pill" style="background:var(--s3);color:var(--mu)">' + esc(ACCES_LABELS[a.type] || a.type || 'Acces') + '</span> <span style="font-size:11px;color:var(--tx)">' + esc(a.libelle || '') + '</span></div>' +
+        '<span class="dv-x" onclick="deleteAcces(\'' + a.id + '\',\'' + id + '\')" title="Supprimer">&times;</span>' +
+      '</div>' +
+      (a.url ? '<div style="font-size:10px;margin-top:3px"><a href="' + esc(a.url) + '" target="_blank" rel="noopener" style="color:var(--ac);text-decoration:none;word-break:break-all">' + esc(a.url) + '</a></div>' : '') +
+      (a.identifiant ? '<div style="font-size:10px;color:var(--mu);margin-top:2px">Identifiant : <span style="color:var(--tx)">' + esc(a.identifiant) + '</span></div>' : '') +
+      (a.secret ? '<div style="font-size:10px;color:var(--mu);margin-top:2px">Mot de passe : <span class="secret" onclick="this.classList.toggle(\'show\')" title="Clic pour afficher">' + esc(a.secret) + '</span></div>' : '') +
+      (a.notes ? '<div style="font-size:10px;color:var(--mu2);margin-top:2px">' + esc(a.notes) + '</div>' : '') +
+    '</div>';
+  }).join('') || '<div class="empty">Aucun acces enregistre</div>';
+
   el('pb').innerHTML =
+    section('Prochaine etape', nextStepHtml(c)) +
     section('Coordonnees', infos) +
     section('Etape du pipeline', '<div style="display:flex;gap:4px;flex-wrap:wrap">' + stepBtns + '</div>') +
     section('Rappels et rendez-vous', '<div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn bg bsm" onclick="quickRappel(\'' + id + '\')">+ Rappel</button><button class="btn bg bsm" onclick="quickRdv(\'' + id + '\')">+ RDV</button></div>' + rappelsHtml) +
@@ -509,7 +526,8 @@ function openClientPanel(id) {
     section('Projets', projets) +
     section('Devis', devis) +
     section('Factures', factures) +
-    section('Hebergement', heberg);
+    section('Hebergement', heberg) +
+    section('Acces et livraison', '<button class="btn bg bsm" style="margin-bottom:8px" onclick="openAccesForm(\'' + id + '\')">+ Ajouter un acces</button>' + accesHtml);
 
   openPanel();
 }
@@ -748,7 +766,7 @@ function openDevisForm(clientId, projetId, id) {
     '</select></div>' +
     '<div style="font-size:9px;color:var(--mu2);margin-top:5px">Prestations mensuelles a facturer separement : ' + CATALOG_RECURRENT.map(function (c) { return esc(c.label) + ' ' + fmtEUR(c.prix) + '/mois'; }).join(' ; ') + '</div></div>' +
     '<div style="text-align:right;font-family:Syne,sans-serif;font-weight:700;font-size:16px;margin:8px 0" id="d-total">Total HT : ' + fmtEUR(0, 2) + '</div>' +
-    '<div class="sites-legal">Mentions portees automatiquement sur le devis :<br>SIRET <b>' + SIRET + '</b> &middot; <b>' + TVA_MENTION + '</b><br>Acompte de 40 % a la commande, solde a la mise en ligne &middot; Offre valable 30 jours<br>' + CESSION_CLAUSE + '</div>';
+    '<div class="sites-legal">Mentions portees automatiquement sur le devis :<br>SIRET <b>' + SIRET + '</b> &middot; <b>' + TVA_MENTION + '</b><br>Paiement integral a la mise en ligne &middot; Offre valable 30 jours<br>' + CESSION_CLAUSE + '</div>';
   var f = '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
     (id ? '<button class="btn bd_" onclick="deleteDevis(\'' + id + '\')">Supprimer</button>' : '') +
     '<button class="btn bp" onclick="saveDevis(' + (id ? '\'' + id + '\'' : '') + ')">Enregistrer</button>';
@@ -786,7 +804,7 @@ function dvRemoveLine(i) { _dvLines.splice(i, 1); if (!_dvLines.length) _dvLines
 function dvTotal() { return _dvLines.reduce(function (a, l) { return a + num(l.quantite) * num(l.pu_ht); }, 0); }
 function defaultMentions() {
   return 'SIRET ' + SIRET + '. ' + TVA_MENTION + '. ' +
-    'Acompte de 40 % a la commande, solde a la mise en ligne. Offre valable 30 jours. ' +
+    'Paiement integral a la livraison du site (mise en ligne). Offre valable 30 jours. ' +
     'Maquette validee avant developpement, deux tours de modifications inclus. ' +
     CESSION_CLAUSE + ' ' +
     'SAV technique gratuit, sans limite de duree. Contenus textes et visuels fournis par le client.';
@@ -853,7 +871,7 @@ async function sendDevis(id) {
     'Bonjour' + (c && c.contact_nom ? ' ' + c.contact_nom : '') + ',\n\n' +
     'Veuillez trouver votre devis ' + d.numero + ' pour un montant de ' + fmtEUR(d.total_ht, 2) + ' HT.\n\n' +
     TVA_MENTION + '.\n' +
-    'Acompte de 40 % a la commande, solde a la mise en ligne. Offre valable 30 jours.\n\n' +
+    'Paiement integral a la livraison du site (mise en ligne). Offre valable 30 jours.\n\n' +
     'Pour donner votre bon pour accord en ligne (signature electronique) :\n[Signer le devis](' + link + ')\n\n' +
     'Bien cordialement,\nLouis - NOVALEM\nCreation de sites internet\n+590 690 31 79 99 / +33 6 58 21 20 90\nlouisprorenault@gmail.com';
 
@@ -950,34 +968,27 @@ function devisPDF(id) {
   toast('PDF genere', 's');
 }
 
-// ── Conversion devis -> facture (acompte 40%) ──
+// ── Conversion devis -> facture (une facture unique au montant total, sans acompte) ──
 async function convertDevis(id) {
   var d = devisById(id); if (!d) return;
-  var acompte = Math.round(num(d.total_ht) * ACOMPTE_PCT) / 100;
   var b =
-    '<p style="font-size:12px;color:var(--mu);margin-bottom:12px">Devis <b style="color:var(--tx)">' + esc(d.numero) + '</b> - Total HT ' + fmtEUR(d.total_ht, 2) + '</p>' +
-    '<div class="fgrp"><label class="lbl">Type de facture</label><select id="cv-type" onchange="onCvType(' + num(d.total_ht) + ')"><option value="acompte">Acompte ' + ACOMPTE_PCT + '% (' + fmtEUR(acompte, 2) + ')</option><option value="solde">Solde (' + fmtEUR(num(d.total_ht) - acompte, 2) + ')</option></select></div>' +
-    '<div class="fg"><div class="fgrp"><label class="lbl">Montant HT</label><input id="cv-montant" type="number" step="1" value="' + acompte + '"></div>' +
+    '<p style="font-size:12px;color:var(--mu);margin-bottom:12px">Devis <b style="color:var(--tx)">' + esc(d.numero) + '</b> - une facture unique pour le montant total, sans acompte.</p>' +
+    '<div class="fg"><div class="fgrp"><label class="lbl">Montant HT</label><input id="cv-montant" type="number" step="1" value="' + num(d.total_ht) + '"></div>' +
     '<div class="fgrp"><label class="lbl">Echeance</label><input id="cv-echeance" type="date" value="' + addDaysISO(30) + '"></div></div>';
-  openMo('Convertir en facture', b,
+  openMo('Creer la facture', b,
     '<button class="btn bg" onclick="closeMo()">Annuler</button><button class="btn bp" onclick="doConvertDevis(\'' + id + '\')">Creer la facture</button>');
-}
-function onCvType(total) {
-  var t = el('cv-type').value;
-  var ac = Math.round(total * ACOMPTE_PCT) / 100;
-  el('cv-montant').value = t === 'acompte' ? ac : Math.round((total - ac) * 100) / 100;
 }
 async function doConvertDevis(id) {
   var d = devisById(id); if (!d) return;
   var payload = {
     client_id: d.client_id, projet_id: d.projet_id || null, devis_id: d.id,
-    numero: await nextNumber('FAC'), type: el('cv-type').value,
-    montant_ht: num(el('cv-montant').value), date_emission: todayISO(),
+    numero: await nextNumber('FAC'), type: 'solde',
+    montant_ht: num(el('cv-montant').value) || num(d.total_ht), date_emission: todayISO(),
     date_echeance: el('cv-echeance').value || null, statut: 'brouillon'
   };
   var r = await getSB().from('web_factures').insert(payload);
   if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
-  closeMo(); toast('Facture ' + payload.numero + ' creee', 's');
+  closeMo(); toast('Facture ' + payload.numero + ' creee (brouillon)', 's');
   await loadAll(); go('factures');
 }
 
@@ -1013,8 +1024,7 @@ function openFactureForm(clientId, devisId, id) {
   if (!DB.clients.length) { toast('Cree d\'abord un client', 'w'); return; }
   var cliOpts = DB.clients.map(function (c) { return '<option value="' + c.id + '"' + (clientId === c.id ? ' selected' : '') + '>' + esc(c.entreprise) + '</option>'; }).join('');
   var b =
-    '<div class="fg"><div class="fgrp"><label class="lbl">Client *</label><select id="fa-client">' + cliOpts + '</select></div>' +
-    '<div class="fgrp"><label class="lbl">Type</label><select id="fa-type"><option value="acompte"' + (f && f.type === 'acompte' ? ' selected' : '') + '>Acompte</option><option value="solde"' + (f && f.type === 'solde' ? ' selected' : '') + '>Solde</option></select></div></div>' +
+    '<div class="fg"><div class="fgrp"><label class="lbl">Client *</label><select id="fa-client">' + cliOpts + '</select></div></div>' +
     '<div class="fg"><div class="fgrp"><label class="lbl">Montant HT</label><input id="fa-montant" type="number" step="1" value="' + (f ? num(f.montant_ht) : 0) + '"></div>' +
     '<div class="fgrp"><label class="lbl">Echeance</label><input id="fa-echeance" type="date" value="' + (f && f.date_echeance ? esc(f.date_echeance) : addDaysISO(30)) + '"></div></div>' +
     '<div class="sites-legal">' + TVA_MENTION + '. SIRET ' + SIRET + '.</div>';
@@ -1025,7 +1035,7 @@ function openFactureForm(clientId, devisId, id) {
 }
 async function saveFacture(id) {
   var payload = {
-    client_id: el('fa-client').value, type: el('fa-type').value,
+    client_id: el('fa-client').value, type: 'solde',
     montant_ht: num(el('fa-montant').value), date_echeance: el('fa-echeance').value || null
   };
   var sb = getSB(), r;
@@ -1159,19 +1169,27 @@ async function checkSignatures() {
   var pending = DB.devis.filter(function (d) { return d.statut === 'envoye' && d.sign_token; });
   if (!pending.length) return;
   var sb = getSB(); if (!sb) return;
+  var changed = false;
   for (var i = 0; i < pending.length; i++) {
     var d = pending[i];
     try {
       var r = await sb.from('web_devis_signatures').select('signer_name,signed_at,reference').eq('devis_id', d.id).order('signed_at', { ascending: false }).limit(1).maybeSingle();
       if (r.data && r.data.signer_name) {
-        d.statut = 'accepte'; d.signature_ref = r.data.reference || d.signature_ref;
+        // on persiste la signature en base (evite qu'elle se perde au rechargement)
+        await sb.from('web_devis').update({ statut: 'accepte', signature_ref: r.data.reference || d.signature_ref || r.data.signer_name }).eq('id', d.id);
+        d.statut = 'accepte';
+        // on fait avancer le client a "signe" s'il est encore avant cette etape
+        var c = clientById(d.client_id);
+        if (c && ['prospect', 'contacte', 'devis_envoye'].indexOf(c.statut_pipeline) >= 0) {
+          await sb.from('web_clients').update({ statut_pipeline: 'signe' }).eq('id', c.id);
+          await maybeAutoRappel(c.id, 'signe');
+        }
         toast('Devis ' + d.numero + ' signe par ' + r.data.signer_name, 's');
-        if (UI.view === 'devis') renderDevis();
-        if (UI.view === 'dash') renderDash();
-        badges();
+        changed = true;
       }
     } catch (e) { /* silencieux */ }
   }
+  if (changed) { await loadAll(); refreshCurrent(); badges(); }
 }
 function startSigPolling() {
   if (_sigTimer) return;
@@ -1585,6 +1603,75 @@ async function prospAdd(key) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// ACCES / LIVRAISON + PROCHAINE ETAPE (guidage du cycle client)
+// ═══════════════════════════════════════════════════════════════════
+var ACCES_TYPES  = ['site', 'hebergeur', 'domaine', 'cms', 'ftp', 'email', 'github', 'autre'];
+var ACCES_LABELS = { site: 'Site en ligne', hebergeur: 'Hebergeur', domaine: 'Domaine', cms: 'CMS / admin', ftp: 'FTP / serveur', email: 'Email pro', github: 'Depot GitHub', autre: 'Autre' };
+
+function accesOfClient(id) { return DB.acces.filter(function (a) { return a.client_id === id; }); }
+
+// banniere "prochaine action" selon l'etape du pipeline et l'etat des factures
+function nextStepHtml(c) {
+  var id = c.id, st = c.statut_pipeline;
+  var facs = facturesOfClient(id).filter(function (f) { return f.statut !== 'annulee'; });
+  var facDue = facs.some(function (f) { return f.statut === 'emise' || f.statut === 'relancee'; });
+  var s;
+  if (st === 'prospect') s = { t: 'Prospect a contacter.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'contacte\')">Marquer contacte</button>' };
+  else if (st === 'contacte') s = { t: 'Contacte. Etablis et envoie-lui un devis.', b: '<button class="btn bp bsm" onclick="openDevisForm(\'' + id + '\')">Creer un devis</button>' };
+  else if (st === 'devis_envoye') s = { t: 'Devis envoye, en attente de signature (l\'app la detecte automatiquement).', b: '<button class="btn bg bsm" onclick="quickRappel(\'' + id + '\')">Programmer une relance</button>' };
+  else if (st === 'signe') s = { t: 'Devis signe. Lance la maquette du site.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'en_cours\')">Passer en cours</button>' };
+  else if (st === 'en_cours') s = { t: 'Site en cours. Quand la V1 est prete, envoie-la au client.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'livre\')">V1 envoyee, passer en livre</button>' };
+  else if (st === 'livre') {
+    if (!facs.length) s = { t: 'Site livre. Genere la facture (montant total).', b: '<button class="btn bp bsm" onclick="nextInvoiceForClient(\'' + id + '\')">Creer la facture</button>' };
+    else if (facDue) s = { t: 'Site livre, facture en attente de paiement.', b: '<button class="btn bg bsm" onclick="go(\'factures\')">Suivre la facture</button>' };
+    else s = { t: 'Site livre et paye. Stocke les acces ci-dessous, puis bascule en SAV.', b: '<button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'sav\')">Passer en SAV</button>' };
+  }
+  else if (st === 'sav') s = { t: 'En SAV. Suivi et maintenance du site.', b: '' };
+  else s = { t: 'Client perdu.', b: '<button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'prospect\')">Relancer plus tard</button>' };
+  return '<div class="nextstep"><div class="nextstep-t">' + esc(s.t) + '</div>' + (s.b ? '<div style="margin-top:8px">' + s.b + '</div>' : '') + '</div>';
+}
+// facture depuis la fiche : convertit le devis signe s'il existe, sinon ouvre une facture vierge
+function nextInvoiceForClient(cid) {
+  var dv = DB.devis.filter(function (d) { return d.client_id === cid && d.statut === 'accepte'; })
+    .sort(function (a, b) { return (b.date_emission || '').localeCompare(a.date_emission || ''); })[0];
+  if (dv) convertDevis(dv.id); else openFactureForm(cid, null);
+}
+
+// ── Acces et livrables rattaches a la fiche ──
+function openAccesForm(clientId) {
+  var opts = ACCES_TYPES.map(function (t) { return '<option value="' + t + '">' + ACCES_LABELS[t] + '</option>'; }).join('');
+  var b =
+    '<div class="fg"><div class="fgrp"><label class="lbl">Type</label><select id="ac-type">' + opts + '</select></div>' +
+    '<div class="fgrp"><label class="lbl">Libelle</label><input id="ac-libelle" placeholder="ex : OVH, WordPress, Site en ligne"></div></div>' +
+    '<div class="fgrp"><label class="lbl">URL</label><input id="ac-url" placeholder="https://..."></div>' +
+    '<div class="fg"><div class="fgrp"><label class="lbl">Identifiant</label><input id="ac-id" placeholder="login / email"></div>' +
+    '<div class="fgrp"><label class="lbl">Mot de passe / cle</label><input id="ac-secret" placeholder="..."></div></div>' +
+    '<div class="fgrp"><label class="lbl">Notes</label><textarea id="ac-notes"></textarea></div>' +
+    '<div class="sites-legal">Pratique pour tout retrouver au meme endroit. Pour un mot de passe vraiment sensible, un gestionnaire dedie reste plus sur.</div>';
+  openMo('Ajouter un acces', b,
+    '<button class="btn bg" onclick="openClientPanel(\'' + clientId + '\')">Annuler</button><button class="btn bp" onclick="saveAcces(\'' + clientId + '\')">Ajouter</button>');
+}
+async function saveAcces(clientId) {
+  var url = el('ac-url').value.trim();
+  if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+  var payload = {
+    client_id: clientId, type: el('ac-type').value, libelle: el('ac-libelle').value.trim() || null,
+    url: url || null, identifiant: el('ac-id').value.trim() || null,
+    secret: el('ac-secret').value.trim() || null, notes: el('ac-notes').value.trim() || null
+  };
+  var r = await getSB().from('web_acces').insert(payload);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  closeMo(); toast('Acces enregistre', 's');
+  await loadAll(); openClientPanel(clientId);
+}
+async function deleteAcces(id, clientId) {
+  if (!confirm('Supprimer cet acces ?')) return;
+  var r = await getSB().from('web_acces').delete().eq('id', id);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  toast('Acces supprime', 's'); await loadAll(); openClientPanel(clientId);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // EXPOSITION GLOBALE (handlers onclick) + INIT
 // ═══════════════════════════════════════════════════════════════════
 var API = {
@@ -1597,7 +1684,7 @@ var API = {
   openDevisPanel: openDevisPanel, onDevisClientChange: onDevisClientChange,
   dvAddLine: dvAddLine, dvRemoveLine: dvRemoveLine, dvEdit: dvEdit, dvAddFromCatalog: dvAddFromCatalog,
   devisPDF: devisPDF, sendDevis: sendDevis, setDevisStatut: setDevisStatut,
-  convertDevis: convertDevis, onCvType: onCvType, doConvertDevis: doConvertDevis,
+  convertDevis: convertDevis, doConvertDevis: doConvertDevis,
   openFactureForm: openFactureForm, saveFacture: saveFacture, deleteFacture: deleteFacture,
   emitFacture: emitFacture, setFactureStatut: setFactureStatut, avoirFacture: avoirFacture,
   openHebergForm: openHebergForm, saveHeberg: saveHeberg, deleteHeberg: deleteHeberg,
@@ -1606,6 +1693,7 @@ var API = {
   openEventForm: openEventForm, saveEvent: saveEvent, deleteEvent: deleteEvent, setEventDone: setEventDone,
   openEventDetail: openEventDetail, agShift: agShift, agToday: agToday, quickRappel: quickRappel, quickRdv: quickRdv,
   openLienForm: openLienForm, saveLien: saveLien, deleteLien: deleteLien,
+  openAccesForm: openAccesForm, saveAcces: saveAcces, deleteAcces: deleteAcces, nextInvoiceForClient: nextInvoiceForClient,
   prospSearch: prospSearch, prospLocate: prospLocate, prospLoad: prospLoad,
   prospToggleNoSite: prospToggleNoSite, prospFocus: prospFocus, prospAdd: prospAdd
 };

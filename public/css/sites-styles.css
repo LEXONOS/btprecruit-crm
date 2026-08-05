@@ -172,3 +172,9 @@
 /* popups Leaflet : rester lisible */
 .leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.5}
 .leaflet-popup-content button{background:var(--ac);color:#1a1406;border:none;border-radius:6px;padding:4px 10px;font-weight:600;font-size:11px}
+
+/* ===== PROCHAINE ETAPE + ACCES (cycle client) ===== */
+.nextstep{background:linear-gradient(180deg,rgba(224,169,46,.10),rgba(224,169,46,.03));border:1px solid var(--ac-border);border-radius:var(--r);padding:11px 13px}
+.nextstep-t{font-size:12px;color:var(--tx);line-height:1.45}
+.secret{filter:blur(4px);transition:filter .1s;cursor:pointer;color:var(--tx);user-select:none}
+.secret.show{filter:none;user-select:text}

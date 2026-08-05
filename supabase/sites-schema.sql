@@ -605,3 +605,33 @@ CREATE POLICY "web_liens_auth_all" ON public.web_liens
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 NOTIFY pgrst, 'reload schema';
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 14. ACCES ET LIVRABLES  (garder site + acces + identifiants dans la fiche)
+--     Idempotent, meme modele RLS que le reste.
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS public.web_acces (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id   UUID        NOT NULL REFERENCES public.web_clients(id) ON DELETE CASCADE,
+  type        TEXT        NOT NULL DEFAULT 'autre',  -- site, hebergeur, domaine, cms, ftp, email, github, autre
+  libelle     TEXT,
+  url         TEXT,
+  identifiant TEXT,
+  secret      TEXT,                                  -- mot de passe / cle (stockage interne)
+  notes       TEXT,
+  owner       UUID        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_web_acces_client ON public.web_acces(client_id);
+
+DROP TRIGGER IF EXISTS trg_web_acces_owner ON public.web_acces;
+CREATE TRIGGER trg_web_acces_owner
+  BEFORE INSERT ON public.web_acces FOR EACH ROW EXECUTE FUNCTION public.web_stamp_owner();
+
+ALTER TABLE public.web_acces ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "web_acces_auth_all" ON public.web_acces;
+CREATE POLICY "web_acces_auth_all" ON public.web_acces
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';
