@@ -54,6 +54,11 @@ BON A SAVOIR
 - Envoi de devis : /api/send-email (inchange), repli mailto.
 - Signature eIDAS : lien /sites-sign genere a l'envoi, protege par jeton. Aucune
   fonction serveur ajoutee (RLS + trigger Supabase).
-- Factures : acompte 40 % et solde, une facture emise est inalterable (avoir).
+- Devis = contrat : le devis signe "bon pour accord" vaut contrat de prestation
+  (12 articles portes automatiquement sur le PDF). PDF devis-contrat + PDF facture.
+- Facturation : paiement 100 % a reception de la facture, AVANT mise en ligne.
+  Aucun acompte. Une facture emise est inalterable (correction par avoir).
+- Espace "Prospection" retire (prospection faite hors outil, sur Google Maps).
+- Infos legales et coordonnees de paiement : bloc ENTREPRISE en haut de sites-app.js.
 - RLS par defaut : espace partage entre utilisateurs internes. Variante stricte
   par proprietaire disponible en commentaire en bas de sites-schema.sql.

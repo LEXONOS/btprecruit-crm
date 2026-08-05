@@ -27,10 +27,33 @@ function currentUser() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CONSTANTES METIER
+// ► CONFIGURATION ENTREPRISE  ◄  (a completer une seule fois)
+//   Ces informations apparaissent sur les devis-contrats et les factures.
+//   Remplace les valeurs entre guillemets par les tiennes, puis pousse sur GitHub.
 // ═══════════════════════════════════════════════════════════════════
-var SIRET = '103 405 247 00018';
-var TVA_MENTION = 'TVA non applicable, article 293 B du CGI';
+var ENTREPRISE = {
+  nom_commercial : 'NOVALEM',
+  // Identite legale du micro-entrepreneur (obligatoire sur un contrat / une facture)
+  exploitant     : 'Louis Renault',                 // ← prenom NOM de l'entrepreneur individuel
+  forme          : 'Entrepreneur individuel (micro-entreprise)',
+  adresse        : 'Adresse a completer',           // ← ex : 12 rue des Artisans, 97110 Pointe-a-Pitre
+  siret          : '103 405 247 00018',
+  ape            : '',                              // ← code APE/NAF si tu veux l'afficher (ex : 62.01Z)
+  email          : 'louisprorenault@gmail.com',
+  tel            : '+590 690 31 79 99 / +33 6 58 21 20 90',
+  tva            : 'TVA non applicable, article 293 B du CGI',
+  // Coordonnees de paiement (imprimees sur la facture pour que le client paie)
+  paiement : {
+    titulaire : 'Louis Renault',                    // ← titulaire du compte
+    iban      : 'FR76 XXXX XXXX XXXX XXXX XXXX XXX', // ← ton IBAN
+    bic       : 'XXXXXXXX',                          // ← ton BIC
+    autres    : 'Virement bancaire. Paiement egalement possible par tout moyen convenu.'
+  }
+};
+
+// ── Alias retro-compatibles (utilises un peu partout dans le fichier) ──
+var SIRET = ENTREPRISE.siret;
+var TVA_MENTION = ENTREPRISE.tva;
 var CESSION_CLAUSE = 'Cession des droits d\'auteur sur le code source livre au client apres paiement integral du prix.';
 
 var PIPE_ORDER  = ['prospect', 'contacte', 'devis_envoye', 'signe', 'en_cours', 'livre', 'sav', 'perdu'];
@@ -264,7 +287,7 @@ function go(v) {
   for (var j = 0; j < vs.length; j++) { vs[j].classList.remove('active'); }
   var target = el('view-' + v); if (target) target.classList.add('active');
 
-  var T = { dash: 'Tableau de bord', agenda: 'Agenda et rappels', prospection: 'Prospection sur carte', pipeline: 'Pipeline de prospection', devis: 'Devis', factures: 'Factures', projets: 'Projets', hebergement: 'Hebergement et domaines' };
+  var T = { dash: 'Tableau de bord', agenda: 'Agenda et rappels', pipeline: 'Pipeline commercial', devis: 'Devis-contrats', factures: 'Factures', projets: 'Projets', hebergement: 'Hebergement et domaines' };
   el('tbt').textContent = T[v] || v;
 
   var A = {
@@ -277,7 +300,7 @@ function go(v) {
   };
   el('tba').innerHTML = A[v] || '';
 
-  var R = { dash: renderDash, agenda: renderAgenda, prospection: renderProspection, pipeline: renderPipeline, devis: renderDevis, factures: renderFactures, projets: renderProjets, hebergement: renderHebergement };
+  var R = { dash: renderDash, agenda: renderAgenda, pipeline: renderPipeline, devis: renderDevis, factures: renderFactures, projets: renderProjets, hebergement: renderHebergement };
   if (R[v]) R[v]();
   badges();
 }
@@ -544,7 +567,8 @@ async function setClientStage(id, st) {
 // ── Formulaire client ──
 function openClientForm(id) {
   var c = id ? clientById(id) : null;
-  var stOpts = PIPE_ORDER.map(function (s) { return '<option value="' + s + '"' + (c && c.statut_pipeline === s ? ' selected' : '') + '>' + PIPE_LABELS[s] + '</option>'; }).join('');
+  var _defStage = c ? c.statut_pipeline : 'contacte';
+  var stOpts = PIPE_ORDER.map(function (s) { return '<option value="' + s + '"' + (_defStage === s ? ' selected' : '') + '>' + PIPE_LABELS[s] + '</option>'; }).join('');
   var b =
     '<div class="fg"><div class="fgrp ff"><label class="lbl">Entreprise *</label><input id="f-entreprise" value="' + esc(c && c.entreprise) + '"></div></div>' +
     '<div class="fg"><div class="fgrp"><label class="lbl">Contact</label><input id="f-contact" value="' + esc(c && c.contact_nom) + '"></div>' +
@@ -708,7 +732,14 @@ function renderDevis() {
       '</div>';
     return '<tr onclick="openDevisPanel(\'' + d.id + '\')"><td>' + esc(d.numero) + '</td><td>' + esc(clientName(d.client_id)) + '</td><td>' + fmtDateFR(d.date_emission) + '</td><td>' + fmtEUR(d.total_ht) + '</td><td>' + statutDevisPill(d.statut) + '</td><td>' + acts + '</td></tr>';
   }).join('') || '<tr><td colspan="6" class="empty">Aucun devis</td></tr>';
-  el('view-devis').innerHTML =
+  var proc =
+    '<div class="sites-legal" style="margin-bottom:14px">' +
+    '<b style="color:var(--tx)">Le devis fait office de contrat.</b> Circuit : ' +
+    '<b>1.</b> Envoi du devis-contrat &rarr; <b>2.</b> Le client le signe en ligne (bon pour accord) &rarr; <b>3.</b> Realisation + lien d\'apercu prive &rarr; ' +
+    '<b>4.</b> Validation du client &rarr; <b>5.</b> Facture (100 %, aucun acompte) &rarr; <b>6.</b> Mise en ligne des paiement recu.' +
+    '<br><span style="color:var(--mu2)">Astuce : bouton <b>Envoyer</b> = genere le lien de signature et l\'envoie. La signature bascule le devis en \u00ab accepte \u00bb automatiquement.</span>' +
+    '</div>';
+  el('view-devis').innerHTML = proc +
     '<table class="tbl"><thead><tr><th>Numero</th><th>Client</th><th>Emis le</th><th>Total HT</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
@@ -766,7 +797,7 @@ function openDevisForm(clientId, projetId, id) {
     '</select></div>' +
     '<div style="font-size:9px;color:var(--mu2);margin-top:5px">Prestations mensuelles a facturer separement : ' + CATALOG_RECURRENT.map(function (c) { return esc(c.label) + ' ' + fmtEUR(c.prix) + '/mois'; }).join(' ; ') + '</div></div>' +
     '<div style="text-align:right;font-family:Syne,sans-serif;font-weight:700;font-size:16px;margin:8px 0" id="d-total">Total HT : ' + fmtEUR(0, 2) + '</div>' +
-    '<div class="sites-legal">Mentions portees automatiquement sur le devis :<br>SIRET <b>' + SIRET + '</b> &middot; <b>' + TVA_MENTION + '</b><br>Paiement integral a la mise en ligne &middot; Offre valable 30 jours<br>' + CESSION_CLAUSE + '</div>';
+    '<div class="sites-legal">Ce devis <b>vaut contrat</b> une fois signe "bon pour accord".<br>' + esc(ENTREPRISE.nom_commercial) + ' - ' + esc(ENTREPRISE.exploitant) + ' &middot; SIRET <b>' + SIRET + '</b> &middot; <b>' + TVA_MENTION + '</b><br>Paiement <b>100 % a reception de la facture, avant mise en ligne</b> &middot; aucun acompte &middot; offre valable 30 jours<br>Les 12 articles des conditions (propriete, delais, revisions, litiges...) sont ajoutes automatiquement au PDF.</div>';
   var f = '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
     (id ? '<button class="btn bd_" onclick="deleteDevis(\'' + id + '\')">Supprimer</button>' : '') +
     '<button class="btn bp" onclick="saveDevis(' + (id ? '\'' + id + '\'' : '') + ')">Enregistrer</button>';
@@ -802,12 +833,42 @@ function dvAddFromCatalog(i) {
 }
 function dvRemoveLine(i) { _dvLines.splice(i, 1); if (!_dvLines.length) _dvLines.push({ designation: '', quantite: 1, pu_ht: 0 }); dvRenderLines(); }
 function dvTotal() { return _dvLines.reduce(function (a, l) { return a + num(l.quantite) * num(l.pu_ht); }, 0); }
+// ── Conditions du devis-contrat (source unique : texte enregistre + page de signature + PDF) ──
+// Le devis signe "bon pour accord" vaut contrat de prestation entre les parties.
+function contratArticles() {
+  return [
+    { t: '1. Objet',
+      b: 'Le present devis, une fois signe "bon pour accord" par le client, vaut contrat de prestation de services. Il a pour objet la conception et la realisation du site internet decrit dans le detail ci-dessus, aux conditions qui suivent.' },
+    { t: '2. Prix et TVA',
+      b: 'Les prix sont indiques en euros, hors taxes. ' + ENTREPRISE.tva + ' : aucune TVA n\'est facturee ni recuperable. Le prix est ferme et definitif pour le perimetre decrit ; toute prestation non prevue fait l\'objet d\'un devis complementaire.' },
+    { t: '3. Modalites de paiement',
+      b: 'Aucun acompte n\'est demande. Le prix est payable en totalite (100 %) a reception de la facture, laquelle est emise apres validation de la maquette et AVANT la mise en ligne du site. Le site n\'est mis en ligne qu\'apres encaissement integral. Passe la date d\'echeance, des penalites de retard au taux de trois fois l\'interet legal sont exigibles, ainsi qu\'une indemnite forfaitaire de recouvrement de 40 € (art. L.441-10 et D.441-5 du Code de commerce).' },
+    { t: '4. Delais',
+      b: 'Les delais annonces sont indicatifs et courent a compter de la signature et de la reception par le prestataire de l\'ensemble des contenus et acces necessaires. Un retard raisonnable ne peut donner lieu a annulation ni a indemnite.' },
+    { t: '5. Obligations du client',
+      b: 'Le client fournit en temps utile les textes, visuels, logos et acces necessaires, et designe un interlocuteur pour valider les etapes. Il garantit detenir les droits sur les contenus transmis et garantit le prestataire contre tout recours a ce titre.' },
+    { t: '6. Validation, revisions et livraison',
+      b: 'Une maquette (apercu) est soumise au client via un lien prive. Deux series de modifications sont incluses ; au-dela, les ajustements sont factures au temps passe. La validation de la maquette declenche la facturation. La mise en ligne vaut livraison.' },
+    { t: '7. Propriete intellectuelle et reserve de propriete',
+      b: CESSION_CLAUSE + ' Jusqu\'au paiement complet, le prestataire conserve la propriete des developpements et l\'usage du site n\'est pas cede : la mise en ligne est subordonnee au reglement integral.' },
+    { t: '8. Hebergement et nom de domaine',
+      b: 'Sauf mention contraire au devis, l\'hebergement et le nom de domaine ne sont pas compris. Leur souscription et leur renouvellement, ainsi que les prestations recurrentes eventuelles (contenu, publicite, maintenance evoluee), sont factures separement.' },
+    { t: '9. Maintenance et SAV',
+      b: 'Un SAV technique (corrections de dysfonctionnements) est assure. Les evolutions et ajouts de fonctionnalites apres livraison font l\'objet d\'un nouveau devis.' },
+    { t: '10. Retractation',
+      b: 'Le contrat est conclu entre professionnels : le droit de retractation prevu par le Code de la consommation ne s\'applique pas. En cas d\'abandon du projet par le client apres signature, les prestations deja realisees restent dues au prorata.' },
+    { t: '11. Donnees personnelles (RGPD)',
+      b: 'Chaque partie respecte la reglementation applicable. Le client demeure responsable des traitements de donnees personnelles operes via son site.' },
+    { t: '12. Droit applicable et litiges',
+      b: 'Le present contrat est soumis au droit francais. En cas de differend, les parties rechercheront une solution amiable avant toute action ; a defaut, les tribunaux competents seront saisis.' }
+  ];
+}
+// Texte compact stocke sur le devis et affiche sur la page de signature (une ligne par article).
 function defaultMentions() {
-  return 'SIRET ' + SIRET + '. ' + TVA_MENTION + '. ' +
-    'Paiement integral a la livraison du site (mise en ligne). Offre valable 30 jours. ' +
-    'Maquette validee avant developpement, deux tours de modifications inclus. ' +
-    CESSION_CLAUSE + ' ' +
-    'SAV technique gratuit, sans limite de duree. Contenus textes et visuels fournis par le client.';
+  var head = ENTREPRISE.nom_commercial + ' - ' + ENTREPRISE.exploitant + ' - SIRET ' + SIRET + '. ' + ENTREPRISE.tva + '.\n' +
+    'Devis valant contrat de prestation : la signature "bon pour accord" engage les parties.\n' +
+    'Paiement : 100 % a reception de la facture, avant mise en ligne. Aucun acompte. Offre valable 30 jours.\n';
+  return head + contratArticles().map(function (a) { return a.t + ' - ' + a.b; }).join('\n');
 }
 
 async function saveDevis(id) {
@@ -866,14 +927,20 @@ async function sendDevis(id) {
   if (!tok) return;
   var link = location.origin + '/sites-sign?dv=' + d.id + '&t=' + tok;
   var to = c && c.email ? c.email : '';
-  var subject = 'Votre devis ' + d.numero + ' - NOVALEM Sites Internet';
+  var subject = 'Votre devis ' + d.numero + ' - ' + ENTREPRISE.nom_commercial + ' (creation de site internet)';
   var body =
     'Bonjour' + (c && c.contact_nom ? ' ' + c.contact_nom : '') + ',\n\n' +
-    'Veuillez trouver votre devis ' + d.numero + ' pour un montant de ' + fmtEUR(d.total_ht, 2) + ' HT.\n\n' +
-    TVA_MENTION + '.\n' +
-    'Paiement integral a la livraison du site (mise en ligne). Offre valable 30 jours.\n\n' +
-    'Pour donner votre bon pour accord en ligne (signature electronique) :\n[Signer le devis](' + link + ')\n\n' +
-    'Bien cordialement,\nLouis - NOVALEM\nCreation de sites internet\n+590 690 31 79 99 / +33 6 58 21 20 90\nlouisprorenault@gmail.com';
+    'Veuillez trouver votre devis ' + d.numero + ' d\'un montant de ' + fmtEUR(d.total_ht, 2) + ' HT (' + TVA_MENTION + ').\n\n' +
+    'Ce devis vaut contrat : en le signant "bon pour accord" ci-dessous, vous validez le lancement du projet.\n' +
+    'Signer en ligne (signature electronique, 2 minutes) :\n[Signer le devis](' + link + ')\n\n' +
+    'Comment ca se passe ensuite :\n' +
+    '1) Vous signez le devis.\n' +
+    '2) Je realise votre site et vous envoie un lien d\'apercu prive.\n' +
+    '3) On ajuste ensemble jusqu\'a ce qu\'il vous convienne.\n' +
+    '4) Vous reglez la facture (100 %, aucun acompte).\n' +
+    '5) Je mets votre site en ligne des reception du paiement.\n\n' +
+    'Offre valable 30 jours. Je reste a votre disposition pour toute question.\n\n' +
+    'Bien cordialement,\n' + ENTREPRISE.exploitant + ' - ' + ENTREPRISE.nom_commercial + '\nCreation de sites internet\n' + ENTREPRISE.tel + '\n' + ENTREPRISE.email;
 
   // set statut envoye
   await updateRow('web_devis', id, { statut: 'envoye' }); d.statut = 'envoye';
@@ -904,68 +971,143 @@ async function trySendEmail(opts) {
   } catch (e) { return false; }
 }
 
-// ── PDF du devis (jsPDF) ──
+// ── Boite a outils PDF partagee (devis-contrat + facture) ──
+function pdfCtor() { return (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : (window.jsPDF || null); }
+function eur(n) { return fmtEUR(num(n), 2).replace('EUR', 'E').replace(/[\u00a0\u202f\u2009]/g, ' '); }
+function pdfKit(doc) {
+  var M = 18, W = 210, H = 297, bottom = 280;
+  var kit = {
+    M: M, W: W, H: H, y: 20,
+    footer: function (docType) {
+      var pg = doc.internal.getNumberOfPages();
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(150, 150, 142); doc.setFontSize(7);
+      doc.text(ENTREPRISE.nom_commercial + '  -  ' + ENTREPRISE.email + '  -  ' + ENTREPRISE.tel, M, 288);
+      doc.text((docType || '') + '  -  page ' + pg, W - M, 288, { align: 'right' });
+    },
+    space: function (need, docType) { if (this.y + need > bottom) { kit.footer(docType); doc.addPage(); this.y = 20; } },
+    hr: function (color) { var c = color || [224, 169, 46]; doc.setDrawColor(c[0], c[1], c[2]); doc.setLineWidth(0.6); doc.line(M, this.y, W - M, this.y); }
+  };
+  return kit;
+}
+function pdfHeader(doc, k, rightTitle, numero, lines) {
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(26, 20, 6);
+  doc.text(ENTREPRISE.nom_commercial, k.M, k.y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 110);
+  doc.text('Creation de sites internet', k.M, k.y + 5);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(60, 60, 55);
+  doc.text(rightTitle, k.W - k.M, k.y, { align: 'right' });
+  doc.setFontSize(12); doc.setTextColor(26, 20, 6);
+  doc.text(numero, k.W - k.M, k.y + 6, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90, 90, 84);
+  var yy = k.y + 11;
+  (lines || []).forEach(function (t) { doc.text(t, k.W - k.M, yy, { align: 'right' }); yy += 4; });
+  k.y += 26; k.hr(); k.y += 8;
+}
+// Bloc "Prestataire" (gauche) + "Client" (droite)
+function pdfParties(doc, k, c) {
+  var startY = k.y, colR = 112;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 30, 26);
+  doc.text('Prestataire', k.M, k.y);
+  doc.text('Client', colR, k.y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(70, 70, 64);
+  var L = [ENTREPRISE.exploitant, ENTREPRISE.forme, ENTREPRISE.adresse, 'SIRET ' + ENTREPRISE.siret, ENTREPRISE.tva, ENTREPRISE.email, ENTREPRISE.tel].filter(Boolean);
+  var R = [c ? c.entreprise : '', c && c.contact_nom ? c.contact_nom : '', c && c.ville ? c.ville : '', c && c.email ? c.email : '', c && c.telephone ? c.telephone : ''].filter(Boolean);
+  var yl = k.y + 5, yr = k.y + 5, n = Math.max(L.length, R.length);
+  for (var i = 0; i < n; i++) {
+    if (L[i]) { doc.text(doc.splitTextToSize(String(L[i]), 88), k.M, yl); yl += 4.2; }
+    if (R[i]) { doc.text(doc.splitTextToSize(String(R[i]), 80), colR, yr); yr += 4.2; }
+  }
+  k.y = Math.max(yl, yr) + 4;
+}
+
+// ── PDF du devis-contrat (jsPDF, multi-pages) ──
 function devisPDF(id) {
   var d = devisById(id); if (!d) return;
   var c = clientById(d.client_id);
-  var jsPDFctor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : (window.jsPDF || null);
-  if (!jsPDFctor) { toast('Generateur PDF indisponible', 'e'); return; }
-  var doc = new jsPDFctor({ unit: 'mm', format: 'a4' });
-  var M = 18, y = 20;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(26, 20, 6);
-  doc.text('NOVALEM', M, y);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 110);
-  doc.text('Creation de sites internet', M, y + 5);
-  doc.setFontSize(9); doc.setTextColor(60, 60, 55);
-  doc.text('DEVIS', 210 - M, y, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-  doc.text(d.numero, 210 - M, y + 6, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-  doc.text('Emis le ' + fmtDateFR(d.date_emission), 210 - M, y + 11, { align: 'right' });
-  if (d.validite) doc.text('Valable jusqu au ' + fmtDateFR(d.validite), 210 - M, y + 15, { align: 'right' });
+  var ctor = pdfCtor(); if (!ctor) { toast('Generateur PDF indisponible', 'e'); return; }
+  var doc = new ctor({ unit: 'mm', format: 'a4' });
+  var k = pdfKit(doc), DT = 'Devis-contrat ' + d.numero;
+  var hLines = ['Emis le ' + fmtDateFR(d.date_emission)];
+  if (d.validite) hLines.push('Valable jusqu au ' + fmtDateFR(d.validite));
+  pdfHeader(doc, k, 'DEVIS - VALANT CONTRAT', d.numero, hLines);
+  pdfParties(doc, k, c);
 
-  y += 26;
-  doc.setDrawColor(224, 169, 46); doc.setLineWidth(0.6); doc.line(M, y, 210 - M, y);
-  y += 8;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 30, 26);
-  doc.text('Client', M, y);
-  doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 55);
-  y += 5; doc.text(String(c ? c.entreprise : ''), M, y);
-  if (c && c.contact_nom) { y += 4; doc.text(String(c.contact_nom), M, y); }
-  if (c && c.ville) { y += 4; doc.text(String(c.ville), M, y); }
+  // Bandeau paiement (l'essentiel du process, tout de suite visible)
+  doc.setFillColor(252, 246, 232); doc.setDrawColor(224, 169, 46); doc.setLineWidth(0.3);
+  doc.roundedRect(k.M, k.y, k.W - 2 * k.M, 11, 1.5, 1.5, 'FD');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(120, 90, 20);
+  doc.text('Paiement : 100 % a reception de la facture, AVANT mise en ligne. Aucun acompte.', k.M + 3, k.y + 4.6);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(140, 110, 40);
+  doc.text('Le devis signe "bon pour accord" vaut contrat. Mise en ligne du site des encaissement.', k.M + 3, k.y + 8.4);
+  k.y += 16;
 
-  y += 10;
-  // entete tableau
-  doc.setFillColor(245, 243, 239); doc.rect(M, y, 210 - 2 * M, 8, 'F');
+  // Tableau des prestations
+  doc.setFillColor(245, 243, 239); doc.rect(k.M, k.y, k.W - 2 * k.M, 8, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 36);
-  doc.text('Designation', M + 2, y + 5.5);
-  doc.text('Qte', 130, y + 5.5, { align: 'right' });
-  doc.text('PU HT', 158, y + 5.5, { align: 'right' });
-  doc.text('Total HT', 210 - M - 2, y + 5.5, { align: 'right' });
-  y += 10;
+  doc.text('Designation', k.M + 2, k.y + 5.5);
+  doc.text('Qte', 130, k.y + 5.5, { align: 'right' });
+  doc.text('PU HT', 158, k.y + 5.5, { align: 'right' });
+  doc.text('Total HT', k.W - k.M - 2, k.y + 5.5, { align: 'right' });
+  k.y += 10;
   doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 46);
   (d.lignes || []).forEach(function (l) {
     var desig = doc.splitTextToSize(String(l.designation || ''), 105);
-    doc.text(desig, M + 2, y);
-    doc.text(String(num(l.quantite)), 130, y, { align: 'right' });
-    doc.text(fmtEUR(num(l.pu_ht), 2).replace('EUR', 'E').replace(/\u00a0/g, ' '), 158, y, { align: 'right' });
-    doc.text(fmtEUR(num(l.quantite) * num(l.pu_ht), 2).replace('EUR', 'E').replace(/\u00a0/g, ' '), 210 - M - 2, y, { align: 'right' });
-    y += Math.max(6, desig.length * 4.5);
+    var rowH = Math.max(6, desig.length * 4.5);
+    k.space(rowH + 2, DT);
+    doc.text(desig, k.M + 2, k.y);
+    doc.text(String(num(l.quantite)), 130, k.y, { align: 'right' });
+    doc.text(eur(l.pu_ht), 158, k.y, { align: 'right' });
+    doc.text(eur(num(l.quantite) * num(l.pu_ht)), k.W - k.M - 2, k.y, { align: 'right' });
+    k.y += rowH;
   });
-  y += 2; doc.setDrawColor(220, 220, 212); doc.line(M, y, 210 - M, y); y += 7;
+  k.y += 2; doc.setDrawColor(220, 220, 212); doc.line(k.M, k.y, k.W - k.M, k.y); k.y += 7;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(26, 20, 6);
-  doc.text('TOTAL HT : ' + fmtEUR(d.total_ht, 2).replace('EUR', 'E').replace(/\u00a0/g, ' '), 210 - M, y, { align: 'right' });
+  doc.text('TOTAL HT A REGLER : ' + eur(d.total_ht), k.W - k.M, k.y, { align: 'right' });
+  k.y += 12;
 
-  y += 12;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(110, 110, 100);
-  var mentions = (d.mentions || defaultMentions()).replace(/\u00a0/g, ' ');
-  doc.text(doc.splitTextToSize(mentions, 210 - 2 * M), M, y);
+  // Conditions (le contrat proprement dit)
+  k.space(14, DT);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(30, 30, 26);
+  doc.text('Conditions du contrat', k.M, k.y); k.y += 6;
+  contratArticles().forEach(function (a) {
+    var body = doc.splitTextToSize(a.b.replace(/\u00a0/g, ' '), k.W - 2 * k.M);
+    k.space(6 + body.length * 3.8 + 3, DT);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(50, 50, 46);
+    doc.text(a.t, k.M, k.y); k.y += 4;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6); doc.setTextColor(95, 95, 88);
+    doc.text(body, k.M, k.y); k.y += body.length * 3.8 + 3;
+  });
 
-  doc.setTextColor(150, 150, 142); doc.setFontSize(7);
-  doc.text('NOVALEM  -  louisprorenault@gmail.com  -  +590 690 31 79 99  -  +33 6 58 21 20 90', M, 288);
+  // Bloc signature "bon pour accord"
+  k.space(52, DT);
+  k.y += 4; k.hr([220, 220, 212]); k.y += 7;
+  var signed = !!(d.signature_ref || d.statut === 'accepte');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 30, 26);
+  doc.text('Bon pour accord', k.M, k.y); k.y += 5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6); doc.setTextColor(95, 95, 88);
+  doc.text(doc.splitTextToSize('Le client reconnait avoir pris connaissance du devis et des conditions ci-dessus, et les accepter. La signature manuscrite "bon pour accord" ou la signature electronique via le lien recu ont la meme valeur.', k.W - 2 * k.M), k.M, k.y);
+  k.y += 12;
+  var boxW = (k.W - 2 * k.M - 8) / 2, bx1 = k.M, bx2 = k.M + boxW + 8, boxTop = k.y;
+  doc.setDrawColor(210, 210, 202); doc.setLineWidth(0.3);
+  doc.roundedRect(bx1, boxTop, boxW, 30, 1.5, 1.5); doc.roundedRect(bx2, boxTop, boxW, 30, 1.5, 1.5);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(70, 70, 64);
+  doc.text('Le prestataire', bx1 + 3, boxTop + 5);
+  doc.text('Le client (bon pour accord)', bx2 + 3, boxTop + 5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120, 120, 112);
+  doc.text(ENTREPRISE.exploitant + ' - ' + ENTREPRISE.nom_commercial, bx1 + 3, boxTop + 10);
+  if (signed) {
+    doc.setTextColor(30, 140, 90); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text('SIGNE ELECTRONIQUEMENT', bx2 + 3, boxTop + 12);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(90, 120, 100);
+    doc.text(doc.splitTextToSize('Reference : ' + (d.signature_ref || d.numero + '-BPA') + '. Signature eIDAS enregistree, preuve conservee (horodatage, empreinte du devis).', boxW - 6), bx2 + 3, boxTop + 17);
+  } else {
+    doc.text('Date et signature :', bx2 + 3, boxTop + 12);
+  }
+  k.y = boxTop + 34;
 
+  k.footer(DT);
   doc.save(d.numero + '.pdf');
-  toast('PDF genere', 's');
+  toast('Devis-contrat genere', 's');
 }
 
 // ── Conversion devis -> facture (une facture unique au montant total, sans acompte) ──
@@ -1000,6 +1142,7 @@ function renderFactures() {
     var d = daysUntil(f.date_echeance);
     var late = (f.statut === 'emise' || f.statut === 'relancee') && d != null && d < 0;
     var acts = '<div class="acol" onclick="event.stopPropagation()">';
+    acts += '<span class="btn bg bxs" onclick="facturePDF(\'' + f.id + '\')">PDF</span>';
     if (f.statut === 'brouillon') acts += '<span class="btn bi bxs" onclick="emitFacture(\'' + f.id + '\')">Emettre</span><span class="btn bg bxs" onclick="openFactureForm(null,null,\'' + f.id + '\')">Editer</span>';
     if (f.statut === 'emise') acts += '<span class="btn bg bxs" onclick="setFactureStatut(\'' + f.id + '\',\'relancee\')">Relancer</span><span class="btn bs bxs" onclick="setFactureStatut(\'' + f.id + '\',\'payee\')">Payee</span>';
     if (f.statut === 'relancee') acts += '<span class="btn bs bxs" onclick="setFactureStatut(\'' + f.id + '\',\'payee\')">Payee</span>';
@@ -1077,6 +1220,66 @@ async function avoirFacture(id) {
   if (ins.error) { toast('Erreur : ' + ins.error.message, 'e'); return; }
   await sb.from('web_factures').update({ statut: 'annulee' }).eq('id', id);
   toast('Avoir ' + payload.numero + ' cree', 's'); await reload();
+}
+
+// ── PDF de la facture (jsPDF) ──
+function facturePDF(id) {
+  var f = factureById(id); if (!f) return;
+  var c = clientById(f.client_id);
+  var ctor = pdfCtor(); if (!ctor) { toast('Generateur PDF indisponible', 'e'); return; }
+  var doc = new ctor({ unit: 'mm', format: 'a4' });
+  var k = pdfKit(doc), DT = 'Facture ' + f.numero, avoir = num(f.montant_ht) < 0 || f.avoir_de;
+  var hLines = ['Emise le ' + fmtDateFR(f.date_emission)];
+  if (f.date_echeance) hLines.push('Echeance : ' + fmtDateFR(f.date_echeance));
+  var dv = f.devis_id ? devisById(f.devis_id) : null;
+  if (dv) hLines.push('Devis lie : ' + dv.numero);
+  pdfHeader(doc, k, avoir ? 'AVOIR' : 'FACTURE', f.numero, hLines);
+  pdfParties(doc, k, c);
+
+  // Ligne unique = montant total (modele sans acompte)
+  doc.setFillColor(245, 243, 239); doc.rect(k.M, k.y, k.W - 2 * k.M, 8, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 36);
+  doc.text('Designation', k.M + 2, k.y + 5.5);
+  doc.text('Montant HT', k.W - k.M - 2, k.y + 5.5, { align: 'right' });
+  k.y += 10;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(50, 50, 46);
+  var lib = 'Creation de site internet' + (dv ? ' (devis ' + dv.numero + ')' : '');
+  doc.text(doc.splitTextToSize(lib, 130), k.M + 2, k.y);
+  doc.text(eur(f.montant_ht), k.W - k.M - 2, k.y, { align: 'right' });
+  k.y += 8; doc.setDrawColor(220, 220, 212); doc.line(k.M, k.y, k.W - k.M, k.y); k.y += 7;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(26, 20, 6);
+  doc.text((avoir ? 'TOTAL AVOIR : ' : 'NET A PAYER : ') + eur(f.montant_ht), k.W - k.M, k.y, { align: 'right' });
+  k.y += 6;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120, 120, 112);
+  doc.text(ENTREPRISE.tva + '.', k.W - k.M, k.y, { align: 'right' }); k.y += 10;
+
+  if (!avoir) {
+    // Bandeau : le site est mis en ligne a reception du paiement
+    doc.setFillColor(252, 246, 232); doc.setDrawColor(224, 169, 46); doc.setLineWidth(0.3);
+    doc.roundedRect(k.M, k.y, k.W - 2 * k.M, 10, 1.5, 1.5, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(120, 90, 20);
+    doc.text('Le site est mis en ligne des reception du paiement integral. Aucun acompte.', k.M + 3, k.y + 6.2);
+    k.y += 15;
+
+    // Coordonnees de paiement
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 30, 26);
+    doc.text('Coordonnees de paiement', k.M, k.y); k.y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 72);
+    [['Titulaire', ENTREPRISE.paiement.titulaire], ['IBAN', ENTREPRISE.paiement.iban], ['BIC', ENTREPRISE.paiement.bic]].forEach(function (r) {
+      if (!r[1]) return; doc.text(r[0] + ' : ' + r[1], k.M, k.y); k.y += 4.4;
+    });
+    if (ENTREPRISE.paiement.autres) { doc.text(doc.splitTextToSize(ENTREPRISE.paiement.autres, k.W - 2 * k.M), k.M, k.y); k.y += 8; }
+    doc.setFontSize(7.4); doc.setTextColor(120, 120, 112);
+    doc.text(doc.splitTextToSize('En cas de retard de paiement : penalites au taux de 3 fois l\'interet legal et indemnite forfaitaire de recouvrement de 40 € (art. L.441-10 et D.441-5 du Code de commerce). Pas d\'escompte pour paiement anticipe.', k.W - 2 * k.M), k.M, k.y);
+  } else if (f.avoir_de) {
+    var orig = factureById(f.avoir_de);
+    doc.setFontSize(8); doc.setTextColor(120, 120, 112);
+    doc.text('Avoir annulant la facture ' + (orig ? orig.numero : '') + '.', k.M, k.y);
+  }
+
+  k.footer(DT);
+  doc.save(f.numero + '.pdf');
+  toast('Facture generee', 's');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1429,180 +1632,6 @@ async function deleteLien(id, clientId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROSPECTION SUR CARTE  (OpenStreetMap + Overpass, sans cle ni cout)
-// ═══════════════════════════════════════════════════════════════════
-var _map = null, _markers = null, _prospInit = false;
-var _prospById = {};       // "type/id" -> commerce
-var _prospNoSite = false;  // filtre : uniquement les entreprises sans site web
-
-// libelles FR des categories OSM les plus frequentes
-var OSM_CAT = {
-  restaurant: 'Restaurant', cafe: 'Cafe', bar: 'Bar', fast_food: 'Restauration rapide', pub: 'Pub',
-  bakery: 'Boulangerie', butcher: 'Boucherie', hairdresser: 'Coiffeur', beauty: 'Institut de beaute',
-  clothes: 'Pret-a-porter', shoes: 'Chaussures', florist: 'Fleuriste', jewelry: 'Bijouterie',
-  car_repair: 'Garage', car: 'Concession auto', optician: 'Opticien', pharmacy: 'Pharmacie',
-  dentist: 'Dentiste', doctors: 'Cabinet medical', veterinary: 'Veterinaire', estate_agent: 'Agence immo',
-  bank: 'Banque', supermarket: 'Supermarche', hardware: 'Quincaillerie', furniture: 'Ameublement',
-  electronics: 'Electronique', mobile_phone: 'Telephonie', bicycle: 'Velo', sports: 'Sport',
-  driving_school: 'Auto-ecole', travel_agency: 'Agence de voyage', photographer: 'Photographe',
-  plumber: 'Plombier', electrician: 'Electricien', carpenter: 'Menuisier', painter: 'Peintre',
-  tiler: 'Carreleur', roofer: 'Couvreur', locksmith: 'Serrurier', gardener: 'Paysagiste'
-};
-function osmCat(t) {
-  var v = t.shop || t.craft || t.office || t.amenity || '';
-  return OSM_CAT[v] || (v ? v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, ' ') : 'Etablissement');
-}
-function osmAddr(t) {
-  var p = [];
-  if (t['addr:housenumber'] || t['addr:street']) p.push(((t['addr:housenumber'] || '') + ' ' + (t['addr:street'] || '')).trim());
-  if (t['addr:postcode'] || t['addr:city']) p.push(((t['addr:postcode'] || '') + ' ' + (t['addr:city'] || '')).trim());
-  return p.join(', ');
-}
-function osmSite(t) { return t.website || t['contact:website'] || ''; }
-function osmPhone(t) { return t.phone || t['contact:phone'] || t['contact:mobile'] || ''; }
-
-function renderProspection() {
-  if (_prospInit) { if (_map) setTimeout(function () { _map.invalidateSize(); }, 60); return; }
-  el('view-prospection').innerHTML =
-    '<div class="pr-bar">' +
-      '<input id="prosp-q" class="pr-q" placeholder="Ville ou quartier (ex : Nice centre, Antibes, Cannes...)" onkeydown="if(event.key===\'Enter\')prospSearch()">' +
-      '<button class="btn bp bsm" onclick="prospSearch()">Rechercher</button>' +
-      '<button class="btn bg bsm" onclick="prospLocate()">Ma position</button>' +
-      '<button class="btn bg bsm" onclick="prospLoad()">Chercher ici</button>' +
-      '<label class="pr-toggle"><input type="checkbox" id="prosp-nosite" onchange="prospToggleNoSite()"> Sans site web seulement</label>' +
-    '</div>' +
-    '<div class="pr-wrap">' +
-      '<div id="prosp-map" class="pr-map"></div>' +
-      '<div id="prosp-list" class="pr-list"><div class="empty">Cherche une zone, deplace la carte, puis clique "Chercher ici" pour lister les entreprises.</div></div>' +
-    '</div>';
-  try {
-    _map = L.map('prosp-map', { zoomControl: true }).setView([43.7009, 7.2683], 14); // Nice par defaut
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(_map);
-    _markers = L.layerGroup().addTo(_map);
-    _prospInit = true;
-    setTimeout(function () { if (_map) _map.invalidateSize(); }, 120);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function (pos) {
-        if (_map) _map.setView([pos.coords.latitude, pos.coords.longitude], 15);
-      }, function () {}, { timeout: 5000 });
-    }
-  } catch (e) { el('prosp-map').innerHTML = '<div class="empty" style="padding:20px">Carte indisponible (recharge la page)</div>'; }
-}
-
-// recherche d'une zone via Nominatim (gratuit)
-async function prospSearch() {
-  var q = el('prosp-q').value.trim();
-  if (!q || !_map) return;
-  toast('Recherche de la zone...', 'i');
-  try {
-    var r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } });
-    var j = await r.json();
-    if (!j || !j.length) { toast('Zone introuvable', 'w'); return; }
-    _map.setView([parseFloat(j[0].lat), parseFloat(j[0].lon)], 15);
-    setTimeout(prospLoad, 300);
-  } catch (e) { toast('Recherche impossible', 'e'); }
-}
-function prospLocate() {
-  if (!navigator.geolocation) { toast('Geolocalisation indisponible', 'w'); return; }
-  toast('Localisation...', 'i');
-  navigator.geolocation.getCurrentPosition(function (pos) {
-    if (_map) { _map.setView([pos.coords.latitude, pos.coords.longitude], 15); setTimeout(prospLoad, 300); }
-  }, function () { toast('Localisation refusee', 'w'); }, { timeout: 7000 });
-}
-
-// interroge Overpass sur l'emprise visible
-async function prospLoad() {
-  if (!_map) return;
-  if (_map.getZoom() < 14) { toast('Zoome un peu plus pour lister les entreprises', 'w'); return; }
-  var b = _map.getBounds();
-  var bbox = b.getSouth().toFixed(5) + ',' + b.getWest().toFixed(5) + ',' + b.getNorth().toFixed(5) + ',' + b.getEast().toFixed(5);
-  var amen = 'restaurant|cafe|bar|fast_food|pub|pharmacy|dentist|doctors|clinic|veterinary|driving_school|fuel|bank';
-  var q = '[out:json][timeout:25];(' +
-    'node["shop"](' + bbox + ');way["shop"](' + bbox + ');' +
-    'node["craft"](' + bbox + ');way["craft"](' + bbox + ');' +
-    'node["office"](' + bbox + ');' +
-    'node["amenity"~"^(' + amen + ')$"](' + bbox + ');way["amenity"~"^(' + amen + ')$"](' + bbox + ');' +
-    ');out center 200;';
-  el('prosp-list').innerHTML = '<div class="empty">Recherche des entreprises...</div>';
-  try {
-    var r = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q)
-    });
-    var j = await r.json();
-    var list = (j.elements || []).map(function (e) {
-      var t = e.tags || {};
-      if (!t.name) return null;
-      var lat = e.lat != null ? e.lat : (e.center && e.center.lat);
-      var lon = e.lon != null ? e.lon : (e.center && e.center.lon);
-      if (lat == null || lon == null) return null;
-      return { key: e.type + '/' + e.id, name: t.name, cat: osmCat(t), site: osmSite(t), phone: osmPhone(t), addr: osmAddr(t), ville: t['addr:city'] || '', lat: lat, lon: lon };
-    }).filter(Boolean);
-    _prospById = {};
-    list.forEach(function (x) { _prospById[x.key] = x; });
-    prospRerender();
-  } catch (e) {
-    el('prosp-list').innerHTML = '<div class="empty">Recherche indisponible (Overpass surcharge), reessaie dans un instant.</div>';
-    toast('Overpass momentanement indisponible', 'e');
-  }
-}
-function prospRerender() { prospRender(Object.keys(_prospById).map(function (k) { return _prospById[k]; })); }
-function prospToggleNoSite() { _prospNoSite = el('prosp-nosite').checked; prospRerender(); }
-
-function prospRender(list) {
-  if (_prospNoSite) list = list.filter(function (x) { return !x.site; });
-  if (_markers) _markers.clearLayers();
-  var known = {};
-  DB.clients.forEach(function (c) { if (c.entreprise) known[c.entreprise.trim().toLowerCase()] = true; });
-
-  var rows = list.slice(0, 200).map(function (x) {
-    var inCrm = known[x.name.trim().toLowerCase()];
-    var noSite = !x.site;
-    var color = noSite ? '#e0a92e' : '#8c8c84';
-    if (_markers && typeof L !== 'undefined') {
-      var mk = L.circleMarker([x.lat, x.lon], { radius: 7, color: color, fillColor: color, fillOpacity: 0.85, weight: 1 });
-      var pop = '<div style="min-width:180px"><b>' + esc(x.name) + '</b><br><span style="color:#888">' + esc(x.cat) + '</span>' +
-        (x.addr ? '<br>' + esc(x.addr) : '') +
-        '<br>' + (noSite ? '<b style="color:#c98a10">Pas de site web</b>' : '<span style="color:#888">A un site</span>') +
-        (x.phone ? '<br><a href="tel:' + esc(x.phone) + '">' + esc(x.phone) + '</a>' : '') +
-        '<br>' + (inCrm ? '<span style="color:#1a9c72">Deja au CRM</span>' : '<button onclick="prospAdd(\'' + x.key + '\')">Ajouter au CRM</button>') +
-        '</div>';
-      mk.bindPopup(pop);
-      _markers.addLayer(mk);
-    }
-    return '<div class="pr-item" onclick="prospFocus(\'' + x.key + '\')">' +
-      '<div style="flex:1;min-width:0"><div class="pr-item-t">' + esc(x.name) + (noSite ? ' <span class="pr-nosite">sans site</span>' : '') + '</div>' +
-      '<div class="pr-item-s">' + esc(x.cat) + (x.ville ? ' &middot; ' + esc(x.ville) : '') + '</div></div>' +
-      '<div class="pr-item-a">' +
-        (x.phone ? '<a class="btn bg bxs" href="tel:' + esc(x.phone) + '" onclick="event.stopPropagation()">Appeler</a>' : '') +
-        (inCrm ? '<span class="pr-incrm">au CRM</span>' : '<button class="btn bp bxs" onclick="event.stopPropagation();prospAdd(\'' + x.key + '\')">+ CRM</button>') +
-      '</div>' +
-    '</div>';
-  }).join('');
-
-  var n = list.length;
-  el('prosp-list').innerHTML =
-    '<div class="pr-count">' + n + ' entreprise' + (n > 1 ? 's' : '') + (_prospNoSite ? ' sans site' : '') + '</div>' +
-    (rows || '<div class="empty">Aucune entreprise trouvee ici</div>');
-}
-function prospFocus(key) {
-  var x = _prospById[key]; if (!x || !_map) return;
-  _map.setView([x.lat, x.lon], Math.max(_map.getZoom(), 17));
-}
-async function prospAdd(key) {
-  var x = _prospById[key]; if (!x) return;
-  var payload = {
-    entreprise: x.name, telephone: x.phone || null, ville: x.ville || null,
-    secteur: x.cat || null, source: 'Prospection carte', statut_pipeline: 'prospect',
-    notes: [x.addr, x.site ? 'Site : ' + x.site : 'Pas de site web'].filter(Boolean).join(' | ') || null
-  };
-  var u = currentUser(); if (u && u.id) payload.owner = u.id;
-  var r = await getSB().from('web_clients').insert(payload);
-  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
-  toast(x.name + ' ajoute au pipeline', 's');
-  await loadAll(); prospRerender(); badges();
-}
-
-// ═══════════════════════════════════════════════════════════════════
 // ACCES / LIVRAISON + PROCHAINE ETAPE (guidage du cycle client)
 // ═══════════════════════════════════════════════════════════════════
 var ACCES_TYPES  = ['site', 'hebergeur', 'domaine', 'cms', 'ftp', 'email', 'github', 'autre'];
@@ -1616,17 +1645,19 @@ function nextStepHtml(c) {
   var facs = facturesOfClient(id).filter(function (f) { return f.statut !== 'annulee'; });
   var facDue = facs.some(function (f) { return f.statut === 'emise' || f.statut === 'relancee'; });
   var s;
-  if (st === 'prospect') s = { t: 'Prospect a contacter.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'contacte\')">Marquer contacte</button>' };
-  else if (st === 'contacte') s = { t: 'Contacte. Etablis et envoie-lui un devis.', b: '<button class="btn bp bsm" onclick="openDevisForm(\'' + id + '\')">Creer un devis</button>' };
-  else if (st === 'devis_envoye') s = { t: 'Devis envoye, en attente de signature (l\'app la detecte automatiquement).', b: '<button class="btn bg bsm" onclick="quickRappel(\'' + id + '\')">Programmer une relance</button>' };
-  else if (st === 'signe') s = { t: 'Devis signe. Lance la maquette du site.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'en_cours\')">Passer en cours</button>' };
-  else if (st === 'en_cours') s = { t: 'Site en cours. Quand la V1 est prete, envoie-la au client.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'livre\')">V1 envoyee, passer en livre</button>' };
+  var facPayee = facs.some(function (f) { return f.statut === 'payee'; });
+  if (st === 'prospect') s = { t: 'Etape 1 - Prospect. Prends contact avec lui.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'contacte\')">Marquer contacte</button>' };
+  else if (st === 'contacte') s = { t: 'Etape 2 - Contacte. Etablis et envoie-lui le devis-contrat.', b: '<button class="btn bp bsm" onclick="openDevisForm(\'' + id + '\')">Creer un devis</button>' };
+  else if (st === 'devis_envoye') s = { t: 'Etape 3 - Devis envoye. En attente de signature (detectee automatiquement des que le client signe).', b: '<button class="btn bg bsm" onclick="quickRappel(\'' + id + '\')">Programmer une relance</button>' };
+  else if (st === 'signe') s = { t: 'Etape 4 - Devis signe (contrat conclu). Lance la maquette du site.', b: '<button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'en_cours\')">Demarrer, passer en cours</button>' };
+  else if (st === 'en_cours') s = { t: 'Etape 5 - En cours. Envoie le lien d\'apercu prive au client et ajuste jusqu\'a validation.', b: '<button class="btn bp bsm" onclick="openLienForm(\'' + id + '\')">+ Ajouter le lien d\'apercu</button> <button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'livre\')">Maquette validee</button>' };
   else if (st === 'livre') {
-    if (!facs.length) s = { t: 'Site livre. Genere la facture (montant total).', b: '<button class="btn bp bsm" onclick="nextInvoiceForClient(\'' + id + '\')">Creer la facture</button>' };
-    else if (facDue) s = { t: 'Site livre, facture en attente de paiement.', b: '<button class="btn bg bsm" onclick="go(\'factures\')">Suivre la facture</button>' };
-    else s = { t: 'Site livre et paye. Stocke les acces ci-dessous, puis bascule en SAV.', b: '<button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'sav\')">Passer en SAV</button>' };
+    if (!facs.length) s = { t: 'Etape 6 - Maquette validee. Emets la facture (montant total). Le site sera mis en ligne apres paiement.', b: '<button class="btn bp bsm" onclick="nextInvoiceForClient(\'' + id + '\')">Creer la facture</button>' };
+    else if (facDue) s = { t: 'Etape 6 - Facture envoyee, en attente de paiement. Mets le site en ligne UNIQUEMENT une fois paye.', b: '<button class="btn bg bsm" onclick="go(\'factures\')">Suivre la facture</button>' };
+    else if (facPayee) s = { t: 'Paye. Mets le site en ligne, enregistre les acces ci-dessous, puis bascule en SAV.', b: '<button class="btn bg bsm" onclick="openAccesForm(\'' + id + '\')">+ Enregistrer un acces</button> <button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'sav\')">Passer en SAV</button>' };
+    else s = { t: 'Site livre. Suis le reglement de la facture avant mise en ligne.', b: '<button class="btn bg bsm" onclick="go(\'factures\')">Voir les factures</button>' };
   }
-  else if (st === 'sav') s = { t: 'En SAV. Suivi et maintenance du site.', b: '' };
+  else if (st === 'sav') s = { t: 'En SAV. Site en ligne, suivi et maintenance. Pense au renouvellement hebergement/domaine.', b: '' };
   else s = { t: 'Client perdu.', b: '<button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'prospect\')">Relancer plus tard</button>' };
   return '<div class="nextstep"><div class="nextstep-t">' + esc(s.t) + '</div>' + (s.b ? '<div style="margin-top:8px">' + s.b + '</div>' : '') + '</div>';
 }
@@ -1694,8 +1725,7 @@ var API = {
   openEventDetail: openEventDetail, agShift: agShift, agToday: agToday, quickRappel: quickRappel, quickRdv: quickRdv,
   openLienForm: openLienForm, saveLien: saveLien, deleteLien: deleteLien,
   openAccesForm: openAccesForm, saveAcces: saveAcces, deleteAcces: deleteAcces, nextInvoiceForClient: nextInvoiceForClient,
-  prospSearch: prospSearch, prospLocate: prospLocate, prospLoad: prospLoad,
-  prospToggleNoSite: prospToggleNoSite, prospFocus: prospFocus, prospAdd: prospAdd
+  devisContratPDF: devisPDF, facturePDF: facturePDF
 };
 Object.keys(API).forEach(function (k) { window[k] = API[k]; });
 
