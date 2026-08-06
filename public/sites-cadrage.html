@@ -224,6 +224,7 @@ body.report #report{display:block}
 </head>
 <body>
 <script src="/js/crm-auth.js"></script>
+<script src="/js/sites-config.js"></script>
 
 <div class="bar">
   <div class="mark">Novalem <span>/ cadrage</span></div>
@@ -353,7 +354,7 @@ body.report #report{display:block}
 
     <div class="tot">
       <div><div class="k">Estimation</div><div class="big" id="total">—</div></div>
-      <div><div class="k">Acompte 30 %</div><div class="m" id="acompte">—</div></div>
+      <div><div class="k" id="k-acompte">Acompte</div><div class="m" id="acompte">—</div></div>
       <div><div class="k">Solde à la livraison</div><div class="m" id="solde">—</div></div>
       <div class="note">Fourchette de travail, pas un prix ferme. Le devis part sous 48 h.</div>
     </div>
@@ -398,6 +399,7 @@ body.report #report{display:block}
 <div class="toast" id="toast"></div>
 
 <script>
+function ACOMPTE_PCT(){ try { return window.NOVCFG.defaultPct(); } catch(e){ return 30; } }
 (function(){
   var F = {}, ID = null, timer = null, left = 1800, running = false, saveT = null;
 
@@ -485,8 +487,11 @@ body.report #report{display:block}
     var t = base + opt + sup;
     var sd = d.formule === 0;
     $('#total').textContent  = sd ? 'Sur devis' : (t ? eur(t) : '—');
-    $('#acompte').textContent= (!sd && t) ? eur(Math.round(t*0.3)) : '—';
-    $('#solde').textContent  = (!sd && t) ? eur(t - Math.round(t*0.3)) : '—';
+    var _pct = ACOMPTE_PCT();
+    var _ac = Math.round(t*_pct/100);
+    $('#k-acompte').textContent = _pct >= 100 ? 'A la commande' : (_pct <= 0 ? 'A la livraison' : 'Acompte ' + _pct + ' %');
+    $('#acompte').textContent= (!sd && t) ? eur(_pct <= 0 ? 0 : _ac) : '—';
+    $('#solde').textContent  = (!sd && t) ? eur(t - (_pct <= 0 ? 0 : _ac)) : '—';
     var m = $('#miss');
     if(d.guards.length){ m.className='miss'; m.textContent = 'Il te manque : ' + d.guards.join(' · '); }
     else { m.className='miss ok'; m.textContent = 'Rien ne manque. Tu peux raccrocher.'; }
@@ -588,7 +593,9 @@ body.report #report{display:block}
     d.options.forEach(function(o){ h += '<div class="row"><span>'+o.nom+'</span><span>'+eur(o.prix)+'</span></div>'; });
     if(sup) h += '<div class="row"><span>'+(parseInt(f.pages_sup,10))+' page(s) supplémentaire(s)</span><span>'+eur(sup)+'</span></div>';
     h += '<div class="row sum"><span>Estimation</span><span>'+ (sd?'Sur devis':(t?eur(t):'—')) +'</span></div>';
-    if(!sd && t) h += '<div class="row"><span>Acompte 30 % à la signature</span><span>'+eur(Math.round(t*0.3))+'</span></div>';
+    var _p = ACOMPTE_PCT();
+    if(!sd && t && _p > 0) h += '<div class="row"><span>'+(_p>=100?'Réglement intégral à la signature':'Acompte '+_p+' % à la signature')+'</span><span>'+eur(Math.round(t*_p/100))+'</span></div>';
+    if(!sd && t && _p <= 0) h += '<div class="row"><span>Réglement intégral à la livraison</span><span>'+eur(t)+'</span></div>';
     h += '</div>';
     h += field('Récurrent évoqué', f.recurrent) + field('Budget annoncé', f.budget)
        + field('Décideur', f.decideur) + field('Échéance', f.echeance);
@@ -636,9 +643,10 @@ body.report #report{display:block}
       var numero = null;
       try{ var rn = await SB.rpc('web_next_number',{ p_kind:'DEV', p_annee:new Date().getFullYear() }); if(!rn.error) numero = rn.data; }catch(e){}
       if(!numero) numero = 'DEV-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
-      var mentions = 'SIRET 103 405 247 00018. TVA non applicable, article 293 B du CGI. '+
-        'Acompte de 30 % a la signature, solde de 70 % a la livraison (avant mise en ligne). Offre valable 30 jours. '+
-        'Cession des droits d\'auteur sur le code source livre au client apres paiement integral.';
+      var _cfg = window.NOVCFG;
+      var _plan = _cfg.planFor({ acompte_pct: _cfg.defaultPct(), total_ht: total });
+      var mentions = _cfg.ent().nom_commercial + ' - ' + _cfg.ent().exploitant + '. SIRET ' + _cfg.ent().siret + '. ' + _cfg.ent().tva + '. ' +
+        _cfg.echeancierPhrase(_plan) + ' ' + _cfg.CESSION;
       var insd = await SB.from('web_devis').insert({
         client_id: clientId, numero: numero,
         date_emission: new Date().toISOString().slice(0,10),

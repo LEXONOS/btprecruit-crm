@@ -172,7 +172,7 @@ function renderDevis(){
     return '<tr><td>'+esc(l.designation)+'</td><td style="text-align:right">'+(Number(l.quantite)||0)+'</td><td style="text-align:right">'+euros(l.pu_ht)+'</td><td style="text-align:right">'+euros(tot)+'</td></tr>';
   }).join('')||'<tr><td colspan="4" class="muted">-</td></tr>';
   document.getElementById('d-total').textContent=euros(DEVIS.total_ht);
-  var ment=DEVIS.mentions||'SIRET 103 405 247 00018. TVA non applicable, article 293 B du CGI. Paiement : acompte 30% a la signature, solde 70% a la livraison (avant mise en ligne). Cession des droits d\'auteur sur le code source livre au client apres paiement integral.';
+  var ment=DEVIS.mentions||'Devis valant contrat de prestation. Les conditions de paiement figurent au devis remis. Cession des droits d\'auteur sur le code source livre au client apres paiement integral.';
   document.getElementById('d-mentions').innerHTML='<b style="color:var(--tx)">Ce devis vaut contrat de prestation.</b><br><br>'+esc(ment).replace(/\n/g,'<br>');
 }
 

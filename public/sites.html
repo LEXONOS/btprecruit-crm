@@ -49,6 +49,7 @@
   <strong id="nf-ca">-</strong>
   CA signe HT
  </div>
+ <div class="nav-settings" onclick="openSettings()">Parametres &amp; documents</div>
 </nav>
 
 <div id="main">
@@ -56,7 +57,7 @@
   <div class="tbt" id="tbt">Tableau de bord</div>
   <span class="sites-tag">Sites Internet</span>
   <div class="tba" id="tba"></div>
-  <div id="sync-ind" style="font-size:10px;color:var(--mu2);margin-left:auto;white-space:nowrap;padding:4px 10px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;user-select:none">&#9675; Connexion</div>
+  <div id="sync-ind" onclick="openConnexion()" title="Etat de la connexion" style="font-size:10px;color:var(--mu2);cursor:pointer;margin-left:auto;white-space:nowrap;padding:4px 10px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;transition:all .15s;user-select:none">&#9679; Synchro...</div>
   <!-- User badge -->
   <div id="user-badge" onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:7px;margin-left:10px;padding:4px 10px 4px 6px;background:var(--s3);border:1px solid var(--bd2);border-radius:99px;cursor:pointer;transition:all .15s;flex-shrink:0;user-select:none" onmouseover="this.style.borderColor='var(--bd3)'" onmouseout="this.style.borderColor='var(--bd2)'">
    <div id="user-avatar" style="width:22px;height:22px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#1a1406;flex-shrink:0;font-family:'Syne',sans-serif">?</div>
@@ -69,6 +70,7 @@
     <div id="um-role" style="font-size:10px;color:var(--mu)"></div>
    </div>
    <div style="padding:6px">
+    <div onclick="toggleUserMenu();openSettings()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'">Parametres</div>
     <div onclick="window.location='/hub'" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--mu)" onmouseover="this.style.background='var(--s3)';this.style.color='var(--tx)'" onmouseout="this.style.background='';this.style.color='var(--mu)'">Retour au Hub</div>
     <div style="height:1px;background:var(--bd);margin:4px 0"></div>
     <div onclick="logout()" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:11px;transition:.12s;color:var(--red)" onmouseover="this.style.background='var(--red-dim)'" onmouseout="this.style.background=''">Deconnexion</div>
@@ -106,6 +108,7 @@
 
 <div id="toaster"></div>
 
+<script src="/js/sites-config.js"></script>
 <script src="/js/sites-app.js"></script>
 </body>
 </html>

@@ -31,40 +31,41 @@ function currentUser() {
 //   Ces informations apparaissent sur les devis-contrats et les factures.
 //   Remplace les valeurs entre guillemets par les tiennes, puis pousse sur GitHub.
 // ═══════════════════════════════════════════════════════════════════
-var ENTREPRISE = {
-  nom_commercial : 'NOVALEM',
-  // Identite legale du micro-entrepreneur (obligatoire sur un contrat / une facture)
-  exploitant     : 'Louis Renault',                 // ← prenom NOM de l'entrepreneur individuel
-  forme          : 'Entrepreneur individuel (micro-entreprise)',
-  adresse        : 'Adresse a completer',           // ← ex : 12 rue des Artisans, 97110 Pointe-a-Pitre
-  siret          : '103 405 247 00018',
-  ape            : '',                              // ← code APE/NAF si tu veux l'afficher (ex : 62.01Z)
-  email          : 'louisprorenault@gmail.com',
-  tel            : '+590 690 31 79 99 / +33 6 58 21 20 90',
-  tva            : 'TVA non applicable, article 293 B du CGI',
-  // Coordonnees de paiement (imprimees sur la facture pour que le client paie)
-  paiement : {
-    titulaire : 'Louis Renault',                    // ← titulaire du compte
-    iban      : 'FR76 XXXX XXXX XXXX XXXX XXXX XXX', // ← ton IBAN
-    bic       : 'XXXXXXXX',                          // ← ton BIC
-    autres    : 'Virement bancaire. Paiement egalement possible par tout moyen convenu.'
-  }
-};
+// Les valeurs viennent des PARAMETRES (bouton Parametres, module sites-config.js).
+// Ces alias sont recopies au demarrage et apres chaque enregistrement.
+var ENTREPRISE = {};
+var SIRET = '';
+var TVA_MENTION = '';
+var CESSION_CLAUSE = '';
 
-// ── Alias retro-compatibles (utilises un peu partout dans le fichier) ──
-var SIRET = ENTREPRISE.siret;
-var TVA_MENTION = ENTREPRISE.tva;
-var CESSION_CLAUSE = 'Cession des droits d\'auteur sur le code source livre au client apres paiement integral du prix.';
+function syncEntreprise() {
+  var C = window.NOVCFG;
+  if (!C) return;
+  var e = C.ent(), p = C.pay();
+  ENTREPRISE = {
+    nom_commercial: e.nom_commercial, exploitant: e.exploitant, forme: e.forme,
+    adresse: e.adresse, siret: e.siret, ape: e.ape, email: e.email, tel: e.tel,
+    site: e.site, tva: e.tva, baseline: e.baseline || 'Creation de sites internet',
+    paiement: { titulaire: p.titulaire, banque: p.banque, iban: p.iban, bic: p.bic, autres: p.autres }
+  };
+  SIRET = e.siret; TVA_MENTION = e.tva; CESSION_CLAUSE = C.CESSION;
+}
 
 // ═══════════════════════════════════════════════════════════════════
-// ► MODELE DE PAIEMENT  ◄  (source unique — change ce seul chiffre pour tout ajuster)
-//   Acompte a la signature + solde a la livraison. Toute l'appli (devis,
-//   contrat, factures, emails, PDF) lit ces valeurs. Ex : passe a 50 pour du 50/50.
+// ECHEANCIER — defini DEVIS PAR DEVIS (colonne web_devis.acompte_pct)
+//   0   = tout a la livraison       100 = tout a la commande
+//   30  = acompte 30 % / solde 70 %  etc.
+//   Absent : on retombe sur le defaut des parametres.
 // ═══════════════════════════════════════════════════════════════════
-var ACOMPTE_PCT = 30;                 // % demande a la signature du devis-contrat
-var SOLDE_PCT   = 100 - ACOMPTE_PCT;  // % restant, du a la livraison (avant mise en ligne)
-function montantAcompte(total) { return Math.round(num(total) * ACOMPTE_PCT) / 100; }
-function montantSolde(total)   { return Math.round((num(total) - montantAcompte(total)) * 100) / 100; }
+function planOf(devis, totalOverride) { return window.NOVCFG.planFor(devis, totalOverride); }
+function planFromPct(pct, total) { return window.NOVCFG.planFor({ acompte_pct: pct, total_ht: total }); }
+function montantAcompte(total, devis) { return planOf(devis, total).acompte; }
+function montantSolde(total, devis) { return planOf(devis, total).solde; }
+// Libelle du type de facture attendu pour un devis donne
+function labelFacture(plan, type) {
+  if (plan.unique) return 'Facture';
+  return type === 'acompte' ? ('Facture d\'acompte ' + plan.pct + ' %') : ('Facture de solde ' + plan.soldePct + ' %');
+}
 // Retrouve la facture d'acompte non annulee liee a un devis (pour la deduire du solde)
 function acompteFactureForDevis(devisId) {
   return DB.factures.find(function (f) {
@@ -88,32 +89,8 @@ var FORMULE_LABELS = { essentiel: 'Essentiel', vitrine: 'Vitrine', signature: 'S
 var FORMULE_PRICE  = { essentiel: 390, vitrine: 790, signature: 1190, sur_mesure: 0 };
 var FORMULE_DELAI  = { essentiel: 'livre en 7 jours', vitrine: 'livre en 10 a 14 jours', signature: 'livre en 3 semaines', sur_mesure: 'delai selon perimetre' };
 
-// Catalogue chiffre (prestations ponctuelles) pour composer un devis en un clic.
-var CATALOG = [
-  { label: 'Site Essentiel', prix: 390 },
-  { label: 'Site Vitrine', prix: 790 },
-  { label: 'Site Signature', prix: 1190 },
-  { label: 'Page supplementaire', prix: 90 },
-  { label: 'Formulaire de devis multi-etapes', prix: 150 },
-  { label: 'Prise de rendez-vous en ligne', prix: 190 },
-  { label: 'Espace client securise', prix: 450 },
-  { label: 'Version multilingue (par langue)', prix: 290 },
-  { label: 'Boutique en ligne (a partir de)', prix: 900 },
-  { label: 'Avis Google en direct', prix: 90 },
-  { label: 'WhatsApp et messagerie', prix: 60 },
-  { label: 'SEO technique (jusqu a 10 pages)', prix: 290 },
-  { label: 'Fiche Google Business', prix: 150 },
-  { label: 'Blog SEO', prix: 350 },
-  { label: 'Redaction article (1000 mots)', prix: 70 },
-  { label: 'GEO (IA generatives)', prix: 350 },
-  { label: 'Google Ads, lancement', prix: 350 }
-];
-// Prestations recurrentes (mensuelles), a facturer separement.
-var CATALOG_RECURRENT = [
-  { label: 'Abonnement contenu (4 articles/mois)', prix: 250 },
-  { label: 'Google Ads, pilotage', prix: 190 },
-  { label: 'Rapport de performance mensuel', prix: 90 }
-];
+// Le catalogue de prestations vit desormais dans les Parametres (sites-config.js).
+// Acces via catalogue() et catalogueRec().
 
 var PROJ_ORDER  = ['cadrage', 'maquette', 'developpement', 'mise_en_ligne', 'livre'];
 var PROJ_LABELS = { cadrage: 'Cadrage', maquette: 'Maquette', developpement: 'Developpement', mise_en_ligne: 'Mise en ligne', livre: 'Livre' };
@@ -146,6 +123,7 @@ var AUTO_RAPPELS = {
 var DB = { clients: [], projets: [], devis: [], factures: [], hebergements: [], interactions: [], cadrages: [], evenements: [], liens: [], acces: [] };
 var UI = { view: 'dash', pid: null };
 var _dvLines = [];      // lignes de l'editeur de devis en cours
+var _dvPct = null;      // echeancier en cours d'edition (% a la signature)
 var _dvOptions = [];    // options selectionnees pour le projet en cours
 var _sigTimer = null;
 
@@ -237,7 +215,8 @@ function openCadrage(id) { window.location = '/sites-cadrage' + (id ? '?client='
 // ═══════════════════════════════════════════════════════════════════
 async function loadAll() {
   var sb = getSB();
-  if (!sb) { toast('Connexion indisponible', 'e'); return; }
+  if (!sb) { updateConn('off', 'Client Supabase indisponible'); toast('Connexion indisponible', 'e'); return; }
+  updateConn('load');
   try {
     var res = await Promise.all([
       sb.from('web_clients').select('*').order('updated_at', { ascending: false }),
@@ -248,7 +227,11 @@ async function loadAll() {
       sb.from('web_interactions').select('*').order('date', { ascending: false })
     ]);
     var err = res.find(function (r) { return r.error; });
-    if (err && err.error) { console.warn('[sites] load', err.error); toast('Erreur de chargement : ' + err.error.message, 'e'); }
+    if (err && err.error) {
+      console.warn('[sites] load', err.error);
+      updateConn('off', err.error.message);
+      toast('Erreur de chargement : ' + err.error.message, 'e');
+    } else { updateConn('ok'); }
     DB.clients = res[0].data || [];
     DB.projets = res[1].data || [];
     DB.devis = res[2].data || [];
@@ -273,7 +256,7 @@ async function loadAll() {
       var ra = await sb.from('web_acces').select('*').order('created_at', { ascending: false });
       if (!ra.error) DB.acces = ra.data || [];
     } catch (e) { /* table absente : on ignore */ }
-  } catch (e) { console.warn(e); toast('Erreur reseau au chargement', 'e'); }
+  } catch (e) { console.warn(e); updateConn('off', e.message); toast('Erreur reseau au chargement', 'e'); }
 }
 async function reload() { await loadAll(); go(UI.view); }
 
@@ -313,7 +296,7 @@ function go(v) {
 
   var A = {
     agenda: '<button class="btn bp bsm" onclick="openEventForm()">+ Rappel</button>',
-    pipeline: '<button class="btn bp bsm" onclick="openClientForm()">+ Client</button>',
+    pipeline: '<input id="pipe-q" placeholder="Chercher un client..." oninput="setPipeQ(this.value)" value="' + esc(_pipeQ) + '" style="max-width:210px;margin-right:6px"><button class="btn bp bsm" onclick="openClientForm()">+ Client</button>',
     devis: '<button class="btn bp bsm" onclick="openDevisForm()">+ Devis</button>',
     factures: '<button class="btn bp bsm" onclick="openFactureForm()">+ Facture</button>',
     projets: '<button class="btn bp bsm" onclick="openProjetForm()">+ Projet</button>',
@@ -436,9 +419,22 @@ function clientName(id) { var c = clientById(id); return c ? c.entreprise : '(cl
 // ═══════════════════════════════════════════════════════════════════
 // PIPELINE (kanban)
 // ═══════════════════════════════════════════════════════════════════
+var _pipeQ = '';
+function setPipeQ(v) {
+  _pipeQ = v || '';
+  renderPipeline();
+  var i = el('pipe-q');
+  if (i && document.activeElement !== i) { i.value = _pipeQ; }
+}
+function matchClient(c, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return [c.entreprise, c.contact_nom, c.ville, c.secteur, c.email, c.telephone]
+    .some(function (v) { return (v || '').toLowerCase().indexOf(q) >= 0; });
+}
 function renderPipeline() {
   var cols = PIPE_ORDER.map(function (st) {
-    var items = DB.clients.filter(function (c) { return c.statut_pipeline === st; });
+    var items = DB.clients.filter(function (c) { return c.statut_pipeline === st && matchClient(c, _pipeQ); });
     var cards = items.map(function (c) {
       var idxc = PIPE_ORDER.indexOf(c.statut_pipeline);
       var prevBtn = idxc > 0 ? '<span class="btn bg bxs" title="Reculer" onclick="event.stopPropagation();moveClient(\'' + c.id + '\',-1)">&larr;</span>' : '';
@@ -753,17 +749,18 @@ function renderDevis() {
       (d.statut !== 'accepte' && d.statut !== 'refuse' ? '<span class="btn bi bxs" onclick="sendDevis(\'' + d.id + '\')">Envoyer</span>' : '') +
       (d.statut === 'accepte' ? '<span class="btn bs bxs" onclick="convertDevis(\'' + d.id + '\')">En facture</span>' : '') +
       '</div>';
-    return '<tr onclick="openDevisPanel(\'' + d.id + '\')"><td>' + esc(d.numero) + '</td><td>' + esc(clientName(d.client_id)) + '</td><td>' + fmtDateFR(d.date_emission) + '</td><td>' + fmtEUR(d.total_ht) + '</td><td>' + statutDevisPill(d.statut) + '</td><td>' + acts + '</td></tr>';
-  }).join('') || '<tr><td colspan="6" class="empty">Aucun devis</td></tr>';
+    return '<tr onclick="openDevisPanel(\'' + d.id + '\')"><td>' + esc(d.numero) + '</td><td>' + esc(clientName(d.client_id)) + '</td><td>' + fmtDateFR(d.date_emission) + '</td><td>' + fmtEUR(d.total_ht) + '</td><td style="font-size:10px;color:var(--mu)">' + esc(window.NOVCFG.planLabel(planOf(d))) + '</td><td>' + statutDevisPill(d.statut) + '</td><td>' + acts + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="empty">Aucun devis</td></tr>';
+  var dflt = planFromPct(window.NOVCFG.defaultPct(), 0);
   var proc =
     '<div class="sites-legal" style="margin-bottom:14px">' +
-    '<b style="color:var(--tx)">Devis-contrat, puis acompte ' + ACOMPTE_PCT + ' % / solde ' + SOLDE_PCT + ' %.</b> Circuit : ' +
-    '<b>1.</b> Devis-contrat signe (bon pour accord) &rarr; <b>2.</b> Facture d\'acompte ' + ACOMPTE_PCT + ' % reglee &rarr; <b>3.</b> Realisation + lien d\'apercu prive &rarr; ' +
-    '<b>4.</b> Validation du client &rarr; <b>5.</b> Facture de solde ' + SOLDE_PCT + ' % reglee &rarr; <b>6.</b> Mise en ligne.' +
-    '<br><span style="color:var(--mu2)">Astuce : <b>Envoyer</b> genere le lien de signature. La signature bascule le devis en \u00ab accepte \u00bb ; tu generes ensuite la <b>facture d\'acompte</b> en un clic.</span>' +
+    '<b style="color:var(--tx)">Le devis vaut contrat. Echeancier choisi devis par devis</b> (defaut : ' + window.NOVCFG.planLabel(dflt) + ', modifiable dans les Parametres). Circuit : ' +
+    '<b>1.</b> Devis-contrat signe (bon pour accord) &rarr; <b>2.</b> Facture reglee (acompte, ou totalite selon l\'echeancier) &rarr; <b>3.</b> Realisation + lien d\'apercu prive &rarr; ' +
+    '<b>4.</b> Validation du client &rarr; <b>5.</b> Solde regle &rarr; <b>6.</b> Mise en ligne.' +
+    '<br><span style="color:var(--mu2)">Astuce : <b>Envoyer</b> genere le lien de signature. La signature bascule le devis en \u00ab accepte \u00bb et prepare la facture automatiquement.</span>' +
     '</div>';
   el('view-devis').innerHTML = proc +
-    '<table class="tbl"><thead><tr><th>Numero</th><th>Client</th><th>Emis le</th><th>Total HT</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    '<table class="tbl"><thead><tr><th>Numero</th><th>Client</th><th>Emis le</th><th>Total HT</th><th>Echeancier</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
 function openDevisPanel(id) {
@@ -776,18 +773,34 @@ function openDevisPanel(id) {
     return '<tr><td>' + esc(l.designation) + '</td><td style="text-align:right">' + num(l.quantite) + '</td><td style="text-align:right">' + fmtEUR(l.pu_ht, 2) + '</td><td style="text-align:right">' + fmtEUR(num(l.quantite) * num(l.pu_ht), 2) + '</td></tr>';
   }).join('') || '<tr><td colspan="4" class="empty">Aucune ligne</td></tr>';
   var signLink = signLinkFor(d);
+  var plan0 = planOf(d);
   el('pb').innerHTML =
     section('Recapitulatif', '<table class="tbl"><thead><tr><th>Designation</th><th style="text-align:right">Qte</th><th style="text-align:right">PU HT</th><th style="text-align:right">Total</th></tr></thead><tbody>' + lignes + '</tbody></table>' +
       '<div style="text-align:right;font-family:Syne,sans-serif;font-weight:700;font-size:15px;margin-top:8px">Total HT : ' + fmtEUR(d.total_ht, 2) + '</div>') +
-    section('Mentions', '<div class="sites-legal">' + esc(d.mentions || defaultMentions()) + '</div>') +
+    section('Echeancier', '<div class="sites-legal">' + esc(window.NOVCFG.echeancierCourt(plan0)) + '</div>' +
+      (d.statut === 'brouillon' || d.statut === 'envoye'
+        ? '<button class="btn bg bsm" style="margin-top:6px" onclick="openEcheancier(\'' + d.id + '\')">Changer l\'echeancier</button>'
+        : '')) +
+    section('Mentions', '<div class="sites-legal">' + esc(d.mentions || defaultMentions(plan0)) + '</div>') +
     (d.signature_ref ? section('Signature', '<div class="pill sw-signe">Signe &middot; ' + esc(d.signature_ref) + '</div>') : '') +
     section('Lien de signature (bon pour accord)', '<div style="font-size:10px;color:var(--mu);word-break:break-all;background:var(--s3);padding:8px;border-radius:var(--r)">' + esc(signLink) + '</div><button class="btn bg bsm" style="margin-top:6px" onclick="copyText(\'' + esc(signLink).replace(/'/g, '') + '\')">Copier le lien</button>');
   var acmpt = acompteFactureForDevis(id), sld = soldeFactureForDevis(id);
+  var plan = planOf(d);
   var facBtns = '';
   if (d.statut === 'accepte') {
-    if (!acmpt) facBtns = '<button class="btn bs bsm" onclick="createAcompte(\'' + id + '\')">Facture d\'acompte ' + ACOMPTE_PCT + ' %</button>';
-    else if (!sld) facBtns = '<button class="btn bs bsm" onclick="createSolde(\'' + id + '\')">Facture de solde ' + SOLDE_PCT + ' %</button>';
-    else facBtns = '<span class="pill" style="background:var(--s3);color:var(--green);align-self:center">Acompte + solde factures</span>';
+    if (plan.mode === 'commande') {
+      facBtns = acmpt ? '<span class="pill" style="background:var(--s3);color:var(--green);align-self:center">Facture emise</span>'
+                      : '<button class="btn bs bsm" onclick="createAcompte(\'' + id + '\')">Facturer la totalite</button>';
+    } else if (plan.mode === 'livraison') {
+      facBtns = sld ? '<span class="pill" style="background:var(--s3);color:var(--green);align-self:center">Facture emise</span>'
+                    : '<button class="btn bs bsm" onclick="createSolde(\'' + id + '\')">Facturer la totalite</button>';
+    } else if (!acmpt) {
+      facBtns = '<button class="btn bs bsm" onclick="createAcompte(\'' + id + '\')">Facture d\'acompte ' + plan.pct + ' %</button>';
+    } else if (!sld) {
+      facBtns = '<button class="btn bs bsm" onclick="createSolde(\'' + id + '\')">Facture de solde ' + plan.soldePct + ' %</button>';
+    } else {
+      facBtns = '<span class="pill" style="background:var(--s3);color:var(--green);align-self:center">Acompte + solde factures</span>';
+    }
   }
   el('pa').innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
     '<button class="btn bg bsm" onclick="devisPDF(\'' + id + '\')">PDF</button>' +
@@ -806,6 +819,7 @@ function openDevisForm(clientId, projetId, id) {
   var cliOpts = DB.clients.map(function (c) { return '<option value="' + c.id + '"' + (clientId === c.id ? ' selected' : '') + '>' + esc(c.entreprise) + '</option>'; }).join('');
 
   // lignes initiales : depuis le devis, sinon depuis le projet lie, sinon une ligne vide
+  _dvPct = d ? planOf(d).pct : window.NOVCFG.defaultPct();
   if (d && d.lignes && d.lignes.length) { _dvLines = d.lignes.map(function (l) { return { designation: l.designation, quantite: num(l.quantite), pu_ht: num(l.pu_ht) }; }); }
   else if (projetId && projetById(projetId)) {
     var p = projetById(projetId);
@@ -819,25 +833,82 @@ function openDevisForm(clientId, projetId, id) {
     '<div class="fg"><div class="fgrp"><label class="lbl">Client *</label><select id="d-client" onchange="onDevisClientChange()">' + cliOpts + '</select></div>' +
     '<div class="fgrp"><label class="lbl">Projet lie</label><select id="d-projet">' + projOpts + '</select></div></div>' +
     '<div class="fg"><div class="fgrp"><label class="lbl">Date d\'emission</label><input id="d-date" type="date" value="' + (d ? esc(d.date_emission) : todayISO()) + '"></div>' +
-    '<div class="fgrp"><label class="lbl">Validite jusqu\'au</label><input id="d-validite" type="date" value="' + (d && d.validite ? esc(d.validite) : addDaysISO(30)) + '"></div></div>' +
+    '<div class="fgrp"><label class="lbl">Validite jusqu\'au</label><input id="d-validite" type="date" value="' + (d && d.validite ? esc(d.validite) : addDaysISO(num(window.NOVCFG.fac().validite_devis_j) || 30)) + '"></div></div>' +
+    echeancierPickerHtml() +
     '<div class="fgrp"><label class="lbl">Lignes</label><div class="dv-line-h"><span>Designation</span><span>Qte</span><span>PU HT</span><span>Total</span><span></span></div><div id="d-lines"></div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">' +
     '<button class="btn bg bsm" onclick="dvAddLine()">+ Ligne libre</button>' +
     '<select id="d-cat" class="ff" style="max-width:280px" onchange="dvAddFromCatalog(this.value);this.value=\'\'"><option value="">+ Depuis le catalogue...</option>' +
-      CATALOG.map(function (c, i) { return '<option value="' + i + '">' + esc(c.label) + ' (' + fmtEUR(c.prix) + ')</option>'; }).join('') +
+      catalogue().map(function (c, i) { return '<option value="' + i + '">' + esc(c.label) + ' (' + fmtEUR(c.prix) + ')</option>'; }).join('') +
     '</select></div>' +
-    '<div style="font-size:9px;color:var(--mu2);margin-top:5px">Prestations mensuelles a facturer separement : ' + CATALOG_RECURRENT.map(function (c) { return esc(c.label) + ' ' + fmtEUR(c.prix) + '/mois'; }).join(' ; ') + '</div></div>' +
+    '<div style="font-size:9px;color:var(--mu2);margin-top:5px">Prestations mensuelles a facturer separement : ' + catalogueRec().map(function (c) { return esc(c.label) + ' ' + fmtEUR(c.prix) + '/mois'; }).join(' ; ') + '</div></div>' +
     '<div style="text-align:right;margin:8px 0">' +
       '<div id="d-total" style="font-family:Syne,sans-serif;font-weight:700;font-size:16px">Total HT : ' + fmtEUR(0, 2) + '</div>' +
-      '<div style="font-size:11px;color:var(--mu);margin-top:3px">Acompte ' + ACOMPTE_PCT + ' % : <b id="d-acompte" style="color:var(--tx)">-</b> &nbsp;&middot;&nbsp; Solde ' + SOLDE_PCT + ' % : <b id="d-solde" style="color:var(--tx)">-</b></div>' +
+      '<div id="d-plan" style="font-size:11px;color:var(--mu);margin-top:3px"></div>' +
     '</div>' +
-    '<div class="sites-legal">Ce devis <b>vaut contrat</b> une fois signe "bon pour accord".<br>' + esc(ENTREPRISE.nom_commercial) + ' - ' + esc(ENTREPRISE.exploitant) + ' &middot; SIRET <b>' + SIRET + '</b> &middot; <b>' + TVA_MENTION + '</b><br>Paiement : <b>acompte ' + ACOMPTE_PCT + ' % a la signature</b>, solde ' + SOLDE_PCT + ' % a la livraison (avant mise en ligne) &middot; offre valable 30 jours<br>Les 12 articles des conditions (propriete, delais, revisions, litiges...) sont ajoutes automatiquement au PDF.</div>';
+    manquesBanner() +
+    '<div class="sites-legal">Ce devis <b>vaut contrat</b> une fois signe "bon pour accord".<br>' + esc(ENTREPRISE.nom_commercial) + ' - ' + esc(ENTREPRISE.exploitant) + ' &middot; SIRET <b>' + esc(SIRET) + '</b> &middot; <b>' + esc(TVA_MENTION) + '</b><br>Les articles des conditions (paiement, propriete, delais, revisions, litiges...) sont ajoutes automatiquement au PDF et modifiables dans les <b>Parametres</b>.</div>';
   var f = '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
     (id ? '<button class="btn bd_" onclick="deleteDevis(\'' + id + '\')">Supprimer</button>' : '') +
     '<button class="btn bp" onclick="saveDevis(' + (id ? '\'' + id + '\'' : '') + ')">Enregistrer</button>';
   openMo(id ? 'Modifier le devis' : 'Nouveau devis', b, f);
   dvRenderLines();
 }
+// ── Selecteur d'echeancier (partage : formulaire devis + premier RDV) ──
+function echeancierPickerHtml() {
+  var presets = [
+    { v: 30,  l: '30 / 70' },
+    { v: 50,  l: '50 / 50' },
+    { v: 0,   l: '100 % livraison' },
+    { v: 100, l: '100 % commande' }
+  ];
+  var btns = presets.map(function (p) {
+    return '<button type="button" class="btn ' + (num(_dvPct) === p.v ? 'bp' : 'bg') + ' bxs" id="ech-b-' + p.v + '" onclick="setDvPct(' + p.v + ')">' + p.l + '</button>';
+  }).join(' ');
+  return '<div class="fgrp"><label class="lbl">Echeancier</label>' +
+    '<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">' + btns +
+    '<span style="display:flex;align-items:center;gap:5px;margin-left:4px">' +
+      '<input type="number" id="ech-pct" min="0" max="100" step="5" value="' + num(_dvPct) + '" oninput="setDvPct(this.value,1)" style="width:74px">' +
+      '<span style="font-size:10px;color:var(--mu)">% a la signature</span>' +
+    '</span></div>' +
+    '<div id="ech-hint" style="font-size:10px;color:var(--mu2);margin-top:5px"></div></div>';
+}
+function setDvPct(v, fromInput) {
+  _dvPct = Math.max(0, Math.min(100, num(v)));
+  [0, 30, 50, 100].forEach(function (p) {
+    var b = el('ech-b-' + p);
+    if (b) b.className = 'btn ' + (_dvPct === p ? 'bp' : 'bg') + ' bxs';
+  });
+  var inp = el('ech-pct');
+  if (inp && !fromInput) inp.value = _dvPct;
+  dvSummary();
+}
+
+// Changer l'echeancier d'un devis existant (tant qu'il n'est pas signe)
+function openEcheancier(id) {
+  var d = devisById(id); if (!d) return;
+  if (d.statut === 'accepte') { toast('Devis signe : l\'echeancier ne peut plus changer', 'w'); return; }
+  _dvPct = planOf(d).pct;
+  _dvLines = (d.lignes || []).map(function (l) { return { designation: l.designation, quantite: num(l.quantite), pu_ht: num(l.pu_ht) }; });
+  var b = '<div class="sites-legal" style="margin-bottom:10px">Devis <b>' + esc(d.numero) + '</b> &middot; ' + fmtEUR(d.total_ht, 2) + ' HT</div>' +
+    echeancierPickerHtml() +
+    '<div id="d-total" style="display:none"></div>';
+  openMo('Echeancier du devis', b,
+    '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
+    '<button class="btn bp" onclick="saveEcheancier(\'' + id + '\')">Appliquer</button>');
+  setDvPct(_dvPct);
+}
+async function saveEcheancier(id) {
+  var d = devisById(id); if (!d) return;
+  var patch = { acompte_pct: _dvPct };
+  var plan = planFromPct(_dvPct, d.total_ht);
+  patch.mentions = defaultMentions(plan);
+  var r = await sbUpdate('web_devis', id, patch);
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); return; }
+  closeMo(); toast('Echeancier : ' + window.NOVCFG.planLabel(plan), 's');
+  await loadAll(); openDevisPanel(id); if (UI.view === 'devis') renderDevis();
+}
+
 function onDevisClientChange() {
   var cid = el('d-client').value;
   el('d-projet').innerHTML = '<option value="">- aucun -</option>' + projetsOfClient(cid).map(function (p) { return '<option value="' + p.id + '">' + FORMULE_LABELS[p.formule] + '</option>'; }).join('');
@@ -858,14 +929,32 @@ function dvRenderLines() {
 function dvSummary() {
   var t = dvTotal();
   var tot = el('d-total'); if (tot) tot.textContent = 'Total HT : ' + fmtEUR(t, 2);
-  var a = el('d-acompte'); if (a) a.textContent = fmtEUR(montantAcompte(t), 2);
-  var s = el('d-solde'); if (s) s.textContent = fmtEUR(montantSolde(t), 2);
+  var plan = planFromPct(_dvPct == null ? window.NOVCFG.defaultPct() : _dvPct, t);
+  var txt;
+  if (plan.mode === 'commande') txt = 'Reglement unique a la signature : <b style="color:var(--ac)">' + fmtEUR(plan.total, 2) + '</b>';
+  else if (plan.mode === 'livraison') txt = 'Reglement unique a la livraison : <b style="color:var(--ac)">' + fmtEUR(plan.total, 2) + '</b>';
+  else txt = 'Acompte ' + plan.pct + ' % : <b style="color:var(--ac)">' + fmtEUR(plan.acompte, 2) + '</b> &nbsp;&middot;&nbsp; Solde ' + plan.soldePct + ' % : <b style="color:var(--tx)">' + fmtEUR(plan.solde, 2) + '</b>';
+  var p = el('d-plan'); if (p) p.innerHTML = txt;
+  var h = el('ech-hint'); if (h) h.innerHTML = txt;
+  // compat : anciens conteneurs
+  var a = el('d-acompte'); if (a) a.textContent = fmtEUR(plan.acompte, 2);
+  var sd = el('d-solde'); if (sd) sd.textContent = fmtEUR(plan.solde, 2);
 }
+// Bandeau d'alerte si des informations legales manquent (adresse, IBAN...)
+function manquesBanner() {
+  var m = window.NOVCFG.manques();
+  if (!m.length) return '';
+  return '<div class="sites-legal" style="border-color:var(--orange);color:var(--orange);margin-bottom:8px">' +
+    'Il manque <b>' + esc(m.join(', ')) + '</b> sur tes documents. ' +
+    '<span class="btn bg bxs" onclick="openSettings()">Completer les parametres</span></div>';
+}
+function catalogue() { return window.NOVCFG.catalogue(); }
+function catalogueRec() { return window.NOVCFG.catalogueRecurrent(); }
 function dvEdit(i, k, v) { _dvLines[i][k] = (k === 'designation') ? v : num(v); if (k !== 'designation') dvRenderLines(); else dvSummary(); }
 function dvAddLine() { _dvLines.push({ designation: '', quantite: 1, pu_ht: 0 }); dvRenderLines(); }
 function dvAddFromCatalog(i) {
   if (i === '' || i == null) return;
-  var c = CATALOG[parseInt(i, 10)]; if (!c) return;
+  var c = catalogue()[parseInt(i, 10)]; if (!c) return;
   var empty = _dvLines.findIndex(function (l) { return !(l.designation || '').trim(); });
   var line = { designation: c.label, quantite: 1, pu_ht: c.prix };
   if (empty >= 0) _dvLines[empty] = line; else _dvLines.push(line);
@@ -873,42 +962,21 @@ function dvAddFromCatalog(i) {
 }
 function dvRemoveLine(i) { _dvLines.splice(i, 1); if (!_dvLines.length) _dvLines.push({ designation: '', quantite: 1, pu_ht: 0 }); dvRenderLines(); }
 function dvTotal() { return _dvLines.reduce(function (a, l) { return a + num(l.quantite) * num(l.pu_ht); }, 0); }
-// ── Conditions du devis-contrat (source unique : texte enregistre + page de signature + PDF) ──
-// Le devis signe "bon pour accord" vaut contrat de prestation entre les parties.
-function contratArticles() {
-  return [
-    { t: '1. Objet',
-      b: 'Le present devis, une fois signe "bon pour accord" par le client, vaut contrat de prestation de services. Il a pour objet la conception et la realisation du site internet decrit dans le detail ci-dessus, aux conditions qui suivent.' },
-    { t: '2. Prix et TVA',
-      b: 'Les prix sont indiques en euros, hors taxes. ' + ENTREPRISE.tva + ' : aucune TVA n\'est facturee ni recuperable. Le prix est ferme et definitif pour le perimetre decrit ; toute prestation non prevue fait l\'objet d\'un devis complementaire.' },
-    { t: '3. Modalites de paiement',
-      b: 'Le prix est regle en deux temps : un acompte de ' + ACOMPTE_PCT + ' % du montant total est du a la signature du present devis-contrat (une facture d\'acompte est emise a cette date), et le solde de ' + SOLDE_PCT + ' % est du a la livraison, apres validation du site par le client et AVANT sa mise en ligne. Le site n\'est mis en ligne qu\'apres encaissement integral du solde. Passe la date d\'echeance, des penalites de retard au taux de trois fois l\'interet legal sont exigibles, ainsi qu\'une indemnite forfaitaire de recouvrement de 40 € (art. L.441-10 et D.441-5 du Code de commerce). En cas d\'abandon du projet par le client apres signature, l\'acompte verse reste acquis au prestataire et les prestations deja realisees restent dues au prorata.' },
-    { t: '4. Delais',
-      b: 'Les delais annonces sont indicatifs et courent a compter de la signature et de la reception par le prestataire de l\'ensemble des contenus et acces necessaires. Un retard raisonnable ne peut donner lieu a annulation ni a indemnite.' },
-    { t: '5. Obligations du client',
-      b: 'Le client fournit en temps utile les textes, visuels, logos et acces necessaires, et designe un interlocuteur pour valider les etapes. Il garantit detenir les droits sur les contenus transmis et garantit le prestataire contre tout recours a ce titre.' },
-    { t: '6. Validation, revisions et livraison',
-      b: 'Une maquette (apercu) est soumise au client via un lien prive. Deux series de modifications sont incluses ; au-dela, les ajustements sont factures au temps passe. La validation de la maquette declenche la facturation. La mise en ligne vaut livraison.' },
-    { t: '7. Propriete intellectuelle et reserve de propriete',
-      b: CESSION_CLAUSE + ' Jusqu\'au paiement complet, le prestataire conserve la propriete des developpements et l\'usage du site n\'est pas cede : la mise en ligne est subordonnee au reglement integral.' },
-    { t: '8. Hebergement et nom de domaine',
-      b: 'L\'hebergement du site et le nom de domaine font l\'objet d\'un abonnement annuel, facture separement du prix de creation. Le nom de domaine est enregistre au nom du client, qui en demeure seul proprietaire ; le prestataire en assure la gestion technique et l\'hebergement sur son infrastructure. En cas de non-renouvellement ou de fin de collaboration, le prestataire facilite le transfert du nom de domaine et des fichiers du site au client, ou au prestataire de son choix. Les prestations recurrentes eventuelles (contenu, publicite, maintenance evoluee) sont facturees separement.' },
-    { t: '9. Maintenance et SAV',
-      b: 'Un SAV technique (corrections de dysfonctionnements) est assure. Les evolutions et ajouts de fonctionnalites apres livraison font l\'objet d\'un nouveau devis.' },
-    { t: '10. Retractation',
-      b: 'Le contrat est conclu entre professionnels : le droit de retractation prevu par le Code de la consommation ne s\'applique pas. En cas d\'abandon du projet par le client apres signature, les prestations deja realisees restent dues au prorata.' },
-    { t: '11. Donnees personnelles (RGPD)',
-      b: 'Chaque partie respecte la reglementation applicable. Le client demeure responsable des traitements de donnees personnelles operes via son site.' },
-    { t: '12. Droit applicable et litiges',
-      b: 'Le present contrat est soumis au droit francais. En cas de differend, les parties rechercheront une solution amiable avant toute action ; a defaut, les tribunaux competents seront saisis.' }
-  ];
+// ── Conditions du devis-contrat (source : Parametres > Contrat) ──
+// Les articles sont modifiables dans les Parametres ; {echeancier} est
+// remplace par la phrase de paiement correspondant a CE devis.
+function contratArticles(plan) {
+  return window.NOVCFG.conditions(plan || planFromPct(window.NOVCFG.defaultPct(), 0));
 }
-// Texte compact stocke sur le devis et affiche sur la page de signature (une ligne par article).
-function defaultMentions() {
-  var head = ENTREPRISE.nom_commercial + ' - ' + ENTREPRISE.exploitant + ' - SIRET ' + SIRET + '. ' + ENTREPRISE.tva + '.\n' +
+// Texte compact stocke sur le devis et affiche sur la page de signature.
+function defaultMentions(plan) {
+  plan = plan || planFromPct(window.NOVCFG.defaultPct(), 0);
+  var e = window.NOVCFG.ent();
+  var head = e.nom_commercial + ' - ' + e.exploitant + (e.adresse ? ' - ' + e.adresse : '') + ' - SIRET ' + e.siret + '. ' + e.tva + '.\n' +
     'Devis valant contrat de prestation : la signature "bon pour accord" engage les parties.\n' +
-    'Paiement : acompte ' + ACOMPTE_PCT + ' % a la signature, solde ' + SOLDE_PCT + ' % a la livraison (avant mise en ligne). Offre valable 30 jours.\n';
-  return head + contratArticles().map(function (a) { return a.t + ' - ' + a.b; }).join('\n');
+    window.NOVCFG.echeancierPhrase(plan) + '\n' +
+    'Offre valable ' + (num(window.NOVCFG.fac().validite_devis_j) || 30) + ' jours.\n';
+  return head + contratArticles(plan).map(function (a) { return a.t + ' - ' + a.b; }).join('\n');
 }
 
 async function saveDevis(id) {
@@ -916,20 +984,23 @@ async function saveDevis(id) {
   var lignes = _dvLines.filter(function (l) { return (l.designation || '').trim(); }).map(function (l) { return { designation: l.designation.trim(), quantite: num(l.quantite), pu_ht: num(l.pu_ht) }; });
   if (!lignes.length) { toast('Ajoute au moins une ligne', 'e'); return; }
   var total = lignes.reduce(function (a, l) { return a + l.quantite * l.pu_ht; }, 0);
+  var pct = (_dvPct == null) ? window.NOVCFG.defaultPct() : _dvPct;
+  var plan = planFromPct(pct, total);
   var payload = {
     client_id: clientId, projet_id: el('d-projet').value || null,
     date_emission: el('d-date').value || todayISO(), validite: el('d-validite').value || null,
-    lignes: lignes, total_ht: Math.round(total * 100) / 100, mentions: defaultMentions()
+    lignes: lignes, total_ht: Math.round(total * 100) / 100,
+    acompte_pct: pct, mentions: defaultMentions(plan)
   };
-  var sb = getSB(), r;
-  if (id) { r = await sb.from('web_devis').update(payload).eq('id', id); }
+  var r;
+  if (id) { r = await sbUpdate('web_devis', id, payload); }
   else {
     payload.numero = await nextNumber('DEV');
     payload.statut = 'brouillon';
-    r = await sb.from('web_devis').insert(payload);
+    r = await sbInsert('web_devis', payload);
   }
-  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
-  closeMo(); toast('Devis enregistre', 's');
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); return; }
+  closeMo(); toast('Devis enregistre &middot; ' + window.NOVCFG.planLabel(plan), 's');
   await loadAll(); go('devis');
 }
 async function deleteDevis(id) {
@@ -976,23 +1047,29 @@ async function sendDevis(id) {
   if (!tok) return;
   var link = location.origin + '/sites-sign?dv=' + d.id + '&t=' + tok;
   var to = c && c.email ? c.email : '';
-  var subject = 'Votre devis ' + d.numero + ' - ' + ENTREPRISE.nom_commercial + ' (creation de site internet)';
-  var acmt = montantAcompte(d.total_ht), sld = montantSolde(d.total_ht);
-  var body =
-    'Bonjour' + (c && c.contact_nom ? ' ' + c.contact_nom : '') + ',\n\n' +
-    'Veuillez trouver votre devis ' + d.numero + ' d\'un montant de ' + fmtEUR(d.total_ht, 2) + ' HT (' + TVA_MENTION + ').\n\n' +
-    'Ce devis vaut contrat : en le signant "bon pour accord" ci-dessous, vous validez le lancement du projet.\n' +
-    'Signer en ligne (signature electronique, 2 minutes) :\n[Signer le devis](' + link + ')\n\n' +
-    'Comment ca se passe ensuite :\n' +
-    '1) Vous signez le devis.\n' +
-    '2) Vous reglez l\'acompte de ' + ACOMPTE_PCT + ' % (' + fmtEUR(acmt, 2) + ' HT), qui lance le projet.\n' +
-    '3) Je realise votre site et vous envoie un lien d\'apercu prive ; on ajuste ensemble jusqu\'a ce qu\'il vous convienne.\n' +
-    '4) A la livraison, vous reglez le solde de ' + SOLDE_PCT + ' % (' + fmtEUR(sld, 2) + ' HT).\n' +
-    '5) Je mets votre site en ligne des reception du solde.\n\n' +
-    'Offre valable 30 jours. Je reste a votre disposition pour toute question.\n\n' +
-    'Bien cordialement,\n' + ENTREPRISE.exploitant + ' - ' + ENTREPRISE.nom_commercial + '\nCreation de sites internet\n' + ENTREPRISE.tel + '\n' + ENTREPRISE.email;
+  var plan = planOf(d);
+  var e = window.NOVCFG.ent();
+  var subject = 'Votre devis ' + d.numero + ' - ' + e.nom_commercial + ' (creation de site internet)';
+  var body = window.NOVCFG.fill(window.NOVCFG.doc().email_devis, {
+    contact     : (c && c.contact_nom) ? c.contact_nom : '',
+    client      : c ? c.entreprise : '',
+    numero      : d.numero,
+    total       : fmtEUR(d.total_ht, 2),
+    acompte     : fmtEUR(plan.acompte, 2),
+    solde       : fmtEUR(plan.solde, 2),
+    acompte_pct : plan.pct,
+    solde_pct   : plan.soldePct,
+    lien        : link,
+    etapes      : window.NOVCFG.etapesTexte(plan),
+    validite_j  : num(window.NOVCFG.fac().validite_devis_j) || 30,
+    tva         : e.tva,
+    entreprise  : e.nom_commercial,
+    exploitant  : e.exploitant,
+    baseline    : e.baseline,
+    tel         : e.tel,
+    email       : e.email
+  }).replace(/Bonjour ,/, 'Bonjour,');
 
-  // set statut envoye
   await updateRow('web_devis', id, { statut: 'envoye' }); d.statut = 'envoye';
 
   if (!to) {
@@ -1001,16 +1078,30 @@ async function sendDevis(id) {
     if (UI.view === 'devis') renderDevis(); openDevisPanel(id); badges();
     return;
   }
-  var sent = await trySendEmail({ to: to, subject: subject, body: body, from_name: 'NOVALEM Sites Internet' });
-  if (sent) { toast('Devis envoye a ' + to, 's'); }
-  else {
-    // repli mailto
+  var atts = [];
+  if (window.NOVCFG.auto().joindre_pdf) {
+    var pj = devisPDF(id, true);
+    if (pj) atts.push(pj);
+  }
+  var sent = await trySendEmail({ to: to, subject: subject, body: body, from_name: e.nom_commercial + ' - Sites Internet', attachments: atts });
+  if (sent) {
+    toast('Devis envoye a ' + to, 's');
+    await logInteraction(d.client_id, 'email', 'Devis ' + d.numero + ' envoye a ' + to + ' (' + window.NOVCFG.planLabel(plan) + ')');
+  } else {
     var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body.replace('[Signer le devis](' + link + ')', link));
     window.open(mailto, '_blank');
     toast('Email pret dans votre messagerie', 'i');
   }
   if (UI.view === 'devis') renderDevis(); openDevisPanel(id); badges();
 }
+
+// Trace un echange sur la fiche client (best-effort)
+async function logInteraction(clientId, type, contenu) {
+  if (!clientId) return;
+  try { await getSB().from('web_interactions').insert({ client_id: clientId, type: type, contenu: contenu, date: nowISO() }); }
+  catch (e) { /* non bloquant */ }
+}
+
 async function trySendEmail(opts) {
   try {
     var r = await fetch(API_BASE + '/api/send-email', {
@@ -1031,7 +1122,7 @@ function pdfKit(doc) {
     footer: function (docType) {
       var pg = doc.internal.getNumberOfPages();
       doc.setFont('helvetica', 'normal'); doc.setTextColor(150, 150, 142); doc.setFontSize(7);
-      doc.text(ENTREPRISE.nom_commercial + '  -  ' + ENTREPRISE.email + '  -  ' + ENTREPRISE.tel, M, 288);
+      doc.text([ENTREPRISE.nom_commercial, ENTREPRISE.siret ? 'SIRET ' + ENTREPRISE.siret : '', ENTREPRISE.email, ENTREPRISE.tel].filter(Boolean).join('  -  '), M, 288);
       doc.text((docType || '') + '  -  page ' + pg, W - M, 288, { align: 'right' });
     },
     space: function (need, docType) { if (this.y + need > bottom) { kit.footer(docType); doc.addPage(); this.y = 20; } },
@@ -1043,7 +1134,7 @@ function pdfHeader(doc, k, rightTitle, numero, lines) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(26, 20, 6);
   doc.text(ENTREPRISE.nom_commercial, k.M, k.y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 110);
-  doc.text('Creation de sites internet', k.M, k.y + 5);
+  doc.text(ENTREPRISE.baseline || 'Creation de sites internet', k.M, k.y + 5);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(60, 60, 55);
   doc.text(rightTitle, k.W - k.M, k.y, { align: 'right' });
   doc.setFontSize(12); doc.setTextColor(26, 20, 6);
@@ -1071,10 +1162,12 @@ function pdfParties(doc, k, c) {
 }
 
 // ── PDF du devis-contrat (jsPDF, multi-pages) ──
-function devisPDF(id) {
-  var d = devisById(id); if (!d) return;
+// asAttachment = true : ne telecharge pas, renvoie {filename, content, type}
+function devisPDF(id, asAttachment) {
+  var d = devisById(id); if (!d) return null;
   var c = clientById(d.client_id);
-  var ctor = pdfCtor(); if (!ctor) { toast('Generateur PDF indisponible', 'e'); return; }
+  var plan = planOf(d);
+  var ctor = pdfCtor(); if (!ctor) { toast('Generateur PDF indisponible', 'e'); return null; }
   var doc = new ctor({ unit: 'mm', format: 'a4' });
   var k = pdfKit(doc), DT = 'Devis-contrat ' + d.numero;
   var hLines = ['Emis le ' + fmtDateFR(d.date_emission)];
@@ -1086,9 +1179,9 @@ function devisPDF(id) {
   doc.setFillColor(252, 246, 232); doc.setDrawColor(224, 169, 46); doc.setLineWidth(0.3);
   doc.roundedRect(k.M, k.y, k.W - 2 * k.M, 11, 1.5, 1.5, 'FD');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(120, 90, 20);
-  doc.text('Paiement : acompte ' + ACOMPTE_PCT + ' % a la signature (' + eur(montantAcompte(d.total_ht)) + '), solde ' + SOLDE_PCT + ' % a la livraison (' + eur(montantSolde(d.total_ht)) + ').', k.M + 3, k.y + 4.6);
+  doc.text(window.NOVCFG.echeancierCourt(plan), k.M + 3, k.y + 4.6);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(140, 110, 40);
-  doc.text('Le devis signe "bon pour accord" vaut contrat. Mise en ligne du site apres encaissement du solde.', k.M + 3, k.y + 8.4);
+  doc.text('Le devis signe "bon pour accord" vaut contrat. Mise en ligne du site apres encaissement integral.', k.M + 3, k.y + 8.4);
   k.y += 16;
 
   // Tableau des prestations
@@ -1115,14 +1208,35 @@ function devisPDF(id) {
   doc.text('TOTAL HT : ' + eur(d.total_ht), k.W - k.M, k.y, { align: 'right' });
   k.y += 6;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 84);
-  doc.text('Acompte ' + ACOMPTE_PCT + ' % a la signature : ' + eur(montantAcompte(d.total_ht)) + '     Solde ' + SOLDE_PCT + ' % a la livraison : ' + eur(montantSolde(d.total_ht)), k.W - k.M, k.y, { align: 'right' });
+  if (plan.mode === 'deux') {
+    doc.text('Acompte ' + plan.pct + ' % a la signature : ' + eur(plan.acompte) + '     Solde ' + plan.soldePct + ' % a la livraison : ' + eur(plan.solde), k.W - k.M, k.y, { align: 'right' });
+  } else {
+    doc.text(plan.mode === 'commande' ? 'Reglement integral a la signature' : 'Reglement integral a la livraison, avant mise en ligne', k.W - k.M, k.y, { align: 'right' });
+  }
   k.y += 12;
+
+  // Arguments de vente (bloc libre, modifiable dans les Parametres)
+  var argus = window.NOVCFG.argumentaireLines();
+  if (argus.length) {
+    k.space(12 + argus.length * 4.6, DT);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(30, 30, 26);
+    doc.text('Ce qui est compris', k.M, k.y); k.y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 74);
+    argus.forEach(function (a) {
+      var lines = doc.splitTextToSize(a, k.W - 2 * k.M - 5);
+      k.space(lines.length * 4 + 2, DT);
+      doc.setTextColor(200, 150, 40); doc.text('-', k.M, k.y);
+      doc.setTextColor(80, 80, 74); doc.text(lines, k.M + 4, k.y);
+      k.y += lines.length * 4 + 1.4;
+    });
+    k.y += 6;
+  }
 
   // Conditions (le contrat proprement dit)
   k.space(14, DT);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(30, 30, 26);
   doc.text('Conditions du contrat', k.M, k.y); k.y += 6;
-  contratArticles().forEach(function (a) {
+  contratArticles(plan).forEach(function (a) {
     var body = doc.splitTextToSize(a.b.replace(/\u00a0/g, ' '), k.W - 2 * k.M);
     k.space(6 + body.length * 3.8 + 3, DT);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(50, 50, 46);
@@ -1158,39 +1272,77 @@ function devisPDF(id) {
   }
   k.y = boxTop + 34;
 
+  var pied = window.NOVCFG.fill(window.NOVCFG.doc().devis_pied, { validite_j: num(window.NOVCFG.fac().validite_devis_j) || 30 });
+  if (pied) {
+    k.space(10, DT);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.4); doc.setTextColor(140, 140, 132);
+    doc.text(doc.splitTextToSize(pied, k.W - 2 * k.M), k.M, k.y);
+  }
+
   k.footer(DT);
+  if (asAttachment) return pdfAttachment(doc, d.numero + '.pdf');
   doc.save(d.numero + '.pdf');
   toast('Devis-contrat genere', 's');
+  return null;
 }
 
-// ── Facturation acompte / solde (modele ACOMPTE_PCT %) ──
-// Cree une facture (brouillon) d'acompte ou de solde a partir d'un devis signe.
-async function createFactureFromDevis(id, type) {
-  var d = devisById(id); if (!d) { toast('Devis introuvable', 'e'); return; }
-  if (d.statut !== 'accepte') { toast('Le devis doit etre signe (accepte) avant facturation', 'w'); return; }
+// Convertit un document jsPDF en piece jointe base64 pour /api/send-email
+function pdfAttachment(doc, filename) {
+  try {
+    var uri = doc.output('datauristring');
+    var b64 = uri.substring(uri.indexOf('base64,') + 7);
+    return { filename: filename, content: b64, type: 'application/pdf' };
+  } catch (e) { return null; }
+}
+
+// ── Facturation, pilotee par l'echeancier du devis ──────────────────
+// Cree une facture (brouillon) a partir d'un devis signe.
+// Echeancier 100 % (commande ou livraison) : une seule facture du total.
+async function createFactureFromDevis(id, type, silencieux) {
+  var d = devisById(id); if (!d) { toast('Devis introuvable', 'e'); return null; }
+  if (d.statut !== 'accepte') { toast('Le devis doit etre signe (accepte) avant facturation', 'w'); return null; }
+  var plan = planOf(d);
   var isAcompte = (type === 'acompte');
-  if (isAcompte && acompteFactureForDevis(id)) { toast('Une facture d\'acompte existe deja pour ce devis', 'w'); return; }
-  if (!isAcompte && soldeFactureForDevis(id)) { toast('Une facture de solde existe deja pour ce devis', 'w'); return; }
-  if (!isAcompte && !acompteFactureForDevis(id)) {
-    if (!confirm('Aucune facture d\'acompte pour ce devis. Creer directement la facture de solde (' + SOLDE_PCT + ' %) ?\n\nEn general on facture d\'abord l\'acompte.')) return;
+  if (plan.mode === 'commande') isAcompte = true;
+  if (plan.mode === 'livraison') isAcompte = false;
+
+  var deja = isAcompte ? acompteFactureForDevis(id) : soldeFactureForDevis(id);
+  if (deja) { if (!silencieux) toast('Cette facture existe deja pour ce devis (' + deja.numero + ')', 'w'); return null; }
+  if (!plan.unique && !isAcompte && !acompteFactureForDevis(id)) {
+    if (!silencieux && !confirm('Aucune facture d\'acompte pour ce devis. Creer directement la facture de solde (' + plan.soldePct + ' %) ?\n\nEn general on facture d\'abord l\'acompte.')) return null;
   }
-  var montant = isAcompte ? montantAcompte(d.total_ht) : montantSolde(d.total_ht);
+
+  var montant = plan.unique ? plan.total : (isAcompte ? plan.acompte : plan.solde);
+  if (montant <= 0) { if (!silencieux) toast('Montant nul : rien a facturer', 'w'); return null; }
+  var F = window.NOVCFG.fac();
+  var delai = isAcompte ? (num(F.delai_acompte_j) || 15) : (num(F.delai_solde_j) || 30);
+  var desig = plan.unique
+    ? 'Creation de site internet'
+    : (isAcompte ? 'Acompte ' + plan.pct + ' % - creation de site internet' : 'Solde ' + plan.soldePct + ' % - creation de site internet');
+
   var payload = {
     client_id: d.client_id, projet_id: d.projet_id || null, devis_id: d.id,
     numero: await nextNumber('FAC'), type: isAcompte ? 'acompte' : 'solde',
-    montant_ht: montant, date_emission: todayISO(),
-    date_echeance: addDaysISO(isAcompte ? 15 : 30), statut: 'brouillon'
+    montant_ht: montant, designation: desig, date_emission: todayISO(),
+    date_echeance: addDaysISO(delai), statut: 'brouillon'
   };
-  var r = await getSB().from('web_factures').insert(payload);
-  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
-  closeMo();
-  toast('Facture ' + payload.numero + ' creee (brouillon) : ' + (isAcompte ? 'acompte ' + ACOMPTE_PCT + ' %' : 'solde ' + SOLDE_PCT + ' %'), 's');
-  await loadAll(); go('factures');
+  var r = await sbInsert('web_factures', payload);
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); return null; }
+  if (!silencieux) {
+    closeMo();
+    toast('Facture ' + payload.numero + ' creee (brouillon) : ' + esc(desig), 's');
+    await loadAll(); go('factures');
+  }
+  return r.data || payload;
 }
 function createAcompte(id) { return createFactureFromDevis(id, 'acompte'); }
 function createSolde(id)   { return createFactureFromDevis(id, 'solde'); }
-// Compat (ancien bouton "convertir" et raccourci fiche) : acompte puis solde
+// Raccourci fiche : cree la prochaine facture manquante du devis
 function convertDevis(id) {
+  var d = devisById(id); if (!d) return;
+  var plan = planOf(d);
+  if (plan.mode === 'commande') return acompteFactureForDevis(id) ? toast('Deja facture', 'i') : createAcompte(id);
+  if (plan.mode === 'livraison') return soldeFactureForDevis(id) ? toast('Deja facture', 'i') : createSolde(id);
   if (!acompteFactureForDevis(id)) return createAcompte(id);
   if (!soldeFactureForDevis(id)) return createSolde(id);
   toast('Acompte et solde deja factures pour ce devis', 'i');
@@ -1206,21 +1358,44 @@ function renderFactures() {
     var late = (f.statut === 'emise' || f.statut === 'relancee') && d != null && d < 0;
     var acts = '<div class="acol" onclick="event.stopPropagation()">';
     acts += '<span class="btn bg bxs" onclick="facturePDF(\'' + f.id + '\')">PDF</span>';
-    if (f.statut === 'brouillon') acts += '<span class="btn bi bxs" onclick="emitFacture(\'' + f.id + '\')">Emettre</span><span class="btn bg bxs" onclick="openFactureForm(null,null,\'' + f.id + '\')">Editer</span>';
-    if (f.statut === 'emise') acts += '<span class="btn bg bxs" onclick="setFactureStatut(\'' + f.id + '\',\'relancee\')">Relancer</span><span class="btn bs bxs" onclick="setFactureStatut(\'' + f.id + '\',\'payee\')">Payee</span>';
-    if (f.statut === 'relancee') acts += '<span class="btn bs bxs" onclick="setFactureStatut(\'' + f.id + '\',\'payee\')">Payee</span>';
-    if (f.statut !== 'payee' && f.statut !== 'annulee' && f.statut !== 'brouillon') acts += '<span class="btn bd_ bxs" onclick="avoirFacture(\'' + f.id + '\')">Avoir</span>';
+    if (f.statut === 'brouillon') {
+      acts += '<span class="btn bi bxs" onclick="emitFacture(\'' + f.id + '\')">Emettre</span>' +
+              '<span class="btn bg bxs" onclick="openFactureForm(null,null,\'' + f.id + '\')">Editer</span>' +
+              '<span class="btn bd_ bxs" onclick="deleteFacture(\'' + f.id + '\')">Suppr.</span>';
+    }
+    if (f.statut === 'emise' || f.statut === 'relancee') {
+      acts += '<span class="btn bi bxs" onclick="sendFacture(\'' + f.id + '\')" title="Envoyer la facture par e-mail avec le PDF">Envoyer</span>';
+      if (late) acts += '<span class="btn bg bxs" onclick="sendFacture(\'' + f.id + '\',1)" title="E-mail de relance">Relancer</span>';
+      acts += '<span class="btn bs bxs" onclick="markPayee(\'' + f.id + '\')">Payee</span>';
+      acts += '<span class="btn bd_ bxs" onclick="avoirFacture(\'' + f.id + '\')">Avoir</span>';
+    }
     acts += '</div>';
-    return '<tr><td>' + esc(f.numero) + (f.avoir_de ? ' <span style="color:var(--red);font-size:9px">(avoir)</span>' : '') + '</td><td>' + esc(clientName(f.client_id)) + '</td><td>' + esc(FACT_TYPE_LABELS[f.type]) + '</td><td>' + fmtEUR(f.montant_ht, 2) + '</td><td style="color:' + (late ? 'var(--red)' : 'var(--mu)') + '">' + (f.date_echeance ? fmtDateFR(f.date_echeance) + (late ? ' (retard)' : '') : '-') + '</td><td>' + statutFacturePill(f.statut) + '</td><td>' + acts + '</td></tr>';
-  }).join('') || '<tr><td colspan="7" class="empty">Aucune facture. Convertis un devis accepte ou cree une facture.</td></tr>';
+    var typeLbl = f.designation ? f.designation : (FACT_TYPE_LABELS[f.type] || f.type);
+    return '<tr><td>' + esc(f.numero) + (f.avoir_de ? ' <span style="color:var(--red);font-size:9px">(avoir)</span>' : '') + '</td>' +
+      '<td>' + esc(clientName(f.client_id)) + '</td>' +
+      '<td style="font-size:10px;color:var(--mu);max-width:210px">' + esc(typeLbl) + '</td>' +
+      '<td>' + fmtEUR(f.montant_ht, 2) + '</td>' +
+      '<td style="color:' + (late ? 'var(--red)' : 'var(--mu)') + '">' + (f.date_echeance ? fmtDateFR(f.date_echeance) + (late ? ' (retard)' : '') : '-') + '</td>' +
+      '<td>' + statutFacturePill(f.statut) + (f.envoyee_at ? ' <span style="font-size:9px;color:var(--mu2)" title="Envoyee le ' + fmtDateFR(f.envoyee_at) + '">envoyee</span>' : '') + '</td>' +
+      '<td>' + acts + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="empty">Aucune facture. Facture un devis signe ou cree une facture libre.</td></tr>';
 
   var totalEncaisse = DB.factures.filter(function (f) { return f.statut === 'payee'; }).reduce(function (a, f) { return a + num(f.montant_ht); }, 0);
   var totalDu = DB.factures.filter(function (f) { return f.statut === 'emise' || f.statut === 'relancee'; }).reduce(function (a, f) { return a + num(f.montant_ht); }, 0);
+  var retard = DB.factures.filter(function (f) {
+    var dd = daysUntil(f.date_echeance);
+    return (f.statut === 'emise' || f.statut === 'relancee') && dd != null && dd < 0;
+  }).reduce(function (a, f) { return a + num(f.montant_ht); }, 0);
 
   el('view-factures').innerHTML =
-    '<div class="sw-kpis">' + kpi(fmtEUR(totalEncaisse), 'Encaisse', 'factures payees') + kpi(fmtEUR(totalDu), 'En attente', 'emises / relancees') + '</div>' +
+    '<div class="sw-kpis">' +
+      kpi(fmtEUR(totalEncaisse), 'Encaisse', 'factures payees') +
+      kpi(fmtEUR(totalDu), 'En attente', 'emises / relancees') +
+      kpi(fmtEUR(retard), 'En retard', 'echeance depassee') +
+    '</div>' +
+    manquesBanner() +
     '<div class="sites-legal" style="margin-bottom:14px">Une facture emise est <b>inalterable</b> : toute correction se fait par un avoir, jamais en modifiant la facture.</div>' +
-    '<table class="tbl"><thead><tr><th>Numero</th><th>Client</th><th>Type</th><th>Montant HT</th><th>Echeance</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    '<table class="tbl"><thead><tr><th>Numero</th><th>Client</th><th>Objet</th><th>Montant HT</th><th>Echeance</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
 function openFactureForm(clientId, devisId, id) {
@@ -1229,38 +1404,100 @@ function openFactureForm(clientId, devisId, id) {
   if (f && f.statut !== 'brouillon') { toast('Facture emise : non modifiable (avoir uniquement)', 'w'); return; }
   if (!DB.clients.length) { toast('Cree d\'abord un client', 'w'); return; }
   var cliOpts = DB.clients.map(function (c) { return '<option value="' + c.id + '"' + (clientId === c.id ? ' selected' : '') + '>' + esc(c.entreprise) + '</option>'; }).join('');
+  var dvOpts = '<option value="">- aucun -</option>' + devisOfClient(clientId || (DB.clients[0] && DB.clients[0].id)).map(function (d) {
+    return '<option value="' + d.id + '"' + (devisId === d.id ? ' selected' : '') + '>' + esc(d.numero) + ' (' + fmtEUR(d.total_ht) + ')</option>';
+  }).join('');
+  var tOpts = [['acompte', 'Acompte / paiement a la commande'], ['solde', 'Solde ou facture unique']].map(function (t) {
+    return '<option value="' + t[0] + '"' + (f && f.type === t[0] ? ' selected' : '') + '>' + t[1] + '</option>';
+  }).join('');
   var b =
-    '<div class="fg"><div class="fgrp"><label class="lbl">Client *</label><select id="fa-client">' + cliOpts + '</select></div></div>' +
+    '<div class="fg"><div class="fgrp"><label class="lbl">Client *</label><select id="fa-client" onchange="onFactureClientChange()">' + cliOpts + '</select></div>' +
+    '<div class="fgrp"><label class="lbl">Devis lie</label><select id="fa-devis">' + dvOpts + '</select></div></div>' +
+    '<div class="fg"><div class="fgrp"><label class="lbl">Type</label><select id="fa-type">' + tOpts + '</select></div>' +
+    '<div class="fgrp"><label class="lbl">Echeance</label><input id="fa-echeance" type="date" value="' + (f && f.date_echeance ? esc(f.date_echeance) : addDaysISO(num(window.NOVCFG.fac().delai_solde_j) || 30)) + '"></div></div>' +
+    '<div class="fgrp"><label class="lbl">Objet / designation</label><input id="fa-designation" value="' + esc(f && f.designation ? f.designation : 'Creation de site internet') + '"></div>' +
     '<div class="fg"><div class="fgrp"><label class="lbl">Montant HT</label><input id="fa-montant" type="number" step="1" value="' + (f ? num(f.montant_ht) : 0) + '"></div>' +
-    '<div class="fgrp"><label class="lbl">Echeance</label><input id="fa-echeance" type="date" value="' + (f && f.date_echeance ? esc(f.date_echeance) : addDaysISO(30)) + '"></div></div>' +
-    '<div class="sites-legal">' + TVA_MENTION + '. SIRET ' + SIRET + '.</div>';
+    '<div class="fgrp"><label class="lbl">Note interne</label><input id="fa-notes" value="' + esc(f && f.notes) + '"></div></div>' +
+    manquesBanner() +
+    '<div class="sites-legal">' + esc(TVA_MENTION) + '. SIRET ' + esc(SIRET) + '.<br>Pour facturer un devis signe, passe plutot par le devis : montants et echeancier sont calcules automatiquement.</div>';
   var ft = '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
     (id ? '<button class="btn bd_" onclick="deleteFacture(\'' + id + '\')">Supprimer</button>' : '') +
     '<button class="btn bp" onclick="saveFacture(' + (id ? '\'' + id + '\'' : '') + ')">Enregistrer</button>';
   openMo(id ? 'Modifier la facture' : 'Nouvelle facture', b, ft);
 }
+function onFactureClientChange() {
+  var cid = el('fa-client').value;
+  el('fa-devis').innerHTML = '<option value="">- aucun -</option>' + devisOfClient(cid).map(function (d) {
+    return '<option value="' + d.id + '">' + esc(d.numero) + ' (' + fmtEUR(d.total_ht) + ')</option>';
+  }).join('');
+}
 async function saveFacture(id) {
+  var montant = num(el('fa-montant').value);
+  if (!montant) { toast('Montant requis', 'e'); return; }
+  var dvId = el('fa-devis').value || null;
+  var dv = dvId ? devisById(dvId) : null;
   var payload = {
-    client_id: el('fa-client').value, type: 'solde',
-    montant_ht: num(el('fa-montant').value), date_echeance: el('fa-echeance').value || null
+    client_id: el('fa-client').value,
+    devis_id: dvId,
+    projet_id: dv ? (dv.projet_id || null) : null,
+    type: el('fa-type').value || 'solde',
+    designation: el('fa-designation').value.trim() || 'Creation de site internet',
+    montant_ht: montant,
+    date_echeance: el('fa-echeance').value || null,
+    notes: el('fa-notes').value.trim() || null
   };
-  var sb = getSB(), r;
-  if (id) { r = await sb.from('web_factures').update(payload).eq('id', id); }
+  var r;
+  if (id) { r = await sbUpdate('web_factures', id, payload); }
   else {
     payload.numero = await nextNumber('FAC'); payload.date_emission = todayISO(); payload.statut = 'brouillon';
-    r = await sb.from('web_factures').insert(payload);
+    r = await sbInsert('web_factures', payload);
   }
-  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); return; }
   closeMo(); toast('Facture enregistree', 's'); await loadAll(); go('factures');
 }
 async function emitFacture(id) {
-  if (!confirm('Emettre cette facture ? Elle deviendra inalterable (correction par avoir uniquement).')) return;
+  var f = factureById(id); if (!f) return;
+  if (!confirm('Emettre la facture ' + f.numero + ' ?\n\nElle deviendra inalterable (correction par avoir uniquement).')) return;
   await updateRow('web_factures', id, { statut: 'emise' });
-  toast('Facture emise', 's'); await reload();
+  await planifierRelance(id);
+  toast('Facture emise', 's');
+  await loadAll(); go('factures');
+  var c = clientById(f.client_id);
+  if (c && c.email) {
+    if (confirm('Envoyer la facture ' + f.numero + ' a ' + c.email + ' maintenant ?')) await sendFacture(id);
+  }
+}
+// Rappel automatique de relance, 3 jours apres l'echeance
+async function planifierRelance(id) {
+  if (!window.NOVCFG.auto().relance_auto) return;
+  var f = factureById(id); if (!f || !f.date_echeance) return;
+  var titre = 'Relancer la facture ' + f.numero + ' (' + fmtEUR(f.montant_ht) + ')';
+  var deja = DB.evenements.some(function (e) { return e.titre === titre && e.statut === 'a_faire'; });
+  if (deja) return;
+  try {
+    await getSB().from('web_evenements').insert({
+      client_id: f.client_id, titre: titre, type: 'echeance',
+      date_debut: new Date(addDaysISO(3, f.date_echeance) + 'T09:00:00').toISOString(), auto: true
+    });
+  } catch (e) { /* non bloquant */ }
 }
 async function setFactureStatut(id, st) {
   await updateRow('web_factures', id, { statut: st });
   toast('Facture : ' + FACT_LABELS[st], 's'); await reload();
+}
+// Encaissement : statut + date de paiement + avancement du client
+async function markPayee(id) {
+  var f = factureById(id); if (!f) return;
+  if (!confirm('Marquer la facture ' + f.numero + ' comme payee (' + fmtEUR(f.montant_ht, 2) + ') ?')) return;
+  var r = await sbUpdate('web_factures', id, { statut: 'payee', date_paiement: todayISO() });
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); return; }
+  await logInteraction(f.client_id, 'note', 'Facture ' + f.numero + ' encaissee (' + fmtEUR(f.montant_ht, 2) + ')');
+  // referme le rappel de relance devenu inutile
+  var titre = 'Relancer la facture ' + f.numero;
+  DB.evenements.filter(function (e) { return e.statut === 'a_faire' && (e.titre || '').indexOf(titre) === 0; })
+    .forEach(function (e) { try { getSB().from('web_evenements').update({ statut: 'fait' }).eq('id', e.id); } catch (x) {} });
+  toast('Facture encaissee', 's');
+  await loadAll(); refreshCurrent();
 }
 async function deleteFacture(id) {
   var f = factureById(id);
@@ -1270,6 +1507,57 @@ async function deleteFacture(id) {
   if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
   closeMo(); toast('Facture supprimee', 's'); await reload();
 }
+
+// ── Envoi d'une facture (ou de sa relance) par e-mail, PDF joint ────
+async function sendFacture(id, relance) {
+  var f = factureById(id); if (!f) return false;
+  var c = clientById(f.client_id);
+  if (!c || !c.email) { toast('Pas d\'e-mail sur la fiche client', 'w'); return false; }
+  if (f.statut === 'brouillon') {
+    if (!confirm('Cette facture est un brouillon. L\'emettre puis l\'envoyer ?')) return false;
+    await updateRow('web_factures', id, { statut: 'emise' });
+    f.statut = 'emise';
+  }
+  var dv = f.devis_id ? devisById(f.devis_id) : null;
+  var plan = planOf(dv);
+  var e = window.NOVCFG.ent(), p = window.NOVCFG.pay();
+  var contexte = '';
+  if (!plan.unique && f.type === 'acompte') contexte = 'Cette facture correspond a l\'acompte de ' + plan.pct + ' % qui lance le projet. Le solde de ' + plan.soldePct + ' % sera facture a la livraison.';
+  else if (!plan.unique && f.type === 'solde') contexte = 'Cette facture correspond au solde de ' + plan.soldePct + ' %. Le site est mis en ligne des reception du reglement.';
+  else contexte = 'Le site est mis en ligne des reception du reglement.';
+
+  var vars = {
+    contact: (c.contact_nom || ''), client: c.entreprise, numero: f.numero,
+    montant: fmtEUR(f.montant_ht, 2), total: fmtEUR(f.montant_ht, 2),
+    echeance: f.date_echeance ? fmtDateFR(f.date_echeance) : 'reception',
+    contexte: contexte, iban: p.iban, bic: p.bic, titulaire: p.titulaire,
+    tva: e.tva, entreprise: e.nom_commercial, exploitant: e.exploitant,
+    baseline: e.baseline, tel: e.tel, email: e.email,
+    acompte_pct: plan.pct, solde_pct: plan.soldePct
+  };
+  var tpl = relance ? window.NOVCFG.doc().email_relance : window.NOVCFG.doc().email_facture;
+  var body = window.NOVCFG.fill(tpl, vars).replace(/Bonjour ,/, 'Bonjour,');
+  var subject = (relance ? 'Relance - facture ' : 'Facture ') + f.numero + ' - ' + e.nom_commercial;
+
+  var atts = [];
+  if (window.NOVCFG.auto().joindre_pdf) {
+    var pj = facturePDF(id, true);
+    if (pj) atts.push(pj);
+  }
+  var sent = await trySendEmail({ to: c.email, subject: subject, body: body, from_name: e.nom_commercial, attachments: atts });
+  if (sent) {
+    await sbUpdate('web_factures', id, relance ? { statut: 'relancee', envoyee_at: nowISO() } : { envoyee_at: nowISO() });
+    await logInteraction(f.client_id, 'email', (relance ? 'Relance' : 'Envoi') + ' facture ' + f.numero + ' a ' + c.email);
+    toast((relance ? 'Relance envoyee a ' : 'Facture envoyee a ') + c.email, 's');
+    await loadAll(); refreshCurrent();
+    return true;
+  }
+  var mailto = 'mailto:' + encodeURIComponent(c.email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  window.open(mailto, '_blank');
+  toast('E-mail pret dans ta messagerie (pense a joindre le PDF)', 'i');
+  return false;
+}
+
 async function avoirFacture(id) {
   var f = factureById(id); if (!f) return;
   if (!confirm('Creer un avoir annulant la facture ' + f.numero + ' ?')) return;
@@ -1286,17 +1574,19 @@ async function avoirFacture(id) {
 }
 
 // ── PDF de la facture (jsPDF) ──
-function facturePDF(id) {
-  var f = factureById(id); if (!f) return;
+function facturePDF(id, asAttachment) {
+  var f = factureById(id); if (!f) return null;
   var c = clientById(f.client_id);
-  var ctor = pdfCtor(); if (!ctor) { toast('Generateur PDF indisponible', 'e'); return; }
+  var ctor = pdfCtor(); if (!ctor) { toast('Generateur PDF indisponible', 'e'); return null; }
   var doc = new ctor({ unit: 'mm', format: 'a4' });
   var k = pdfKit(doc), DT = 'Facture ' + f.numero, avoir = num(f.montant_ht) < 0 || f.avoir_de;
   var hLines = ['Emise le ' + fmtDateFR(f.date_emission)];
   if (f.date_echeance) hLines.push('Echeance : ' + fmtDateFR(f.date_echeance));
   var dv = f.devis_id ? devisById(f.devis_id) : null;
   if (dv) hLines.push('Devis lie : ' + dv.numero);
-  var isAcompte = (f.type === 'acompte'), isSolde = (f.type === 'solde');
+  var plan = planOf(dv);
+  var isAcompte = (f.type === 'acompte') && !plan.unique;
+  var isSolde = (f.type === 'solde') && !plan.unique && !!dv;
   var titleR = avoir ? 'AVOIR' : (isAcompte ? "FACTURE D'ACOMPTE" : (isSolde ? 'FACTURE DE SOLDE' : 'FACTURE'));
   pdfHeader(doc, k, titleR, f.numero, hLines);
   pdfParties(doc, k, c);
@@ -1318,18 +1608,22 @@ function facturePDF(id) {
     k.y += 6.5;
   }
   var refDevis = dv ? ' (devis ' + dv.numero + ')' : '';
+  var libelleBase = f.designation || 'Creation de site internet';
+  var lignesFac = (f.lignes && f.lignes.length) ? f.lignes : null;
   if (avoir) {
-    facLine('Creation de site internet' + refDevis, f.montant_ht);
+    facLine(libelleBase + refDevis, f.montant_ht);
   } else if (isAcompte) {
-    facLine('Acompte ' + ACOMPTE_PCT + ' % - Creation de site internet' + refDevis, f.montant_ht);
+    facLine('Acompte ' + plan.pct + ' % - ' + libelleBase + refDevis, f.montant_ht);
     doc.setFontSize(7.6); doc.setTextColor(120, 120, 112);
-    doc.text('Montant total du marche : ' + eur(totalMarche) + ' HT. Solde de ' + SOLDE_PCT + ' % a facturer a la livraison.', k.M + 2, k.y); k.y += 5;
+    doc.text('Montant total du marche : ' + eur(totalMarche) + ' HT. Solde de ' + plan.soldePct + ' % a facturer a la livraison.', k.M + 2, k.y); k.y += 5;
   } else if (isSolde) {
     var ded = Math.round((totalMarche - num(f.montant_ht)) * 100) / 100;
-    facLine('Creation de site internet' + refDevis + ' - montant total du marche', totalMarche);
-    facLine('Acompte de ' + ACOMPTE_PCT + ' % deja facture' + (acmtFac ? ' (' + acmtFac.numero + ')' : ''), -ded);
+    facLine(libelleBase + refDevis + ' - montant total du marche', totalMarche);
+    facLine('Acompte de ' + plan.pct + ' % deja facture' + (acmtFac ? ' (' + acmtFac.numero + ')' : ''), -ded);
+  } else if (lignesFac) {
+    lignesFac.forEach(function (l) { facLine(l.designation + (num(l.quantite) > 1 ? ' (x' + num(l.quantite) + ')' : ''), num(l.quantite) * num(l.pu_ht)); });
   } else {
-    facLine('Creation de site internet' + refDevis, f.montant_ht);
+    facLine(libelleBase + refDevis, f.montant_ht);
   }
 
   k.y += 1.5; doc.setDrawColor(220, 220, 212); doc.line(k.M, k.y, k.W - k.M, k.y); k.y += 7;
@@ -1344,7 +1638,7 @@ function facturePDF(id) {
     doc.roundedRect(k.M, k.y, k.W - 2 * k.M, 10, 1.5, 1.5, 'FD');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(120, 90, 20);
     var fbanner = isAcompte
-      ? 'Acompte a la signature : il lance le projet. Le solde de ' + SOLDE_PCT + ' % sera facture a la livraison.'
+      ? 'Acompte a la signature : il lance le projet. Le solde de ' + plan.soldePct + ' % sera facture a la livraison.'
       : (isSolde ? 'Le site est mis en ligne des reception du solde.' : 'Le site est mis en ligne des reception du paiement.');
     doc.text(fbanner, k.M + 3, k.y + 6.2);
     k.y += 15;
@@ -1353,12 +1647,22 @@ function facturePDF(id) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 30, 26);
     doc.text('Coordonnees de paiement', k.M, k.y); k.y += 5;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 72);
-    [['Titulaire', ENTREPRISE.paiement.titulaire], ['IBAN', ENTREPRISE.paiement.iban], ['BIC', ENTREPRISE.paiement.bic]].forEach(function (r) {
+    var coords = [['Titulaire', ENTREPRISE.paiement.titulaire], ['Banque', ENTREPRISE.paiement.banque], ['IBAN', ENTREPRISE.paiement.iban], ['BIC', ENTREPRISE.paiement.bic]];
+    var manqueBanque = !ENTREPRISE.paiement.iban || !ENTREPRISE.paiement.bic;
+    coords.forEach(function (r) {
       if (!r[1]) return; doc.text(r[0] + ' : ' + r[1], k.M, k.y); k.y += 4.4;
     });
+    if (manqueBanque) {
+      doc.setTextColor(200, 60, 60);
+      doc.text('IBAN / BIC a renseigner dans les Parametres du CRM.', k.M, k.y); k.y += 4.4;
+      doc.setTextColor(80, 80, 72);
+    }
     if (ENTREPRISE.paiement.autres) { doc.text(doc.splitTextToSize(ENTREPRISE.paiement.autres, k.W - 2 * k.M), k.M, k.y); k.y += 8; }
     doc.setFontSize(7.4); doc.setTextColor(120, 120, 112);
-    doc.text(doc.splitTextToSize('En cas de retard de paiement : penalites au taux de 3 fois l\'interet legal et indemnite forfaitaire de recouvrement de 40 € (art. L.441-10 et D.441-5 du Code de commerce). Pas d\'escompte pour paiement anticipe.', k.W - 2 * k.M), k.M, k.y);
+    var pen = window.NOVCFG.fac().penalites || '';
+    var piedF = window.NOVCFG.doc().facture_pied || '';
+    if (pen) { var pl = doc.splitTextToSize(pen, k.W - 2 * k.M); doc.text(pl, k.M, k.y); k.y += pl.length * 3.6 + 3; }
+    if (piedF) { doc.text(doc.splitTextToSize(piedF, k.W - 2 * k.M), k.M, k.y); }
   } else if (f.avoir_de) {
     var orig = factureById(f.avoir_de);
     doc.setFontSize(8); doc.setTextColor(120, 120, 112);
@@ -1366,8 +1670,10 @@ function facturePDF(id) {
   }
 
   k.footer(DT);
+  if (asAttachment) return pdfAttachment(doc, f.numero + '.pdf');
   doc.save(f.numero + '.pdf');
   toast('Facture generee', 's');
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1444,13 +1750,116 @@ function statutFacturePill(st) {
 // UTILITAIRES BASE
 // ═══════════════════════════════════════════════════════════════════
 async function updateRow(table, id, patch) {
-  var r = await getSB().from(table).update(patch).eq('id', id);
-  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); throw r.error; }
+  var r = await sbUpdate(table, id, patch);
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); throw new Error(r.error); }
   return true;
 }
+
+// ── Ecritures tolerantes au schema ──────────────────────────────────
+// Certaines colonnes n'existent que si la migration sites-schema-v2.sql a
+// ete jouee. Si la base ne les connait pas, on retire le champ et on
+// reessaie : l'appli reste fonctionnelle, en mode degrade, sans planter.
+var OPTIONAL_COLS = {
+  web_devis:    ['acompte_pct'],
+  web_factures: ['lignes', 'designation', 'date_paiement', 'mode_reglement', 'envoyee_at', 'notes']
+};
+var MISSING_COLS = {};
+function colMissing(table, col) { return !!MISSING_COLS[table + '.' + col]; }
+function unknownColumn(msg, table) {
+  var m = /Could not find the '([a-z_]+)' column/i.exec(msg || '');
+  if (!m) m = /column "?([a-z_]+)"? of relation/i.exec(msg || '');
+  if (!m) m = /column ([a-z_]+) does not exist/i.exec(msg || '');
+  var col = m ? m[1] : null;
+  if (!col) return null;
+  return ((OPTIONAL_COLS[table] || []).indexOf(col) >= 0) ? col : null;
+}
+function pruneKnownMissing(table, body) {
+  (OPTIONAL_COLS[table] || []).forEach(function (c) {
+    if (colMissing(table, c) && body.hasOwnProperty(c)) delete body[c];
+  });
+  return body;
+}
+async function sbWrite(mode, table, payload, id) {
+  var sb = getSB();
+  if (!sb) return { ok: false, error: 'Connexion indisponible' };
+  var body = pruneKnownMissing(table, JSON.parse(JSON.stringify(payload)));
+  for (var i = 0; i < 5; i++) {
+    var r;
+    try {
+      r = (mode === 'insert')
+        ? await sb.from(table).insert(body).select()
+        : await sb.from(table).update(body).eq('id', id).select();
+    } catch (e) { return { ok: false, error: e.message }; }
+    if (!r.error) return { ok: true, data: (r.data && r.data[0]) || null };
+    var col = unknownColumn(r.error.message, table);
+    if (col && body.hasOwnProperty(col)) {
+      MISSING_COLS[table + '.' + col] = true;
+      delete body[col];
+      continue;
+    }
+    return { ok: false, error: r.error.message };
+  }
+  return { ok: false, error: 'Ecriture impossible' };
+}
+function sbInsert(table, payload) { return sbWrite('insert', table, payload); }
+function sbUpdate(table, id, patch) { return sbWrite('update', table, patch, id); }
 function copyText(t) {
   try { navigator.clipboard.writeText(t); toast('Copie', 's'); }
   catch (e) { toast('Copie impossible', 'w'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ETAT DE CONNEXION (le point en haut a droite, cliquable)
+// ═══════════════════════════════════════════════════════════════════
+var CONN = { etat: 'load', maj: null, erreur: null, session: null };
+
+function updateConn(etat, erreur) {
+  CONN.etat = etat;
+  if (erreur !== undefined) CONN.erreur = erreur;
+  if (etat === 'ok') { CONN.maj = new Date(); CONN.erreur = null; }
+  var ind = el('sync-ind'); if (!ind) return;
+  if (etat === 'ok') {
+    ind.innerHTML = '&#9679; Connecte';
+    ind.style.color = 'var(--green)';
+    ind.style.borderColor = 'rgba(61,224,154,.35)';
+    ind.title = 'Donnees synchronisees' + (CONN.maj ? ' a ' + CONN.maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '') + ' - clic pour le detail';
+  } else if (etat === 'load') {
+    ind.innerHTML = '&#9679; Synchro...';
+    ind.style.color = 'var(--ac)';
+    ind.style.borderColor = 'var(--ac-border)';
+    ind.title = 'Chargement en cours';
+  } else {
+    ind.innerHTML = '&#9679; Hors ligne';
+    ind.style.color = 'var(--red)';
+    ind.style.borderColor = 'rgba(224,74,74,.4)';
+    ind.title = (CONN.erreur || 'Connexion indisponible') + ' - clic pour diagnostiquer';
+  }
+}
+
+function openConnexion() {
+  var sess = CONN.session;
+  var lignes =
+    kv('Etat', CONN.etat === 'ok' ? 'Connecte' : (CONN.etat === 'load' ? 'Chargement' : 'Hors ligne')) +
+    kv('Derniere synchro', CONN.maj ? CONN.maj.toLocaleString('fr-FR') : 'jamais') +
+    kv('Session', sess ? ('active' + (sess.email ? ' - ' + sess.email : '')) : 'aucune (reconnecte-toi)') +
+    kv('Projet Supabase', NOV_SB_URL.replace('https://', '')) +
+    kv('Parametres', window.NOVCFG.tableOK() === true ? 'table web_parametres OK' : (window.NOVCFG.tableOK() === false ? 'table absente (reglages locaux)' : 'inconnu')) +
+    (CONN.erreur ? kv('Derniere erreur', CONN.erreur) : '');
+  var compte =
+    '<table class="tbl"><thead><tr><th>Donnees</th><th style="text-align:right">Lignes</th></tr></thead><tbody>' +
+    [['Clients', DB.clients.length], ['Projets', DB.projets.length], ['Devis', DB.devis.length],
+     ['Factures', DB.factures.length], ['Rappels', DB.evenements.length], ['Hebergements', DB.hebergements.length]]
+      .map(function (r) { return '<tr><td>' + r[0] + '</td><td style="text-align:right">' + r[1] + '</td></tr>'; }).join('') +
+    '</tbody></table>';
+  var manqueCols = Object.keys(MISSING_COLS);
+  var migr = manqueCols.length
+    ? '<div class="sites-legal" style="border-color:var(--orange);color:var(--orange);margin-top:10px">Colonnes absentes en base : <b>' + esc(manqueCols.join(', ')) + '</b>. ' +
+      'Joue <b>supabase/sites-schema-v2.sql</b> dans Supabase pour activer l\'echeancier par devis et le suivi complet des factures.</div>'
+    : '';
+  openMo('Connexion', lignes + '<div style="height:10px"></div>' + compte + migr,
+    '<button class="btn bg" onclick="closeMo()">Fermer</button>' +
+    '<button class="btn bg" onclick="window.location.reload()">Recharger la page</button>' +
+    '<button class="btn bp" onclick="closeMo();reload()">Resynchroniser</button>');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1476,12 +1885,33 @@ async function checkSignatures() {
           await maybeAutoRappel(c.id, 'signe');
         }
         toast('Devis ' + d.numero + ' signe par ' + r.data.signer_name, 's');
+        await logInteraction(d.client_id, 'note', 'Devis ' + d.numero + ' signe par ' + r.data.signer_name);
+        await apresSignature(d);
         changed = true;
       }
     } catch (e) { /* silencieux */ }
   }
   if (changed) { await loadAll(); refreshCurrent(); badges(); }
 }
+// Enchainement automatique apres la signature d'un devis
+async function apresSignature(d) {
+  var A = window.NOVCFG.auto();
+  if (!A.facture_acompte_auto) return;
+  var plan = planOf(d);
+  if (plan.mode === 'livraison') return; // rien a encaisser a la signature
+  try {
+    await loadAll();
+    var fac = await createFactureFromDevis(d.id, 'acompte', true);
+    if (!fac) return;
+    await loadAll();
+    toast('Facture ' + fac.numero + ' preparee automatiquement', 's');
+    if (A.email_auto_signature) {
+      var created = DB.factures.find(function (x) { return x.numero === fac.numero; });
+      if (created) { await updateRow('web_factures', created.id, { statut: 'emise' }); await loadAll(); await sendFacture(created.id); }
+    }
+  } catch (e) { console.warn('[sites] apresSignature', e); }
+}
+
 function startSigPolling() {
   if (_sigTimer) return;
   checkSignatures();
@@ -1672,7 +2102,7 @@ async function setEventDone(id) {
   await loadAll(); refreshCurrent();
 }
 // rafraichit la vue courante + le panneau ouvert le cas echeant
-function refreshCurrent() { go(UI.view); if (UI.pid) openClientPanel(UI.pid); }
+function refreshCurrent() { syncEntreprise(); go(UI.view); if (UI.pid) openClientPanel(UI.pid); }
 
 // rappels rapides depuis la fiche client
 function quickRappel(clientId) { openEventForm(null, todayISO(), clientId, 'rappel'); }
@@ -1739,12 +2169,26 @@ function nextStepHtml(c) {
   else if (st === 'devis_envoye') s = { t: 'Etape 3 - Devis envoye. En attente de signature (detectee automatiquement des que le client signe).', b: '<button class="btn bg bsm" onclick="quickRappel(\'' + id + '\')">Programmer une relance</button>' };
   else if (st === 'signe') {
     var dvAcc = DB.devis.filter(function (d) { return d.client_id === id && d.statut === 'accepte'; })[0];
-    var acB = (dvAcc && !acompteFactureForDevis(dvAcc.id)) ? '<button class="btn bp bsm" onclick="createAcompte(\'' + dvAcc.id + '\')">Facturer l\'acompte ' + ACOMPTE_PCT + ' %</button> ' : '';
-    s = { t: 'Etape 4 - Devis signe (contrat conclu). Facture l\'acompte ' + ACOMPTE_PCT + ' %, encaisse-le, puis lance la maquette.', b: acB + '<button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'en_cours\')">Passer en cours</button>' };
+    var pl = planOf(dvAcc);
+    var acB = '', txt;
+    if (pl.mode === 'livraison') {
+      txt = 'Etape 4 - Devis signe (contrat conclu). Rien a encaisser maintenant : reglement integral a la livraison. Lance la maquette.';
+    } else if (dvAcc && !acompteFactureForDevis(dvAcc.id)) {
+      acB = '<button class="btn bp bsm" onclick="createAcompte(\'' + dvAcc.id + '\')">' + (pl.mode === 'commande' ? 'Facturer la totalite' : 'Facturer l\'acompte ' + pl.pct + ' %') + '</button> ';
+      txt = 'Etape 4 - Devis signe (contrat conclu). ' + (pl.mode === 'commande' ? 'Facture la totalite' : 'Facture l\'acompte ' + pl.pct + ' %') + ', encaisse, puis lance la maquette.';
+    } else {
+      txt = 'Etape 4 - Devis signe, facture creee. Encaisse, puis lance la maquette.';
+    }
+    s = { t: txt, b: acB + '<button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'en_cours\')">Passer en cours</button>' };
   }
   else if (st === 'en_cours') s = { t: 'Etape 5 - En cours. Envoie le lien d\'apercu prive au client et ajuste jusqu\'a validation.', b: '<button class="btn bp bsm" onclick="openLienForm(\'' + id + '\')">+ Ajouter le lien d\'apercu</button> <button class="btn bg bsm" onclick="setClientStage(\'' + id + '\',\'livre\')">Maquette validee</button>' };
   else if (st === 'livre') {
-    if (!facs.some(function (f) { return f.type === 'solde'; })) s = { t: 'Etape 6 - Maquette validee. Facture le solde ' + SOLDE_PCT + ' %. Le site est mis en ligne apres encaissement.', b: '<button class="btn bp bsm" onclick="nextInvoiceForClient(\'' + id + '\')">Facturer le solde ' + SOLDE_PCT + ' %</button>' };
+    var dvL = DB.devis.filter(function (d) { return d.client_id === id && d.statut === 'accepte'; })[0];
+    var plL = planOf(dvL);
+    if (plL.mode !== 'commande' && !facs.some(function (f) { return f.type === 'solde'; })) {
+      var lbl = plL.mode === 'livraison' ? 'la totalite' : 'le solde ' + plL.soldePct + ' %';
+      s = { t: 'Etape 6 - Maquette validee. Facture ' + lbl + '. Le site est mis en ligne apres encaissement.', b: '<button class="btn bp bsm" onclick="nextInvoiceForClient(\'' + id + '\')">Facturer ' + lbl + '</button>' };
+    }
     else if (facDue) s = { t: 'Etape 6 - Facture envoyee, en attente de paiement. Mets le site en ligne UNIQUEMENT une fois le solde paye.', b: '<button class="btn bg bsm" onclick="go(\'factures\')">Suivre la facture</button>' };
     else if (facPayee) s = { t: 'Paye. Mets le site en ligne, enregistre les acces ci-dessous, puis bascule en SAV.', b: '<button class="btn bg bsm" onclick="openAccesForm(\'' + id + '\')">+ Enregistrer un acces</button> <button class="btn bp bsm" onclick="setClientStage(\'' + id + '\',\'sav\')">Passer en SAV</button>' };
     else s = { t: 'Site livre. Suis le reglement de la facture avant mise en ligne.', b: '<button class="btn bg bsm" onclick="go(\'factures\')">Voir les factures</button>' };
@@ -1807,25 +2251,29 @@ function openPremierRDV(clientId) {
   } else {
     _dvLines = [{ designation: '', quantite: 1, pu_ht: 0 }];
   }
+  _dvPct = window.NOVCFG.defaultPct();
   var projId = pj ? pj.id : '';
   var b =
-    '<div class="sites-legal" style="margin-bottom:12px">Rendez-vous avec <b style="color:var(--tx)">' + esc(c.entreprise) + '</b>. Compose le devis, puis fais signer sur cette tablette. Un acompte de <b>' + ACOMPTE_PCT + ' %</b> lance le projet.</div>' +
+    '<div class="sites-legal" style="margin-bottom:12px">Rendez-vous avec <b style="color:var(--tx)">' + esc(c.entreprise) + '</b>. Compose le devis, choisis l\'echeancier, puis fais signer sur cette tablette.</div>' +
+    manquesBanner() +
     '<input type="hidden" id="rdv-client" value="' + clientId + '"><input type="hidden" id="rdv-projet" value="' + esc(projId) + '">' +
     '<div class="fgrp"><label class="lbl">Prestations</label><div class="dv-line-h"><span>Designation</span><span>Qte</span><span>PU HT</span><span>Total</span><span></span></div><div id="d-lines"></div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">' +
     '<button class="btn bg bsm" onclick="dvAddLine()">+ Ligne libre</button>' +
     '<select id="d-cat" class="ff" style="max-width:280px" onchange="dvAddFromCatalog(this.value);this.value=\'\'"><option value="">+ Depuis le catalogue...</option>' +
-      CATALOG.map(function (x, i) { return '<option value="' + i + '">' + esc(x.label) + ' (' + fmtEUR(x.prix) + ')</option>'; }).join('') +
+      catalogue().map(function (x, i) { return '<option value="' + i + '">' + esc(x.label) + ' (' + fmtEUR(x.prix) + ')</option>'; }).join('') +
     '</select></div></div>' +
+    echeancierPickerHtml() +
     '<div style="text-align:right;margin:10px 0">' +
       '<div id="d-total" style="font-family:Syne,sans-serif;font-weight:700;font-size:16px">Total HT : ' + fmtEUR(0, 2) + '</div>' +
-      '<div style="font-size:12px;color:var(--mu);margin-top:3px">Acompte ' + ACOMPTE_PCT + ' % : <b id="d-acompte" style="color:var(--ac)">-</b> &nbsp;&middot;&nbsp; Solde ' + SOLDE_PCT + ' % : <b id="d-solde" style="color:var(--tx)">-</b></div>' +
+      '<div id="d-plan" style="font-size:12px;color:var(--mu);margin-top:3px"></div>' +
     '</div>' +
-    '<div class="sites-legal">Le devis genere <b>vaut contrat</b> (12 articles : paiement ' + ACOMPTE_PCT + '/' + SOLDE_PCT + ', propriete, delais, RGPD...). La signature "bon pour accord" l\'engage.</div>';
+    '<div class="sites-legal">Le devis genere <b>vaut contrat</b> (conditions completes annexees au PDF, modifiables dans les Parametres). La signature "bon pour accord" l\'engage.</div>';
   openMo('\u26a1 Premier RDV - ' + esc(c.entreprise), b,
     '<button class="btn bg" onclick="closeMo()">Annuler</button>' +
     '<button class="btn bp" onclick="saveDevisAndSign()">Creer le devis-contrat \u2192</button>');
   dvRenderLines();
+  setDvPct(_dvPct);
 }
 
 // Enregistre le devis-contrat, genere le jeton, avance le pipeline, puis ecran signature
@@ -1836,15 +2284,18 @@ async function saveDevisAndSign() {
   if (!lignes.length) { toast('Ajoute au moins une prestation', 'e'); return; }
   var total = lignes.reduce(function (a, l) { return a + l.quantite * l.pu_ht; }, 0);
   var numero = await nextNumber('DEV');
+  var pct = (_dvPct == null) ? window.NOVCFG.defaultPct() : _dvPct;
+  var plan = planFromPct(pct, total);
   var payload = {
     client_id: clientId, projet_id: projId,
-    date_emission: todayISO(), validite: addDaysISO(30),
-    lignes: lignes, total_ht: Math.round(total * 100) / 100, mentions: defaultMentions(),
+    date_emission: todayISO(), validite: addDaysISO(num(window.NOVCFG.fac().validite_devis_j) || 30),
+    lignes: lignes, total_ht: Math.round(total * 100) / 100,
+    acompte_pct: pct, mentions: defaultMentions(plan),
     numero: numero, statut: 'envoye', sign_token: genToken()
   };
   var sb = getSB();
-  var r = await sb.from('web_devis').insert(payload);
-  if (r.error) { toast('Erreur : ' + r.error.message, 'e'); return; }
+  var r = await sbInsert('web_devis', payload);
+  if (!r.ok) { toast('Erreur : ' + r.error, 'e'); return; }
   // avance le client dans le pipeline (best-effort, on n'echoue pas la creation pour ca)
   try { await sb.from('web_clients').update({ statut_pipeline: 'devis_envoye' }).eq('id', clientId); } catch (e) {}
   await loadAll();
@@ -1862,14 +2313,15 @@ function showSignStep(devisId) {
     '<div style="text-align:center;padding:6px 0 14px">' +
       '<div style="font-family:Syne,sans-serif;font-weight:800;font-size:22px;color:var(--ac)">' + esc(d.numero) + '</div>' +
       '<div style="font-size:13px;color:var(--mu);margin-top:4px">' + esc(c ? c.entreprise : '') + ' &middot; ' + fmtEUR(d.total_ht, 2) + ' HT</div>' +
-      '<div style="font-size:12px;color:var(--tx);margin-top:6px">Acompte ' + ACOMPTE_PCT + ' % : <b style="color:var(--ac)">' + fmtEUR(montantAcompte(d.total_ht), 2) + '</b> &middot; Solde ' + SOLDE_PCT + ' % : <b>' + fmtEUR(montantSolde(d.total_ht), 2) + '</b></div>' +
+      '<div style="font-size:12px;color:var(--tx);margin-top:6px">' + esc(window.NOVCFG.echeancierCourt(planOf(d))) + '</div>' +
     '</div>' +
     '<a class="btn bp" style="display:block;text-align:center;text-decoration:none;padding:16px;font-size:15px" href="' + link + '">\u270d Signer maintenant sur cette tablette</a>' +
     '<div style="display:flex;gap:6px;margin-top:8px">' +
       '<button class="btn bi bsm" style="flex:1" onclick="closeMo();sendDevis(\'' + d.id + '\')">\u2709 Envoyer le lien par email</button>' +
       '<button class="btn bg bsm" style="flex:1" onclick="copyText(\'' + link + '\')">Copier le lien</button>' +
     '</div>' +
-    '<div class="sites-legal" style="margin-top:12px">Une fois signe, le devis passe en <b>accepte</b> (detection automatique). Reviens sur sa fiche pour generer la <b>facture d\'acompte</b> (' + ACOMPTE_PCT + ' %) puis l\'envoyer.</div>';
+    '<div class="sites-legal" style="margin-top:12px">Une fois signe, le devis passe en <b>accepte</b> (detection automatique)' +
+      (window.NOVCFG.auto().facture_acompte_auto ? ' et la <b>facture est preparee automatiquement</b>.' : '. Reviens sur sa fiche pour generer la facture.') + '</div>';
   openMo('Signature - ' + esc(d.numero), b,
     '<button class="btn bg" onclick="closeMo()">Fermer</button><button class="btn bp" onclick="closeMo();openDevisPanel(\'' + d.id + '\')">Voir le devis</button>');
 }
@@ -1940,7 +2392,11 @@ var API = {
   openFactureForm: openFactureForm, saveFacture: saveFacture, deleteFacture: deleteFacture,
   emitFacture: emitFacture, setFactureStatut: setFactureStatut, avoirFacture: avoirFacture,
   openHebergForm: openHebergForm, saveHeberg: saveHeberg, deleteHeberg: deleteHeberg,
-  closeMo: closeMo, closePanel: closePanel, copyText: copyText,
+  closeMo: closeMo, closePanel: closePanel, copyText: copyText, openMo: openMo, toast: toast,
+  openEcheancier: openEcheancier, saveEcheancier: saveEcheancier, setDvPct: setDvPct,
+  sendFacture: sendFacture, markPayee: markPayee, onFactureClientChange: onFactureClientChange,
+  openConnexion: openConnexion, reload: reload, refreshCurrent: refreshCurrent,
+  NOV_SB: getSB, syncEntreprise: syncEntreprise, setPipeQ: setPipeQ,
   toggleUserMenu: toggleUserMenu, logout: logout,
   openEventForm: openEventForm, saveEvent: saveEvent, deleteEvent: deleteEvent, setEventDone: setEventDone,
   openEventDetail: openEventDetail, agShift: agShift, agToday: agToday, quickRappel: quickRappel, quickRdv: quickRdv,
@@ -1952,14 +2408,36 @@ Object.keys(API).forEach(function (k) { window[k] = API[k]; });
 
 async function init() {
   initUser();
+  updateConn('load');
   // navigation : chaque onglet declenche go()
   var nis = document.querySelectorAll('.ni');
   for (var i = 0; i < nis.length; i++) {
     (function (n) { n.addEventListener('click', function () { go(n.getAttribute('data-v')); }); })(nis[i]);
   }
+  var sb = getSB();
+  // 1) attendre la restauration de la session (sinon les premieres requetes
+  //    partent en anonyme et reviennent vides : c'est la cause des ecrans blancs)
+  try {
+    if (sb && sb.auth && sb.auth.getSession) {
+      var sres = await sb.auth.getSession();
+      CONN.session = (sres && sres.data && sres.data.session)
+        ? { email: (sres.data.session.user || {}).email } : null;
+      if (!CONN.session) updateConn('off', 'Session expiree : reconnecte-toi depuis l\'accueil');
+    }
+  } catch (e) { /* on tente quand meme */ }
+  // 2) parametres (entreprise, banque, textes) avant tout rendu
+  await window.NOVCFG.load(sb);
+  syncEntreprise();
+  // 3) donnees
   await loadAll();
   go('dash');
   startSigPolling();
+  // 4) etat reseau du navigateur
+  window.addEventListener('online', function () { updateConn('load'); reload(); });
+  window.addEventListener('offline', function () { updateConn('off', 'Navigateur hors ligne'); });
+  // 5) rappel des informations manquantes, une fois, au demarrage
+  var mq = window.NOVCFG.manques();
+  if (mq.length) toast('A completer dans les Parametres : ' + mq.join(', '), 'w');
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
