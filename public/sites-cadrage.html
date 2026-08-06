@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVALEM — Fiche de cadrage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --ink:#101619;
+  --ink-2:#3d4a4f;
+  --ink-3:#6c7a7e;
+  --paper:#E8ECEA;
+  --card:#FFFFFF;
+  --line:#CBD3D0;
+  --line-2:#AEB9B5;
+  --pine:#1D5B4B;
+  --pine-bg:#DCE8E3;
+  --garnet:#8B2F3B;
+  --garnet-bg:#F2E2E3;
+  --amber:#8A6314;
+  --amber-bg:#F3E9D2;
+  --r:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Archivo',system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+
+/* ---------- bar ---------- */
+.bar{
+  position:sticky;top:0;z-index:20;
+  background:var(--ink);color:#EEF2F0;
+  margin:0 -20px 24px;padding:10px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.mark{font-weight:600;letter-spacing:.22em;font-size:12px;text-transform:uppercase;white-space:nowrap}
+.mark span{color:#7FA89B}
+.bar .spacer{flex:1}
+.chrono{
+  font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:500;
+  letter-spacing:.02em;min-width:64px;text-align:center;
+}
+.chrono.over{color:#E88C8C}
+.phase{
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8FA9A1;
+  border-left:1px solid #33413E;padding-left:14px;white-space:nowrap;
+}
+button{font-family:inherit;font-size:13px;cursor:pointer}
+.btn{
+  background:transparent;border:1px solid var(--line-2);color:var(--ink);
+  padding:6px 12px;border-radius:var(--r);transition:background .12s,border-color .12s;
+}
+.btn:hover{background:#DCE2DF;border-color:var(--ink-2)}
+.btn:active{transform:translateY(1px)}
+.bar .btn{border-color:#3B4A47;color:#DDE5E2}
+.bar .btn:hover{background:#1E2A28;border-color:#6E8079}
+.btn-go{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:500}
+.btn-go:hover{background:#164739;border-color:#164739}
+
+/* ---------- layout ---------- */
+h1{
+  font-family:'Newsreader',Georgia,serif;font-weight:400;font-size:34px;
+  line-height:1.15;margin:8px 0 4px;letter-spacing:-.01em;
+}
+.sub{color:var(--ink-3);font-size:14px;margin:0 0 26px}
+section{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:20px 22px;margin:0 0 14px;
+}
+.eyebrow{
+  display:flex;align-items:baseline;gap:10px;margin:0 0 16px;
+  border-bottom:1px solid var(--line);padding-bottom:10px;
+}
+.eyebrow b{
+  font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;
+  color:var(--pine);letter-spacing:.06em;
+}
+.eyebrow h2{font-size:15px;font-weight:600;margin:0;letter-spacing:-.005em}
+.eyebrow em{font-style:normal;font-size:12.5px;color:var(--ink-3);margin-left:auto;text-align:right}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+label{display:block}
+.lab{
+  font-size:12px;color:var(--ink-2);margin:0 0 5px;line-height:1.35;
+}
+.lab .hot{color:var(--garnet);font-weight:500}
+input[type=text],input[type=number],textarea,select{
+  width:100%;font-family:inherit;font-size:14.5px;color:var(--ink);
+  background:#FBFCFB;border:1px solid var(--line);border-radius:var(--r);
+  padding:8px 10px;transition:border-color .12s,background .12s;
+}
+textarea{resize:vertical;min-height:62px;line-height:1.55}
+input:focus,textarea:focus,select:focus{
+  outline:none;border-color:var(--pine);background:#fff;
+  box-shadow:0 0 0 3px var(--pine-bg);
+}
+::placeholder{color:#9AA6A3}
+
+/* ---------- checks ---------- */
+.checks{display:grid;gap:2px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+.chk{
+  display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r);
+  cursor:pointer;font-size:14px;transition:background .1s;
+}
+.chk:hover{background:#F1F4F2}
+.chk input{width:15px;height:15px;accent-color:var(--pine);margin:0;flex:none}
+.chk .px{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-3)}
+.chk input:checked ~ .px{color:var(--pine)}
+
+/* ---------- formules ---------- */
+.forms{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px}
+.fm{
+  border:1px solid var(--line);border-radius:var(--r);padding:12px 13px;cursor:pointer;
+  transition:border-color .12s,background .12s;background:#FBFCFB;
+}
+.fm:hover{border-color:var(--line-2)}
+.fm input{position:absolute;opacity:0;pointer-events:none}
+.fm .nm{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.fm .pr{font-family:'JetBrains Mono',monospace;font-size:22px;margin:3px 0 2px}
+.fm .de{font-size:12px;color:var(--ink-3)}
+.fm.on{border-color:var(--pine);background:var(--pine-bg);box-shadow:inset 0 0 0 1px var(--pine)}
+.fm.on .nm,.fm.on .de{color:#164739}
+.fm.on .pr{color:var(--pine)}
+
+/* ---------- total ---------- */
+.tot{
+  margin-top:16px;border-top:1px solid var(--line);padding-top:14px;
+  display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;
+}
+.tot .big{font-family:'JetBrains Mono',monospace;font-size:32px;line-height:1;color:var(--pine)}
+.tot .k{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+.tot .m{font-family:'JetBrains Mono',monospace;font-size:17px;line-height:1}
+.tot .note{margin-left:auto;font-size:12px;color:var(--ink-3);max-width:280px;text-align:right;line-height:1.45}
+
+/* ---------- garde-fous ---------- */
+.guard{background:var(--garnet-bg);border-color:#DEBFC3}
+.guard .eyebrow{border-bottom-color:#DEBFC3}
+.guard .eyebrow b{color:var(--garnet)}
+.guard .chk:hover{background:#EBD8DA}
+.guard .chk input{accent-color:var(--garnet)}
+.miss{
+  font-size:13px;color:var(--garnet);margin:12px 0 0;font-weight:500;
+}
+.miss.ok{color:var(--pine)}
+
+/* ---------- report ---------- */
+#report{display:none}
+body.report #editor{display:none}
+body.report #report{display:block}
+.doc{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:52px 58px;font-family:'Newsreader',Georgia,serif;font-size:16.5px;line-height:1.62;
+}
+.doc .head{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:26px}
+.doc .kicker{
+  font-family:'Archivo',sans-serif;font-size:11px;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;
+}
+.doc h1{font-size:31px;margin:0 0 4px}
+.doc .meta{font-family:'Archivo',sans-serif;font-size:13px;color:var(--ink-3);margin:0}
+.doc h3{
+  font-family:'Archivo',sans-serif;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--pine);font-weight:600;margin:30px 0 8px;
+}
+.doc p{margin:0 0 9px;white-space:pre-wrap}
+.doc .f{display:flex;gap:12px;margin:0 0 7px;align-items:baseline}
+.doc .f i{
+  font-style:normal;font-family:'Archivo',sans-serif;font-size:12.5px;color:var(--ink-3);
+  flex:none;width:172px;
+}
+.doc .f span{flex:1}
+.doc ul{margin:0 0 9px;padding-left:20px}
+.doc li{margin:0 0 4px}
+.doc .quote{
+  border-left:2px solid var(--pine);padding-left:16px;margin:12px 0 18px;
+  font-style:italic;color:var(--ink-2);
+}
+.doc .devis{
+  border:1px solid var(--line);border-radius:var(--r);padding:18px 22px;margin:14px 0 4px;
+  background:#FAFBFA;
+}
+.doc .devis .row{display:flex;justify-content:space-between;gap:16px;font-family:'Archivo',sans-serif;font-size:14px;padding:4px 0}
+.doc .devis .row.sum{border-top:1px solid var(--line);margin-top:8px;padding-top:10px;font-size:17px;font-weight:600}
+.doc .devis .row span:last-child{font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.doc .sig{margin-top:38px;border-top:1px solid var(--line);padding-top:14px;font-family:'Archivo',sans-serif;font-size:12px;color:var(--ink-3)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.empty{color:var(--ink-3);font-style:italic}
+
+.toast{
+  position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:#EAF0EE;padding:9px 18px;border-radius:20px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:640px){
+  .doc{padding:28px 22px}
+  .doc .f{display:block}
+  .doc .f i{width:auto;display:block;margin-bottom:1px}
+  h1{font-size:27px}
+  .tot .note{margin-left:0;text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{
+  body{background:#fff}
+  .bar,.actions,#editor{display:none!important}
+  .wrap{max-width:none;padding:0}
+  .doc{border:none;padding:0;font-size:12pt}
+  .doc h3{margin-top:20px}
+}
+</style>
+</head>
+<body>
+<script src="/js/crm-auth.js"></script>
+
+<div class="bar">
+  <div class="mark">Novalem <span>/ cadrage</span></div>
+  <div class="chrono" id="chrono">30:00</div>
+  <button class="btn" id="tick">Démarrer</button>
+  <div class="phase" id="phase">Cadre de l'appel</div>
+  <div class="spacer"></div>
+  <a href="/sites" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">CRM Sites</a>
+  <select id="loader" style="width:auto;max-width:190px;background:#1B2523;border-color:#3B4A47;color:#DDE5E2;font-size:13px;padding:6px 8px"></select>
+  <button class="btn" id="new">Nouvelle</button>
+  <button class="btn btn-go" id="go">Compte-rendu</button>
+</div>
+
+<div class="wrap">
+
+<div id="editor">
+  <h1>Fiche de cadrage</h1>
+  <p class="sub">Tout s'enregistre au fil de la frappe. Bascule en compte-rendu quand l'appel est fini.</p>
+
+  <section>
+    <div class="eyebrow"><b>00</b><h2>Le prospect</h2><em>À remplir avant de décrocher</em></div>
+    <div class="grid g2">
+      <label><div class="lab">Entreprise</div><input type="text" data-f="client" placeholder="Garage Beaulieu"></label>
+      <label><div class="lab">Interlocuteur</div><input type="text" data-f="contact" placeholder="Prénom Nom, fonction"></label>
+      <label><div class="lab">Téléphone</div><input type="text" data-f="tel"></label>
+      <label><div class="lab">Email</div><input type="text" data-f="email"></label>
+      <label><div class="lab">Date de l'appel</div><input type="text" data-f="date"></label>
+      <label><div class="lab">Origine du contact</div><input type="text" data-f="origine" placeholder="Recommandation, prospection, réseaux"></label>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>01</b><h2>Son activité</h2><em>Laisse-le parler deux minutes</em></div>
+    <div class="grid">
+      <label><div class="lab">Il fait quoi, exactement, et pour qui ?</div><textarea data-f="activite"></textarea></label>
+      <div class="grid g2">
+        <label><div class="lab">Sa clientèle — particuliers ou entreprises, zone géographique</div><textarea data-f="cible"></textarea></label>
+        <label><div class="lab">Ce qui le différencie de ses concurrents</div><textarea data-f="differenciation"></textarea></label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>02</b><h2>L'objectif du site</h2><em>Le cœur de l'appel</em></div>
+    <div class="grid">
+      <label>
+        <div class="lab"><span class="hot">« Dans un an, qu'est-ce qui doit s'être passé pour que vous disiez : ce site a été rentable ? »</span></div>
+        <textarea data-f="objectif" style="min-height:80px"></textarea>
+      </label>
+      <div class="grid g2">
+        <label><div class="lab">Comment ses clients le trouvent aujourd'hui</div><textarea data-f="acquisition"></textarea></label>
+        <label><div class="lab">Ce qui serait une réussite chiffrée — contacts, devis, ventes par mois</div><textarea data-f="kpi"></textarea></label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>03</b><h2>L'existant</h2><em>Ouvre son site pendant qu'il répond</em></div>
+    <div class="grid g2">
+      <label><div class="lab">Site actuel — adresse et ce qui ne va pas</div><textarea data-f="site_actuel"></textarea></label>
+      <label><div class="lab">Nom de domaine — déposé ? chez qui ? accès ?</div><textarea data-f="domaine"></textarea></label>
+      <label><div class="lab">Fiche Google Business</div><textarea data-f="gbp"></textarea></label>
+      <label><div class="lab">Logo, charte, photos — ce qu'il a et en quelle qualité</div><textarea data-f="marque"></textarea></label>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>04</b><h2>Le contenu</h2><em>Là où les projets s'enlisent</em></div>
+    <div class="grid g3" style="margin-bottom:14px">
+      <label><div class="lab"><span class="hot">Qui écrit les textes ?</span></div>
+        <select data-f="textes_par">
+          <option value="">—</option>
+          <option>Le client fournit tout</option>
+          <option>Je rédige (option à chiffrer)</option>
+          <option>Mixte : trame par moi, contenu par lui</option>
+        </select>
+      </label>
+      <label><div class="lab">Nombre de pages envisagé</div><input type="text" data-f="nb_pages" placeholder="5 à 7"></label>
+      <label><div class="lab">Photos disponibles</div><input type="text" data-f="photos" placeholder="Réalisations, équipe, locaux"></label>
+    </div>
+    <label><div class="lab">Arborescence pressentie — tape-la en direct pendant qu'il parle</div><textarea data-f="arbo" style="min-height:96px;font-family:'JetBrains Mono',monospace;font-size:13.5px" placeholder="Accueil&#10;Nos services&#10;  — Dépannage&#10;  — Entretien&#10;Réalisations&#10;À propos&#10;Contact"></textarea></label>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>05</b><h2>Ses goûts</h2><em>Fais-lui envoyer les liens par mail après l'appel</em></div>
+    <div class="grid g2">
+      <label><div class="lab">Sites qu'il trouve beaux</div><textarea data-f="refs_plus"></textarea></label>
+      <label><div class="lab">Ce qu'il déteste — aussi utile que ce qu'il aime</div><textarea data-f="refs_moins"></textarea></label>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>06</b><h2>Périmètre et chiffrage</h2><em>Coche pendant l'appel, le total se calcule</em></div>
+
+    <div class="forms" id="forms">
+      <label class="fm"><input type="radio" name="formule" value="390" data-nm="Essentiel"><div class="nm">Essentiel</div><div class="pr">390 €</div><div class="de">1 page · 7 jours</div></label>
+      <label class="fm"><input type="radio" name="formule" value="790" data-nm="Vitrine"><div class="nm">Vitrine</div><div class="pr">790 €</div><div class="de">5 pages · 10–14 j</div></label>
+      <label class="fm"><input type="radio" name="formule" value="1190" data-nm="Signature"><div class="nm">Signature</div><div class="pr">1 190 €</div><div class="de">10 pages · 3 semaines</div></label>
+      <label class="fm"><input type="radio" name="formule" value="0" data-nm="Sur mesure"><div class="nm">Sur mesure</div><div class="pr">Devis</div><div class="de">Boutique, espace client</div></label>
+    </div>
+
+    <div style="margin:20px 0 6px" class="lab">Options — fonctionnalités</div>
+    <div class="checks">
+      <label class="chk"><input type="checkbox" data-opt="150" data-nm="Formulaire de devis multi-étapes"> Formulaire de devis <span class="px">150 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="190" data-nm="Prise de rendez-vous en ligne"> Prise de rendez-vous <span class="px">190 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="450" data-nm="Espace client sécurisé"> Espace client <span class="px">450 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="290" data-nm="Version multilingue (par langue)"> Multilingue <span class="px">290 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="900" data-nm="Boutique en ligne (base)"> Boutique en ligne <span class="px">dès 900 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="90" data-nm="Avis Google en direct"> Avis Google <span class="px">90 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="60" data-nm="Bouton WhatsApp"> WhatsApp <span class="px">60 €</span></label>
+    </div>
+
+    <div style="margin:18px 0 6px" class="lab">Options — visibilité</div>
+    <div class="checks">
+      <label class="chk"><input type="checkbox" data-opt="290" data-nm="SEO technique"> SEO technique <span class="px">290 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="150" data-nm="Fiche Google Business"> Fiche Google Business <span class="px">150 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="350" data-nm="Blog SEO"> Blog SEO <span class="px">350 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="350" data-nm="GEO — citation par les IA"> GEO <span class="px">350 €</span></label>
+      <label class="chk"><input type="checkbox" data-opt="350" data-nm="Google Ads, lancement"> Google Ads, lancement <span class="px">350 €</span></label>
+    </div>
+
+    <div class="grid g3" style="margin-top:18px">
+      <label><div class="lab">Pages supplémentaires (90 € l'unité)</div><input type="number" min="0" step="1" value="0" data-f="pages_sup" id="psup"></label>
+      <label><div class="lab">Récurrent évoqué</div><input type="text" data-f="recurrent" placeholder="Abo contenu 250 €/mois, pilotage Ads 190 €/mois"></label>
+      <label><div class="lab">Budget annoncé par lui</div><input type="text" data-f="budget" placeholder="Ou : n'a pas voulu dire"></label>
+    </div>
+
+    <div class="tot">
+      <div><div class="k">Estimation</div><div class="big" id="total">—</div></div>
+      <div><div class="k">Acompte 30 %</div><div class="m" id="acompte">—</div></div>
+      <div><div class="k">Solde à la livraison</div><div class="m" id="solde">—</div></div>
+      <div class="note">Fourchette de travail, pas un prix ferme. Le devis part sous 48 h.</div>
+    </div>
+  </section>
+
+  <section class="guard">
+    <div class="eyebrow"><b>!!</b><h2>Ne raccroche pas sans ça</h2><em>Quatre trous classiques</em></div>
+    <div class="checks">
+      <label class="chk"><input type="checkbox" data-g="Qui rédige les textes"> Qui rédige les textes</label>
+      <label class="chk"><input type="checkbox" data-g="Accès au domaine et à l'hébergement"> Accès domaine et hébergement</label>
+      <label class="chk"><input type="checkbox" data-g="Qui décide au final"> Qui décide au final</label>
+      <label class="chk"><input type="checkbox" data-g="Échéance réelle"> Échéance réelle</label>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <label><div class="lab">Décideur — seul ou associé à convaincre</div><input type="text" data-f="decideur"></label>
+      <label><div class="lab">Échéance — ouverture, saison, salon</div><input type="text" data-f="echeance"></label>
+    </div>
+    <p class="miss" id="miss"></p>
+  </section>
+
+  <section>
+    <div class="eyebrow"><b>07</b><h2>Sortie d'appel</h2><em>Reformule à voix haute avant de raccrocher</em></div>
+    <div class="grid g2">
+      <label><div class="lab">Ce qu'il doit m'envoyer</div><textarea data-f="a_fournir" placeholder="Textes, photos HD, logo vectoriel, accès OVH"></textarea></label>
+      <label><div class="lab">Ce que je m'engage à faire, et quand</div><textarea data-f="engagement" placeholder="Devis ferme sous 48 h, rappel vendredi 14 h"></textarea></label>
+      <label style="grid-column:1/-1"><div class="lab">Notes libres, signaux, ressenti</div><textarea data-f="notes" style="min-height:80px"></textarea></label>
+    </div>
+  </section>
+</div>
+
+<div id="report">
+  <div class="actions">
+    <button class="btn" id="back">Retour à la fiche</button>
+    <button class="btn btn-go" id="tocrm">Envoyer vers le CRM</button>
+    <button class="btn" id="copy">Copier en texte</button>
+    <button class="btn" id="print">Imprimer ou PDF</button>
+  </div>
+  <article class="doc" id="doc"></article>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var F = {}, ID = null, timer = null, left = 1800, running = false, saveT = null;
+
+  // ── Supabase (meme projet que le CRM Sites) ──
+  var NOV_SB_URL='https://hfdkkdyyhpymrwiqmitn.supabase.co';
+  var NOV_SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
+  var SB = (window.supabase ? window.supabase.createClient(NOV_SB_URL, NOV_SB_ANON) : null);
+  var LINKED_CLIENT = null;
+  function cadUser(){ try{ return JSON.parse(localStorage.getItem('novalem_user')||'null'); }catch(e){ return null; } }
+  function cadTotal(d){ if(!d) return 0; var base=d.formule||0; var opt=(d.options||[]).reduce(function(a,o){return a+(o.prix||0);},0); var sup=(parseInt((d.fields&&d.fields.pages_sup)||'0',10)||0)*90; return base+opt+sup; }
+
+  var PHASES = [
+    [0,180,"Cadre de l'appel"],
+    [180,900,"Découverte"],
+    [900,1320,"Partage d'écran"],
+    [1320,1800,"Reformuler, conclure"]
+  ];
+
+  var store = {
+    get: function(k){
+      if(!SB) return Promise.resolve(null);
+      if(k === 'fiches-index'){
+        return SB.from('web_cadrages').select('id,nom,updated_at').order('updated_at',{ascending:false}).limit(40)
+          .then(function(r){ return (r.data||[]).map(function(row){ return {id:row.id, nom:row.nom||'Sans nom', updated:new Date(row.updated_at).getTime()}; }); })
+          .catch(function(){ return null; });
+      }
+      if(k.indexOf('fiche:')===0){
+        var id = k.slice(6);
+        return SB.from('web_cadrages').select('data,client_id').eq('id',id).maybeSingle()
+          .then(function(r){ if(r.data){ if(r.data.client_id) LINKED_CLIENT = r.data.client_id; return r.data.data; } return null; })
+          .catch(function(){ return null; });
+      }
+      return Promise.resolve(null);
+    },
+    set: function(k,v){
+      if(!SB) return Promise.resolve(null);
+      if(k === 'fiches-index') return Promise.resolve(null); // derive de la table
+      if(k.indexOf('fiche:')===0){
+        var id = k.slice(6);
+        var nom = (v && v.fields && v.fields.client || '').trim() || 'Sans nom';
+        var row = { id:id, nom:nom, data:v, total_ht:cadTotal(v), client_id: LINKED_CLIENT || null, updated_at: new Date().toISOString() };
+        return SB.from('web_cadrages').upsert(row).then(function(r){ return r; }).catch(function(){ return null; });
+      }
+      return Promise.resolve(null);
+    },
+    list: function(){ return Promise.resolve([]); }
+  };
+
+  function $(s){ return document.querySelector(s); }
+  function all(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+  function eur(n){ return n.toLocaleString('fr-FR') + ' €'; }
+  function today(){ var d=new Date(); return d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }
+
+  function toast(m){
+    var t=$('#toast'); t.textContent=m; t.classList.add('on');
+    setTimeout(function(){ t.classList.remove('on'); }, 1600);
+  }
+
+  /* ---------- state ---------- */
+  function collect(){
+    var d = { id: ID, fields:{}, formule:null, formuleNom:'', options:[], guards:[], updated: Date.now() };
+    all('[data-f]').forEach(function(el){ d.fields[el.dataset.f] = el.value; });
+    var r = $('input[name=formule]:checked');
+    if(r){ d.formule = parseInt(r.value,10); d.formuleNom = r.dataset.nm; }
+    all('[data-opt]').forEach(function(el){ if(el.checked) d.options.push({nom:el.dataset.nm, prix:parseInt(el.dataset.opt,10)}); });
+    all('[data-g]').forEach(function(el){ if(!el.checked) d.guards.push(el.dataset.g); });
+    return d;
+  }
+
+  function apply(d){
+    all('[data-f]').forEach(function(el){ el.value = (d.fields && d.fields[el.dataset.f]) || (el.type==='number'?'0':''); });
+    all('input[name=formule]').forEach(function(el){ el.checked = (d.formule!==null && parseInt(el.value,10)===d.formule && el.dataset.nm===d.formuleNom); });
+    var names = (d.options||[]).map(function(o){ return o.nom; });
+    all('[data-opt]').forEach(function(el){ el.checked = names.indexOf(el.dataset.nm) > -1; });
+    all('[data-g]').forEach(function(el){ el.checked = (d.guards||[]).indexOf(el.dataset.g) === -1; });
+    paint();
+  }
+
+  function paint(){
+    all('.fm').forEach(function(l){ l.classList.toggle('on', l.querySelector('input').checked); });
+    var d = collect();
+    var base = d.formule || 0;
+    var opt = d.options.reduce(function(a,o){ return a+o.prix; }, 0);
+    var sup = (parseInt(d.fields.pages_sup,10)||0) * 90;
+    var t = base + opt + sup;
+    var sd = d.formule === 0;
+    $('#total').textContent  = sd ? 'Sur devis' : (t ? eur(t) : '—');
+    $('#acompte').textContent= (!sd && t) ? eur(Math.round(t*0.3)) : '—';
+    $('#solde').textContent  = (!sd && t) ? eur(t - Math.round(t*0.3)) : '—';
+    var m = $('#miss');
+    if(d.guards.length){ m.className='miss'; m.textContent = 'Il te manque : ' + d.guards.join(' · '); }
+    else { m.className='miss ok'; m.textContent = 'Rien ne manque. Tu peux raccrocher.'; }
+  }
+
+  function save(){
+    if(!ID) return;
+    var d = collect();
+    store.set('fiche:'+ID, d);
+    store.get('fiches-index').then(function(idx){
+      idx = idx || [];
+      var nm = (d.fields.client || '').trim() || 'Sans nom';
+      var found = false;
+      idx = idx.map(function(e){ if(e.id===ID){ found=true; return {id:ID,nom:nm,updated:d.updated}; } return e; });
+      if(!found) idx.unshift({id:ID,nom:nm,updated:d.updated});
+      idx.sort(function(a,b){ return b.updated-a.updated; });
+      store.set('fiches-index', idx.slice(0,40)).then(fillLoader);
+    });
+  }
+  function queueSave(){ clearTimeout(saveT); saveT = setTimeout(function(){ save(); }, 700); }
+
+  function fillLoader(){
+    return store.get('fiches-index').then(function(idx){
+      var s = $('#loader');
+      s.innerHTML = '<option value="">Fiches enregistrées…</option>';
+      (idx||[]).forEach(function(e){
+        var o = document.createElement('option');
+        o.value = e.id; o.textContent = e.nom;
+        if(e.id===ID) o.selected = true;
+        s.appendChild(o);
+      });
+    });
+  }
+
+  function fresh(){
+    ID = 'f' + Date.now().toString(36);
+    apply({fields:{date: today(), pages_sup:'0'}, formule:null, options:[], guards:[]});
+    save();
+  }
+
+  /* ---------- chrono ---------- */
+  function fmt(s){
+    var neg = s<0; s = Math.abs(s);
+    return (neg?'-':'') + String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  }
+  function tickPhase(){
+    var e = 1800 - left, lbl = PHASES[PHASES.length-1][2];
+    for(var i=0;i<PHASES.length;i++){ if(e>=PHASES[i][0] && e<PHASES[i][1]){ lbl = PHASES[i][2]; break; } }
+    $('#phase').textContent = lbl;
+  }
+  $('#tick').addEventListener('click', function(){
+    running = !running;
+    this.textContent = running ? 'Pause' : (left===1800 ? 'Démarrer' : 'Reprendre');
+    if(running){
+      timer = setInterval(function(){
+        left--;
+        $('#chrono').textContent = fmt(left);
+        $('#chrono').classList.toggle('over', left<=0);
+        tickPhase();
+      }, 1000);
+    } else clearInterval(timer);
+  });
+
+  /* ---------- report ---------- */
+  function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function field(lab, val){ return val && val.trim() ? '<div class="f"><i>'+lab+'</i><span>'+esc(val)+'</span></div>' : ''; }
+  function block(lab, val){ return val && val.trim() ? '<h3>'+lab+'</h3><p>'+esc(val)+'</p>' : ''; }
+
+  function render(){
+    var d = collect(), f = d.fields, h = '';
+    var base = d.formule||0, opt = d.options.reduce(function(a,o){return a+o.prix;},0);
+    var sup = (parseInt(f.pages_sup,10)||0)*90, t = base+opt+sup, sd = d.formule===0;
+
+    h += '<div class="head"><p class="kicker">Novalem — compte-rendu de cadrage</p>';
+    h += '<h1>'+ esc(f.client || 'Projet sans nom') +'</h1>';
+    h += '<p class="meta">'+ [esc(f.contact), esc(f.date)].filter(Boolean).join(' · ') +'</p></div>';
+
+    h += field('Téléphone', f.tel) + field('Email', f.email) + field('Origine du contact', f.origine);
+
+    h += block("L'activité", f.activite) + block('Sa clientèle', f.cible) + block('Ce qui le différencie', f.differenciation);
+
+    if(f.objectif && f.objectif.trim()){
+      h += '<h3>Ce que le site doit produire</h3><div class="quote">'+esc(f.objectif)+'</div>';
+    }
+    h += block('Acquisition actuelle', f.acquisition) + block('Objectif chiffré', f.kpi);
+
+    h += block('Site actuel', f.site_actuel) + block('Domaine et hébergement', f.domaine)
+       + block('Google Business', f.gbp) + block('Identité visuelle', f.marque);
+
+    if(f.textes_par || f.nb_pages || f.photos){
+      h += '<h3>Contenu</h3>' + field('Rédaction', f.textes_par) + field('Pages envisagées', f.nb_pages) + field('Photos', f.photos);
+    }
+    if(f.arbo && f.arbo.trim()) h += '<h3>Arborescence pressentie</h3><p style="font-family:\'JetBrains Mono\',monospace;font-size:14px">'+esc(f.arbo)+'</p>';
+
+    h += block('Références qu\'il aime', f.refs_plus) + block('Ce qu\'il rejette', f.refs_moins);
+
+    h += '<h3>Périmètre et estimation</h3><div class="devis">';
+    h += '<div class="row"><span>'+ (d.formuleNom ? 'Formule '+d.formuleNom : 'Formule à définir') +'</span><span>'+ (base?eur(base):(sd?'sur devis':'—')) +'</span></div>';
+    d.options.forEach(function(o){ h += '<div class="row"><span>'+o.nom+'</span><span>'+eur(o.prix)+'</span></div>'; });
+    if(sup) h += '<div class="row"><span>'+(parseInt(f.pages_sup,10))+' page(s) supplémentaire(s)</span><span>'+eur(sup)+'</span></div>';
+    h += '<div class="row sum"><span>Estimation</span><span>'+ (sd?'Sur devis':(t?eur(t):'—')) +'</span></div>';
+    if(!sd && t) h += '<div class="row"><span>Acompte 30 % à la signature</span><span>'+eur(Math.round(t*0.3))+'</span></div>';
+    h += '</div>';
+    h += field('Récurrent évoqué', f.recurrent) + field('Budget annoncé', f.budget)
+       + field('Décideur', f.decideur) + field('Échéance', f.echeance);
+
+    if((f.a_fournir||'').trim()) h += '<h3>À fournir par le client</h3><p>'+esc(f.a_fournir)+'</p>';
+    if((f.engagement||'').trim()) h += '<h3>Mes engagements</h3><p>'+esc(f.engagement)+'</p>';
+    if((f.notes||'').trim()) h += '<h3>Notes</h3><p>'+esc(f.notes)+'</p>';
+
+    if(d.guards.length) h += '<h3>Points encore ouverts</h3><ul><li>'+d.guards.join('</li><li>')+'</li></ul>';
+
+    h += '<div class="sig">Novalem — création de sites internet · SIRET 103 405 247 00018 · Prix nets, TVA non applicable, article 293 B du CGI. Estimation indicative, le devis ferme fait foi.</div>';
+
+    $('#doc').innerHTML = h;
+  }
+
+  /* ---------- envoi vers le CRM Sites ---------- */
+  async function toCRM(){
+    if(!SB){ toast('Connexion indisponible'); return; }
+    var d = collect(), f = d.fields;
+    var btn = document.getElementById('tocrm'); if(btn){ btn.disabled = true; btn.textContent = 'Envoi...'; }
+    try{
+      // 1. client : lie a la fiche, sinon on le cree depuis les champs prospect
+      var clientId = LINKED_CLIENT;
+      if(!clientId){
+        var ins = await SB.from('web_clients').insert({
+          entreprise: (f.client||'Client sans nom').trim(),
+          contact_nom: f.contact||null, telephone: f.tel||null, email: f.email||null,
+          source: f.origine||null, statut_pipeline: 'devis_envoye',
+          notes: 'Cree depuis la fiche de cadrage.'
+        }).select('id').maybeSingle();
+        if(ins.error){ throw ins.error; }
+        clientId = ins.data.id; LINKED_CLIENT = clientId;
+        if(ID) await SB.from('web_cadrages').update({ client_id: clientId }).eq('id', ID);
+      }
+      // 2. lignes du devis a partir de la formule + options + pages sup
+      var lignes = [];
+      if(d.formule && d.formuleNom) lignes.push({ designation:'Site internet - formule '+d.formuleNom, quantite:1, pu_ht:d.formule });
+      else if(d.formuleNom==='Sur mesure') lignes.push({ designation:'Prestation sur mesure (a chiffrer)', quantite:1, pu_ht:0 });
+      (d.options||[]).forEach(function(o){ lignes.push({ designation:o.nom, quantite:1, pu_ht:o.prix }); });
+      var sup = parseInt(f.pages_sup,10)||0;
+      if(sup>0) lignes.push({ designation:'Page(s) supplementaire(s)', quantite:sup, pu_ht:90 });
+      if(!lignes.length){ if(btn){ btn.disabled=false; btn.textContent='Envoyer vers le CRM'; } toast('Choisis une formule ou une option d\'abord'); return; }
+      var total = lignes.reduce(function(a,l){ return a + l.quantite*l.pu_ht; }, 0);
+      // 3. numero sequentiel propre au web
+      var numero = null;
+      try{ var rn = await SB.rpc('web_next_number',{ p_kind:'DEV', p_annee:new Date().getFullYear() }); if(!rn.error) numero = rn.data; }catch(e){}
+      if(!numero) numero = 'DEV-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
+      var mentions = 'SIRET 103 405 247 00018. TVA non applicable, article 293 B du CGI. '+
+        'Acompte de 30 % a la signature, solde de 70 % a la livraison (avant mise en ligne). Offre valable 30 jours. '+
+        'Cession des droits d\'auteur sur le code source livre au client apres paiement integral.';
+      var insd = await SB.from('web_devis').insert({
+        client_id: clientId, numero: numero,
+        date_emission: new Date().toISOString().slice(0,10),
+        validite: new Date(Date.now()+30*86400000).toISOString().slice(0,10),
+        lignes: lignes, total_ht: Math.round(total*100)/100, mentions: mentions, statut:'brouillon'
+      });
+      if(insd.error){ throw insd.error; }
+      toast('Client et devis '+numero+' crees dans le CRM');
+      if(btn){ btn.textContent = 'Cree : '+numero; }
+      setTimeout(function(){ if(confirm('Devis '+numero+' cree dans le CRM Sites. L\'ouvrir maintenant ?')) window.location='/sites'; }, 250);
+    }catch(err){
+      if(btn){ btn.disabled=false; btn.textContent='Envoyer vers le CRM'; }
+      toast('Erreur : '+(err && err.message ? err.message : 'envoi impossible'));
+    }
+  }
+
+  /* ---------- demarrage depuis une fiche client du CRM ---------- */
+  function bootFromClient(cid){
+    if(!SB){ fresh(); fillLoader(); return; }
+    SB.from('web_cadrages').select('id,data,client_id').eq('client_id',cid).order('updated_at',{ascending:false}).limit(1)
+      .then(function(r){
+        if(r.data && r.data.length){ ID = r.data[0].id; LINKED_CLIENT = cid; apply(r.data[0].data); fillLoader(); toast('Fiche du client chargee'); return; }
+        return SB.from('web_clients').select('entreprise,contact_nom,telephone,email,source').eq('id',cid).maybeSingle().then(function(rc){
+          LINKED_CLIENT = cid;
+          ID = 'f' + Date.now().toString(36);
+          var pf = { fields:{ date: today(), pages_sup:'0' }, formule:null, options:[], guards:[] };
+          if(rc.data){ pf.fields.client=rc.data.entreprise||''; pf.fields.contact=rc.data.contact_nom||''; pf.fields.tel=rc.data.telephone||''; pf.fields.email=rc.data.email||''; pf.fields.origine=rc.data.source||''; }
+          apply(pf); save(); fillLoader(); toast('Fiche pre-remplie depuis le CRM');
+        });
+      }).catch(function(){ fresh(); fillLoader(); });
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('input', function(e){
+    if(e.target.matches('[data-f],[data-opt],[data-g],[name=formule]')){ paint(); queueSave(); }
+  });
+  document.addEventListener('change', function(e){
+    if(e.target.matches('[data-f],[data-opt],[data-g],[name=formule]')){ paint(); queueSave(); }
+  });
+
+  $('#go').addEventListener('click', function(){ save(); render(); document.body.classList.add('report'); window.scrollTo(0,0); });
+  $('#back').addEventListener('click', function(){ document.body.classList.remove('report'); });
+  $('#print').addEventListener('click', function(){ window.print(); });
+  $('#new').addEventListener('click', function(){ save(); fresh(); toast('Nouvelle fiche'); });
+
+  $('#copy').addEventListener('click', function(){
+    var txt = $('#doc').innerText;
+    navigator.clipboard.writeText(txt).then(function(){ toast('Compte-rendu copié'); },
+      function(){ toast('Copie impossible, sélectionne le texte'); });
+  });
+
+  $('#loader').addEventListener('change', function(){
+    var v = this.value; if(!v) return;
+    save();
+    store.get('fiche:'+v).then(function(d){
+      if(d){ ID = v; apply(d); toast('Fiche chargée'); }
+    });
+  });
+
+  var _tocrm = document.getElementById('tocrm');
+  if(_tocrm) _tocrm.addEventListener('click', toCRM);
+
+  /* ---------- boot ---------- */
+  var URLC = new URLSearchParams(location.search).get('client');
+  if(URLC){
+    bootFromClient(URLC);
+  } else {
+    store.get('fiches-index').then(function(idx){
+      if(idx && idx.length){
+        ID = idx[0].id;
+        return store.get('fiche:'+ID).then(function(d){
+          if(d){ apply(d); } else { fresh(); }
+          return fillLoader();
+        });
+      }
+      fresh();
+      return fillLoader();
+    }).catch(function(){ fresh(); });
+  }
+
+  paint();
+})();
+</script>
+</body>
+</html>

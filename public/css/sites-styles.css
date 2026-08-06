@@ -1,0 +1,180 @@
+/* ===== NOVALEM SITES — Declinaison de la charte (accent or ambre) =====
+   Charge APRES crm-styles.css. On reutilise tout le design system du CRM,
+   on redecline juste l'accent pour distinguer l'espace Sites au premier
+   coup d'oeil. Aucune modification de crm-styles.css. */
+
+:root{
+  /* Accent Sites : or ambre (distinct du or-citron #c8e040 du recrutement,
+     reprend le dore deja present dans l'identite Novalem) */
+  --ac:#e0a92e;
+  --ac-dim:rgba(224,169,46,.09);
+  --ac-border:rgba(224,169,46,.24);
+  --gold:#e0a92e;
+  --gold-bd:rgba(224,169,46,.32);
+  /* couleurs semantiques du pipeline Sites */
+  --sw-prospect:#8c8c84;
+  --sw-contacte:#4a84e2;
+  --sw-devis:#e89830;
+  --sw-signe:#e0a92e;
+  --sw-encours:#9048e0;
+  --sw-livre:#2dd4a0;
+  --sw-sav:#33b8c9;
+  --sw-perdu:#f04b4b;
+}
+
+/* ── Accent : reprises la ou crm-styles.css code le citron en dur ── */
+.ni.act{background:rgba(224,169,46,.09);color:var(--ac);border-color:var(--ac-border)}
+.bp{background:var(--ac);color:#1a1406}
+.bp:hover{background:#eeba3e;box-shadow:0 4px 12px rgba(224,169,46,.28)}
+.btn-apple.primary{background:var(--ac);color:#1a1406;box-shadow:0 4px 20px rgba(224,169,46,.3)}
+.btn-apple.primary:hover{background:#eeba3e;box-shadow:0 6px 28px rgba(224,169,46,.4)}
+.step-dot.cur{border-color:var(--ac);color:var(--ac);background:var(--ac-dim)}
+.step-l.cur{color:var(--ac)}
+
+/* ── Badge "Sites Internet" dans la barre laterale ── */
+.sites-badge{
+  margin:10px 8px 2px;padding:7px 11px;border-radius:var(--r2);
+  background:linear-gradient(135deg,rgba(224,169,46,.16),rgba(224,169,46,.05));
+  border:1px solid var(--ac-border);display:flex;align-items:center;gap:8px
+}
+.sites-badge-dot{width:8px;height:8px;border-radius:50%;background:var(--ac);box-shadow:0 0 10px var(--ac);flex-shrink:0}
+.sites-badge-t{font-family:'Syne',sans-serif;font-weight:800;font-size:11px;letter-spacing:.02em;color:var(--ac)}
+.sites-badge-s{font-size:8px;color:var(--mu2);letter-spacing:.14em;text-transform:uppercase;margin-top:1px}
+
+/* petit tag "Sites" dans la topbar */
+.sites-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;
+  background:var(--ac-dim);border:1px solid var(--ac-border);font-size:9px;font-weight:700;
+  color:var(--ac);letter-spacing:.1em;text-transform:uppercase}
+
+/* ── Pastilles de statut du pipeline ── */
+.sw-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;
+  font-size:10px;font-weight:600;white-space:nowrap}
+.sw-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+.sw-prospect{color:var(--sw-prospect);background:rgba(140,140,132,.12)}
+.sw-contacte{color:var(--sw-contacte);background:rgba(74,132,226,.12)}
+.sw-devis_envoye{color:var(--sw-devis);background:rgba(232,152,48,.12)}
+.sw-signe{color:var(--sw-signe);background:rgba(224,169,46,.14)}
+.sw-en_cours{color:var(--sw-encours);background:rgba(144,72,224,.12)}
+.sw-livre{color:var(--sw-livre);background:rgba(45,212,160,.12)}
+.sw-sav{color:var(--sw-sav);background:rgba(51,184,201,.12)}
+.sw-perdu{color:var(--sw-perdu);background:rgba(240,75,75,.12)}
+
+/* ── Kanban : entete de colonne teintee par statut ── */
+.sw-kh{border-left:3px solid var(--mu2)}
+.sw-kh.k-prospect{border-left-color:var(--sw-prospect);background:rgba(140,140,132,.06)}
+.sw-kh.k-contacte{border-left-color:var(--sw-contacte);background:rgba(74,132,226,.06)}
+.sw-kh.k-devis_envoye{border-left-color:var(--sw-devis);background:rgba(232,152,48,.06)}
+.sw-kh.k-signe{border-left-color:var(--sw-signe);background:rgba(224,169,46,.08)}
+.sw-kh.k-en_cours{border-left-color:var(--sw-encours);background:rgba(144,72,224,.06)}
+.sw-kh.k-livre{border-left-color:var(--sw-livre);background:rgba(45,212,160,.06)}
+.sw-kh.k-sav{border-left-color:var(--sw-sav);background:rgba(51,184,201,.06)}
+.sw-kh.k-perdu{border-left-color:var(--sw-perdu);background:rgba(240,75,75,.06)}
+
+/* carte client dans le kanban */
+.sw-card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2);padding:10px;cursor:pointer;transition:all .16s}
+.sw-card:hover{background:var(--s3);transform:translateY(-2px);box-shadow:var(--sh);border-color:var(--bd3)}
+.sw-card-t{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:3px}
+.sw-card-m{font-size:10px;color:var(--mu);line-height:1.5}
+.sw-card-ft{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+
+/* ── Encart mentions legales du devis ── */
+.sites-legal{background:var(--s2);border:1px solid var(--bd);border-left:3px solid var(--ac);
+  border-radius:var(--r);padding:11px 13px;font-size:10.5px;color:var(--mu);line-height:1.65;margin-top:10px}
+.sites-legal b{color:var(--tx)}
+
+/* ── Lignes de devis (editeur) ── */
+.dv-line{display:grid;grid-template-columns:1fr 70px 100px 90px 30px;gap:7px;align-items:center;margin-bottom:6px}
+.dv-line .lbl{margin:0}
+.dv-line-h{display:grid;grid-template-columns:1fr 70px 100px 90px 30px;gap:7px;font-size:9px;
+  text-transform:uppercase;letter-spacing:.09em;color:var(--mu);margin-bottom:5px}
+.dv-x{cursor:pointer;color:var(--mu2);text-align:center;font-size:15px;line-height:1;transition:.12s}
+.dv-x:hover{color:var(--red)}
+
+/* alerte renouvellement hebergement */
+.sw-renew-soon{color:var(--orange)}
+.sw-renew-late{color:var(--red)}
+.sw-renew-ok{color:var(--green)}
+
+/* petite grille de KPI serree */
+.sw-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+
+/* variantes de toast (couleur du bord gauche selon le type) */
+.toast.ts{border-left:3px solid var(--sw-livre)}
+.toast.te{border-left:3px solid var(--sw-perdu)}
+.toast.tw{border-left:3px solid var(--sw-devis)}
+.toast.ti{border-left:3px solid var(--sw-contacte)}
+
+/* ===== AGENDA / RAPPELS (ajout organisation intelligente) ===== */
+.ag-wrap{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+@media(max-width:900px){.ag-wrap{grid-template-columns:1fr}}
+.ag-cal{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px}
+.ag-nav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ag-title{font-family:'Syne',sans-serif;font-weight:800;font-size:14px;flex:1}
+.ag-dows{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.ag-dow{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu2);text-align:center;padding:2px 0}
+.ag-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.ag-cell{min-height:76px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:4px;cursor:pointer;transition:.12s;overflow:hidden}
+.ag-cell:hover{background:var(--s3);border-color:var(--bd3)}
+.ag-cell.out{opacity:.4}
+.ag-cell.today{border-color:var(--ac);box-shadow:inset 0 0 0 1px var(--ac-border)}
+.ag-dnum{font-size:10px;color:var(--mu);font-weight:600;margin-bottom:3px}
+.ag-cell.today .ag-dnum{color:var(--ac)}
+.ag-ev{font-size:9px;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--s3);border-left:2px solid var(--mu2);color:var(--tx)}
+.ag-ev.t-rappel{border-left-color:var(--sw-devis)}
+.ag-ev.t-rdv_physique{border-left-color:var(--sw-signe)}
+.ag-ev.t-rdv_visio{border-left-color:var(--sw-contacte)}
+.ag-ev.t-tache{border-left-color:var(--sw-encours)}
+.ag-ev.t-echeance{border-left-color:var(--sw-perdu)}
+.ag-ev.done,.ag-ev.annule{opacity:.4;text-decoration:line-through}
+.ag-more{font-size:9px;color:var(--mu2);padding-left:4px}
+.ag-side{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px}
+.ag-up{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--bd);cursor:pointer}
+.ag-up:last-child{border-bottom:none}
+.ag-up:hover .ag-up-t{color:var(--ac)}
+.ag-up-dot{width:8px;height:8px;border-radius:50%;background:var(--mu2);flex-shrink:0}
+.ag-up-dot.t-rappel{background:var(--sw-devis)}
+.ag-up-dot.t-rdv_physique{background:var(--sw-signe)}
+.ag-up-dot.t-rdv_visio{background:var(--sw-contacte)}
+.ag-up-dot.t-tache{background:var(--sw-encours)}
+.ag-up-dot.t-echeance{background:var(--sw-perdu)}
+.ag-up-t{font-size:11px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-up-s{font-size:9px;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-up-w{font-size:9px;color:var(--mu);white-space:nowrap;flex-shrink:0}
+.ag-up-w.late{color:var(--red)}
+/* pastille de type d'evenement dans les listes (fiche, tableau de bord) */
+.ev-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mu2);margin-right:5px;vertical-align:middle}
+.ev-dot.t-rappel{background:var(--sw-devis)}
+.ev-dot.t-rdv_physique{background:var(--sw-signe)}
+.ev-dot.t-rdv_visio{background:var(--sw-contacte)}
+.ev-dot.t-tache{background:var(--sw-encours)}
+.ev-dot.t-echeance{background:var(--sw-perdu)}
+.todo-row:hover{background:var(--s3)}
+
+/* ===== PROSPECTION SUR CARTE (OpenStreetMap) ===== */
+.pr-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.pr-q{flex:1;min-width:220px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r);color:var(--tx);font-size:12px;font-family:inherit}
+.pr-q:focus{outline:none;border-color:var(--ac)}
+.pr-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu);cursor:pointer;white-space:nowrap;padding:6px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r)}
+.pr-wrap{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
+@media(max-width:900px){.pr-wrap{grid-template-columns:1fr}}
+.pr-map{height:520px;border:1px solid var(--bd);border-radius:var(--r2);z-index:0;background:#1a1a1a}
+.pr-list{height:520px;overflow-y:auto;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:10px}
+@media(max-width:900px){.pr-map{height:360px}.pr-list{height:auto;max-height:440px}}
+.pr-count{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu2);margin-bottom:8px}
+.pr-item{display:flex;align-items:center;gap:8px;padding:9px 8px;border-bottom:1px solid var(--bd);cursor:pointer;border-radius:6px}
+.pr-item:hover{background:var(--s3)}
+.pr-item-t{font-size:11px;color:var(--tx);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-item-s{font-size:10px;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-item-a{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.pr-item-a a{text-decoration:none}
+.pr-nosite{display:inline-block;font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#1a1406;background:var(--ac);padding:1px 5px;border-radius:99px;vertical-align:middle;font-weight:700}
+.pr-incrm{font-size:9px;color:var(--sw-livre);white-space:nowrap}
+/* popups Leaflet : rester lisible */
+.leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.5}
+.leaflet-popup-content button{background:var(--ac);color:#1a1406;border:none;border-radius:6px;padding:4px 10px;font-weight:600;font-size:11px}
+
+/* ===== PROCHAINE ETAPE + ACCES (cycle client) ===== */
+.nextstep{background:linear-gradient(180deg,rgba(224,169,46,.10),rgba(224,169,46,.03));border:1px solid var(--ac-border);border-radius:var(--r);padding:11px 13px}
+.nextstep-t{font-size:12px;color:var(--tx);line-height:1.45}
+.secret{filter:blur(4px);transition:filter .1s;cursor:pointer;color:var(--tx);user-select:none}
+.secret.show{filter:none;user-select:text}
