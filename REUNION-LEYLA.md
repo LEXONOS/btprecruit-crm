@@ -42,11 +42,12 @@ Debrief apres chaque passage : un point fort, un point a corriger, jamais plus.
 
 **Cloture.** Premiere session d'appels en conditions reelles : cet apres-midi ou demain matin, mais dans les 24h. Il ne faut pas laisser retomber.
 
-## 3. Creer son acces au CRM (a faire avant 9h ou avec elle)
+## 3. Creer son acces au CRM, clic par clic (5 minutes, a faire avec elle a 9h)
 
-1. Elle va sur la page de connexion du CRM et cree un compte avec son e-mail (elle sera "scout" par defaut, c'est parfait : elle ne verra ni tes devis ni tes factures dans le cockpit).
-2. Toi, tu approuves son acces comme pour les scouts recrutement (le flux d'approbation existant).
-3. Elle se connecte, puis va sur **/prospection**. C'est sa page de travail unique, elle n'a besoin de rien d'autre.
+1. Elle ouvre le site du CRM sur son telephone ou son ordi, page d'accueil, onglet **Demander un acces** : prenom, nom, mot de passe de son choix. Elle valide. Son ecran affiche "demande en attente".
+2. Toi, sur ton compte, tu vas sur le **Hub** : sa demande apparait dans le bloc des demandes en attente. Tu cliques **Valider**. C'est tout, son compte est cree a l'instant meme.
+3. Son identifiant de connexion est genere automatiquement : **prenom.nom@novalem.internal** (donc laila.nom@novalem.internal, tout en minuscules, sans accents ni espaces). Son mot de passe est celui qu'elle a choisi a l'etape 1. Note-lui les deux sur un papier.
+4. Elle se connecte avec ces identifiants, puis va sur **/prospection**. C'est sa page de travail unique. Elle est "scout" par defaut : elle ne voit ni tes devis, ni tes factures, ni ton chiffre.
 
 ## 4. Squelette du contrat d'apporteur d'affaires (1 page a signer demain)
 
@@ -63,5 +64,6 @@ Je ne suis pas juriste, fais-le relire si tu peux, mais voici les clauses qui co
 
 1. Supabase > SQL Editor > New query > coller **supabase/prospection-schema.sql** entier > Run.
 2. Push du repo sur GitHub, Vercel deploie tout seul.
+   Pour l'envoi direct des mails depuis l'onglet Mails : ca reutilise ta cle Resend deja en place, rien a configurer. Attention, l'expediteur est celui du recrutement (contact@novalem-recrutement.fr). Si tu veux un expediteur dedie aux sites, ajoute un domaine verifie dans Resend et change SENDER_EMAIL dans Vercel, sinon ca marche tel quel.
 3. Ouvre /prospection avec ton compte : tu verras l'onglet Pilotage en plus (reserve superviseur) et l'onglet Coaching avec les reglages (objectifs, script, modele de mail) que tu peux modifier sans toucher au code.
 4. Ajoute 3 ou 4 cibles toi-meme en Reperage pour que la demo de demain ne parte pas d'un ecran vide.

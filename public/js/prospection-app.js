@@ -499,6 +499,7 @@ function renderCall() {
             '<button class="oc oc-non"  onclick="ocNon()"><b>Pas interesse</b><span class="key">5</span></button>' +
             '<button class="oc oc-hc"   onclick="ocHorsCible()"><b>Hors cible</b><span class="key">6</span></button>' +
           '</div>' +
+          '<div style="margin-top:10px"><button class="oc" style="width:100%;flex-direction:row;justify-content:center" onclick="ocAutre()"><b>Autre issue (je raconte ce qui s\'est passe)</b><span class="key">7</span></button></div>' +
           '<div class="skip"><button onclick="ocSkip()">Passer sans appeler</button>' +
           ' &middot; <button onclick="ocNote()">Ajouter une note</button></div>' +
         '</div>' +
@@ -592,6 +593,41 @@ window.ocHorsCible = function () {
   logAction(c.id, 'statut', 'hors_cible');
   advance();
 };
+window.ocAutre = function () {
+  var c = sessCurrent(); if (!c) return;
+  openModal('Autre issue — ' + esc(c.entreprise),
+    '<div class="field"><label>Ce qui s\'est passe *</label><textarea id="m-autre" placeholder="ex : c\'est la femme du gerant qui a repondu, elle dit de rappeler M. Celestin directement au 0690..., plutot interesse"></textarea></div>' +
+    '<div class="field"><label>Et maintenant ?</label><div class="qchips">' +
+      '<button class="qchip on" id="ma-next-rap" onclick="autreNext(\'rap\')">A rappeler</button>' +
+      '<button class="qchip" id="ma-next-file" onclick="autreNext(\'file\')">Laisser dans la file</button>' +
+      '<button class="qchip" id="ma-next-clos" onclick="autreNext(\'clos\')">Classer sans suite</button>' +
+    '</div></div>' +
+    '<div class="frow" id="ma-rapwrap"><div class="field"><label>Rappeler quand ?</label><input type="datetime-local" id="ma-rap"></div></div>',
+    [{ label: 'Enregistrer', cls: 'gold', fn: function () {
+      var txt = el('m-autre').value.trim();
+      if (!txt) { toast('Raconte ce qui s\'est passe, meme en deux mots', 'bad'); return; }
+      var nx = window._autreNext || 'rap';
+      var patch = { tentatives: (c.tentatives || 0) + 1,
+        notes: (c.notes ? c.notes + '\n' : '') + new Date().toLocaleDateString('fr-FR') + ' : ' + txt };
+      if (nx === 'rap') {
+        var v = el('ma-rap').value;
+        var d = v ? new Date(v) : (function () { var x = new Date(); x.setDate(x.getDate() + 1); x.setHours(9, 30, 0, 0); return x; })();
+        patch.statut = 'rappeler'; patch.rappel_le = d.toISOString();
+      } else if (nx === 'clos') { patch.statut = 'hors_cible'; patch.rappel_le = null; }
+      else { patch.statut = 'a_appeler'; patch.rappel_le = null; }
+      updCible(c.id, patch);
+      bumpCall(c, 'autre', txt.slice(0, 300));
+      closeModal(); toast('Note enregistree'); advance();
+    } }]);
+  window._autreNext = 'rap';
+};
+window.autreNext = function (n) {
+  window._autreNext = n;
+  ['rap', 'file', 'clos'].forEach(function (k) {
+    var b = el('ma-next-' + k); if (b) b.classList.toggle('on', k === n);
+  });
+  var w = el('ma-rapwrap'); if (w) w.style.display = n === 'rap' ? '' : 'none';
+};
 window.ocRappeler = function () {
   var c = sessCurrent(); if (!c) return;
   var chips = [
@@ -665,10 +701,41 @@ window.ocRdv = function () {
       '<div class="field"><label>E-mail</label><input id="m-remail" type="email" value="' + esc(c.email || '') + '"></div>' +
     '</div>' +
     '<div class="field"><label>Adresse / lieu</label><input id="m-rlieu" value="' + esc(c.adresse || (c.zone || '')) + '"></div>' +
+    '<div class="agenda-day" id="m-agenda"><b>Agenda de Louis ce jour-la</b><div class="ag-free">Chargement...</div></div>' +
     '<div class="field"><label>Note pour Louis</label><textarea id="m-rnote" placeholder="Ce qu\'il faut savoir avant le RDV : ce qui l\'interesse, son activite, son humeur..."></textarea></div>',
     [{ label: 'Valider le rendez-vous', cls: 'gold', fn: function () { saveRdv(c); } }]);
   window._rdvType = 'phy';
+  el('m-rdate').addEventListener('change', loadAgendaDay);
+  loadAgendaDay();
 };
+// Montre les RDV deja poses ce jour-la (uniquement les vrais RDV a heure fixe,
+// pas les taches sans horaire que Louis met aussi dans son agenda)
+function loadAgendaDay() {
+  var box = el('m-agenda'); if (!box) return;
+  var dv = el('m-rdate').value; if (!dv) return;
+  var from = new Date(dv + 'T00:00:00').toISOString();
+  var to = new Date(dv + 'T23:59:59').toISOString();
+  sb().from('web_evenements').select('titre,type,date_debut,lieu')
+    .in('type', ['rdv_physique', 'rdv_visio'])
+    .eq('statut', 'a_faire')
+    .gte('date_debut', from).lte('date_debut', to)
+    .order('date_debut')
+    .then(function (r) {
+      if (!el('m-agenda')) return;
+      var evs = r.data || [];
+      if (r.error) { el('m-agenda').innerHTML = '<b>Agenda de Louis ce jour-la</b><div class="ag-free">Agenda indisponible, verifie avec Louis de vive voix</div>'; return; }
+      if (!evs.length) {
+        el('m-agenda').innerHTML = '<b>Agenda de Louis ce jour-la</b><div class="ag-free">Journee libre, tu peux caler le creneau que tu veux</div>';
+        return;
+      }
+      var html = evs.map(function (e) {
+        var d = new Date(e.date_debut);
+        var hh = String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0');
+        return '<div class="ag-item"><span>' + hh + '</span>' + esc(e.titre) + (e.lieu ? ' (' + esc(e.lieu) + ')' : '') + '</div>';
+      }).join('');
+      el('m-agenda').innerHTML = '<b>Agenda de Louis ce jour-la : evite ces creneaux (compte 1h30 par RDV avec la route)</b>' + html;
+    });
+}
 window.rdvType = function (t) {
   window._rdvType = t;
   el('m-rtype-phy').classList.toggle('on', t === 'phy');
@@ -885,7 +952,8 @@ VIEWS.mails = function () {
         '<button class="btn mini" onclick="mailCopie(\'' + c.id + '\')">Copier le mail</button>' +
         '<button class="btn mini" onclick="mailObjet(\'' + c.id + '\')">Copier l\'objet</button>' +
         '<a class="btn mini" href="' + esc('mailto:' + (c.email || '') + '?subject=' + encodeURIComponent(m.objet) + '&body=' + encodeURIComponent(m.corps)) + '">Ouvrir dans la messagerie</a>' +
-        '<button class="btn mini gold" style="margin-left:auto" onclick="mailEnvoye(\'' + c.id + '\')">Marquer envoye</button>' +
+        '<button class="btn mini gold" style="margin-left:auto" id="send-' + c.id + '" onclick="mailEnvoiDirect(\'' + c.id + '\')">Envoyer maintenant</button>' +
+        '<button class="btn mini ghost" onclick="mailEnvoye(\'' + c.id + '\')" title="Si tu l\'as envoye depuis ta messagerie">Deja envoye ailleurs</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -895,6 +963,29 @@ VIEWS.mails = function () {
     '<div style="margin-top:20px">' +
     (html || '<div class="card empty"><b>File vide</b><span>Aucun mail en attente. Tout est parti, propre.</span></div>') +
     '</div>';
+};
+window.mailEnvoiDirect = function (id) {
+  var c = cible(id); if (!c) return;
+  if (!c.email || c.email.indexOf('@') < 1) { toast('E-mail manquant : modifie la fiche d\'abord', 'bad'); return; }
+  var m = mailFor(c);
+  var btn = el('send-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = 'Envoi...'; }
+  fetch('/api/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: c.email, subject: m.objet, body: m.corps,
+      from_name: (firstName() || DB.me.name) + ' — Novalem' })
+  }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (x) {
+      if (!x.ok) throw new Error(x.j && x.j.error || 'Envoi refuse');
+      toast('Mail envoye a ' + c.email, 'gold');
+      window.mailEnvoye(id);
+    })
+    .catch(function (e) {
+      console.warn(e);
+      if (btn) { btn.disabled = false; btn.textContent = 'Envoyer maintenant'; }
+      toast('Envoi impossible (' + (e.message || 'erreur') + '). Utilise Copier + ta messagerie.', 'bad');
+    });
 };
 window.mailCopie = function (id) { var c = cible(id); if (c) copyText(mailFor(c).corps, 'Mail copie'); };
 window.mailObjet = function (id) { var c = cible(id); if (c) copyText(mailFor(c).objet, 'Objet copie'); };
@@ -1006,7 +1097,7 @@ window.exportCSV = function () {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// VUE : COACHING
+// VUE : LA METHODE
 // ═══════════════════════════════════════════════════════════════════
 VIEWS.coaching = function () {
   var s = cfg();
@@ -1018,7 +1109,7 @@ VIEWS.coaching = function () {
   }).join('');
 
   el('view').innerHTML =
-    '<div class="h1">Coaching<small>Tout ce qu\'il faut savoir pour reussir tes appels. Relis cette page avant chaque session, surtout au debut.</small></div>' +
+    '<div class="h1">La methode<small>Comment on bosse chez Novalem : le parcours, le script, les reponses aux objections. Relis-la avant tes premieres sessions, apres ca viendra tout seul.</small></div>' +
 
     '<div class="sec-t">Le parcours d\'un prospect</div>' +
     '<div class="card pad"><div class="proc">' +
@@ -1043,7 +1134,7 @@ VIEWS.coaching = function () {
     '<div class="card pad">' + reglesHtml + '</div>' +
 
     (isSup() ?
-      '<div class="sec-t">Reglages (visible par toi seul, Louis)</div>' +
+      '<div class="sec-t">Reglages (visibles par toi seul, Louis) : mets tout ca a ta sauce</div>' +
       '<div class="card pad">' +
         '<div class="frow">' +
           '<div class="field"><label>Objectif d\'appels par jour</label><input type="number" id="cf-appels" value="' + (s.obj_appels_jour || 30) + '" min="1"></div>' +
@@ -1176,7 +1267,7 @@ document.addEventListener('keydown', function (e) {
   var tag = (document.activeElement && document.activeElement.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if (VIEW !== 'session' || !sessCurrent()) return;
-  var map = { '1': window.ocRdv, '2': window.ocRappeler, '3': window.ocMail, '4': window.ocNrp, '5': window.ocNon, '6': window.ocHorsCible };
+  var map = { '1': window.ocRdv, '2': window.ocRappeler, '3': window.ocMail, '4': window.ocNrp, '5': window.ocNon, '6': window.ocHorsCible, '7': window.ocAutre };
   if (map[e.key]) { e.preventDefault(); map[e.key](); }
   if (e.key === 'c' || e.key === 'C') {
     var c = sessCurrent();

@@ -303,3 +303,41 @@ a{color:var(--gold);text-decoration:none}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+/* ── RESPONSIVE MOBILE (telephone) ─────────────────── */
+.agenda-day{background:var(--info-soft);border:1px solid var(--info-line);border-radius:var(--r2);padding:11px 14px;font-size:12.5px}
+.agenda-day b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--info);margin-bottom:6px;font-weight:800}
+.agenda-day .ag-item{display:flex;gap:9px;padding:3px 0;color:var(--ink);font-weight:600}
+.agenda-day .ag-item span{color:var(--info);font-variant-numeric:tabular-nums;font-weight:800;flex-shrink:0}
+.agenda-day .ag-free{color:var(--ok);font-weight:700}
+@media(max-width:600px){
+  html{font-size:14px}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex-shrink:0;padding:8px 14px;font-size:13px}
+  .top{height:56px}
+  .top-date{display:none}
+  .top-sep{display:none}
+  .top-user span{display:none}
+  .ring-lbl span{display:none}
+  .h1{font-size:22px}
+  .callcard{padding:20px 18px;border-radius:var(--r3)}
+  .cc-ent{font-size:22px}
+  .cc-tel{font-size:29px;letter-spacing:.01em}
+  .outcomes{grid-template-columns:repeat(2,1fr);gap:8px}
+  .oc{padding:12px 8px}
+  .oc .key{display:none}
+  .row{flex-wrap:wrap;gap:8px;padding:12px 14px}
+  .row .r-main{flex-basis:100%}
+  .stat b{font-size:24px}
+  .mission{padding:16px}
+  .modal{max-width:100%;border-radius:var(--r3)}
+  .modal-b{padding:16px 18px 20px}
+  .filters input[type=search]{min-width:0;flex:1}
+  .btn.big{width:100%;justify-content:center}
+  .ptable th,.ptable td{padding:8px 8px;font-size:12px}
+  .bars{gap:3px;height:100px}
+  .bar span{font-size:8px}
+  .fstep .fl{width:74px;font-size:11px}
+  .datechips .qchip{flex:1;text-align:center}
+}
