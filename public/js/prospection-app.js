@@ -669,15 +669,48 @@ function doRappel(c, date) {
   toast('Rappel programme ' + fmtDate(date.toISOString()));
   advance();
 }
+// Champ civilite reutilisable : "Pas de nom donne" / "Monsieur X" / "Madame X".
+// Stocke en un seul champ texte (contact_nom) : "M. Dupont" ou "Mme Dupont".
+function civFieldHtml(existing) {
+  var civ = 'aucun', nom = '';
+  var ex = (existing || '').trim();
+  if (/^M\.\s/.test(ex)) { civ = 'm'; nom = ex.replace(/^M\.\s*/, ''); }
+  else if (/^Mme\s/.test(ex)) { civ = 'mme'; nom = ex.replace(/^Mme\s*/, ''); }
+  else if (ex) { civ = 'm'; nom = ex; }
+  window._civ = civ;
+  return '<div class="field"><label>Il y a un nom ?</label><div class="qchips">' +
+    '<button class="qchip' + (civ === 'aucun' ? ' on' : '') + '" id="civ-aucun" onclick="setCiv(\'aucun\')">Pas de nom donne</button>' +
+    '<button class="qchip' + (civ === 'm' ? ' on' : '') + '" id="civ-m" onclick="setCiv(\'m\')">Monsieur</button>' +
+    '<button class="qchip' + (civ === 'mme' ? ' on' : '') + '" id="civ-mme" onclick="setCiv(\'mme\')">Madame</button>' +
+    '</div></div>' +
+    '<div class="field" id="civ-nomwrap" style="' + (civ === 'aucun' ? 'display:none' : '') + '">' +
+    '<label>Nom de famille</label><input id="civ-nom" value="' + esc(nom) + '" placeholder="ex : Renaud"></div>';
+}
+window.setCiv = function (v) {
+  window._civ = v;
+  ['aucun', 'm', 'mme'].forEach(function (k) {
+    var b = el('civ-' + k); if (b) b.classList.toggle('on', k === v);
+  });
+  var w = el('civ-nomwrap');
+  if (w) w.style.display = v === 'aucun' ? 'none' : '';
+  if (v !== 'aucun') { var n = el('civ-nom'); if (n) n.focus(); }
+};
+function civValue() {
+  if (window._civ === 'aucun') return null;
+  var n = (el('civ-nom') ? el('civ-nom').value : '').trim();
+  if (!n) return null;
+  return (window._civ === 'mme' ? 'Mme ' : 'M. ') + n;
+}
 window.ocMail = function () {
   var c = sessCurrent(); if (!c) return;
   openModal('Il veut un mail — ' + esc(c.entreprise),
     '<div class="field"><label>Adresse e-mail *</label><input id="m-email" type="email" value="' + esc(c.email || '') + '" placeholder="contact@entreprise.gp"></div>' +
-    '<div class="field"><label>Prenom / nom du contact</label><input id="m-contact" value="' + esc(c.contact_nom || '') + '" placeholder="ex : M. Dupont"></div>',
+    civFieldHtml(c.contact_nom) +
+    '<div style="font-size:11.5px;color:var(--mut2);font-weight:600">Le mail commencera par "Bonjour Monsieur / Madame X," s\'il y a un nom, sinon juste "Bonjour,".</div>',
     [{ label: 'Ajouter a la file de mails', cls: 'gold', fn: function () {
       var em = el('m-email').value.trim();
       if (!em || em.indexOf('@') < 1) { toast('Il faut une adresse e-mail valide', 'bad'); return; }
-      updCible(c.id, { statut: 'mail_a_envoyer', email: em, contact_nom: el('m-contact').value.trim() || c.contact_nom,
+      updCible(c.id, { statut: 'mail_a_envoyer', email: em, contact_nom: civValue() || null,
         tentatives: (c.tentatives || 0) + 1 });
       bumpCall(c, 'mail');
       closeModal();
@@ -1035,7 +1068,9 @@ function mailFor(c) {
     if (ov) { ov = JSON.parse(ov); if (ov && ov.corps) return { objet: ov.objet, corps: ov.corps, custom: true }; }
   } catch (e) {}
   var s = cfg();
-  var contact = c.contact_nom ? ' ' + c.contact_nom : '';
+  var cn = (c.contact_nom || '').trim();
+  if (cn) cn = cn.replace(/^M\.\s*/, 'Monsieur ').replace(/^Mme\s*/, 'Madame ');
+  var contact = cn ? ' ' + cn : '';
   var body = (s.email_modele || '')
     .replace(/\{contact\}/g, contact)
     .replace(/\{entreprise\}/g, c.entreprise || '')
