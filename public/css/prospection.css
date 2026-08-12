@@ -28,7 +28,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
-body{font-family:'Outfit',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh}
+body{font-family:'Outfit',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 a{color:var(--gold);text-decoration:none}
@@ -47,7 +47,7 @@ a{color:var(--gold);text-decoration:none}
 .top-logo b i{font-style:normal;color:var(--gold)}
 .top-logo span{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--mut);font-weight:600;margin-top:2px}
 .top-sep{width:1px;height:26px;background:var(--line2)}
-.top-stats{display:flex;align-items:center;gap:16px;margin-left:auto}
+.top-stats{display:flex;align-items:center;gap:16px;margin-left:auto;min-width:0;flex-shrink:1}
 .ring-wrap{display:flex;align-items:center;gap:9px}
 .ring{width:40px;height:40px;transform:rotate(-90deg)}
 .ring .rbg{fill:none;stroke:var(--line);stroke-width:4}
@@ -315,8 +315,8 @@ a{color:var(--gold);text-decoration:none}
   .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
   .tabs::-webkit-scrollbar{display:none}
   .tab{flex-shrink:0;padding:8px 14px;font-size:13px}
-  .top{height:56px}
-  .top-date{display:none}
+  .top{height:56px;gap:8px}
+  #top-date{display:none}
   .top-sep{display:none}
   .top-user span{display:none}
   .ring-lbl span{display:none}
