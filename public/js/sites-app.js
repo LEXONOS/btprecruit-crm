@@ -432,7 +432,43 @@ function matchClient(c, q) {
   return [c.entreprise, c.contact_nom, c.ville, c.secteur, c.email, c.telephone]
     .some(function (v) { return (v || '').toLowerCase().indexOf(q) >= 0; });
 }
+// Valeur estimee d'un client du pipeline : son meilleur devis non refuse,
+// sinon l'hypothese de base 1 site = 390 euros.
+function clientValeur(c) {
+  var ds = devisOfClient(c.id).filter(function (d) { return d.statut !== 'refuse'; });
+  var best = 0;
+  ds.forEach(function (d) { var m = parseFloat(d.montant_ht || 0); if (m > best) best = m; });
+  return best > 0 ? best : 390;
+}
 function renderPipeline() {
+  // Bandeau CA : potentiel (avant signature), engage (signe -> sav), et total pondere
+  var pot = 0, potN = 0, eng = 0, engN = 0;
+  DB.clients.forEach(function (c) {
+    var st = c.statut_pipeline;
+    if (st === 'perdu') return;
+    var v = clientValeur(c);
+    if (st === 'prospect' || st === 'contacte' || st === 'devis_envoye') { pot += v; potN++; }
+    else { eng += v; engN++; }
+  });
+  var fmtE = function (n) { return Math.round(n).toLocaleString('fr-FR') + ' \u20AC'; };
+  var caBar =
+    '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">' +
+      '<div style="flex:1;min-width:200px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:13px 16px">' +
+        '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu)">CA potentiel en pipeline</div>' +
+        '<div style="font-size:24px;font-weight:800;color:var(--ac);font-variant-numeric:tabular-nums;margin-top:3px">' + fmtE(pot) + '</div>' +
+        '<div style="font-size:10.5px;color:var(--mu2)">' + potN + ' client(s) avant signature &middot; base 390 \u20AC par site, devis reel si emis</div>' +
+      '</div>' +
+      '<div style="flex:1;min-width:200px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:13px 16px">' +
+        '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu)">CA signe et en production</div>' +
+        '<div style="font-size:24px;font-weight:800;color:var(--green,#34a853);font-variant-numeric:tabular-nums;margin-top:3px">' + fmtE(eng) + '</div>' +
+        '<div style="font-size:10.5px;color:var(--mu2)">' + engN + ' client(s) du stade signe a SAV</div>' +
+      '</div>' +
+      '<div style="flex:1;min-width:200px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:13px 16px">' +
+        '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu)">Total pipeline actif</div>' +
+        '<div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:3px">' + fmtE(pot + eng) + '</div>' +
+        '<div style="font-size:10.5px;color:var(--mu2)">' + (potN + engN) + ' client(s) hors perdus</div>' +
+      '</div>' +
+    '</div>';
   var cols = PIPE_ORDER.map(function (st) {
     var items = DB.clients.filter(function (c) { return c.statut_pipeline === st && matchClient(c, _pipeQ); });
     var cards = items.map(function (c) {
@@ -447,11 +483,11 @@ function renderPipeline() {
       '</div>';
     }).join('') || '<div class="empty" style="padding:10px">-</div>';
     return '<div class="kbc">' +
-      '<div class="kbh sw-kh k-' + st + '"><span class="kbh-t">' + esc(PIPE_LABELS[st]) + '</span><span class="kbh-n">' + items.length + '</span></div>' +
+      '<div class="kbh sw-kh k-' + st + '"><span class="kbh-t">' + esc(PIPE_LABELS[st]) + '</span><span style="font-size:9px;color:var(--mu2);margin-left:auto;margin-right:6px;font-variant-numeric:tabular-nums">' + (st === 'perdu' ? '' : Math.round(items.reduce(function (t, c) { return t + clientValeur(c); }, 0)).toLocaleString('fr-FR') + ' \u20AC') + '</span><span class="kbh-n">' + items.length + '</span></div>' +
       '<div class="kbcards">' + cards + '</div>' +
     '</div>';
   }).join('');
-  el('view-pipeline').innerHTML = '<div class="kb" style="grid-template-columns:repeat(' + PIPE_ORDER.length + ',minmax(210px,1fr))">' + cols + '</div>';
+  el('view-pipeline').innerHTML = caBar + '<div class="kb" style="grid-template-columns:repeat(' + PIPE_ORDER.length + ',minmax(210px,1fr))">' + cols + '</div>';
 }
 
 async function moveClient(id, dir) {
@@ -1973,34 +2009,9 @@ function evDueList() {
     .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); });
 }
 
-// ── Vue Agenda : calendrier du mois + liste des prochains rappels ──
+// ── Vue Agenda : composant partage NovAgenda (jour / semaine / mois) ──
+var _agInst = null;
 function renderAgenda() {
-  if (!_agMonth) { var t0 = new Date(); _agMonth = new Date(t0.getFullYear(), t0.getMonth(), 1); }
-  var y = _agMonth.getFullYear(), m = _agMonth.getMonth();
-  var moisFR = _agMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
-  var first = new Date(y, m, 1);
-  var startOffset = (first.getDay() + 6) % 7; // lundi = 0
-  var gridStart = new Date(y, m, 1 - startOffset);
-  var head = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-    .map(function (j) { return '<div class="ag-dow">' + j + '</div>'; }).join('');
-
-  var cells = '', today = new Date();
-  for (var i = 0; i < 42; i++) {
-    var day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
-    var inMonth = day.getMonth() === m;
-    var evs = DB.evenements.filter(function (e) { return isSameDay(new Date(e.date_debut), day); })
-      .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); });
-    var evHtml = evs.slice(0, 3).map(function (e) {
-      var extra = e.statut === 'fait' ? ' done' : (e.statut === 'annule' ? ' annule' : '');
-      var lbl = e.client_id ? clientName(e.client_id) : e.titre;
-      return '<div class="ag-ev t-' + e.type + extra + '" onclick="event.stopPropagation();openEventDetail(\'' + e.id + '\')" title="' + esc(e.titre) + '">' + esc(lbl) + '</div>';
-    }).join('');
-    var more = evs.length > 3 ? '<div class="ag-more">+' + (evs.length - 3) + '</div>' : '';
-    var cls = 'ag-cell' + (inMonth ? '' : ' out') + (isSameDay(day, today) ? ' today' : '');
-    cells += '<div class="' + cls + '" onclick="openEventForm(null,\'' + localISODate(day) + '\')"><div class="ag-dnum">' + day.getDate() + '</div>' + evHtml + more + '</div>';
-  }
-
   var up = DB.evenements.filter(function (e) { return e.statut === 'a_faire'; })
     .sort(function (a, b) { return new Date(a.date_debut) - new Date(b.date_debut); }).slice(0, 14);
   var upHtml = up.map(function (e) {
@@ -2015,22 +2026,27 @@ function renderAgenda() {
   }).join('') || '<div class="empty">Aucun rappel a venir</div>';
 
   el('view-agenda').innerHTML =
-    '<div class="ag-wrap">' +
-      '<div class="ag-cal">' +
-        '<div class="ag-nav"><button class="btn bg bxs" onclick="agShift(-1)">&larr;</button>' +
-          '<div class="ag-title">' + esc(moisFR.charAt(0).toUpperCase() + moisFR.slice(1)) + '</div>' +
-          '<button class="btn bg bxs" onclick="agShift(1)">&rarr;</button>' +
-          '<button class="btn bg bxs" style="margin-left:8px" onclick="agToday()">Aujourd\'hui</button></div>' +
-        '<div class="ag-dows">' + head + '</div>' +
-        '<div class="ag-grid">' + cells + '</div>' +
-      '</div>' +
+    '<div class="ag-wrap" style="grid-template-columns:1fr 280px;align-items:start">' +
+      '<div id="ag-mount"></div>' +
       '<div class="ag-side">' +
         '<div class="syne" style="font-weight:700;font-size:12px;margin-bottom:10px">Prochains rappels</div>' + upHtml +
       '</div>' +
     '</div>';
+
+  var keep = _agInst ? _agInst.getState() : null;
+  _agInst = NovAgenda.create(el('ag-mount'), {
+    dark: true,
+    events: function () { return DB.evenements; },
+    labelFor: function (ev) { return ev.client_id ? clientName(ev.client_id) : ev.titre; },
+    onSlotClick: function (d) {
+      var pad = function (n) { return String(n).padStart(2, '0'); };
+      openEventForm(null, d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()));
+    },
+    onEventClick: function (ev) { openEventDetail(ev.id); },
+    view: keep ? keep.view : 'semaine',
+    date: keep ? keep.date : new Date()
+  });
 }
-function agShift(n) { _agMonth = new Date(_agMonth.getFullYear(), _agMonth.getMonth() + n, 1); renderAgenda(); }
-function agToday() { var t = new Date(); _agMonth = new Date(t.getFullYear(), t.getMonth(), 1); renderAgenda(); }
 
 // Clic sur un evenement : ouvre la fiche client si rattache, sinon le formulaire
 function openEventDetail(id) {
@@ -2049,7 +2065,7 @@ function openEventForm(id, prefillDateISO, prefillClientId, prefillType) {
   var clientOpts = '<option value="">Aucun (evenement general)</option>' + DB.clients.map(function (c) {
     return '<option value="' + c.id + '"' + (clientVal === c.id ? ' selected' : '') + '>' + esc(c.entreprise) + '</option>';
   }).join('');
-  var dtVal = e ? toLocalInput(e.date_debut) : (prefillDateISO ? prefillDateISO + 'T09:00' : toLocalInput(new Date().toISOString()));
+  var dtVal = e ? toLocalInput(e.date_debut) : (prefillDateISO ? (prefillDateISO.indexOf('T') > 0 ? prefillDateISO : prefillDateISO + 'T09:00') : toLocalInput(new Date().toISOString()));
 
   var b =
     '<div class="fgrp"><label class="lbl">Intitule *</label><input id="e-titre" value="' + esc(e && e.titre) + '" placeholder="Relancer le devis, appeler, RDV cadrage..."></div>' +

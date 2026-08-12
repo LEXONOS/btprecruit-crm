@@ -120,7 +120,9 @@ var DB = {
   actions: [],         // 30 derniers jours, tous utilisateurs
   users: {},           // id -> nom affiche
   cfg: null,           // CFG_DEFAULTS surcharge par web_parametres.data.prospection
-  signes: 0            // clients issus de la prospection passes en signe/en_cours/livre
+  signes: 0,           // clients issus de la prospection passes en signe/en_cours/livre
+  evenements: [],      // web_evenements (agenda partage avec le CRM Sites)
+  clientNames: {}      // id client -> entreprise (libelles agenda)
 };
 var VIEW = 'jour';
 var SESSION = null;    // { queue:[ids], i, appels, rdv, t0 }
@@ -212,6 +214,17 @@ function load() {
       _cfgVersion = r.data ? r.data.updated_at : null;
     }).catch(function () { DB.cfg = Object.assign({}, CFG_DEFAULTS); });
 
+  var pEvents = sb().from('web_evenements').select('*')
+    .gte('date_debut', new Date(Date.now() - 30 * 864e5).toISOString())
+    .order('date_debut').limit(2000)
+    .then(function (r) { DB.evenements = r.data || []; }).catch(function () { DB.evenements = []; });
+
+  var pClientNames = sb().from('web_clients').select('id,entreprise')
+    .then(function (r) {
+      DB.clientNames = {};
+      (r.data || []).forEach(function (c) { DB.clientNames[c.id] = c.entreprise; });
+    }).catch(function () { DB.clientNames = {}; });
+
   var pSignes = sb().from('web_clients').select('id,statut_pipeline,source')
     .ilike('source', 'Prospection%')
     .then(function (r) {
@@ -220,7 +233,7 @@ function load() {
       }).length;
     }).catch(function () {});
 
-  return Promise.all([pMe, pUsers, pCibles, pActions, pCfg, pSignes]);
+  return Promise.all([pMe, pUsers, pCibles, pActions, pCfg, pSignes, pEvents, pClientNames]);
 }
 
 function saveCfg(patch) {
@@ -824,6 +837,7 @@ function saveRdv(c) {
     return Promise.all([pEv, pC]);
   }).then(function () {
     if (SESSION) { SESSION.rdv++; SESSION.appels++; }
+    agReload();
     logAction(c.id, 'rdv', null, fmtDate(when.toISOString()));
     logAction(c.id, 'appel', 'rdv');
     closeModal();
@@ -936,6 +950,107 @@ function doDecal(id, date) {
   toast('Rappel decale ' + fmtDate(date.toISOString()));
   refreshTop();
   if (VIEW === 'rappels') VIEWS.rappels(); else show(VIEW);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VUE : AGENDA — le composant partage NovAgenda, en theme clair
+// ═══════════════════════════════════════════════════════════════════
+var _agInst = null;
+VIEWS.agenda = function () {
+  el('view').innerHTML =
+    '<div class="h1" style="margin-bottom:16px">Agenda<small>Les RDV de Louis, a la semaine ou a la journee. Clique sur un creneau vide pour poser un evenement, sur un RDV pour le detail. Les taches sans heure restent dans le bandeau Journee.</small></div>' +
+    '<div id="agenda-mount"></div>';
+  _agInst = NovAgenda.create(el('agenda-mount'), {
+    events: function () { return DB.evenements; },
+    labelFor: function (ev) {
+      return (ev.client_id && DB.clientNames[ev.client_id]) ? DB.clientNames[ev.client_id] : ev.titre;
+    },
+    onSlotClick: function (d) { agNewEvent(d); },
+    onEventClick: function (ev) { agEventDetail(ev); },
+    view: 'semaine'
+  });
+};
+function agReload() {
+  return sb().from('web_evenements').select('*')
+    .gte('date_debut', new Date(Date.now() - 30 * 864e5).toISOString())
+    .order('date_debut').limit(2000)
+    .then(function (r) { if (!r.error) DB.evenements = r.data || []; })
+    .then(function () { if (_agInst && VIEW === 'agenda') _agInst.refresh(); });
+}
+function toLocalInputP(d) {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+function agNewEvent(d) {
+  var typeOpts = [['rdv_physique', 'RDV sur place'], ['rdv_visio', 'RDV visio / telephone'], ['rappel', 'Rappel'], ['tache', 'Tache']]
+    .map(function (t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('');
+  openModal('Nouvel evenement',
+    '<div class="field"><label>Intitule *</label><input id="ag-titre" placeholder="RDV Garage Antilles, rappeler M. Celestin..."></div>' +
+    '<div class="frow">' +
+      '<div class="field"><label>Type</label><select id="ag-type">' + typeOpts + '</select></div>' +
+      '<div class="field"><label>Duree</label><select id="ag-duree"><option value="30">30 min</option><option value="60" selected>1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div>' +
+    '</div>' +
+    '<div class="field"><label>Date et heure</label><input type="datetime-local" id="ag-date" value="' + toLocalInputP(d) + '"></div>' +
+    '<div class="field"><label>Lieu</label><input id="ag-lieu" placeholder="Adresse, telephone, visio..."></div>' +
+    '<div class="field"><label>Note</label><textarea id="ag-note"></textarea></div>',
+    [{ label: 'Enregistrer', cls: 'gold', fn: function () {
+      var titre = el('ag-titre').value.trim();
+      if (!titre) { toast('Il faut un intitule', 'bad'); return; }
+      var dv = el('ag-date').value;
+      if (!dv) { toast('Il faut la date', 'bad'); return; }
+      var d0 = new Date(dv);
+      var d1 = new Date(d0.getTime() + parseInt(el('ag-duree').value, 10) * 60000);
+      sb().from('web_evenements').insert([{
+        titre: titre, type: el('ag-type').value,
+        date_debut: d0.toISOString(), date_fin: d1.toISOString(),
+        lieu: el('ag-lieu').value.trim() || null,
+        notes: el('ag-note').value.trim() || null,
+        statut: 'a_faire', auto: false
+      }]).then(function (r) {
+        if (r.error) { toast('Enregistrement impossible', 'bad'); return; }
+        closeModal(); toast('Evenement pose');
+        agReload();
+      });
+    } }]);
+}
+function agEventDetail(ev) {
+  var st = { rdv_physique: 'RDV sur place', rdv_visio: 'RDV visio / tel', rappel: 'Rappel', tache: 'Tache', echeance: 'Echeance' };
+  var clientLbl = ev.client_id && DB.clientNames[ev.client_id] ? DB.clientNames[ev.client_id] : null;
+  var d0 = new Date(ev.date_debut);
+  openModal(esc(ev.titre),
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<span class="chip">' + esc(st[ev.type] || ev.type) + '</span>' +
+      '<span class="chip">' + esc(fmtDate(ev.date_debut)) + '</span>' +
+      (clientLbl ? '<span class="chip">' + esc(clientLbl) + '</span>' : '') +
+      (ev.statut === 'fait' ? '<span class="pill p-rdv_pris">Fait</span>' : '') +
+    '</div>' +
+    (ev.lieu ? '<div class="field"><label>Lieu</label><div style="font-size:14px;font-weight:600">' + esc(ev.lieu) + '</div></div>' : '') +
+    (ev.notes ? '<div class="cc-notes" style="margin:0">' + esc(ev.notes) + '</div>' : '') +
+    '<div class="field"><label>Deplacer a</label><input type="datetime-local" id="agd-date" value="' + toLocalInputP(d0) + '"></div>',
+    [{ label: 'Supprimer', cls: 'danger', fn: function () {
+        if (!window.confirm('Supprimer cet evenement ?')) return;
+        sb().from('web_evenements').delete().eq('id', ev.id).then(function (r) {
+          if (r.error) { toast('Suppression impossible', 'bad'); return; }
+          closeModal(); toast('Evenement supprime'); agReload();
+        });
+      } },
+     { label: ev.statut === 'fait' ? 'Rouvrir' : 'Marquer fait', cls: '', fn: function () {
+        sb().from('web_evenements').update({ statut: ev.statut === 'fait' ? 'a_faire' : 'fait' }).eq('id', ev.id).then(function (r) {
+          if (r.error) { toast('Action impossible', 'bad'); return; }
+          closeModal(); toast('Mis a jour'); agReload();
+        });
+      } },
+     { label: 'Deplacer', cls: 'gold', fn: function () {
+        var v = el('agd-date').value;
+        if (!v) { toast('Choisis la nouvelle date', 'bad'); return; }
+        var nd = new Date(v);
+        var dur = ev.date_fin ? (new Date(ev.date_fin) - new Date(ev.date_debut)) : 3600e3;
+        sb().from('web_evenements').update({
+          date_debut: nd.toISOString(), date_fin: new Date(nd.getTime() + dur).toISOString()
+        }).eq('id', ev.id).then(function (r) {
+          if (r.error) { toast('Deplacement impossible', 'bad'); return; }
+          closeModal(); toast('Evenement deplace'); agReload();
+        });
+      } }]);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1393,6 +1508,15 @@ VIEWS.pilotage = function () {
       '<div class="card stat"><b>' + rdv + '</b><span>RDV pris</span><span class="sub">' + pctOf(rdv, appelees) + ' % des cibles appelees</span></div>' +
       '<div class="card stat"><b>' + appelees + '</b><span>Cibles appelees</span><span class="sub">sur ' + total + ' au fichier</span></div>' +
       '<div class="card stat"><b>' + DB.signes + '</b><span>Clients signes</span><span class="sub">issus de la prospection</span></div>' +
+    '</div>' +
+    '<div class="mission" style="margin-top:14px">' +
+      '<div class="mission-head"><b>Chiffre d\'affaires potentiel de la prospection</b>' +
+      '<span>base 390 &euro; par site</span></div>' +
+      '<div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:10px">' +
+        '<div><div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums">' + (rdv * 390).toLocaleString('fr-FR') + ' &euro;</div><div style="font-size:11.5px;color:var(--mut);font-weight:700">RDV pris (' + rdv + ' x 390)</div></div>' +
+        '<div><div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ok)">' + (DB.signes * 390).toLocaleString('fr-FR') + ' &euro;</div><div style="font-size:11.5px;color:var(--mut);font-weight:700">Minimum deja signe (' + DB.signes + ' x 390)</div></div>' +
+      '</div>' +
+      '<div class="mnote">Estimation basse : chaque option ou formule superieure vendue au RDV fait monter le reel.</div>' +
     '</div>' +
 
     '<div class="sec-t">Entonnoir</div>' +

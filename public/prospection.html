@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="/css/prospection.css">
+<link rel="stylesheet" href="/css/novalem-agenda.css">
 </head>
 <body>
 <!-- Meme porte d'entree que le reste du CRM : redirige vers / si pas de session -->
@@ -41,6 +42,7 @@
   <div class="tab act" data-v="jour">Ma journ&eacute;e</div>
   <div class="tab" data-v="session">Session d'appels</div>
   <div class="tab" data-v="rappels">Rappels<span class="tb" id="tb-rap" style="display:none">0</span></div>
+  <div class="tab" data-v="agenda">Agenda</div>
   <div class="tab" data-v="reperage">Rep&eacute;rage</div>
   <div class="tab" data-v="mails">Mails<span class="tb" id="tb-mails" style="display:none">0</span></div>
   <div class="tab" data-v="fichier">Fichier<span class="tb" id="tb-fichier" style="display:none">0</span></div>
@@ -54,6 +56,7 @@
 <canvas id="confetti"></canvas>
 <div id="modal-root"></div>
 
+<script src="/js/novalem-agenda.js"></script>
 <script src="/js/prospection-app.js"></script>
 </body>
 </html>
