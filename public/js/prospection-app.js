@@ -292,6 +292,10 @@ function refreshTop() {
   var f = firstName() || DB.me.name;
   el('u-name').textContent = f;
   el('u-avatar').textContent = (f[0] || '?').toUpperCase();
+  var nr = dueRappels().length;
+  el('tb-rap').style.display = nr ? '' : 'none';
+  el('tb-rap').textContent = String(nr);
+  el('tb-rap').style.background = 'var(--bad)';
   var nm = mailsAEnvoyer().length;
   el('tb-mails').style.display = nm ? '' : 'none';
   el('tb-mails').textContent = String(nm);
@@ -805,6 +809,103 @@ function saveRdv(c) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// VUE : RAPPELS — tous les rappels programmes, groupes par echeance
+// ═══════════════════════════════════════════════════════════════════
+function lastRappelNote(c) {
+  if (!c.notes) return '';
+  var lines = c.notes.split('\n').filter(function (l) { return l.trim(); });
+  return lines.length ? lines[lines.length - 1] : '';
+}
+VIEWS.rappels = function () {
+  var withRap = DB.cibles.filter(function (c) {
+    return c.rappel_le && ['rappeler', 'mail_envoye'].indexOf(c.statut) >= 0;
+  }).sort(function (a, b) { return new Date(a.rappel_le) - new Date(b.rappel_le); });
+
+  var now = new Date();
+  var todayK = todayKey(now);
+  var tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+  var tomorrowK = todayKey(tomorrow);
+
+  var groups = { retard: [], jour: [], demain: [], plus: [] };
+  withRap.forEach(function (c) {
+    var d = new Date(c.rappel_le), k = todayKey(d);
+    if (d < now && k !== todayK) groups.retard.push(c);
+    else if (k === todayK) (d <= now ? groups.retard : groups.jour).push(c);
+    else if (k === tomorrowK) groups.demain.push(c);
+    else groups.plus.push(c);
+  });
+
+  function rowsOf(list, showDate) {
+    return list.map(function (c) {
+      var d = new Date(c.rappel_le);
+      var hh = String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0');
+      var when = showDate ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + hh : hh;
+      var note = lastRappelNote(c);
+      return '<div class="row">' +
+        '<span class="chip" style="min-width:86px;justify-content:center;font-variant-numeric:tabular-nums;font-weight:800;color:var(--ink)">' + esc(when) + '</span>' +
+        '<div class="r-main"><b>' + esc(c.entreprise) + '</b>' +
+        '<span>' + esc(c.zone || '') + (note ? ' &middot; ' + esc(note) : '') + '</span></div>' +
+        '<span class="pill p-' + esc(c.statut) + '">' + esc(STATUTS[c.statut]) + '</span>' +
+        '<span class="r-tel">' + esc(fmtTel(c.telephone)) + '</span>' +
+        '<button class="btn mini" onclick="decalRappel(\'' + c.id + '\')">D&eacute;caler</button>' +
+        '<button class="btn mini gold" onclick="startSession(\'' + c.id + '\')">Appeler</button>' +
+      '</div>';
+    }).join('');
+  }
+  function section(title, list, color, showDate) {
+    if (!list.length) return '';
+    return '<div class="sec-t" style="color:' + color + '">' + title + ' (' + list.length + ')</div>' +
+      '<div class="card">' + rowsOf(list, showDate) + '</div>';
+  }
+
+  el('view').innerHTML =
+    '<div class="h1">Rappels<small>Chaque promesse de rappel est ici, a l\'heure pres. Un rappel fait a l\'heure dite, c\'est ce qui transforme un "rappelez-moi" en rendez-vous.</small></div>' +
+    '<div style="margin-top:6px">' +
+    (withRap.length ?
+      section('En retard, a rattraper', groups.retard, 'var(--bad)', true) +
+      section('Aujourd\'hui', groups.jour, 'var(--ink)', false) +
+      section('Demain', groups.demain, 'var(--mut)', false) +
+      section('Plus tard', groups.plus, 'var(--mut)', true)
+      : '<div class="card empty" style="margin-top:16px"><b>Aucun rappel programme</b><span>Les rappels que tu programmes pendant les sessions d\'appels arriveront ici, ranges par echeance.</span></div>') +
+    '</div>';
+};
+window.decalRappel = function (id) {
+  var c = cible(id); if (!c) return;
+  var chips = [
+    { l: 'Dans 1 heure', h: 1 }, { l: 'Cet apres-midi (14h30)', at: 14.5 },
+    { l: 'Demain matin (9h30)', d: 1, at: 9.5 }, { l: 'Demain apres-midi (14h30)', d: 1, at: 14.5 },
+    { l: 'Lundi matin (9h30)', lundi: true }
+  ];
+  window._decChips = chips;
+  var html = '<div class="datechips">' + chips.map(function (ch, i) {
+    return '<button class="qchip" onclick="pickDecal(\'' + id + '\',' + i + ')">' + esc(ch.l) + '</button>';
+  }).join('') + '</div>' +
+  '<div class="frow" style="margin-top:6px"><div class="field"><label>Ou choisir</label><input type="datetime-local" id="dec-dt"></div></div>';
+  openModal('Decaler le rappel — ' + esc(c.entreprise), html,
+    [{ label: 'Decaler', cls: 'gold', fn: function () {
+      var v = el('dec-dt').value;
+      if (!v) { toast('Choisis un creneau ou une date', 'bad'); return; }
+      doDecal(id, new Date(v));
+    } }]);
+};
+window.pickDecal = function (id, i) {
+  var ch = window._decChips[i], d = new Date();
+  if (ch.h) d.setTime(d.getTime() + ch.h * 3600e3);
+  if (ch.d) d.setDate(d.getDate() + ch.d);
+  if (ch.lundi) { d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(9, 30, 0, 0); }
+  if (ch.at) { d.setHours(Math.floor(ch.at), Math.round(ch.at % 1 * 60), 0, 0); }
+  doDecal(id, d);
+};
+function doDecal(id, date) {
+  updCible(id, { rappel_le: date.toISOString() });
+  logAction(id, 'statut', 'rappel_decale', fmtDate(date.toISOString()));
+  closeModal();
+  toast('Rappel decale ' + fmtDate(date.toISOString()));
+  refreshTop();
+  if (VIEW === 'rappels') VIEWS.rappels(); else show(VIEW);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // VUE : REPERAGE
 // ═══════════════════════════════════════════════════════════════════
 var REP = { zone: 'Jarry', qualite: 'aucun' };
@@ -928,6 +1029,11 @@ window.delCible = function (id) {
 // VUE : MAILS
 // ═══════════════════════════════════════════════════════════════════
 function mailFor(c) {
+  // Version personnalisee pour CE prospect (modifiee par Leyla avant envoi) ?
+  try {
+    var ov = localStorage.getItem('nov_prosp_mail_' + c.id);
+    if (ov) { ov = JSON.parse(ov); if (ov && ov.corps) return { objet: ov.objet, corps: ov.corps, custom: true }; }
+  } catch (e) {}
   var s = cfg();
   var contact = c.contact_nom ? ' ' + c.contact_nom : '';
   var body = (s.email_modele || '')
@@ -936,6 +1042,24 @@ function mailFor(c) {
     .replace(/\{signature\}/g, firstName() || DB.me.name);
   return { objet: s.email_objet || 'Novalem — votre site internet', corps: body };
 }
+function clearMailCustom(id) { try { localStorage.removeItem('nov_prosp_mail_' + id); } catch (e) {} }
+window.mailModif = function (id) {
+  var c = cible(id); if (!c) return;
+  var m = mailFor(c);
+  openModal('Modifier ce mail — ' + esc(c.entreprise),
+    '<div class="field"><label>Objet</label><input id="mm-objet" value="' + esc(m.objet) + '"></div>' +
+    '<div class="field"><label>Corps du mail</label><textarea id="mm-corps" style="min-height:260px;font-size:13px;line-height:1.55">' + esc(m.corps) + '</textarea></div>' +
+    '<div style="font-size:11.5px;color:var(--mut2);font-weight:600">Ne concerne que ce prospect. Le modele de base reste inchange' + (isSup() ? ' (il se modifie dans Methode, tout en bas)' : '') + '.</div>',
+    [{ label: 'Revenir au modele', cls: '', fn: function () {
+        clearMailCustom(id); closeModal(); toast('Mail remis au modele de base'); show('mails');
+      } },
+     { label: 'Enregistrer', cls: 'gold', fn: function () {
+        var ob = el('mm-objet').value.trim(), co = el('mm-corps').value;
+        if (!co.trim()) { toast('Le corps du mail est vide', 'bad'); return; }
+        try { localStorage.setItem('nov_prosp_mail_' + id, JSON.stringify({ objet: ob || 'Novalem — votre site internet', corps: co })); } catch (e) {}
+        closeModal(); toast('Mail personnalise pour ' + c.entreprise); show('mails');
+      } }]);
+};
 VIEWS.mails = function () {
   var list = mailsAEnvoyer();
   var html = list.map(function (c) {
@@ -949,6 +1073,7 @@ VIEWS.mails = function () {
       '</div>' +
       '<div class="mailprev" style="margin-top:12px">' + esc(m.corps) + '</div>' +
       '<div style="display:flex;gap:9px;margin-top:13px;flex-wrap:wrap">' +
+        '<button class="btn mini' + (m.custom ? ' gold' : '') + '" onclick="mailModif(\'' + c.id + '\')">' + (m.custom ? 'Modifier (personnalise)' : 'Modifier ce mail') + '</button>' +
         '<button class="btn mini" onclick="mailCopie(\'' + c.id + '\')">Copier le mail</button>' +
         '<button class="btn mini" onclick="mailObjet(\'' + c.id + '\')">Copier l\'objet</button>' +
         '<a class="btn mini" href="' + esc('mailto:' + (c.email || '') + '?subject=' + encodeURIComponent(m.objet) + '&body=' + encodeURIComponent(m.corps)) + '">Ouvrir dans la messagerie</a>' +
@@ -990,6 +1115,7 @@ window.mailEnvoiDirect = function (id) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to: c.email, subject: m.objet, body: m.corps,
       from_name: (firstName() || DB.me.name) + ' — Novalem',
+      format: 'simple',
       attachments: pdf ? [{ filename: 'NOVALEM-presentation.pdf', content: pdf, type: 'application/pdf' }] : [] })
   }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
     .then(function (x) {
@@ -1008,6 +1134,7 @@ window.mailCopie = function (id) { var c = cible(id); if (c) copyText(mailFor(c)
 window.mailObjet = function (id) { var c = cible(id); if (c) copyText(mailFor(c).objet, 'Objet copie'); };
 window.mailEnvoye = function (id) {
   var c = cible(id); if (!c) return;
+  clearMailCustom(id);
   var d = new Date(); d.setDate(d.getDate() + 3); d.setHours(9, 30, 0, 0);
   updCible(id, { statut: 'mail_envoye', rappel_le: d.toISOString() });
   logAction(id, 'mail', 'envoye');

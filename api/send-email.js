@@ -6,7 +6,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST uniquement' });
 
-  const { to, cc, bcc, subject, body, from_name, attachments } = req.body || {};
+  const { to, cc, bcc, subject, body, from_name, attachments, format } = req.body || {};
 
   if (!to)      return res.status(400).json({ error: 'Destinataire (to) manquant' });
   if (!subject) return res.status(400).json({ error: 'Objet (subject) manquant' });
@@ -22,8 +22,10 @@ module.exports = async function handler(req, res) {
   const ccArr  = cc  ? (Array.isArray(cc)  ? cc  : cc.split(',').map(s=>s.trim()).filter(Boolean))  : [];
   const bccArr = bcc ? (Array.isArray(bcc) ? bcc : bcc.split(',').map(s=>s.trim()).filter(Boolean)) : [];
 
-  // Convertir le corps texte en HTML soigné
-  const html = buildHtml(body || '', subject);
+  // Convertir le corps texte en HTML.
+  // format 'simple' : mail sobre sans bannière ni cadre (prospection Sites),
+  // meilleur pour la délivrabilité. Par défaut : gabarit historique (recrutement).
+  const html = format === 'simple' ? buildSimpleHtml(body || '') : buildHtml(body || '', subject);
 
   try {
     const resp = await fetch('https://api.resend.com/emails', {
@@ -70,6 +72,46 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: err.message });
   }
 };
+
+// ── Constructeur HTML sobre (prospection) ───────────────────────
+// Ressemble à un mail écrit à la main : fond blanc, pas de bannière,
+// pas de cadre, juste des paragraphes propres et des liens discrets.
+function buildSimpleHtml(text) {
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // [Texte](url) → lien normal
+  html = html.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+    (_, label, url) => `<a href="${url}" style="color:#B07A12">${label}</a>`
+  );
+  // URL nues → liens cliquables
+  html = html.replace(
+    /(^|[\s>])(https?:\/\/[^\s<]+)/g,
+    (_, pre, url) => `${pre}<a href="${url}" style="color:#B07A12">${url}</a>`
+  );
+  // **gras**
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+  const blocks = html.split(/\n\n+/);
+  html = blocks.map(b => {
+    const t = b.trim();
+    if (!t) return '';
+    return `<p style="margin:0 0 14px 0">${t.replace(/\n/g, '<br>')}</p>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#ffffff">
+  <div style="max-width:620px;margin:0 auto;padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;color:#222222">
+    ${html}
+  </div>
+</body>
+</html>`;
+}
 
 // ── Constructeur HTML email ─────────────────────────────────────
 function buildHtml(text, subject) {
