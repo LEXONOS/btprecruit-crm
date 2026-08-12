@@ -98,8 +98,8 @@ var CFG_DEFAULTS = {
   email_modele:
     'Bonjour{contact},\n\n' +
     'Merci pour notre echange de ce jour au sujet de {entreprise}.\n\n' +
-    'Comme convenu, voici Novalem en quelques mots : nous creons des sites internet professionnels ' +
-    'pour les entreprises de Guadeloupe, en code sur mesure (pas de WordPress, pas d\'abonnement).\n\n' +
+    'Comme convenu, vous trouverez en piece jointe la presentation complete de Novalem : les formules, ' +
+    'les options et les abonnements. L\'essentiel en quelques mots :\n\n' +
     '- Site complet a partir de 390 euros, en une fois\n' +
     '- Le site et le nom de domaine sont a vous a 100 %\n' +
     '- Referencement Google integre des la conception\n' +
@@ -959,22 +959,38 @@ VIEWS.mails = function () {
   }).join('');
 
   el('view').innerHTML =
-    '<div class="h1">Mails a envoyer<small>Le mail promis au telephone doit partir le jour meme : c\'est ce qui fait serieux. Une relance se programme toute seule 3 jours apres.</small></div>' +
+    '<div class="h1">Mails a envoyer<small>Le mail promis au telephone part le jour meme : c\'est ce qui fait serieux. Le bouton Envoyer joint automatiquement la presentation PDF (formules, options, abonnements), et une relance se programme toute seule 3 jours apres.</small></div>' +
     '<div style="margin-top:20px">' +
     (html || '<div class="card empty"><b>File vide</b><span>Aucun mail en attente. Tout est parti, propre.</span></div>') +
     '</div>';
 };
+var _fichePdf = null; // base64 de la fiche de presentation, chargee une fois
+function loadFiche() {
+  if (_fichePdf) return Promise.resolve(_fichePdf);
+  return fetch('/docs/novalem-presentation.pdf')
+    .then(function (r) { if (!r.ok) throw new Error('fiche introuvable'); return r.blob(); })
+    .then(function (b) {
+      return new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload = function () { _fichePdf = String(fr.result).split(',')[1]; res(_fichePdf); };
+        fr.onerror = rej;
+        fr.readAsDataURL(b);
+      });
+    });
+}
 window.mailEnvoiDirect = function (id) {
   var c = cible(id); if (!c) return;
   if (!c.email || c.email.indexOf('@') < 1) { toast('E-mail manquant : modifie la fiche d\'abord', 'bad'); return; }
   var m = mailFor(c);
   var btn = el('send-' + id);
   if (btn) { btn.disabled = true; btn.textContent = 'Envoi...'; }
-  fetch('/api/send-email', {
+  loadFiche().catch(function () { return null; }).then(function (pdf) {
+  return fetch('/api/send-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to: c.email, subject: m.objet, body: m.corps,
-      from_name: (firstName() || DB.me.name) + ' — Novalem' })
+      from_name: (firstName() || DB.me.name) + ' — Novalem',
+      attachments: pdf ? [{ filename: 'NOVALEM-presentation.pdf', content: pdf, type: 'application/pdf' }] : [] })
   }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
     .then(function (x) {
       if (!x.ok) throw new Error(x.j && x.j.error || 'Envoi refuse');
@@ -986,6 +1002,7 @@ window.mailEnvoiDirect = function (id) {
       if (btn) { btn.disabled = false; btn.textContent = 'Envoyer maintenant'; }
       toast('Envoi impossible (' + (e.message || 'erreur') + '). Utilise Copier + ta messagerie.', 'bad');
     });
+  });
 };
 window.mailCopie = function (id) { var c = cible(id); if (c) copyText(mailFor(c).corps, 'Mail copie'); };
 window.mailObjet = function (id) { var c = cible(id); if (c) copyText(mailFor(c).objet, 'Objet copie'); };
