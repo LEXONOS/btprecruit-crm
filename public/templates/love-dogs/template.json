@@ -1,0 +1,9 @@
+{
+  "id": "love-dogs",
+  "nom": "Landing services (style Love Dog's)",
+  "description": "One-page clair et aere, fond porcelaine + accent couleur, ideal pour une entreprise de services (2 a 4 prestations). Sections : hero, services, tarifs, a propos, contact.",
+  "fichiers_fixes": ["css/style.css", "js/main.js"],
+  "fichiers_generes": ["index.html", "mentions-legales.html"],
+  "assets_roles": ["logo", "hero", "service (x2-4)", "galerie (optionnel)"],
+  "ideal_pour": "Services a la personne, artisans, independants, commerces de proximite"
+}

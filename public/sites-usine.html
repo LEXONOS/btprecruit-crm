@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVALEM — Usine a sites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --ink:#101619; --ink-2:#3d4a4f; --ink-3:#6c7a7e;
+  --paper:#E8ECEA; --card:#FFFFFF;
+  --line:#CBD3D0; --line-2:#AEB9B5;
+  --pine:#1D5B4B; --pine-bg:#DCE8E3;
+  --garnet:#8B2F3B; --garnet-bg:#F2E2E3;
+  --amber:#8A6314; --amber-bg:#F3E9D2;
+  --gold:#B08A2E;
+  --r:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:'Archivo',system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px 100px}
+a{color:var(--pine)}
+
+.bar{display:flex;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid var(--line);margin-bottom:26px}
+.bar-t{font-family:'Newsreader',serif;font-size:24px;font-weight:500}
+.bar-t b{color:var(--gold);font-weight:500}
+.bar a.back{font-size:12px;text-decoration:none;color:var(--ink-3);border:1px solid var(--line);padding:7px 12px;border-radius:var(--r);background:var(--card)}
+.bar a.back:hover{color:var(--ink);border-color:var(--line-2)}
+
+.etapes{display:flex;gap:8px;margin-bottom:26px;flex-wrap:wrap}
+.et{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;font-size:11px;color:var(--ink-3);display:flex;gap:9px;align-items:center}
+.et .num{width:22px;height:22px;border-radius:50%;background:var(--paper);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0}
+.et.on{border-color:var(--pine);color:var(--ink)}
+.et.on .num{background:var(--pine-bg);border-color:var(--pine);color:var(--pine)}
+.et.done{color:var(--pine)}
+.et.done .num{background:var(--pine);border-color:var(--pine);color:#fff}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;margin-bottom:18px}
+.card h2{font-family:'Newsreader',serif;font-size:19px;font-weight:500;margin:0 0 4px}
+.card .sub{font-size:12.5px;color:var(--ink-3);margin-bottom:16px}
+
+select,input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line-2);border-radius:var(--r);font:inherit;font-size:14px;background:#fff;color:var(--ink)}
+select:focus,input:focus{outline:none;border-color:var(--pine)}
+.lbl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:14px 0 6px}
+.lbl:first-child{margin-top:0}
+textarea{width:100%;min-height:70px;padding:10px 12px;border:1px solid var(--line-2);border-radius:var(--r);font:inherit;font-size:13.5px;resize:vertical;background:#fff;color:var(--ink)}
+textarea:focus{outline:none;border-color:var(--pine)}
+textarea.mono{font-family:'JetBrains Mono',monospace;font-size:12px;min-height:260px}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:var(--r);border:1px solid var(--pine);background:var(--pine);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:default;filter:none}
+.btn.ghost{background:#fff;color:var(--pine)}
+.btn.gold{background:var(--gold);border-color:var(--gold)}
+.btn.red{background:#fff;border-color:var(--garnet);color:var(--garnet);padding:6px 10px;font-size:11px}
+
+.drop{border:2px dashed var(--line-2);border-radius:var(--r);padding:34px 20px;text-align:center;color:var(--ink-3);font-size:13.5px;cursor:pointer;transition:.15s;background:#fdfefe}
+.drop:hover,.drop.over{border-color:var(--pine);color:var(--pine);background:var(--pine-bg)}
+.files{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.file{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;font-size:12px;background:#fdfefe}
+.file .fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file .fs{color:var(--ink-3);font-size:10.5px;flex-shrink:0}
+.file .fx{color:var(--garnet);cursor:pointer;font-weight:700;flex-shrink:0;padding:0 3px}
+.file img{width:26px;height:26px;object-fit:cover;border-radius:2px;flex-shrink:0}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}}
+
+.notice{border-left:3px solid var(--amber);background:var(--amber-bg);padding:10px 14px;border-radius:0 var(--r) var(--r) 0;font-size:12.5px;margin-top:14px}
+.notice.ok{border-color:var(--pine);background:var(--pine-bg)}
+.notice.err{border-color:var(--garnet);background:var(--garnet-bg)}
+
+.prog{margin-top:14px;font-size:13px}
+.prog .row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);color:var(--ink-3)}
+.prog .row:last-child{border-bottom:none}
+.prog .row.on{color:var(--ink)}
+.prog .row.done{color:var(--pine)}
+.spin{width:14px;height:14px;border:2px solid var(--line-2);border-top-color:var(--pine);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.check{color:var(--pine);font-weight:700}
+
+.final{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.final a.link{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--pine-bg);border:1px solid var(--pine);color:var(--pine);padding:9px 14px;border-radius:var(--r);text-decoration:none}
+.hide{display:none}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:6px;font-size:13px;z-index:99;opacity:0;transition:.25s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<script src="/js/crm-auth.js"></script>
+<div class="wrap">
+
+<div class="bar">
+  <div class="bar-t">Usine <b>a sites</b></div>
+  <a class="back" href="/sites">&larr; Retour au CRM Sites</a>
+</div>
+
+<div class="etapes">
+  <div class="et on" id="et1"><span class="num">1</span>Client &amp; fichiers</div>
+  <div class="et" id="et2"><span class="num">2</span>Tri IA</div>
+  <div class="et" id="et3"><span class="num">3</span>Generation</div>
+  <div class="et" id="et4"><span class="num">4</span>Mise en ligne</div>
+</div>
+
+<!-- ETAPE 1 : client + depot en vrac -->
+<div class="card">
+  <h2>1. Le client et ses fichiers, en vrac</h2>
+  <div class="sub">Choisis le client, puis balance tout : logo, photos, PDF, tarifs, textes. Zero tri a faire.</div>
+  <label class="lbl">Client</label>
+  <select id="sel-client" onchange="pickClient()"><option value="">Chargement...</option></select>
+  <div id="zone-upload" class="hide">
+    <label class="lbl">Depot de fichiers</label>
+    <div class="drop" id="drop" onclick="document.getElementById('fi').click()">
+      Glisse tes fichiers ici ou clique pour choisir<br>
+      <span style="font-size:11px">(images, PDF, textes — jusqu'a 20 Mo par fichier)</span>
+    </div>
+    <input type="file" id="fi" multiple class="hide" onchange="uploadFiles(this.files)">
+    <div class="files" id="files"></div>
+  </div>
+</div>
+
+<!-- ETAPE 2 : tri IA -->
+<div class="card hide" id="card-tri">
+  <h2>2. Tri automatique par IA</h2>
+  <div class="sub">L'IA lit tout (images comprises), extrait les infos et propose une charte d'apres le logo. Tu relis, tu corriges, tu valides.</div>
+  <button class="btn" id="btn-trier" onclick="trier()">Trier avec l'IA</button>
+  <div id="tri-attente" class="hide" style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;color:var(--ink-3)"><span class="spin"></span>Analyse des fichiers en cours (30 s a 1 min)...</div>
+  <div id="fiche" class="hide">
+    <div class="grid2">
+      <div><label class="lbl">Nom commercial</label><input type="text" id="f-nom"></div>
+      <div><label class="lbl">Slogan</label><input type="text" id="f-slogan"></div>
+    </div>
+    <label class="lbl">Description courte</label><input type="text" id="f-desc">
+    <div class="grid2">
+      <div><label class="lbl">Telephone</label><input type="text" id="f-tel"></div>
+      <div><label class="lbl">Email</label><input type="text" id="f-mail"></div>
+      <div><label class="lbl">Couleur principale</label><input type="text" id="f-c1"></div>
+      <div><label class="lbl">Couleur secondaire</label><input type="text" id="f-c2"></div>
+    </div>
+    <label class="lbl">Fiche complete (JSON) — services, tarifs, mentions legales, mapping des images</label>
+    <textarea id="f-json" class="mono"></textarea>
+    <div class="notice" id="f-manquantes" style="display:none"></div>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button class="btn ghost" onclick="saveIntake(false)">Enregistrer la fiche</button>
+      <button class="btn" onclick="saveIntake(true)">Valider et passer a la generation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ETAPE 3 : generation -->
+<div class="card hide" id="card-gen">
+  <h2>3. Generation du site</h2>
+  <div class="sub">La template garde sa structure et ses animations rodees, l'IA adapte textes, couleurs, sections et images au client.</div>
+  <label class="lbl">Template</label>
+  <select id="sel-template">
+    <option value="love-dogs">Landing services (style Love Dog's) — clair, aere, 1 page</option>
+  </select>
+  <div style="margin-top:14px"><button class="btn gold" id="btn-gen" onclick="generer()">Generer le site</button></div>
+  <div class="prog hide" id="gen-prog">
+    <div class="row" id="g1"><span class="ico"></span>Page d'accueil (textes, sections, couleurs, SEO)</div>
+    <div class="row" id="g2"><span class="ico"></span>Mentions legales, sitemap, robots</div>
+  </div>
+  <div class="notice ok hide" id="gen-ok">Site genere. Passe a la mise en ligne pour obtenir le lien d'apercu.</div>
+</div>
+
+<!-- ETAPE 4 : publication -->
+<div class="card hide" id="card-pub">
+  <h2>4. Mise en ligne de l'apercu</h2>
+  <div class="sub">Creation du repo GitHub, envoi du code et des images, deploiement Vercel automatique. Le lien se range tout seul sur la fiche client.</div>
+  <label class="lbl">Nom du repo / du lien (minuscules, tirets)</label>
+  <input type="text" id="repo-nom" placeholder="ex: love-dogs-guadeloupe">
+  <div style="margin-top:14px"><button class="btn" id="btn-pub" onclick="publier()">Mettre en ligne l'apercu</button></div>
+  <div class="prog hide" id="pub-prog">
+    <div class="row" id="p1"><span class="ico"></span>Repo GitHub + projet Vercel</div>
+    <div class="row" id="p2"><span class="ico"></span>Envoi du code et des images</div>
+    <div class="row" id="p3"><span class="ico"></span>Deploiement Vercel</div>
+  </div>
+  <div class="final hide" id="final">
+    <a class="link" id="final-url" href="#" target="_blank">-</a>
+    <span style="font-size:12.5px;color:var(--pine)">Lien range sur la fiche client. Envoie-le au client.</span>
+  </div>
+  <div class="notice err hide" id="pub-err"></div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var NOV_SB_URL  = 'https://hfdkkdyyhpymrwiqmitn.supabase.co';
+var NOV_SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZGtrZHl5aHB5bXJ3aXFtaXRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTU3OTgsImV4cCI6MjA4OTIzMTc5OH0.UWli4BIDWHwGOKuFCom8wQFYHnNYPtODAI5Cl7tCRJ8';
+var BUCKET = 'web-usine';
+var _sb = null;
+function sb(){ if(!_sb){ _sb = window.supabase.createClient(NOV_SB_URL, NOV_SB_ANON); } return _sb; }
+
+var clientId = null;
+var intake = null;
+
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); setTimeout(function(){t.classList.remove('on')},2600); }
+function el(id){ return document.getElementById(id); }
+function show(id){ el(id).classList.remove('hide'); }
+function hide(id){ el(id).classList.add('hide'); }
+function etape(n, etat){ var e=el('et'+n); e.classList.remove('on','done'); if(etat) e.classList.add(etat); }
+function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function api(body){
+  var r = await fetch('/api/usine', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  var d = await r.json();
+  if(!r.ok) throw new Error(d.error || ('Erreur ' + r.status));
+  return d;
+}
+
+// ---------- Clients ----------
+async function loadClients(){
+  var r = await sb().from('web_clients').select('id,nom,activite').order('updated_at',{ascending:false});
+  var s = el('sel-client');
+  s.innerHTML = '<option value="">— Choisir un client —</option>';
+  (r.data||[]).forEach(function(c){
+    s.innerHTML += '<option value="'+c.id+'">'+esc(c.nom)+(c.activite?' — '+esc(c.activite):'')+'</option>';
+  });
+  var params = new URLSearchParams(window.location.search);
+  if(params.get('client')){ s.value = params.get('client'); pickClient(); }
+}
+
+async function pickClient(){
+  clientId = el('sel-client').value || null;
+  if(!clientId){ hide('zone-upload'); hide('card-tri'); hide('card-gen'); hide('card-pub'); return; }
+  show('zone-upload'); show('card-tri'); etape(1,'on');
+  await listFiles();
+  var r = await sb().from('web_usine').select('*').eq('client_id', clientId).maybeSingle();
+  var d = r.data;
+  if(d && d.intake){ intake = d.intake; remplirFiche(); show('fiche'); etape(1,'done'); etape(2,'on'); }
+  else { intake = null; hide('fiche'); }
+  if(d && d.fichiers && d.fichiers['index.html']){ show('card-gen'); show('card-pub'); el('gen-ok').classList.remove('hide'); etape(3,'done'); etape(4,'on'); }
+  if(d && d.repo){ el('repo-nom').value = d.repo.split('/').pop(); }
+  else { el('repo-nom').value = slug((d && d.intake && d.intake.identite && d.intake.identite.nom_commercial) || ''); }
+  if(d && d.preview_url){ el('final-url').textContent = d.preview_url; el('final-url').href = d.preview_url; show('final'); }
+}
+
+function slug(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+
+// ---------- Upload ----------
+var drop = null;
+document.addEventListener('DOMContentLoaded', function(){
+  drop = el('drop');
+  ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function(e){ uploadFiles(e.dataTransfer.files); });
+  loadClients();
+});
+
+async function uploadFiles(fileList){
+  if(!clientId){ toast('Choisis d\'abord un client'); return; }
+  var files = Array.from(fileList||[]);
+  for(var i=0;i<files.length;i++){
+    var f = files[i];
+    if(f.size > 20*1024*1024){ toast(f.name+' : trop lourd (max 20 Mo)'); continue; }
+    var nom = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'-');
+    var r = await sb().storage.from(BUCKET).upload(clientId+'/'+nom, f, { upsert:true });
+    if(r.error){ toast('Echec '+f.name+' : '+r.error.message); }
+  }
+  toast('Fichiers envoyes');
+  await listFiles();
+}
+
+async function listFiles(){
+  var r = await sb().storage.from(BUCKET).list(clientId, { limit:100 });
+  var box = el('files'); box.innerHTML = '';
+  (r.data||[]).forEach(function(f){
+    if(!f.name || f.name.indexOf('.')===0) return;
+    var ko = Math.round(((f.metadata&&f.metadata.size)||0)/1024);
+    var isImg = /\.(png|jpe?g|webp|gif)$/i.test(f.name);
+    var thumb = '';
+    if(isImg){
+      var u = sb().storage.from(BUCKET).getPublicUrl(clientId+'/'+f.name);
+      thumb = '<img src="'+u.data.publicUrl+'" onerror="this.style.display=\'none\'">';
+    }
+    box.innerHTML += '<div class="file">'+thumb+'<span class="fn" title="'+esc(f.name)+'">'+esc(f.name)+'</span><span class="fs">'+ko+' Ko</span><span class="fx" onclick="delFile(\''+esc(f.name)+'\')">&times;</span></div>';
+  });
+}
+
+async function delFile(nom){
+  await sb().storage.from(BUCKET).remove([clientId+'/'+nom]);
+  await listFiles();
+}
+
+// ---------- Tri IA ----------
+async function trier(){
+  if(!clientId){ toast('Choisis un client'); return; }
+  el('btn-trier').disabled = true; show('tri-attente'); etape(2,'on');
+  try{
+    var d = await api({ action:'trier', client_id: clientId });
+    intake = d.intake;
+    remplirFiche(); show('fiche');
+    toast('Fiche triee, relis et corrige');
+  }catch(e){ toast('Erreur : '+e.message); }
+  el('btn-trier').disabled = false; hide('tri-attente');
+}
+
+function remplirFiche(){
+  var i = intake || {};
+  el('f-nom').value    = (i.identite&&i.identite.nom_commercial)||'';
+  el('f-slogan').value = (i.identite&&i.identite.slogan)||'';
+  el('f-desc').value   = (i.identite&&i.identite.description_courte)||'';
+  el('f-tel').value    = (i.coordonnees&&i.coordonnees.telephone)||'';
+  el('f-mail').value   = (i.coordonnees&&i.coordonnees.email)||'';
+  el('f-c1').value     = (i.charte&&i.charte.couleur_principale)||'';
+  el('f-c2').value     = (i.charte&&i.charte.couleur_secondaire)||'';
+  el('f-json').value   = JSON.stringify(i, null, 2);
+  var m = i.infos_manquantes||[];
+  if(m.length){ el('f-manquantes').style.display='block'; el('f-manquantes').innerHTML = '<b>Infos manquantes reperees :</b> '+esc(m.join(', '))+' — complete si tu peux, sinon la generation mettra des marqueurs.'; }
+  else { el('f-manquantes').style.display='none'; }
+  if(!el('repo-nom').value) el('repo-nom').value = slug(el('f-nom').value);
+}
+
+async function saveIntake(valider){
+  try{
+    intake = JSON.parse(el('f-json').value);
+  }catch(e){ toast('JSON invalide : '+e.message); return; }
+  intake.identite = intake.identite||{};
+  intake.coordonnees = intake.coordonnees||{};
+  intake.charte = intake.charte||{};
+  intake.identite.nom_commercial = el('f-nom').value;
+  intake.identite.slogan = el('f-slogan').value;
+  intake.identite.description_courte = el('f-desc').value;
+  intake.coordonnees.telephone = el('f-tel').value;
+  intake.coordonnees.email = el('f-mail').value;
+  intake.charte.couleur_principale = el('f-c1').value;
+  intake.charte.couleur_secondaire = el('f-c2').value;
+  el('f-json').value = JSON.stringify(intake, null, 2);
+  var r = await sb().from('web_usine').upsert({ client_id: clientId, intake: intake, updated_at: new Date().toISOString() }, { onConflict:'client_id' });
+  if(r.error){ toast('Erreur sauvegarde : '+r.error.message); return; }
+  toast('Fiche enregistree');
+  if(valider){ etape(2,'done'); etape(3,'on'); show('card-gen'); el('card-gen').scrollIntoView({behavior:'smooth'}); }
+}
+
+// ---------- Generation ----------
+function progRow(id, etat){
+  var r = el(id); r.classList.remove('on','done');
+  var ico = r.querySelector('.ico');
+  if(etat==='on'){ r.classList.add('on'); ico.innerHTML='<span class="spin"></span>'; }
+  else if(etat==='done'){ r.classList.add('done'); ico.innerHTML='<span class="check">&#10003;</span>'; }
+  else { ico.innerHTML=''; }
+}
+
+async function generer(){
+  if(!intake){ toast('Valide d\'abord la fiche triee'); return; }
+  var tpl = el('sel-template').value;
+  el('btn-gen').disabled = true; show('gen-prog'); el('gen-ok').classList.add('hide');
+  try{
+    progRow('g1','on');
+    await api({ action:'generer', partie:'index', client_id: clientId, template: tpl, intake: intake });
+    progRow('g1','done'); progRow('g2','on');
+    await api({ action:'generer', partie:'annexes', client_id: clientId, template: tpl, intake: intake });
+    progRow('g2','done');
+    el('gen-ok').classList.remove('hide');
+    etape(3,'done'); etape(4,'on'); show('card-pub');
+    el('card-pub').scrollIntoView({behavior:'smooth'});
+    toast('Site genere');
+  }catch(e){
+    toast('Erreur generation : '+e.message);
+  }
+  el('btn-gen').disabled = false;
+}
+
+// ---------- Publication ----------
+var pollTimer = null;
+async function publier(){
+  var nom = el('repo-nom').value.trim();
+  if(!nom){ toast('Donne un nom de repo'); return; }
+  el('btn-pub').disabled = true; show('pub-prog'); hide('final'); el('pub-err').classList.add('hide');
+  try{
+    progRow('p1','on');
+    var d = await api({ action:'publier', client_id: clientId, repo_nom: nom });
+    progRow('p1','done'); progRow('p2','done'); progRow('p3','on');
+    var repoNom = d.repo_nom;
+    var essais = 0;
+    pollTimer = setInterval(async function(){
+      essais++;
+      try{
+        var s = await api({ action:'statut', client_id: clientId, repo_nom: repoNom });
+        if(s.etat==='READY'){
+          clearInterval(pollTimer); progRow('p3','done');
+          el('final-url').textContent = s.url; el('final-url').href = s.url; show('final');
+          el('btn-pub').disabled = false;
+          toast('Apercu en ligne');
+        } else if(s.etat==='ERROR' || essais>36){
+          clearInterval(pollTimer);
+          el('pub-err').textContent = s.etat==='ERROR' ? 'Le deploiement Vercel a echoue : ouvre le dashboard Vercel pour voir le log.' : 'Deploiement trop long : verifie sur le dashboard Vercel.';
+          el('pub-err').classList.remove('hide');
+          el('btn-pub').disabled = false;
+        }
+      }catch(e){ /* on retente au tick suivant */ }
+    }, 5000);
+  }catch(e){
+    el('pub-err').textContent = 'Erreur : '+e.message;
+    el('pub-err').classList.remove('hide');
+    el('btn-pub').disabled = false;
+  }
+}
+</script>
+</body>
+</html>

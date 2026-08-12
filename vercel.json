@@ -52,6 +52,10 @@
     {
       "source": "/prospection",
       "destination": "/prospection.html"
+    },
+    {
+      "source": "/sites-usine",
+      "destination": "/sites-usine.html"
     }
   ],
   "headers": [
@@ -78,5 +82,10 @@
       "path": "/api/cron-reminders",
       "schedule": "0 7 * * 1-5"
     }
-  ]
+  ],
+  "functions": {
+    "api/usine.js": {
+      "maxDuration": 300
+    }
+  }
 }
