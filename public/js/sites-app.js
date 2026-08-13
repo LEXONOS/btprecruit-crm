@@ -2415,7 +2415,7 @@ var API = {
   NOV_SB: getSB, syncEntreprise: syncEntreprise, setPipeQ: setPipeQ,
   toggleUserMenu: toggleUserMenu, logout: logout,
   openEventForm: openEventForm, saveEvent: saveEvent, deleteEvent: deleteEvent, setEventDone: setEventDone,
-  openEventDetail: openEventDetail, agShift: agShift, agToday: agToday, quickRappel: quickRappel, quickRdv: quickRdv,
+  openEventDetail: openEventDetail, quickRappel: quickRappel, quickRdv: quickRdv,
   openLienForm: openLienForm, saveLien: saveLien, deleteLien: deleteLien,
   openAccesForm: openAccesForm, saveAcces: saveAcces, deleteAcces: deleteAcces, nextInvoiceForClient: nextInvoiceForClient,
   devisContratPDF: devisPDF, facturePDF: facturePDF
