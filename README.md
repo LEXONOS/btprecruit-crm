@@ -1,32 +1,25 @@
-# Novalem Platform v2.0
+# UNIK'EAU — fontaine-guadeloupe.fr (v3 « Eau vive »)
 
-> Plateforme interne complète pour les scouts Novalem — Cabinet de recrutement BTP
+Site vitrine one-page statique. Aucune dépendance à installer : HTML + CSS + JS.
 
-## Architecture
+## Contenu
+- `index.html` — la page
+- `styles.css` — design system « Eau vive » (voir `charte.html`)
+- `script.js` — interactions (scrollytelling filtration, bascule tarifs Location/Achat, menu, FAQ)
+- `assets/` — photos, logo, favicons, modèles 3D (`assets/3d`), moteur `model-viewer` local (`assets/vendor`), fiche technique PDF
+- `charte.html` — charte graphique (non indexée)
+- `robots.txt`, `sitemap.xml`, `vercel.json`
 
-```
-novalem-platform/
-├── public/
-│   ├── index.html          → Page de connexion (PIN 6 chiffres)
-│   ├── hub.html            → ★ Dashboard central — Espace Scout
-│   ├── crm.html            → CRM complet (candidats, entreprises, pipeline, emails, IA)
-│   ├── formation.html      → ★ Centre de formation (11 modules)
-│   ├── annuaire.html       → ★ Annuaire contacts & équipe
-│   ├── documents.html      → ★ Documents, templates & ressources
-│   ├── statistiques.html   → ★ KPIs & analytics temps réel
-│   ├── sign.html           → Signature électronique contrats
-│   └── dossier.html        → Dossier de candidature
-├── api/                    → Serverless functions (inchangées)
-├── vercel.json             → Routes + CORS + crons
-└── package.json
-```
+## Avant mise en ligne
+Chercher `A-MODIFIER` dans `index.html` : il reste les 2 vraies adresses e-mail à remplacer
+(placeholder actuel : contact@fontaine-guadeloupe.fr).
 
-## Parcours utilisateur
+## Déployer (GitHub + Vercel)
+1. Pousser ce dossier tel quel dans le repo GitHub.
+2. Vercel détecte un site statique : aucun réglage, `vercel.json` gère les en-têtes.
+3. Rattacher le domaine fontaine-guadeloupe.fr (OVH) dans les réglages du projet Vercel.
 
-```
-Connexion (PIN) → Hub central → CRM / Formation / Annuaire / Documents / Stats / Site web
-```
-
-## Stack : Supabase · Vercel · Claude API · HTML/CSS/JS vanilla
-
-## Déploiement : Push sur GitHub → Vercel auto-deploy
+## Tarifs affichés (source : devis O'ELEC D-2026-016, TVA 8,5 %)
+- Location : comptoir 50 € TTC/mois, colonne 70 € TTC/mois, entretien compris, garantie pendant le contrat
+- Achat : comptoir 699 € TTC, colonne 799 € TTC, + 200 € TTC d'installation
+- Entretien à l'achat : 244 € TTC/an (1 à 4 pers., semestriel) ou 488 € TTC/an (5+, trimestriel)

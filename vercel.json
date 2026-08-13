@@ -1,91 +1,21 @@
 {
-  "outputDirectory": "public",
-  "rewrites": [
-    {
-      "source": "/hub",
-      "destination": "/hub.html"
-    },
-    {
-      "source": "/crm",
-      "destination": "/crm.html"
-    },
-    {
-      "source": "/formation",
-      "destination": "/formation.html"
-    },
-    {
-      "source": "/annuaire",
-      "destination": "/annuaire.html"
-    },
-    {
-      "source": "/documents",
-      "destination": "/documents.html"
-    },
-    {
-      "source": "/statistiques",
-      "destination": "/statistiques.html"
-    },
-    {
-      "source": "/sign",
-      "destination": "/sign.html"
-    },
-    {
-      "source": "/dossier",
-      "destination": "/dossier.html"
-    },
-    {
-      "source": "/rejoindre",
-      "destination": "/rejoindre.html"
-    },
-    {
-      "source": "/sites-sign",
-      "destination": "/sites-sign.html"
-    },
-    {
-      "source": "/sites-cadrage",
-      "destination": "/sites-cadrage.html"
-    },
-    {
-      "source": "/sites",
-      "destination": "/sites.html"
-    },
-    {
-      "source": "/prospection",
-      "destination": "/prospection.html"
-    },
-    {
-      "source": "/sites-usine",
-      "destination": "/sites-usine.html"
-    }
-  ],
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/assets/(.*)",
       "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,POST,OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type,X-CRM-Secret"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron-reminders",
-      "schedule": "0 7 * * 1-5"
-    }
-  ],
-  "functions": {
-    "api/usine.js": {
-      "maxDuration": 300
-    }
-  }
+  ]
 }

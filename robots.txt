@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /charte.html
+
+Sitemap: https://fontaine-guadeloupe.fr/sitemap.xml
