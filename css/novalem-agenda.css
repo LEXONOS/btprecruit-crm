@@ -1,0 +1,135 @@
+/* ═══════════════════════════════════════════════════════════════════
+   NOVALEM AGENDA — composant calendrier partage (prospection + CRM)
+   Vues Jour / Semaine / Mois. Theme clair par defaut, sombre via .nva-dark.
+   Inspirations : chips colorees type FlowPlan (couleur + fond 10% + bord),
+   rangees compactes avec barre laterale type Twenty.
+════════════════════════════════════════════════════════════════════ */
+.nva{
+  --nva-bg:#FFFFFF; --nva-bg2:#FAF8F2; --nva-ink:#26221A; --nva-mut:#8B8371;
+  --nva-mut2:#B5AE9E; --nva-line:#EAE4D6; --nva-line2:#DDD5C2;
+  --nva-gold:#C8900A; --nva-gold-soft:rgba(200,144,10,.10); --nva-gold-line:rgba(200,144,10,.30);
+  --nva-blue:#2E6FD0; --nva-blue-soft:rgba(46,111,208,.10); --nva-blue-line:rgba(46,111,208,.30);
+  --nva-viol:#7A4FC9; --nva-viol-soft:rgba(122,79,201,.10); --nva-viol-line:rgba(122,79,201,.30);
+  --nva-red:#CF4433; --nva-red-soft:rgba(207,68,51,.10); --nva-red-line:rgba(207,68,51,.30);
+  --nva-gray:#8B8371; --nva-gray-soft:rgba(139,131,113,.12); --nva-gray-line:rgba(139,131,113,.30);
+  --nva-now:#E5484D; --nva-today:rgba(200,144,10,.06);
+  --nva-r:10px; --nva-sh:0 1px 2px rgba(93,78,43,.06),0 4px 14px rgba(93,78,43,.06);
+  font-size:13px; color:var(--nva-ink);
+}
+.nva-dark.nva, .nva-dark .nva{
+  --nva-bg:#16161a; --nva-bg2:#1c1c21; --nva-ink:#f0efec; --nva-mut:#9b968b;
+  --nva-mut2:#5f5b52; --nva-line:rgba(255,255,255,.07); --nva-line2:rgba(255,255,255,.13);
+  --nva-gold:#E0A92E; --nva-gold-soft:rgba(224,169,46,.13); --nva-gold-line:rgba(224,169,46,.35);
+  --nva-blue:#6da2ee; --nva-blue-soft:rgba(109,162,238,.13); --nva-blue-line:rgba(109,162,238,.35);
+  --nva-viol:#a678f0; --nva-viol-soft:rgba(166,120,240,.13); --nva-viol-line:rgba(166,120,240,.35);
+  --nva-red:#f0716a; --nva-red-soft:rgba(240,113,106,.13); --nva-red-line:rgba(240,113,106,.35);
+  --nva-gray:#9b968b; --nva-gray-soft:rgba(155,150,139,.14); --nva-gray-line:rgba(155,150,139,.35);
+  --nva-now:#f0716a; --nva-today:rgba(224,169,46,.07);
+  --nva-sh:0 6px 22px rgba(0,0,0,.35);
+}
+
+/* ── Barre de navigation ─────────────────────────────── */
+.nva-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.nva-title{font-size:16px;font-weight:800;letter-spacing:-.02em;min-width:170px;text-transform:capitalize}
+.nva-btn{padding:7px 13px;border-radius:9px;border:1px solid var(--nva-line2);background:var(--nva-bg);
+  color:var(--nva-ink);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .13s;user-select:none}
+.nva-btn:hover{border-color:var(--nva-mut2)}
+.nva-nav{display:flex;gap:5px}
+.nva-views{display:flex;gap:4px;margin-left:auto;background:var(--nva-bg2);border:1px solid var(--nva-line);
+  border-radius:99px;padding:3px}
+.nva-vw{padding:6px 14px;border-radius:99px;font-size:12px;font-weight:700;color:var(--nva-mut);cursor:pointer;
+  border:none;background:none;font-family:inherit;transition:all .13s;user-select:none}
+.nva-vw.on{background:var(--nva-ink);color:var(--nva-bg)}
+
+/* ── Cadre commun ────────────────────────────────────── */
+.nva-frame{background:var(--nva-bg);border:1px solid var(--nva-line);border-radius:14px;overflow:hidden;box-shadow:var(--nva-sh)}
+
+/* ── En-tetes de jours ───────────────────────────────── */
+.nva-days{display:grid;border-bottom:1px solid var(--nva-line)}
+.nva-day-h{padding:9px 6px 8px;text-align:center;border-left:1px solid var(--nva-line);min-width:0}
+.nva-day-h:first-child{border-left:none}
+.nva-day-h .d1{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--nva-mut)}
+.nva-day-h .d2{font-size:16px;font-weight:800;margin-top:1px;width:30px;height:30px;line-height:30px;
+  border-radius:50%;display:inline-block}
+.nva-day-h.today .d2{background:var(--nva-gold);color:#fff}
+.nva-day-h .d3{font-size:9.5px;color:var(--nva-mut2);font-weight:600}
+
+/* ── Bandeau "journee" (taches sans heure) ───────────── */
+.nva-allday{display:grid;border-bottom:1px solid var(--nva-line);background:var(--nva-bg2);min-height:30px}
+.nva-allday-cell{border-left:1px solid var(--nva-line);padding:4px 4px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.nva-allday-cell:first-child{border-left:none}
+.nva-allday-lbl{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--nva-mut2);
+  padding:8px 8px;display:flex;align-items:center}
+
+/* ── Grille horaire ──────────────────────────────────── */
+.nva-scroll{max-height:640px;overflow-y:auto;position:relative}
+.nva-grid{display:grid;position:relative}
+.nva-hours{position:relative}
+.nva-hour{height:52px;position:relative;border-bottom:1px solid var(--nva-line)}
+.nva-hour span{position:absolute;top:-7px;right:8px;font-size:10px;font-weight:700;color:var(--nva-mut2);
+  font-variant-numeric:tabular-nums;background:var(--nva-bg);padding:0 3px}
+.nva-col{position:relative;border-left:1px solid var(--nva-line)}
+.nva-col.today{background:var(--nva-today)}
+.nva-slot{position:absolute;left:0;right:0;height:26px;cursor:pointer}
+.nva-slot:hover{background:var(--nva-gold-soft);box-shadow:inset 0 0 0 1px var(--nva-gold-line);border-radius:4px}
+.nva-hline{position:absolute;left:0;right:0;height:1px;background:var(--nva-line);pointer-events:none}
+.nva-hline.half{opacity:.45}
+
+/* ── Evenements ──────────────────────────────────────── */
+.nva-ev{position:absolute;border-radius:7px;padding:4px 7px 4px 9px;font-size:11.5px;line-height:1.25;cursor:pointer;
+  overflow:hidden;border:1px solid;transition:transform .1s,box-shadow .1s;min-height:22px}
+.nva-ev::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:currentColor}
+.nva-ev:hover{transform:translateY(-1px);box-shadow:var(--nva-sh);z-index:5}
+.nva-ev b{font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--nva-ink)}
+.nva-ev span{font-size:10px;font-weight:600;opacity:.85;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.nva-ev.done{opacity:.45}
+.nva-ev.done b{text-decoration:line-through}
+.nva-chip{border-radius:6px;padding:2px 7px 2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;border:1px solid;
+  position:relative;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.nva-chip::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:currentColor}
+.nva-chip.done{opacity:.45;text-decoration:line-through}
+.nva-c-gold{color:var(--nva-gold);background:var(--nva-gold-soft);border-color:var(--nva-gold-line)}
+.nva-c-blue{color:var(--nva-blue);background:var(--nva-blue-soft);border-color:var(--nva-blue-line)}
+.nva-c-viol{color:var(--nva-viol);background:var(--nva-viol-soft);border-color:var(--nva-viol-line)}
+.nva-c-red{color:var(--nva-red);background:var(--nva-red-soft);border-color:var(--nva-red-line)}
+.nva-c-gray{color:var(--nva-gray);background:var(--nva-gray-soft);border-color:var(--nva-gray-line)}
+
+/* ── Ligne "maintenant" ──────────────────────────────── */
+.nva-now{position:absolute;left:0;right:0;height:2px;background:var(--nva-now);z-index:6;pointer-events:none}
+.nva-now::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--nva-now)}
+
+/* ── Vue Mois ────────────────────────────────────────── */
+.nva-mdows{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--nva-line)}
+.nva-mdow{padding:8px 4px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--nva-mut)}
+.nva-mgrid{display:grid;grid-template-columns:repeat(7,1fr)}
+.nva-mcell{min-height:96px;border-top:1px solid var(--nva-line);border-left:1px solid var(--nva-line);
+  padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0;transition:background .12s}
+.nva-mcell:nth-child(7n+1){border-left:none}
+.nva-mcell:hover{background:var(--nva-bg2)}
+.nva-mcell.out{opacity:.4}
+.nva-mcell.today{background:var(--nva-today)}
+.nva-mnum{font-size:11.5px;font-weight:800;color:var(--nva-mut);width:22px;height:22px;line-height:22px;
+  text-align:center;border-radius:50%}
+.nva-mcell.today .nva-mnum{background:var(--nva-gold);color:#fff}
+.nva-more{font-size:9.5px;font-weight:700;color:var(--nva-mut2);padding-left:3px}
+
+/* ── Legende ─────────────────────────────────────────── */
+.nva-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;padding:0 2px}
+.nva-lg{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--nva-mut)}
+.nva-lg i{width:9px;height:9px;border-radius:3px}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media(max-width:760px){
+  .nva-views{margin-left:0;order:5;width:100%;justify-content:stretch}
+  .nva-vw{flex:1;text-align:center}
+  .nva-title{min-width:0;font-size:14px}
+  .nva-day-h .d1{font-size:8.5px}
+  .nva-day-h .d2{font-size:12px;width:22px;height:22px;line-height:22px}
+  .nva-day-h .d3{display:none}
+  .nva-hour{height:46px}
+  .nva-ev{font-size:10px;padding:2px 4px 2px 7px}
+  .nva-ev span{display:none}
+  .nva-mcell{min-height:64px}
+  .nva-scroll{max-height:70vh}
+}

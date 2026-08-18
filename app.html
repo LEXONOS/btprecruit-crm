@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVALEM — Espace de travail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="stylesheet" href="/css/novalem-agenda.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nv-logo" onclick="go('accueil')">Nova<b>lem</b></div>
+  <div class="nv-items" id="nv-items"></div>
+  <div class="nv-user" id="nv-user" onclick="logout()" title="Se deconnecter">
+    <div class="nv-avatar" id="nv-avatar">?</div>
+    <div class="nv-uname" id="nv-uname">-</div>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="topbar">
+    <div class="tb-title" id="tb-title">-</div>
+    <div class="tb-quick">
+      <input id="quick-tache" placeholder="+ note ou tache rapide, Entree pour enregistrer">
+    </div>
+    <button class="tb-refresh" onclick="refreshApp(true)" title="Actualiser sans recharger la page" aria-label="Actualiser">&#8635;</button>
+  </div>
+  <div id="content"></div>
+</main>
+
+<!-- Modale generique -->
+<div id="mo" onclick="if(event.target===this)closeMo()">
+  <div id="md">
+    <div class="mo-h"><div id="mo-t">-</div><div class="mo-x" onclick="closeMo()">&times;</div></div>
+    <div id="mo-b"></div>
+  </div>
+</div>
+
+<div id="toaster"></div>
+
+<script src="/js/novalem-agenda.js"></script>
+<script src="/js/usine-ui.js"></script>
+<script src="/js/mail-copier.js"></script>
+<script src="/js/assistant-prospect.js"></script>
+<script src="/js/decouverte.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

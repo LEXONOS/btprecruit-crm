@@ -127,6 +127,7 @@ async function actionTrier(sb, body) {
     type: 'text',
     text:
       'Client CRM : ' + JSON.stringify({ nom: client && client.nom, activite: client && client.activite, email: client && client.email, telephone: client && client.telephone }) + '\n' +
+      (body.cadrage ? 'Fiche de cadrage remplie en RDV (source prioritaire) : ' + JSON.stringify(body.cadrage) + '\n' : '') +
       'Inventaire complet des fichiers deposes :\n' + inventory.join('\n') + '\n\n' +
       'Analyse TOUT ce qui precede (images, PDF, textes) et ressors UNIQUEMENT un objet JSON valide, sans markdown, avec cette structure exacte :\n' +
       '{\n' +
