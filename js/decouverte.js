@@ -250,11 +250,21 @@ async function insertCibles(rows) {
   function index(data) { (data || []).forEach(function (r) { if (r.place_id) map.byPlace[r.place_id] = r.id; map.byNom[norm(r.entreprise) + '|' + norm(r.zone)] = r.id; }); }
   var r = await sb().from('web_prospection_cibles').insert(rows).select('id,place_id,entreprise,zone');
   if (!r.error) { index(r.data); return { added: (r.data || rows).length, map: map }; }
-  // colonne manquante (phase9/phase11 pas jouees) : on retombe sur le minimum garanti
-  var min = rows.map(function (x) { return { entreprise: x.entreprise, telephone: x.telephone, zone: x.zone, qualite_site: x.qualite_site, statut: 'a_appeler', lien_maps: x.lien_maps, notes: x.notes, owner: x.owner }; });
-  var r2 = await sb().from('web_prospection_cibles').insert(min).select('id,entreprise,zone');
-  if (!r2.error) { index(r2.data); return { added: (r2.data || min).length, map: map }; }
-  // dernier recours : ligne par ligne, on saute les doublons
+  // Colonne manquante : on retombe PAR ETAPES en gardant les marqueurs d'origine (place_id, source)
+  // le plus longtemps possible, pour ne jamais transformer un resto IA en resto "manuel".
+  function socle(x) { return { entreprise: x.entreprise, telephone: x.telephone, zone: x.zone, qualite_site: x.qualite_site, statut: 'a_appeler', lien_maps: x.lien_maps, notes: x.notes, owner: x.owner }; }
+  var essais = [
+    function (x) { var o = socle(x); o.place_id = x.place_id; o.source = x.source; return o; },
+    function (x) { var o = socle(x); o.place_id = x.place_id; return o; },
+    socle
+  ];
+  for (var e = 0; e < essais.length; e++) {
+    var payloadE = rows.map(essais[e]);
+    var re = await sb().from('web_prospection_cibles').insert(payloadE).select('id,place_id,entreprise,zone');
+    if (!re.error) { index(re.data); return { added: (re.data || payloadE).length, map: map }; }
+  }
+  // dernier recours : ligne par ligne (socle nu), on saute les doublons
+  var min = rows.map(socle);
   var ok = 0;
   for (var i = 0; i < min.length; i++) { var rr = await sb().from('web_prospection_cibles').insert(min[i]).select('id,entreprise,zone'); if (!rr.error) { ok++; index(rr.data); } }
   return { added: ok, map: map };
@@ -344,7 +354,7 @@ async function _go() {
         statut: 'a_appeler', lien_maps: x.url, site_actuel: x.social || null, secteur: 'Restaurant',
         notes: (x.rating ? x.rating + '\u2605 ' : '') + (x.reviews ? x.reviews + ' avis ' : '') + '\u00b7 repere auto',
         enrichissement: { place_id: x.id, rating: x.rating, reviews: x.reviews, source: 'decouverte' },
-        enrichi_le: new Date().toISOString(), place_id: x.id, owner: meId
+        enrichi_le: new Date().toISOString(), place_id: x.id, owner: meId, source: 'decouverte'
       };
     });
     var ins = await insertCibles(payload);
@@ -384,6 +394,7 @@ async function _sent(cibleId, placeId) {
     var u = await sb().from('web_prospection_cibles').update({ statut: 'mail_envoye', rappel_le: plusJours(3), updated_at: new Date().toISOString() }).eq('id', cibleId);
     if ((a && a.error) || (u && u.error)) throw new Error((a && a.error && a.error.message) || (u && u.error && u.error.message) || 'erreur');
     marquerCarteEnvoyee(placeId, cibleId);
+    try { await sb().from('web_prospection_cibles').update({ canal: 'whatsapp' }).eq('id', cibleId); } catch (e2) {} // tag canal (best-effort, sans effet si colonne absente)
     if (window.loadAll) { try { await window.loadAll(); } catch (e) {} }
     loadStats();
   } catch (e) {
@@ -487,5 +498,100 @@ async function _saveMsg() {
   }
 }
 
-window.Decouverte = { render: render, _go: _go, _stop: _stop, _session: function () { if (window.go) window.go('session'); }, _sent: _sent, _undo: _undo, _backup: _backup, _stats: loadStats, _openMsg: _openMsg, _closeMsg: _closeMsg, _saveMsg: _saveMsg };
+/* ── PHASE 2 : mode "Prospection WhatsApp" sur toute la file a contacter ── */
+var CAMP = { origine: 'tous', zone: 'toutes', list: [], sent: {} };
+
+function origineDe(c) {
+  if (!c) return 'manuel';
+  if (c.source === 'decouverte') return 'ia';
+  if (c.place_id) return 'ia';
+  if (c.enrichissement && c.enrichissement.source === 'decouverte') return 'ia';
+  return 'manuel';
+}
+function heatDe(c) { var e = c.enrichissement || {}; return heat(e.rating, e.reviews); }
+
+function renderCampagne() {
+  ensureMe();
+  CAMP.sent = {};
+  el('content').innerHTML =
+    '<div class="card"><h2>Prospection WhatsApp</h2>' +
+    '<div style="font-size:12.5px;color:var(--mut);margin-bottom:12px">Toute ta file « a contacter » en cartes. Clique WhatsApp : le message part et le contact passe en relance dans 3 jours. Filtre par origine et par zone. Rythme humain pour ne pas te faire bloquer le numero.</div>' +
+    '<div id="camp-bar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px"></div>' +
+    '<div id="camp-list"><div class="empty">Chargement...</div></div></div>';
+  chargerCampagne();
+}
+
+async function chargerCampagne() {
+  var r = await sb().from('web_prospection_cibles').select('*').eq('statut', 'a_appeler');
+  CAMP.list = (r && r.data) ? r.data : [];
+  majBarreCampagne();
+  dessinerCampagne();
+}
+
+function majBarreCampagne() {
+  var bar = el('camp-bar'); if (!bar) return;
+  var zones = [];
+  CAMP.list.forEach(function (c) { if (c.zone && zones.indexOf(c.zone) < 0) zones.push(c.zone); });
+  zones.sort();
+  function chip(g, val, label, actif) { return '<button type="button" class="chip ' + (actif ? 'gold' : 'gray') + '" style="border:none;cursor:pointer;font:inherit;font-weight:600" onclick="Decouverte._campFiltre(\'' + g + '\',\'' + val + '\')">' + label + '</button>'; }
+  bar.innerHTML =
+    '<span style="font-size:12px;color:var(--mut)">Origine</span>' +
+    chip('origine', 'tous', 'Tous', CAMP.origine === 'tous') +
+    chip('origine', 'ia', 'IA', CAMP.origine === 'ia') +
+    chip('origine', 'manuel', 'Manuel', CAMP.origine === 'manuel') +
+    '<span style="font-size:12px;color:var(--mut);margin-left:10px">Zone</span>' +
+    '<select onchange="Decouverte._campZone(this.value)" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px"><option value="toutes">Toutes</option>' +
+    zones.map(function (z) { return '<option value="' + esc(z) + '"' + (CAMP.zone === z ? ' selected' : '') + '>' + esc(z) + '</option>'; }).join('') + '</select>';
+}
+
+function dessinerCampagne() {
+  var box = el('camp-list'); if (!box) return;
+  var list = CAMP.list.filter(function (c) {
+    if (CAMP.origine !== 'tous' && origineDe(c) !== CAMP.origine) return false;
+    if (CAMP.zone !== 'toutes' && c.zone !== CAMP.zone) return false;
+    return true;
+  }).sort(function (a, b) { return heatDe(b) - heatDe(a); });
+  if (!list.length) { box.innerHTML = '<div class="empty">Rien a contacter avec ce filtre. Lance un scan dans Decouverte, ou change le filtre.</div>'; return; }
+  var head = '<div style="font-size:13px;color:var(--mut);margin-bottom:10px"><b>' + list.length + '</b> a contacter</div>';
+  var cards = list.map(function (c) {
+    var e = c.enrichissement || {};
+    var wa = waLink(c.telephone, c.entreprise);
+    var fb = c.qualite_site === 'facebook' ? ' <span class="chip gray">Facebook</span>' : '';
+    var org = origineDe(c) === 'ia' ? ' <span class="chip blue">IA</span>' : ' <span class="chip gray">Manuel</span>';
+    var sub = esc(c.zone || '') + (e.rating ? ' \u00b7 ' + esc(e.rating) + '\u2605' : '') + (e.reviews ? ' (' + e.reviews + ')' : '') + (c.telephone ? ' \u00b7 ' + esc(c.telephone) : ' \u00b7 pas de tel');
+    var acts;
+    if (CAMP.sent[c.id]) acts = '<span class="chip green">Envoye \u00b7 relance dans 3 j</span> <button class="btn ghost sm" type="button" onclick="Decouverte._campUndo(\'' + c.id + '\')">Annuler</button>';
+    else acts = (wa ? '<a class="btn wa" target="_blank" href="' + wa + '" onclick="Decouverte._campSent(\'' + c.id + '\')">WhatsApp</a>' : '') +
+      (c.telephone ? '<a class="btn ghost sm" href="tel:' + esc(String(c.telephone).replace(/ /g, '')) + '">Appeler</a>' : '') +
+      (c.lien_maps ? '<a class="btn ghost sm" target="_blank" href="' + esc(c.lien_maps) + '">Maps</a>' : '');
+    return '<div class="dec-card' + (CAMP.sent[c.id] ? ' done' : '') + '" id="camp-' + esc(c.id) + '"><div class="dec-main"><div class="dec-nom">' + esc(c.entreprise) + org + fb + '</div><div class="dec-sub">' + sub + '</div></div><div class="dec-act">' + acts + '</div></div>';
+  }).join('');
+  box.innerHTML = head + '<div class="dec-list">' + cards + '</div>';
+}
+
+async function _campSent(cibleId) {
+  try {
+    var a = await sb().from('web_prospection_actions').insert({ cible_id: cibleId, type: 'whatsapp', resultat: 'contacte', user_id: meId });
+    var u = await sb().from('web_prospection_cibles').update({ statut: 'mail_envoye', rappel_le: plusJours(3), updated_at: new Date().toISOString() }).eq('id', cibleId);
+    if ((a && a.error) || (u && u.error)) throw new Error((a && a.error && a.error.message) || (u && u.error && u.error.message) || 'erreur');
+    CAMP.sent[cibleId] = 1;
+    var card = el('camp-' + cibleId);
+    if (card) { card.classList.add('done'); var act = card.querySelector('.dec-act'); if (act) act.innerHTML = '<span class="chip green">Envoye \u00b7 relance dans 3 j</span> <button class="btn ghost sm" type="button" onclick="Decouverte._campUndo(\'' + cibleId + '\')">Annuler</button>'; }
+    try { await sb().from('web_prospection_cibles').update({ canal: 'whatsapp' }).eq('id', cibleId); } catch (e2) {}
+    if (window.loadAll) { try { await window.loadAll(); } catch (e) {} }
+  } catch (e) { toast('Pas enregistre, retape WhatsApp : ' + (e.message || 'reseau'), true); }
+}
+async function _campUndo(cibleId) {
+  try {
+    var u = await sb().from('web_prospection_cibles').update({ statut: 'a_appeler', rappel_le: null, updated_at: new Date().toISOString() }).eq('id', cibleId);
+    if (u && u.error) throw new Error(u.error.message);
+  } catch (e) { toast('Annulation non enregistree : ' + (e.message || 'reseau'), true); return; }
+  delete CAMP.sent[cibleId];
+  if (window.loadAll) { try { await window.loadAll(); } catch (e) {} }
+  dessinerCampagne();
+}
+function _campFiltre(g, val) { if (g === 'origine') CAMP.origine = val; majBarreCampagne(); dessinerCampagne(); }
+function _campZone(val) { CAMP.zone = val; dessinerCampagne(); }
+
+window.Decouverte = { render: render, _go: _go, _stop: _stop, _session: function () { if (window.go) window.go('session'); }, _sent: _sent, _undo: _undo, _backup: _backup, _stats: loadStats, _openMsg: _openMsg, _closeMsg: _closeMsg, _saveMsg: _saveMsg, renderCampagne: renderCampagne, _campSent: _campSent, _campUndo: _campUndo, _campFiltre: _campFiltre, _campZone: _campZone };
 })();

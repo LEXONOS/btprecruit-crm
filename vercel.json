@@ -2,7 +2,9 @@
   "outputDirectory": ".",
   "functions": {
     "api/assistant-prospect.js": { "maxDuration": 60 },
-    "api/facture.js": { "maxDuration": 60 }
+    "api/facture.js": { "maxDuration": 60 },
+    "api/brief.js": { "maxDuration": 30 },
+    "api/verif.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/app", "destination": "/app.html" }

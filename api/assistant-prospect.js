@@ -7,7 +7,7 @@
 //      (fort / faible / absent) — regle absolue : on ne devine JAMAIS
 //   3. redige un COLD MAIL personnalise dans le style de Louis / Studio Novalem
 //
-// Variable Vercel requise : ANTHROPIC_API_KEY (existe deja, cf api/usine.js).
+// Variable Vercel requise : ANTHROPIC_API_KEY (deja configuree sur le projet).
 // Aucune autre cle : la fonction ne touche pas Supabase (c'est le front qui
 // enregistre, apres validation humaine des preuves faibles).
 

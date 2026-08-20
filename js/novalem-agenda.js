@@ -84,6 +84,29 @@ function layoutDay(evs) {
   return sorted;
 }
 
+// Styles du glisser-deposer : injectes une seule fois, s'appuient sur les variables --nva-*
+var _dragCssDone = false;
+function ensureDragCss() {
+  if (_dragCssDone) return;
+  _dragCssDone = true;
+  var s = document.createElement('style');
+  s.id = 'nva-drag-css';
+  s.textContent =
+    '.nva-ev,.nva-chip{touch-action:none}' +
+    '.nva-drag-clone{position:fixed!important;z-index:99999;pointer-events:none;margin:0!important;' +
+      'box-shadow:0 16px 34px rgba(40,34,26,.30),0 3px 8px rgba(40,34,26,.20);opacity:.97;' +
+      'transform:scale(1.04);will-change:left,top,transform,width,height;border-radius:8px}' +
+    '.nva-drag-ghost{position:absolute;left:2px;right:3px;z-index:6;box-sizing:border-box;' +
+      'border:2px dashed currentColor;border-radius:8px;background:rgba(200,144,10,.10);' +
+      'pointer-events:none;animation:nvaGhostPulse 1s ease-in-out infinite}' +
+    '.nva-drop-cell{outline:2px dashed var(--nva-gold,#C8900A);outline-offset:-3px;border-radius:8px;' +
+      'background:var(--nva-gold-soft,rgba(200,144,10,.12))}' +
+    '.nva-lifted{opacity:.32!important}' +
+    '.nva-dragging,.nva-dragging *{cursor:grabbing!important;user-select:none!important}' +
+    '@keyframes nvaGhostPulse{0%,100%{opacity:.5}50%{opacity:.9}}';
+  document.head.appendChild(s);
+}
+
 function create(container, opts) {
   opts = opts || {};
   var state = {
@@ -201,7 +224,7 @@ function create(container, opts) {
     }).join('');
 
     var allday = '<div class="nva-allday-lbl">Journee</div>' + days.map(function (d) {
-      return '<div class="nva-allday-cell">' + alldayCell(d) + '</div>';
+      return '<div class="nva-allday-cell" data-day="' + localYMD(d) + '">' + alldayCell(d) + '</div>';
     }).join('');
 
     var hoursCol = '';
@@ -209,7 +232,7 @@ function create(container, opts) {
       hoursCol += '<div class="nva-hour" style="height:' + H + 'px"><span>' + (state.hourStart + h) + 'h</span></div>';
     }
     var cols = days.map(function (d) {
-      return '<div class="nva-col' + (sameDay(d, today) ? ' today' : '') + '" style="height:' + (nHours * H) + 'px">' + dayColumn(d, sameDay(d, today)) + '</div>';
+      return '<div class="nva-col' + (sameDay(d, today) ? ' today' : '') + '" data-day="' + localYMD(d) + '" style="height:' + (nHours * H) + 'px">' + dayColumn(d, sameDay(d, today)) + '</div>';
     }).join('');
 
     return '<div class="nva-frame">' +
@@ -300,7 +323,7 @@ function create(container, opts) {
       if (ev && opts.onEventClick) opts.onEventClick(ev);
       return;
     }
-    var dayEl = t.closest('[data-day]');
+    var dayEl = t.closest('.nva-mcell');
     if (dayEl) {
       state.date = new Date(dayEl.getAttribute('data-day') + 'T12:00:00');
       state.view = 'jour';
@@ -316,6 +339,211 @@ function create(container, opts) {
     }
   });
 
+  // ── Glisser-deposer des evenements ───────────────────
+  // Base sur les pointer events (et pas le drag HTML natif) : clone qui suit le
+  // doigt/souris, ombre de depot calee sur le creneau vise, marche au tactile.
+  var DRAG = null;
+  var suppressNextClick = false;
+
+  function initDrag() {
+    ensureDragCss();
+    container.addEventListener('pointerdown', onPD);
+    // avale le clic synthetique qui suit un vrai deplacement (sinon la fiche s'ouvre apres le drop)
+    container.addEventListener('click', function (e) {
+      if (suppressNextClick) { suppressNextClick = false; e.stopPropagation(); e.preventDefault(); }
+    }, true);
+  }
+
+  function onPD(e) {
+    if (DRAG) return;                                  // un drop est peut-etre en cours d'atterrissage
+    if (e.button != null && e.button !== 0) return;    // clic gauche / tactile uniquement
+    var evEl = e.target && e.target.closest ? e.target.closest('[data-ev]') : null;
+    if (!evEl) return;
+    var id = evEl.getAttribute('data-ev');
+    var ev = events().find(function (x) { return String(x.id) === id; });
+    if (!ev) return;
+    DRAG = { id: id, ev: ev, srcEl: evEl, startX: e.clientX, startY: e.clientY,
+             moved: false, clone: null, ghost: null, ghostCell: null,
+             timed: isTimed(ev), pointerId: e.pointerId, target: null, offX: 0, offY: 0 };
+    try { container.setPointerCapture(e.pointerId); } catch (_) {}
+    container.addEventListener('pointermove', onPM);
+    container.addEventListener('pointerup', onPU);
+    container.addEventListener('pointercancel', onPU);
+  }
+
+  function onPM(e) {
+    if (!DRAG) return;
+    if (!DRAG.moved) {
+      if (Math.abs(e.clientX - DRAG.startX) + Math.abs(e.clientY - DRAG.startY) < 8) return;
+      beginDrag(e);
+    }
+    e.preventDefault();
+    moveClone(e.clientX, e.clientY);
+    updateGhost(e.clientX, e.clientY);
+    autoScroll(e.clientY);
+  }
+
+  function onPU(e) {
+    container.removeEventListener('pointermove', onPM);
+    container.removeEventListener('pointerup', onPU);
+    container.removeEventListener('pointercancel', onPU);
+    try { container.releasePointerCapture(DRAG && DRAG.pointerId); } catch (_) {}
+    if (!DRAG) return;
+    if (!DRAG.moved) {                                 // simple tap : ouvrir la fiche
+      var ev0 = DRAG.ev;
+      cleanupDrag();
+      suppressNextClick = true;
+      if (opts.onEventClick) opts.onEventClick(ev0);
+      return;
+    }
+    e.preventDefault();
+    finishDrop();
+  }
+
+  function beginDrag(e) {
+    DRAG.moved = true;
+    document.body.classList.add('nva-dragging');
+    var r = DRAG.srcEl.getBoundingClientRect();
+    var clone = DRAG.srcEl.cloneNode(true);
+    clone.classList.add('nva-drag-clone');
+    clone.style.left = r.left + 'px';
+    clone.style.top = r.top + 'px';
+    clone.style.width = r.width + 'px';
+    clone.style.height = r.height + 'px';
+    document.body.appendChild(clone);
+    DRAG.clone = clone;
+    DRAG.offX = e.clientX - r.left;
+    DRAG.offY = e.clientY - r.top;
+    DRAG.srcEl.classList.add('nva-lifted');
+  }
+
+  function moveClone(x, y) {
+    if (!DRAG.clone) return;
+    DRAG.clone.style.left = (x - DRAG.offX) + 'px';
+    DRAG.clone.style.top = (y - DRAG.offY) + 'px';
+  }
+
+  function computeTarget(x, y) {
+    var under = document.elementFromPoint(x, y);
+    if (!under || !under.closest) return null;
+    var mcell = under.closest('.nva-mcell');           // vue mois : une cellule = un jour
+    if (mcell) return { kind: 'day', day: mcell.getAttribute('data-day'), el: mcell };
+    var col = under.closest('.nva-col');               // vue jour/semaine : colonne horaire
+    if (col && DRAG.timed) {
+      var rect = col.getBoundingClientRect();
+      var H = hourH();
+      var minutes = state.hourStart * 60 + Math.round((y - rect.top) / H * 2) * 30;
+      minutes = Math.max(state.hourStart * 60, Math.min(state.hourEnd * 60 - 30, minutes));
+      return { kind: 'grid', day: col.getAttribute('data-day'), el: col, min: minutes };
+    }
+    var ad = under.closest('.nva-allday-cell');         // bandeau Journee
+    if (ad) return { kind: 'day', day: ad.getAttribute('data-day'), el: ad };
+    if (col) return { kind: 'day', day: col.getAttribute('data-day'), el: col };
+    return null;
+  }
+
+  function updateGhost(x, y) {
+    var t = computeTarget(x, y);
+    DRAG.target = t;
+    clearGhost();
+    if (!t || !t.day) return;
+    if (t.kind === 'grid') {
+      var H = hourH();
+      var d0 = new Date(DRAG.ev.date_debut);
+      var durMin = DRAG.ev.date_fin ? Math.max(30, (new Date(DRAG.ev.date_fin) - d0) / 60000) : 60;
+      var top = (t.min - state.hourStart * 60) / 60 * H;
+      var height = Math.max(24, Math.min(durMin / 60 * H - 3, (state.hourEnd * 60 - t.min) / 60 * H - 3));
+      var g = document.createElement('div');
+      g.className = 'nva-drag-ghost ' + typeStyle(DRAG.ev.type).cls;
+      g.style.top = Math.max(0, top) + 'px';
+      g.style.height = height + 'px';
+      t.el.appendChild(g);
+      DRAG.ghost = g;
+      setCloneTime(t.min);
+    } else {
+      t.el.classList.add('nva-drop-cell');
+      DRAG.ghostCell = t.el;
+    }
+  }
+
+  function clearGhost() {
+    if (DRAG && DRAG.ghost) { DRAG.ghost.remove(); DRAG.ghost = null; }
+    if (DRAG && DRAG.ghostCell) { DRAG.ghostCell.classList.remove('nva-drop-cell'); DRAG.ghostCell = null; }
+  }
+
+  function setCloneTime(min) {
+    if (!DRAG.clone) return;
+    var sp = DRAG.clone.querySelector('span');
+    if (sp) sp.textContent = String(Math.floor(min / 60)).padStart(2, '0') + 'h' + String(min % 60).padStart(2, '0');
+  }
+
+  function targetRect() {
+    if (DRAG.ghost) return DRAG.ghost.getBoundingClientRect();
+    if (DRAG.ghostCell) return DRAG.ghostCell.getBoundingClientRect();
+    return DRAG.srcEl.getBoundingClientRect();
+  }
+
+  function finishDrop() {
+    var t = DRAG.target, ev = DRAG.ev;
+    if (!t || !t.day) { cancelDrop(); return; }
+    var p = t.day.split('-');
+    var y = +p[0], mo = +p[1] - 1, da = +p[2];
+    var old = new Date(ev.date_debut);
+    var newStart = (t.kind === 'grid' && t.min != null)
+      ? new Date(y, mo, da, Math.floor(t.min / 60), t.min % 60, 0)
+      : new Date(y, mo, da, old.getHours(), old.getMinutes(), 0);
+    if (newStart.getTime() === old.getTime()) { cancelDrop(); return; }
+    settleClone(function () {
+      suppressNextClick = true;
+      cleanupDrag();
+      if (opts.onEventMove) opts.onEventMove(ev, newStart);
+      render();
+    });
+  }
+
+  function settleClone(done) {
+    var c = DRAG.clone;
+    if (!c) { done(); return; }
+    var tr = targetRect();
+    c.style.transition = 'left .18s cubic-bezier(.2,.7,.2,1),top .18s cubic-bezier(.2,.7,.2,1),width .18s,height .18s,transform .18s,opacity .2s';
+    c.style.left = tr.left + 'px';
+    c.style.top = tr.top + 'px';
+    c.style.width = tr.width + 'px';
+    c.style.height = Math.max(24, tr.height) + 'px';
+    c.style.transform = 'scale(1)';
+    c.style.opacity = '.92';
+    setTimeout(done, 185);
+  }
+
+  function cancelDrop() {
+    var c = DRAG.clone;
+    if (!c) { cleanupDrag(); return; }
+    var r = DRAG.srcEl.getBoundingClientRect();
+    c.style.transition = 'left .16s ease,top .16s ease,transform .16s ease,opacity .18s';
+    c.style.left = r.left + 'px';
+    c.style.top = r.top + 'px';
+    c.style.transform = 'scale(1)';
+    c.style.opacity = '.9';
+    setTimeout(cleanupDrag, 160);
+  }
+
+  function cleanupDrag() {
+    clearGhost();
+    if (DRAG && DRAG.clone) DRAG.clone.remove();
+    if (DRAG && DRAG.srcEl) DRAG.srcEl.classList.remove('nva-lifted');
+    document.body.classList.remove('nva-dragging');
+    DRAG = null;
+  }
+
+  function autoScroll(y) {
+    var sc = container.querySelector('.nva-scroll');
+    if (!sc) return;
+    var r = sc.getBoundingClientRect();
+    if (y < r.top + 44) sc.scrollTop -= 14;
+    else if (y > r.bottom - 44) sc.scrollTop += 14;
+  }
+
+  if (typeof opts.onEventMove === 'function') initDrag();
   render();
   return {
     refresh: render,

@@ -15,9 +15,10 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { id, action } = req.body || {};
-  if (!id || !action) return res.status(400).json({ error: 'Paramètres manquants' });
-  if (!['valider', 'refuser'].includes(action)) return res.status(400).json({ error: 'Action invalide' });
+  const { id, action, userId, role, actif } = req.body || {};
+  if (!action) return res.status(400).json({ error: 'Paramètres manquants' });
+  const ACTIONS = ['valider', 'refuser', 'lister_users', 'set_role', 'set_actif', 'supprimer_user'];
+  if (!ACTIONS.includes(action)) return res.status(400).json({ error: 'Action invalide' });
 
   const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return res.status(500).json({ error: 'Configuration serveur manquante' });
@@ -26,6 +27,43 @@ module.exports = async (req, res) => {
     auth: { autoRefreshToken: false, persistSession: false },
     realtime: { disabled: true },
   });
+
+  if (action === 'lister_users') {
+    let { data, error } = await admin.from('users').select('id, prenom, nom, role, actif, email').order('prenom');
+    if (error) {
+      const r2 = await admin.from('users').select('id, prenom, nom, role, actif').order('prenom');
+      if (r2.error) return res.status(500).json({ error: r2.error.message });
+      data = r2.data;
+    }
+    return res.json({ users: data || [] });
+  }
+
+  if (action === 'set_role') {
+    if (!userId || !['superviseur', 'scout', 'monteur'].includes(role)) return res.status(400).json({ error: 'userId ou rôle invalide' });
+    const { error } = await admin.from('users').update({ role }).eq('id', userId);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true });
+  }
+
+  if (action === 'set_actif') {
+    if (!userId) return res.status(400).json({ error: 'userId manquant' });
+    const { error } = await admin.from('users').update({ actif: !!actif }).eq('id', userId);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true });
+  }
+
+  if (action === 'supprimer_user') {
+    if (!userId) return res.status(400).json({ error: 'userId manquant' });
+    await admin.from('web_clients').update({ monteur_id: null }).eq('monteur_id', userId);
+    const delAuth = await admin.auth.admin.deleteUser(userId);
+    if (delAuth.error) {
+      // suppression du compte bloquee (references existantes) : on desactive au moins l'acces
+      await admin.from('users').update({ actif: false }).eq('id', userId);
+      return res.status(200).json({ ok: true, desactive: true, note: delAuth.error.message });
+    }
+    await admin.from('users').delete().eq('id', userId);
+    return res.json({ ok: true });
+  }
 
   if (action === 'refuser') {
     const { error } = await admin
