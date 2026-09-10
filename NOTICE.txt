@@ -1,0 +1,30 @@
+NEGO DISTRICOM - QUOI VA OU (repo btprecruit-crm)
+
+2 fichiers, 2 emplacements :
+
+  api/nego.js         -> dans le dossier api/ du repo (a cote des autres .js)
+  public/nego.html    -> dans le dossier public/ du repo (a cote de crm.html)
+
+DEPLOIEMENT CLIC PAR CLIC :
+
+1. Ouvre github.com et va sur le repo LEXONOS/btprecruit-crm
+2. Clique sur le dossier "api"
+3. En haut a droite : "Add file" > "Upload files"
+4. Glisse le fichier nego.js (celui du dossier api/ du zip)
+5. En bas, bouton vert "Commit changes"
+6. Reviens a la racine du repo, clique sur le dossier "public"
+7. "Add file" > "Upload files"
+8. Glisse le fichier nego.html (celui du dossier public/ du zip)
+9. "Commit changes"
+10. Vercel redeploy tout seul (1-2 min)
+11. Ouvre : TON-DOMAINE-VERCEL/nego.html
+
+C'est tout. La cle ANTHROPIC_API_KEY deja configuree sur Vercel est utilisee automatiquement, rien a toucher.
+
+CE QUE CA FAIT :
+
+- Assistant decouverte : tu remplis ce que le client t'a dit (nb de personnes, probleme, budget...), tu cliques, l'IA te sort : reformulation exacte, offre a proposer, argumentaire cible, plan de concession avec contreparties, phrase de closing.
+- Copilote live : tu tapes ce que le client vient de dire ("c'est trop cher"), l'IA te repond : ce qui se joue, LA phrase a dire mot pour mot, le piege a eviter. Garde l'historique des 5 derniers echanges pour rester coherent.
+- Toute la fiche nego en dessous (prix, remises, deroulé, fiches produits), imprimable (les panneaux IA disparaissent a l'impression).
+
+L'IA connait tout le sujet Districom : catalogue, prix remises, regles 8/15/plancher 20%, ordre des concessions, les 4 formations.

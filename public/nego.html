@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Négo Districom — Assistant</title>
+<style>
+  :root{
+    --ink:#1a1d29;
+    --muted:#5c6170;
+    --line:#d8dbe2;
+    --accent:#0f4c81;
+    --ok:#0a7d4f;
+    --warn:#b3261e;
+    --bg-soft:#f3f5f8;
+    --ia:#eef4fb;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    font-size:13px;
+    line-height:1.45;
+    padding:24px;
+    max-width:960px;
+    margin:0 auto;
+    background:#fff;
+  }
+  h1{font-size:19px;margin-bottom:2px}
+  .sub{color:var(--muted);margin-bottom:18px;font-size:12px}
+  h2{
+    font-size:13px;
+    color:var(--accent);
+    border-bottom:2px solid var(--accent);
+    padding-bottom:3px;
+    margin:22px 0 8px;
+  }
+  table{width:100%;border-collapse:collapse;margin-bottom:4px}
+  th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+  th{background:var(--bg-soft);font-size:12px}
+  td.num,th.num{text-align:right;white-space:nowrap}
+  .small{font-size:11px;color:var(--muted)}
+  .note{font-size:11.5px;color:var(--muted);margin-bottom:8px}
+  .warn{color:var(--warn);font-weight:600}
+  .ok{color:var(--ok);font-weight:600}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .box{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:12px}
+  .box h3{font-size:12.5px;margin-bottom:5px;color:var(--accent)}
+  ul{padding-left:18px}
+  li{margin-bottom:2px}
+  .steps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .steps span{
+    background:var(--bg-soft);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:3px 9px;
+    font-size:12px;
+    font-weight:600;
+  }
+  .fiches{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .fiche{border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+  .fiche h3{font-size:13px;margin-bottom:1px}
+  .fiche .prix{font-weight:700;color:var(--accent);margin-bottom:5px}
+  .fiche p{font-size:12px;margin-bottom:4px}
+  .fiche .tag{font-size:11px;color:var(--muted)}
+
+  /* Assistant IA */
+  .ia-panel{
+    background:var(--ia);
+    border:1px solid #c3d4e8;
+    border-radius:8px;
+    padding:14px;
+    margin-bottom:14px;
+  }
+  .ia-panel h3{font-size:13px;color:var(--accent);margin-bottom:8px}
+  .champ{margin-bottom:8px}
+  .champ label{display:block;font-size:11.5px;font-weight:600;margin-bottom:2px;color:var(--muted)}
+  .champ input, .champ textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:6px 8px;
+    font:inherit;
+    background:#fff;
+  }
+  .champ textarea{resize:vertical;min-height:44px}
+  .champs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button.action{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:9px 16px;
+    font:inherit;
+    font-weight:600;
+    cursor:pointer;
+  }
+  button.action:disabled{opacity:.5;cursor:wait}
+  button.action:hover:not(:disabled){background:#0c3d68}
+  .resultat{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:12px;
+    margin-top:10px;
+    white-space:pre-wrap;
+    font-size:12.5px;
+    display:none;
+  }
+  .resultat.visible{display:block}
+  .erreur{color:var(--warn);font-size:12px;margin-top:8px;display:none}
+  .erreur.visible{display:block}
+
+  /* Copilote live */
+  .live-zone{display:flex;gap:8px;margin-bottom:10px}
+  .live-zone input{
+    flex:1;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:8px 10px;
+    font:inherit;
+    background:#fff;
+  }
+  .echange{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:10px 12px;
+    margin-bottom:8px;
+    font-size:12.5px;
+  }
+  .echange .client-dit{font-weight:600;color:var(--warn);margin-bottom:5px}
+  .echange .conseil{white-space:pre-wrap}
+  .loader{font-size:12px;color:var(--muted);display:none;margin-top:6px}
+  .loader.visible{display:block}
+
+  @media print{
+    body{padding:8mm;font-size:11.5px}
+    .ia-panel{display:none}
+    .fiches,.grid2{break-inside:avoid}
+    .fiche{break-inside:avoid}
+  }
+  @media (max-width:640px){
+    .grid2,.fiches,.champs-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<h1>Négo Districom — Assistant</h1>
+<p class="sub">Organisme de formation pro · 12 ans · SARL certifiée Qualiopi · 18 salariés · CA 2,4 M€ · national, présentiel + distanciel · positionnement sur-mesure premium</p>
+
+<h2>Assistant découverte (IA)</h2>
+<div class="ia-panel">
+  <h3>Remplis ce que le client t'a dit, l'IA te construit l'offre</h3>
+  <div class="champs-grid">
+    <div class="champ"><label>Combien de personnes ?</label><input id="d-personnes" placeholder="ex : 12 chefs d'équipe"></div>
+    <div class="champ"><label>Profils / métiers</label><input id="d-profils" placeholder="ex : responsables logistique"></div>
+    <div class="champ"><label>Problème à régler / pourquoi maintenant</label><input id="d-probleme" placeholder="ex : erreurs de préparation, turnover"></div>
+    <div class="champ"><label>Échéance</label><input id="d-echeance" placeholder="ex : avant fin novembre"></div>
+    <div class="champ"><label>Présentiel ou distanciel</label><input id="d-format" placeholder="ex : présentiel sur site"></div>
+    <div class="champ"><label>Budget évoqué</label><input id="d-budget" placeholder="ex : 4 000 € max annoncés"></div>
+    <div class="champ"><label>Qui décide ?</label><input id="d-decideur" placeholder="ex : lui + validation DG"></div>
+    <div class="champ"><label>Autres infos / objections déjà lâchées</label><input id="d-autres" placeholder="ex : compare avec du e-learning"></div>
+  </div>
+  <div style="margin-top:8px">
+    <button class="action" id="btn-offre" onclick="genererOffre()">Génère l'offre à proposer</button>
+  </div>
+  <p class="loader" id="loader-offre">L'IA construit ton offre...</p>
+  <p class="erreur" id="err-offre"></p>
+  <div class="resultat" id="res-offre"></div>
+</div>
+
+<h2>Copilote live</h2>
+<div class="ia-panel">
+  <h3>Tape ce que le client vient de dire, l'IA te donne la réponse</h3>
+  <div class="live-zone">
+    <input id="live-input" placeholder='ex : "c'est trop cher, faites un geste"' onkeydown="if(event.key==='Enter')copiloteLive()">
+    <button class="action" id="btn-live" onclick="copiloteLive()">Réponds-moi</button>
+  </div>
+  <p class="loader" id="loader-live">L'IA réfléchit...</p>
+  <p class="erreur" id="err-live"></p>
+  <div id="live-historique"></div>
+</div>
+
+<h2>Prix, marges et remises</h2>
+<table>
+  <tr>
+    <th>Prestation</th><th class="num">Prix</th><th class="num">Marge</th>
+    <th class="num">−8%</th><th class="num">−15%</th><th class="num">Plancher</th>
+  </tr>
+  <tr>
+    <td>Intra 1 jour <span class="small">· 12 pers. max</span></td>
+    <td class="num">2 800 €</td><td class="num">37,5%</td>
+    <td class="num">2 576 €</td><td class="num">2 380 €</td><td class="num">2 190 €</td>
+  </tr>
+  <tr>
+    <td>Intra 2 jours <span class="small">· 12 pers. max</span></td>
+    <td class="num">5 200 €</td><td class="num">36,5%</td>
+    <td class="num">4 784 €</td><td class="num">4 420 €</td><td class="num">4 125 €</td>
+  </tr>
+  <tr>
+    <td>Parcours managérial <span class="small">· 6 modules / 3 mois</span></td>
+    <td class="num">14 500 €</td><td class="num">36,5%</td>
+    <td class="num">13 340 €</td><td class="num">12 325 €</td><td class="num">11 500 €</td>
+  </tr>
+  <tr>
+    <td>Distanciel 1 jour <span class="small">· classe virtuelle</span></td>
+    <td class="num">1 900 €</td><td class="num">42%</td>
+    <td class="num">1 748 €</td><td class="num">1 615 €</td><td class="num">1 375 €</td>
+  </tr>
+</table>
+<table>
+  <tr><th>Périphérique</th><th class="num">Prix</th><th class="num">Marge</th><th>Usage</th></tr>
+  <tr><td>Diagnostic / audit des besoins</td><td class="num">1 200 €</td><td class="num">50%</td><td class="ok">Cadeau n°1</td></tr>
+  <tr><td>Supports pédagogiques (forfait)</td><td class="num">950 €</td><td class="num">52,5%</td><td class="ok">Cadeau n°2</td></tr>
+  <tr><td>Certification / participant</td><td class="num">180 €</td><td class="num">61%</td><td class="ok">Cadeau gros volume</td></tr>
+  <tr><td>Coaching individuel (5 séances)</td><td class="num">2 400 €</td><td class="num">41,5%</td><td>À vendre, pas à offrir</td></tr>
+  <tr><td>Délai de paiement 45–60 j</td><td class="num">0 €</td><td class="num">—</td><td class="ok">Cadeau gratuit, en 1er</td></tr>
+</table>
+<p class="note">Lecture : les prestations cœur margent 36–37%, donc −15% mange déjà 40% de la marge brute. Les périphériques margent 50–61% : ce sont elles qu'on offre — coût réel faible, valeur perçue forte.</p>
+
+<div class="grid2">
+  <div class="box">
+    <h3>Remises autorisées</h3>
+    <ul>
+      <li><strong>8%</strong> max seul</li>
+      <li><strong>15%</strong> avec accord chef + <strong>3 sessions mini</strong> ou parcours complet</li>
+      <li class="warn">Plancher : marge 20%, jamais en dessous</li>
+      <li>Paiement standard : 30% commande, solde 30 j</li>
+    </ul>
+  </div>
+  <div class="box">
+    <h3>Ordre des concessions</h3>
+    <ul>
+      <li>1. Délais de paiement 45–60 j (coûte 0)</li>
+      <li>2. Diagnostic offert (1 200 €)</li>
+      <li>3. Supports offerts (950 €)</li>
+      <li>4. Remise, petits pas, max 8%</li>
+      <li>5. Le 15% : "à valider avec ma direction, sur 3 sessions"</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Déroulé de l'entretien</h2>
+<div class="steps">
+  <span>1. Contact</span><span>2. Découverte</span><span>3. Reformulation</span>
+  <span>4. Argumentation + prix</span><span>5. Négociation</span><span>6. Conclusion</span>
+</div>
+
+<div class="grid2">
+  <div class="box">
+    <h3>Découverte — questions (mots clés)</h3>
+    <ul>
+      <li>Combien de personnes ?</li>
+      <li>Profils / métiers ?</li>
+      <li>Problème à régler ? Pourquoi maintenant ?</li>
+      <li>Déjà formé avant ? Résultat ?</li>
+      <li>Échéance ?</li>
+      <li>Présentiel ou distanciel ?</li>
+      <li>Budget ?</li>
+      <li>Qui décide ?</li>
+    </ul>
+  </div>
+  <div class="box">
+    <h3>Réponses flash</h3>
+    <ul>
+      <li><strong>Trop cher</strong> → "Par rapport à quoi ?" · 5 200 € = 433 €/pers pour 2 jours</li>
+      <li><strong>E-learning moins cher</strong> → contenu vs résultat, sur vos cas réels</li>
+      <li><strong>Faites un geste</strong> → tour 1 : valeur · tour 2 : cadeau · tour 3 : remise</li>
+      <li><strong>Silence après le prix</strong> → je me tais</li>
+      <li><strong>Je dois réfléchir</strong> → "Contenu ou conditions ?" + date de rappel</li>
+      <li class="warn">Jamais de concession sans contrepartie</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Fiches produits</h2>
+<div class="fiches">
+  <div class="fiche">
+    <h3>Fiche 1 — Gestion d'entrepôt &amp; logistique</h3>
+    <p class="prix">5 200 € HT · 2 jours (14h) · présentiel</p>
+    <p class="tag">Public : resp. logistique, chefs d'équipe entrepôt · 12 pers. max · aucun prérequis</p>
+    <p><strong>J1 :</strong> flux, implantation/zonage (ABC, picking, cross-docking), gestion des stocks (FIFO/FEFO), atelier cartographie.<br>
+    <strong>J2 :</strong> indicateurs (taux de service, erreur), tableaux de bord, sécurité (manutention, TMS), simulation d'incident.</p>
+    <p class="tag">Évaluation : quiz + étude de cas notée · Livrables : support personnalisé, check-lists, modèles de tableaux de bord</p>
+  </div>
+  <div class="fiche">
+    <h3>Fiche 2 — Excellence relation client</h3>
+    <p class="prix">2 800 € HT · 1 jour (7h) · présentiel</p>
+    <p class="tag">Public : conseillers clientèle, commerciaux sédentaires · 12 pers. max · aucun prérequis</p>
+    <p>Fondamentaux à l'ère digitale, écoute active / questionnement / reformulation, traitement des réclamations, fidélisation et vente additionnelle, mises en situation filmées et débriefées.</p>
+    <p class="tag">Évaluation : auto-positionnement avant/après + éval. à chaud · Livrables : support, fiche mémo réclamations</p>
+  </div>
+  <div class="fiche">
+    <h3>Fiche 3 — Gestion des conflits</h3>
+    <p class="prix">2 800 € HT présentiel / 1 900 € HT distanciel · 1 jour (7h)</p>
+    <p class="tag">Public : managers, RH, toute personne exposée aux tensions · 12 pers. max · aucun prérequis</p>
+    <p>Dynamique d'un conflit (typologie, escalade), assertivité (méthode DESC), communication non violente (CNV), médiation et recadrage, ateliers sur les cas des participants.</p>
+    <p class="tag">Évaluation : quiz + plan d'action individuel · Livrables : support, grille d'auto-diagnostic</p>
+  </div>
+  <div class="fiche">
+    <h3>Fiche 4 — Management d'équipe (parcours)</h3>
+    <p class="prix">14 500 € HT · 6 modules d'1 jour sur 3 mois</p>
+    <p class="tag">Public : managers de proximité, nouveaux managers · 12 pers. max · prérequis : fonction managériale (actuelle ou proche)</p>
+    <p>1. Fondamentaux &amp; posture · 2. Objectifs &amp; délégation (SMART) · 3. Communiquer &amp; motiver · 4. Entretiens managériaux · 5. Situations difficiles · 6. Performance collective. Modules vendables séparément (tarif à revoir).</p>
+    <p class="tag">Évaluation : continue + soutenance du plan d'action · Livrables : supports par module, certification incluse, suivi individualisé</p>
+  </div>
+</div>
+
+<script>
+const API = '/api/nego';
+const liveHistorique = [];
+
+async function genererOffre(){
+  const champs = {
+    'Nombre de personnes': document.getElementById('d-personnes').value,
+    'Profils': document.getElementById('d-profils').value,
+    'Probleme / pourquoi maintenant': document.getElementById('d-probleme').value,
+    'Echeance': document.getElementById('d-echeance').value,
+    'Format': document.getElementById('d-format').value,
+    'Budget evoque': document.getElementById('d-budget').value,
+    'Decideur': document.getElementById('d-decideur').value,
+    'Autres infos': document.getElementById('d-autres').value
+  };
+  const lignes = Object.entries(champs)
+    .filter(([, v]) => v && v.trim())
+    .map(([k, v]) => `${k} : ${v.trim()}`);
+
+  const err = document.getElementById('err-offre');
+  const res = document.getElementById('res-offre');
+  err.classList.remove('visible');
+  res.classList.remove('visible');
+
+  if (!lignes.length){
+    err.textContent = 'Remplis au moins un champ.';
+    err.classList.add('visible');
+    return;
+  }
+
+  const btn = document.getElementById('btn-offre');
+  const loader = document.getElementById('loader-offre');
+  btn.disabled = true;
+  loader.classList.add('visible');
+
+  try {
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'offre', decouverte: lignes.join('\n') })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erreur serveur');
+    res.textContent = data.texte;
+    res.classList.add('visible');
+  } catch (e) {
+    err.textContent = 'Erreur : ' + e.message;
+    err.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    loader.classList.remove('visible');
+  }
+}
+
+async function copiloteLive(){
+  const input = document.getElementById('live-input');
+  const message = input.value.trim();
+  const err = document.getElementById('err-live');
+  err.classList.remove('visible');
+  if (!message) return;
+
+  const btn = document.getElementById('btn-live');
+  const loader = document.getElementById('loader-live');
+  btn.disabled = true;
+  loader.classList.add('visible');
+
+  try {
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'live', message, historique: liveHistorique.slice(-5) })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erreur serveur');
+
+    liveHistorique.push({ client: message, conseil: data.texte });
+
+    const bloc = document.createElement('div');
+    bloc.className = 'echange';
+    const q = document.createElement('div');
+    q.className = 'client-dit';
+    q.textContent = 'Client : ' + message;
+    const rep = document.createElement('div');
+    rep.className = 'conseil';
+    rep.textContent = data.texte;
+    bloc.appendChild(q);
+    bloc.appendChild(rep);
+    document.getElementById('live-historique').prepend(bloc);
+    input.value = '';
+    input.focus();
+  } catch (e) {
+    err.textContent = 'Erreur : ' + e.message;
+    err.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    loader.classList.remove('visible');
+  }
+}
+</script>
+
+</body>
+</html>
