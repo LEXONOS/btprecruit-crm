@@ -39,10 +39,12 @@ LES 4 FORMATIONS :
 
 ARGUMENTS CLES :
 - Prix par participant : 1 jour = 233/pers, 2 jours = 433/pers, parcours = 201/jour/pers
-- Face au e-learning : contenu vs resultat, formation sur les cas reels du client, mesure des acquis
+- Face au e-learning : contenu vs resultat, formation sur les cas reels du client, mesure des acquis. Bonus : les plateformes low-cost sont souvent non financables OPCO
 - Face a "trop cher" : demander "par rapport a quoi", ramener au cout par participant et au cout de la non-formation
+- Qualiopi : ce n'est PAS un argument de differenciation (tous les concurrents serieux l'ont), c'est un argument FINANCEMENT : l'OPCO du client peut prendre en charge une partie de la formation. A sortir sur les objections prix, jamais sur "pourquoi vous"
+- "Pourquoi vous" : cas reels du client (pas d'exemples generiques), formateurs praticiens, mesure des resultats apres la formation, diagnostic sur site
 
-STYLE DE TES REPONSES : francais direct, concret, actionnable. Pas de blabla. Tu donnes des phrases pretes a dire a l'oral. Tu chiffres tout (prix exacts, valeur des cadeaux). Tu rappelles la contrepartie a exiger pour chaque concession. Reponds en texte brut, sans markdown, sans asterisques.`;
+STYLE DE TES REPONSES : francais direct, concret, actionnable. Tu chiffres tout (prix exacts, valeur des cadeaux). Tu rappelles la contrepartie a exiger pour chaque concession. INTERDIT ABSOLU : markdown, asterisques, dieses, gras. Texte brut uniquement.`;
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -65,7 +67,7 @@ module.exports = async (req, res) => {
       const hist = Array.isArray(historique) && historique.length
         ? 'Historique des echanges precedents :\n' + historique.map(h => `Client : ${h.client}\nConseil donne : ${h.conseil}`).join('\n---\n') + '\n\n'
         : '';
-      userPrompt = `${hist}Le client vient de dire : "${message}"\n\nDonne-moi :\n1. Ce qui se joue (1 phrase : quelle technique il utilise ou quel signal il envoie)\n2. LA REPONSE a dire, mot pour mot, prete a l'oral\n3. Le piege a eviter (1 phrase)\nSois bref, je suis en plein entretien.`;
+      userPrompt = `${hist}Le client vient de dire : "${message}"\n\nJe suis EN PLEIN ENTRETIEN, je lis ta reponse en 2 secondes max. Format impose, ultra compact :\n\nJOUE : 2-4 mots (la technique du client)\nDIS :\n- argument 1 en 3-6 mots cles\n- argument 2 en 3-6 mots cles\n- argument 3 en 3-6 mots cles (si utile)\nPUIS : la question a poser pour reprendre la main, en 5-10 mots\nPIEGE : 3-6 mots\n\nExemple du format attendu pour "pourquoi vous et pas un autre" :\nJOUE : test de valeur\nDIS :\n- vos cas reels, pas generiques\n- formateurs praticiens terrain\n- resultats mesures a 3 mois\nPUIS : c'est quoi votre priorite numero 1 ?\nPIEGE : ne pas denigrer, pas parler prix\n\nPas de phrases completes sauf la question PUIS. Chiffres exacts quand c'est du prix.`;
     } else {
       return res.status(400).json({ error: 'mode invalide (offre ou live)' });
     }
