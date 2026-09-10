@@ -101,11 +101,12 @@
     background:#fff;
     border:1px solid var(--line);
     border-radius:6px;
-    padding:12px;
+    padding:12px 12px 12px 30px;
     margin-top:10px;
     white-space:pre-wrap;
     font-size:12.5px;
     display:none;
+    position:relative;
   }
   .resultat.visible{display:block}
   .erreur{color:var(--warn);font-size:12px;margin-top:8px;display:none}
@@ -125,10 +126,24 @@
     background:#fff;
     border:1px solid var(--line);
     border-radius:6px;
-    padding:10px 12px;
+    padding:10px 12px 10px 30px;
     margin-bottom:8px;
     font-size:12.5px;
+    position:relative;
   }
+  .fermer{
+    position:absolute;
+    top:6px;
+    left:8px;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:15px;
+    line-height:1;
+    cursor:pointer;
+    padding:2px 4px;
+  }
+  .fermer:hover{color:var(--warn)}
   .echange .client-dit{font-weight:600;color:var(--warn);margin-bottom:5px}
   .echange .conseil{white-space:pre-wrap}
   .loader{font-size:12px;color:var(--muted);display:none;margin-top:6px}
@@ -306,6 +321,30 @@
     <p>1. Fondamentaux &amp; posture · 2. Objectifs &amp; délégation (SMART) · 3. Communiquer &amp; motiver · 4. Entretiens managériaux · 5. Situations difficiles · 6. Performance collective. Modules vendables séparément (tarif à revoir).</p>
     <p class="tag">Évaluation : continue + soutenance du plan d'action · Livrables : supports par module, certification incluse, suivi individualisé</p>
   </div>
+  <div class="fiche">
+    <h3>Diagnostic / audit des besoins</h3>
+    <p class="prix">1 200 € HT · ½ à 1 journée sur site</p>
+    <p>Un consultant vient CHEZ le client avant la formation : interviews des équipes, observation des pratiques, rapport + programme ajusté. Sert à PERSONNALISER la formation, pas à la choisir.</p>
+    <p class="tag">Cadeau n°1 en négo (coût réel 600 €) · preuve physique du sur-mesure face au e-learning</p>
+  </div>
+  <div class="fiche">
+    <h3>Supports pédagogiques personnalisés</h3>
+    <p class="prix">950 € HT · forfait création</p>
+    <p>Supports de formation construits sur les cas et le vocabulaire du client (pas des slides génériques), remis aux participants.</p>
+    <p class="tag">Cadeau n°2 en négo (coût réel 450 €)</p>
+  </div>
+  <div class="fiche">
+    <h3>Certification / évaluation des compétences</h3>
+    <p class="prix">180 € HT · par participant</p>
+    <p>Évaluation formelle des acquis en fin de formation avec attestation de compétences par participant.</p>
+    <p class="tag">Cadeau gros volume : offert x12 = 2 160 € de valeur perçue (coût réel 840 €)</p>
+  </div>
+  <div class="fiche">
+    <h3>Coaching individuel</h3>
+    <p class="prix">2 400 € HT · forfait 5 séances</p>
+    <p>Accompagnement individuel d'un manager ou collaborateur, 5 séances en complément d'une formation (ex : après le parcours management).</p>
+    <p class="tag">À VENDRE en montée de panier, jamais à offrir (coût réel 1 400 €, trop cher en cadeau)</p>
+  </div>
 </div>
 
 <script>
@@ -351,7 +390,16 @@ async function genererOffre(){
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Erreur serveur');
-    res.textContent = data.texte;
+    res.innerHTML = '';
+    const x = document.createElement('button');
+    x.className = 'fermer';
+    x.textContent = '\u00d7';
+    x.title = 'Fermer';
+    x.onclick = () => res.classList.remove('visible');
+    const txt = document.createElement('span');
+    txt.textContent = data.texte;
+    res.appendChild(x);
+    res.appendChild(txt);
     res.classList.add('visible');
   } catch (e) {
     err.textContent = 'Erreur : ' + e.message;
@@ -387,12 +435,18 @@ async function copiloteLive(){
 
     const bloc = document.createElement('div');
     bloc.className = 'echange';
+    const x = document.createElement('button');
+    x.className = 'fermer';
+    x.textContent = '\u00d7';
+    x.title = 'Fermer';
+    x.onclick = () => bloc.remove();
     const q = document.createElement('div');
     q.className = 'client-dit';
     q.textContent = 'Client : ' + message;
     const rep = document.createElement('div');
     rep.className = 'conseil';
     rep.textContent = data.texte;
+    bloc.appendChild(x);
     bloc.appendChild(q);
     bloc.appendChild(rep);
     document.getElementById('live-historique').prepend(bloc);
