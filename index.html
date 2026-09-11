@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F0EBE0">
+<title>MGLens — Photographe &amp; vidéaste en Guadeloupe</title>
+<meta name="description" content="MGLens, photographe et vidéaste en Guadeloupe. Portraits, événements, immobilier, chantiers et drone. Contactez-moi sur WhatsApp.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F0EBE0;   /* papier ivoire des affiches */
+    --mat:#F7F3E9;     /* passe-partout */
+    --ink:#141310;
+    --frame:#111110;   /* cadre noir */
+    --line:#DBD3C2;
+    --grey:#6B6558;
+    --wa:#1FAF55;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Switzer',system-ui,sans-serif;
+    font-size:17px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* grain papier très léger, comme les affiches du studio */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+    opacity:.05;
+  }
+  .didone{font-family:'Bodoni Moda',serif}
+  h1,h2{font-family:'Bodoni Moda',serif;font-weight:600;line-height:1.05}
+  a{color:inherit}
+  img{display:block;max-width:100%}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    background:color-mix(in srgb, var(--paper) 90%, transparent);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{max-width:1240px;margin:0 auto;padding:15px 28px;display:flex;align-items:center;justify-content:space-between}
+  .brand{
+    font-family:'Bodoni Moda',serif;font-weight:600;font-size:21px;
+    letter-spacing:.14em;text-transform:uppercase;text-decoration:none;
+  }
+  .nav-links{display:flex;gap:30px}
+  .nav-links a{text-decoration:none;font-size:15px;color:var(--grey);transition:color .2s}
+  .nav-links a:hover,.nav-links a:focus-visible{color:var(--ink)}
+  .nav-cta{
+    text-decoration:none;font-size:15px;font-weight:500;
+    background:var(--ink);color:var(--paper);
+    padding:9px 20px;border-radius:100px;transition:background .2s;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .nav-cta:hover,.nav-cta:focus-visible{background:#000}
+  .nav-mob{display:none}
+  /* ---------- sélecteur de version (aperçu client) ---------- */
+  .mode-switch{
+    position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:70;
+    display:flex;gap:2px;padding:3px;border-radius:100px;
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:blur(10px);border:1px solid var(--line);
+    box-shadow:0 8px 20px -12px rgba(20,19,16,.35);
+  }
+  .mode-switch button{
+    border:0;background:none;cursor:pointer;font-family:'Switzer',sans-serif;
+    font-size:12.5px;letter-spacing:.04em;color:var(--grey);
+    padding:5px 14px;border-radius:100px;transition:background .2s,color .2s;
+  }
+  .mode-switch button.actif{background:var(--ink);color:var(--paper)}
+  @media (max-width:680px){.mode-switch{top:104px}}
+
+  /* ---------- VERSION CLASSIQUE : le site sans LEGO ni effets ---------- */
+  .mode-simple .cam-stage,
+  .mode-simple .hero .cam-caption{display:none}
+  .mode-simple .hero{min-height:0;padding:190px 0 96px;align-items:initial}
+  .mode-simple .hero-grid{max-width:640px}
+  .mode-simple .presta-side{display:none}
+  .mode-simple .presta-grid{grid-template-columns:1fr}
+  .mode-simple .apropos .wrap{grid-template-columns:1fr}
+  /* portfolio : pas de révélation, pas d'inclinaison, pas de reflet */
+  .mode-simple .ph{--ty:0px;--ax:0deg;--op:1;transform:none !important;transition:box-shadow .25s ease}
+  .mode-simple .ph .vue{filter:none !important}
+  .mode-simple .ph .vue::after{display:none}
+  /* lightbox : une seule carte centrée, navigation en fondu */
+  .mode-simple .lb-stage{perspective:none}
+  .mode-simple .lb-carte{margin-left:calc(min(500px,76vw) / -2)}
+  .mode-simple .lb-carte.p1,.mode-simple .lb-carte.p2,.mode-simple .lb-carte.p3{
+    transform:translate3d(0,0,0) scale(.96);opacity:0;pointer-events:none;
+  }
+  .mode-simple .lb-carte.p0{transform:none}
+  .mode-simple .lb-carte.out{transform:translate3d(0,0,0) scale(1.02);opacity:0}
+  .mode-simple .lb-carte.s0,.mode-simple .lb-carte.s1,.mode-simple .lb-carte.s2,.mode-simple .lb-carte.s3{
+    transform:translate3d(0,10px,0);opacity:0;
+  }
+  @media (max-width:680px){
+    .mode-simple .lb-carte{margin-left:calc(78vw / -2)}
+    .mode-simple .hero{padding:170px 0 70px}
+  }
+  .wa-ic{width:17px;height:17px;flex:none}
+
+  /* ---------- HERO ---------- */
+  .hero{padding:150px 0 40px;position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
+  .hero .wrap{width:100%}
+  .hero-grid::before{
+    content:"";position:absolute;inset:-56px -70px -48px -56px;z-index:-1;
+    background:radial-gradient(ellipse at 42% 50%, color-mix(in srgb, var(--paper) 92%, transparent) 48%, transparent 74%);
+    pointer-events:none;
+  }
+  .hero-grid{display:block;position:relative;z-index:2;max-width:560px;margin:0}
+  .hero h1{
+    font-size:clamp(52px,7.6vw,104px);
+    letter-spacing:.1em;text-transform:uppercase;
+  }
+  .hero .metier{
+    display:flex;align-items:center;gap:14px;margin:28px 0 18px;
+    font-size:16px;color:var(--grey);letter-spacing:.02em;
+  }
+  .hero .metier::before{content:"";width:44px;height:1px;background:var(--ink)}
+  .hero p.intro{max-width:46ch;font-size:18px;color:#45423A}
+  .hero-actions{display:flex;gap:14px;margin-top:36px;flex-wrap:wrap}
+  .btn{
+    text-decoration:none;font-weight:500;font-size:16px;
+    padding:14px 28px;border-radius:100px;transition:transform .2s,background .2s,color .2s;
+    display:inline-flex;align-items:center;gap:10px;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn-dark{background:var(--ink);color:var(--paper)}
+  .btn-dark:hover{background:#000}
+  .btn-ghost{border:1px solid var(--ink);color:var(--ink)}
+  .btn-ghost:hover{background:var(--ink);color:var(--paper)}
+  .btn-wa{background:var(--wa);color:#fff}
+  .btn-wa:hover{background:#178C44}
+  @keyframes riseIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+  .hero h1,.hero .metier,.hero .intro,.hero-actions{opacity:0;animation:riseIn .9s cubic-bezier(.22,.61,.36,1) forwards}
+  .hero h1{animation-delay:.05s}
+  .hero .metier{animation-delay:.22s}
+  .hero .intro{animation-delay:.36s}
+  .hero-actions{animation-delay:.5s}
+  .hero .cam-stage{
+    position:absolute;inset:-6% 0 -8% 0;height:auto;z-index:1;pointer-events:none;
+    opacity:0;animation:riseIn 1.2s cubic-bezier(.22,.61,.36,1) .45s forwards;
+  }
+  .hero .cam-caption{left:28px;right:auto;bottom:18px;text-align:left}
+  .cam-stage{position:relative;height:440px}
+  .cam-stage canvas{width:100%;height:100%;display:block}
+  .cam-caption{
+    position:absolute;bottom:6px;right:8px;font-size:12.5px;color:var(--grey);
+    text-align:right;line-height:1.4;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:96px 0}
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:24px;margin-bottom:48px;flex-wrap:wrap}
+  .sec-head h2{font-size:clamp(34px,4.5vw,52px);letter-spacing:.02em}
+  .sec-head .sub{color:var(--grey);font-size:16px;max-width:42ch}
+
+  /* ---------- PORTFOLIO : mur de cadres ---------- */
+  .grid{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    grid-auto-rows:240px;gap:26px;
+    perspective:1300px;
+  }
+  .ph{
+    grid-row:span 1;
+    background:var(--frame);
+    padding:9px;
+    box-shadow:0 14px 30px -18px rgba(20,19,16,.45);
+    transform:translateY(var(--ty,0)) rotateX(calc(var(--ax,0deg) + var(--rx,0deg))) rotateY(var(--ry,0deg));
+    transform-style:preserve-3d;
+    opacity:var(--op,1);
+  }
+  /* révélation façon développement argentique, au scroll */
+  .ph.avenir{--ty:42px;--ax:9deg;--op:0}
+  .ph.avenir .vue{filter:blur(10px) sepia(.4) brightness(1.42) contrast(.88)}
+  .ph.revele{
+    --ty:0px;--ax:0deg;--op:1;
+    transition:transform 1s cubic-bezier(.22,.61,.36,1),opacity .8s ease;
+  }
+  .ph.revele .vue{filter:blur(0) sepia(0) brightness(1) contrast(1);transition:filter 1.35s ease}
+  /* une fois révélé : inclinaison 3D réactive sous le curseur */
+  .ph.pret{transition:transform .18s ease-out,box-shadow .25s ease}
+  .ph.pret:hover{box-shadow:0 26px 44px -20px rgba(20,19,16,.5)}
+  /* reflet de vitre qui suit le curseur */
+  .ph .vue{position:relative}
+  .ph .vue::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(460px circle at var(--gx,50%) var(--gy,50%),
+               rgba(255,253,246,.22), rgba(255,253,246,.05) 42%, transparent 62%);
+    opacity:var(--gl,0);transition:opacity .35s ease;
+    mix-blend-mode:screen;
+  }
+  .ph .mat{
+    background:var(--mat);height:100%;padding:13px;position:relative;
+    display:flex;flex-direction:column;gap:9px;
+  }
+  .ph{cursor:pointer}
+  .ph .vue{flex:1;min-height:0;overflow:hidden}
+  .ph img{
+    width:100%;height:100%;object-fit:cover;
+    filter:grayscale(1);
+    transition:filter .6s ease,transform .9s cubic-bezier(.22,.61,.36,1);
+  }
+  .ph:hover img{filter:grayscale(0);transform:scale(1.045)}
+  /* cadres dont la photo est déjà en noir & blanc : pas de filtre, juste le zoom */
+  .ph.nb img{filter:none}
+  /* mobile (pas de survol) : la couleur se révèle quand le cadre traverse
+     le centre de l'écran, et s'éteint quand il en sort */
+  @media (hover:none){
+    .ph img{transition:filter 1.1s ease,transform 1.2s cubic-bezier(.22,.61,.36,1)}
+    .ph.vu img{filter:grayscale(0);transform:scale(1.03)}
+    .ph.nb.vu img{transform:scale(1.03)}
+  }
+  .ph .legende{
+    font-family:'Bodoni Moda',serif;font-weight:500;font-size:11px;
+    letter-spacing:.28em;text-transform:uppercase;text-align:center;
+    color:#8A8374;flex:none;
+  }
+  .ph.tall{grid-row:span 2}
+  .ph.empty img{display:none}
+  .ph.empty .mat::after{
+    content:"Photo à venir";
+    position:absolute;inset:13px 13px 34px;display:flex;align-items:center;justify-content:center;
+    color:#B3AC9C;font-size:13.5px;letter-spacing:.06em;
+    border:1px solid var(--line);
+  }
+  .grid-note{margin-top:30px;text-align:center}
+  .grid-note a{
+    color:var(--ink);font-weight:500;text-decoration:none;
+    border-bottom:1px solid var(--ink);padding-bottom:2px;
+  }
+  .grid-note a:hover{color:var(--grey);border-color:var(--grey)}
+
+  /* ---------- PRESTATIONS ---------- */
+  .presta{border-top:1px solid var(--line)}
+  .presta-grid{display:grid;grid-template-columns:1fr 340px;gap:44px;align-items:start}
+  .groupe{margin-bottom:14px}
+  .groupe > h3{
+    font-family:'Bodoni Moda',serif;font-weight:600;font-size:21px;
+    letter-spacing:.05em;margin:34px 0 4px;
+  }
+  .groupe:first-child > h3{margin-top:0}
+  .presta-item{
+    display:grid;grid-template-columns:minmax(200px,290px) 1fr;gap:24px;
+    padding:24px 4px;border-bottom:1px solid var(--line);align-items:baseline;
+  }
+  .presta-item h4{font-size:20px;font-weight:500}
+  .presta-item p{color:#45423A;font-size:16.5px;max-width:54ch}
+  .presta-side{position:sticky;top:110px}
+  .presta-side .cam-stage{height:320px}
+  .presta-side p{font-size:15px;color:var(--grey);text-align:center;margin-top:2px}
+
+  /* ---------- À PROPOS ---------- */
+  .apropos{background:var(--frame);color:var(--paper);margin:0 14px}
+  .apropos .wrap{display:grid;grid-template-columns:340px 1fr;gap:56px;align-items:center;padding-top:84px;padding-bottom:84px}
+  .apropos h2{font-size:clamp(32px,4vw,46px);margin-bottom:22px;letter-spacing:.03em}
+  .apropos p{color:#CFC9BC;font-size:17.5px;max-width:58ch}
+  .apropos p + p{margin-top:16px}
+  .apropos .cam-stage{height:340px}
+  .apropos .insta-line{margin-top:30px}
+  .apropos .insta-line a{
+    color:var(--paper);text-decoration:none;font-weight:500;
+    border-bottom:1px solid rgba(240,235,224,.4);padding-bottom:2px;transition:border-color .2s;
+  }
+  .apropos .insta-line a:hover{border-color:var(--paper)}
+
+  /* ---------- CONTACT ---------- */
+  .contact{text-align:center;padding:120px 0 100px}
+  .contact h2{font-size:clamp(38px,5.6vw,70px);letter-spacing:.03em;max-width:18ch;margin:0 auto}
+  .contact .sub{color:var(--grey);margin:22px auto 40px;max-width:48ch;font-size:17.5px}
+  .contact-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .contact-coords{
+    margin-top:52px;display:flex;gap:40px;justify-content:center;flex-wrap:wrap;
+    color:var(--grey);font-size:16px;
+  }
+  .contact-coords a{text-decoration:none;color:var(--ink);font-weight:500}
+  .contact-coords a:hover{color:var(--grey)}
+
+  /* ---------- WHATSAPP FLOTTANT ---------- */
+  .wa-float{
+    position:fixed;right:22px;bottom:22px;z-index:60;
+    width:56px;height:56px;border-radius:50%;
+    background:var(--wa);display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 24px -8px rgba(20,60,35,.5);
+    transition:transform .2s;
+  }
+  .wa-float:hover{transform:scale(1.07)}
+  .wa-float svg{width:29px;height:29px}
+
+  /* ---------- FOOTER ---------- */
+  footer{border-top:1px solid var(--line);padding:30px 0 40px;font-size:14px;color:var(--grey)}
+  .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--grey)}
+  footer a:hover{color:var(--ink)}
+  footer details{margin-top:18px;max-width:70ch}
+  footer summary{cursor:pointer;color:var(--grey)}
+  footer details p{margin-top:10px;line-height:1.7}
+
+  /* ---------- LIGHTBOX GALERIES : pile de cadres en 3D ---------- */
+  .lb{
+    position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+    background:color-mix(in srgb, var(--paper) 97%, transparent);
+    backdrop-filter:blur(14px);
+    opacity:0;pointer-events:none;transition:opacity .3s ease;
+  }
+  .lb.open{opacity:1;pointer-events:auto}
+  .lb-head{
+    display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+    padding:22px 28px 0;max-width:1240px;margin:0 auto;width:100%;position:relative;z-index:3;
+  }
+  .lb-titre{font-family:'Bodoni Moda',serif;font-weight:600;font-size:clamp(22px,3vw,30px);letter-spacing:.04em}
+  .lb-meta{display:flex;align-items:center;gap:18px}
+  .lb-count{font-size:14.5px;color:var(--grey);letter-spacing:.08em;font-variant-numeric:tabular-nums}
+  .lb-close{
+    background:var(--ink);color:var(--paper);border:0;cursor:pointer;
+    width:40px;height:40px;border-radius:50%;font-size:17px;line-height:1;
+    display:flex;align-items:center;justify-content:center;transition:transform .2s,background .2s;
+  }
+  .lb-close:hover{background:#000;transform:scale(1.06)}
+  .lb-stage{
+    flex:1;min-height:0;position:relative;
+    perspective:1300px;perspective-origin:44% 50%;
+    overflow:hidden;
+  }
+  .lb-carte{
+    position:absolute;left:50%;top:50%;
+    width:min(500px,76vw);height:min(62vh,620px);
+    margin-left:calc(min(500px,76vw) / -2 - 4vw);
+    margin-top:calc(min(62vh,620px) / -2);
+    background:var(--frame);padding:10px;
+    box-shadow:0 34px 70px -30px rgba(20,19,16,.55);
+    transform-style:preserve-3d;will-change:transform,filter,opacity;
+    transition:transform .6s cubic-bezier(.22,.61,.36,1),filter .6s ease,opacity .6s ease;
+  }
+  .lb-carte .lb-mat{background:var(--mat);height:100%;padding:14px 14px 10px;display:flex;flex-direction:column;gap:9px}
+  .lb-carte img{width:100%;flex:1;min-height:0;object-fit:cover;display:block}
+  .lb-legende{
+    font-family:'Bodoni Moda',serif;font-weight:500;font-size:11px;
+    letter-spacing:.28em;text-transform:uppercase;text-align:center;color:#8A8374;flex:none;
+  }
+  /* positions de la pile : devant, puis en retrait vers la droite et le fond */
+  .lb-carte.p0{transform:translate3d(0,0,110px);filter:blur(0);opacity:1;z-index:9;cursor:default}
+  .lb-carte.p1{transform:translate3d(150px,-20px,20px) rotateY(-11deg) scale(.94);filter:blur(1px);opacity:.92;z-index:8;cursor:pointer}
+  .lb-carte.p2{transform:translate3d(285px,-40px,-80px) rotateY(-15deg) scale(.88);filter:blur(2.2px);opacity:.78;z-index:7;cursor:pointer}
+  .lb-carte.p3{transform:translate3d(405px,-60px,-190px) rotateY(-19deg) scale(.82);filter:blur(3.6px);opacity:.6;z-index:6;cursor:pointer}
+  /* sortie : la carte de devant s'envole vers la gauche */
+  .lb-carte.out{transform:translate3d(-560px,44px,190px) rotateY(20deg) rotateZ(-5deg) scale(1.04);filter:blur(7px);opacity:0;z-index:10}
+  /* apparition à l'ouverture : dispersées et floues, puis elles se rangent */
+  .lb-carte.s0{transform:translate3d(-140px,-260px,60px);filter:blur(10px);opacity:0}
+  .lb-carte.s1{transform:translate3d(300px,90px,-90px) scale(1.3);filter:blur(10px);opacity:0}
+  .lb-carte.s2{transform:translate3d(-240px,140px,50px);filter:blur(10px);opacity:0}
+  .lb-carte.s3{transform:translate3d(180px,-170px,-30px);filter:blur(10px);opacity:0}
+  .lb-carte.notrans{transition:none}
+  .lb-nav{
+    position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:11;
+    display:flex;align-items:center;gap:16px;
+  }
+  .lb-fleche{
+    background:none;border:1px solid var(--ink);color:var(--ink);cursor:pointer;
+    width:48px;height:48px;border-radius:50%;font-size:19px;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .2s,color .2s,transform .2s;
+  }
+  .lb-fleche:hover{background:var(--ink);color:var(--paper);transform:scale(1.05)}
+  .lb-note{
+    text-align:center;color:var(--grey);font-size:13.5px;padding:0 20px 18px;flex:none;
+  }
+  .lb-note-mob{display:none}
+  @media (hover:none){
+    .lb-note-desk{display:none}
+    .lb-note-mob{display:inline}
+  }
+  @media (max-width:680px){
+    .lb-head{padding:16px 18px 0}
+    .lb-stage{perspective:900px;perspective-origin:46% 50%}
+    .lb-carte{
+      width:78vw;height:min(56vh,520px);
+      margin-left:calc(78vw / -2 - 6vw);
+      margin-top:calc(min(56vh,520px) / -2);
+      padding:7px;
+    }
+    .lb-carte .lb-mat{padding:9px 9px 7px}
+    .lb-carte.p1{transform:translate3d(64px,-14px,10px) rotateY(-10deg) scale(.94)}
+    .lb-carte.p2{transform:translate3d(120px,-28px,-70px) rotateY(-14deg) scale(.88)}
+    .lb-carte.p3{transform:translate3d(168px,-42px,-150px) rotateY(-18deg) scale(.82)}
+    .lb-carte.out{transform:translate3d(-92vw,36px,140px) rotateY(20deg) rotateZ(-5deg) scale(1.02)}
+    .lb-nav{bottom:16px}
+  }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width:960px){
+    /* hero : texte en haut, bande des modèles réservée en bas */
+    .hero{min-height:100svh;align-items:flex-start;padding:132px 0 40svh}
+    .hero .cam-caption{left:50%;right:auto;transform:translateX(-50%);text-align:center;bottom:8px;font-size:11.5px}
+    .cam-stage{height:340px}
+    /* prestations : le canvas du morph passe EN TÊTE et reste collé
+       en haut pendant qu'on lit la liste : la transformation se voit en direct */
+    .presta-grid{grid-template-columns:1fr;gap:0}
+    .presta-side{
+      order:-1;position:sticky;top:58px;z-index:5;
+      max-width:none;margin:0 -28px 18px;padding:6px 28px 2px;
+      background:color-mix(in srgb, var(--paper) 94%, transparent);
+      backdrop-filter:blur(8px);
+      border-bottom:1px solid var(--line);
+    }
+    .presta-side .cam-stage{height:238px}
+    .presta-side p{font-size:13.5px;margin-top:0;padding-bottom:6px}
+    .apropos .wrap{grid-template-columns:1fr;gap:10px}
+    .apropos .cam-stage{height:300px;order:2}
+  }
+  @media (max-width:680px){
+    .nav-links{display:none}
+    .nav-in{padding:12px 20px}
+    .brand{font-size:19px}
+    .nav-cta{padding:8px 16px;font-size:14px}
+    .nav-mob{
+      display:flex;justify-content:center;gap:6px;
+      padding:0 12px 9px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    }
+    .nav-mob a{
+      flex:none;text-decoration:none;font-size:13px;color:var(--grey);
+      padding:5px 12px;border:1px solid var(--line);border-radius:100px;
+      transition:color .2s,border-color .2s;
+    }
+    .nav-mob a:active{color:var(--ink);border-color:var(--ink)}
+    .wrap{padding:0 20px}
+    .hero{padding-top:150px}
+    .hero h1{font-size:clamp(46px,13.5vw,64px);letter-spacing:.08em}
+    .hero .intro{font-size:16.5px}
+    .hero-actions{margin-top:28px}
+    .sec-head{margin-bottom:34px}
+    .sec-head .sub{font-size:15px}
+    .grid{grid-template-columns:repeat(2,1fr);grid-auto-rows:185px;gap:14px;perspective:none}
+    .ph{padding:6px}
+    .ph .mat{padding:8px;gap:7px}
+    .ph .legende{font-size:8.5px;letter-spacing:.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .grid-note{font-size:14.5px}
+    .presta-item{grid-template-columns:1fr;gap:6px;padding:18px 2px}
+    .presta-item h4{font-size:18px}
+    .presta-item p{font-size:15.5px}
+    .groupe > h3{font-size:19px;margin:28px 0 2px}
+    .apropos{margin:0 8px}
+    .apropos p{font-size:16px}
+    .contact{padding:88px 0 76px}
+    .contact-coords{gap:14px;flex-direction:column;font-size:15px}
+    .wa-float{width:52px;height:52px;right:16px;bottom:16px}
+    section{padding:64px 0}
+    footer{font-size:13px}
+  }
+  /* petits écrans : boutons pleine largeur, pouce-friendly */
+  @media (max-width:480px){
+    .hero-actions{flex-direction:column;align-items:stretch}
+    .hero-actions .btn{justify-content:center}
+    .contact-actions{flex-direction:column;align-items:stretch}
+    .contact-actions .btn{justify-content:center}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .ph img{transition:none}
+    .hero h1,.hero .metier,.hero .intro,.hero-actions,.hero .cam-stage{animation:none;opacity:1}
+    .ph{--ty:0px;--ax:0deg;--op:1}
+    .ph.avenir .vue{filter:none}
+    .lb,.lb-img{transition:none;animation:none}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-in">
+    <a class="brand" href="#top">MGLens</a>
+    <div class="nav-links">
+      <a href="#portfolio">Portfolio</a>
+      <a href="#prestations">Prestations</a>
+      <a href="#apropos">À propos</a>
+    </div>
+    <a class="nav-cta" href="https://wa.me/33682368058?text=Bonjour%20Manon%2C%20je%20vous%20contacte%20depuis%20votre%20site." target="_blank" rel="noopener">
+      <svg class="wa-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.33 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22c5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.02c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.26 8.26 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 4.54 0 8.24 3.7 8.24 8.24 0 4.55-3.7 8.24-8.24 8.24zm4.52-6.16c-.25-.13-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-2-1.23-.73-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.13-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.23-.16-.48-.29z"/></svg>
+      WhatsApp
+    </a>
+  </div>
+  <div class="mode-switch" role="group" aria-label="Choix de la version du site">
+    <button type="button" data-mode="lego" class="actif">LEGO</button>
+    <button type="button" data-mode="simple">Classique</button>
+  </div>
+  <div class="nav-mob" aria-hidden="false">
+    <a href="#portfolio">Portfolio</a>
+    <a href="#prestations">Prestations</a>
+    <a href="#apropos">À propos</a>
+    <a href="#contact">Contact</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="cam-stage">
+    <canvas id="cam-slr" aria-hidden="true"></canvas>
+    <div class="cam-caption">Tout le studio,<br>modélisé brique par brique.</div>
+  </div>
+  <div class="wrap hero-grid">
+    <div>
+      <h1>MGLens</h1>
+      <div class="metier">Photographe &amp; vidéaste — Guadeloupe</div>
+      <p class="intro">Portraits, événements, immobilier et chantiers. Photo, vidéo et drone : des images soignées pour les particuliers comme pour les professionnels, partout en Guadeloupe.</p>
+      <div class="hero-actions">
+        <a class="btn btn-wa" href="https://wa.me/33682368058?text=Bonjour%20Manon%2C%20je%20vous%20contacte%20depuis%20votre%20site%20pour%20un%20projet%20photo." target="_blank" rel="noopener">
+          <svg class="wa-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.33 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22c5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.02c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.26 8.26 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 4.54 0 8.24 3.7 8.24 8.24 0 4.55-3.7 8.24-8.24 8.24zm4.52-6.16c-.25-.13-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-2-1.23-.73-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.13-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.23-.16-.48-.29z"/></svg>
+          Me contacter sur WhatsApp
+        </a>
+        <a class="btn btn-ghost" href="#portfolio">Voir le portfolio</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ PORTFOLIO ============ -->
+<section id="portfolio">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Portfolio</h2>
+      <p class="sub">Neuf univers, une galerie par univers : cliquez sur un cadre pour la parcourir.</p>
+    </div>
+    <div class="grid">
+      <figure class="ph tall" data-theme="editorial" tabindex="0" role="button" aria-label="Ouvrir la galerie Éditorial & mode (8 photos)"><div class="mat"><div class="vue"><img src="assets/photos/jaky-wip27.webp" alt="Séance photo éditoriale mode en Guadeloupe par MGLens" loading="lazy"></div><div class="legende">Éditorial & mode · 8</div></div></figure>
+      <figure class="ph" data-theme="beaute" tabindex="0" role="button" aria-label="Ouvrir la galerie Beauté & bijoux (4 photos)"><div class="mat"><div class="vue"><img src="assets/photos/dsc-0375.webp" alt="Photographie beauté et bijoux en studio par MGLens" loading="lazy"></div><div class="legende">Beauté & bijoux · 4</div></div></figure>
+      <figure class="ph" data-theme="evenementiel" tabindex="0" role="button" aria-label="Ouvrir la galerie Événementiel (6 photos)"><div class="mat"><div class="vue"><img src="assets/photos/gala-ac3.webp" alt="Photographe événementiel en Guadeloupe, cérémonie et remise de prix" loading="lazy"></div><div class="legende">Événementiel · 6</div></div></figure>
+      <figure class="ph tall" data-theme="plage" tabindex="0" role="button" aria-label="Ouvrir la galerie Plage & lifestyle (18 photos)"><div class="mat"><div class="vue"><img src="assets/photos/img-6736-2.webp" alt="Shooting photo plage et lifestyle en Guadeloupe" loading="lazy"></div><div class="legende">Plage & lifestyle · 18</div></div></figure>
+      <figure class="ph" data-theme="studio" tabindex="0" role="button" aria-label="Ouvrir la galerie Portraits studio (16 photos)"><div class="mat"><div class="vue"><img src="assets/photos/photo-108.webp" alt="Portrait professionnel en studio photo en Guadeloupe" loading="lazy"></div><div class="legende">Portraits studio · 16</div></div></figure>
+      <figure class="ph nb" data-theme="famille" tabindex="0" role="button" aria-label="Ouvrir la galerie Famille & naissance (3 photos)"><div class="mat"><div class="vue"><img src="assets/photos/dsc-0767-2.webp" alt="Séance photo naissance et famille par MGLens" loading="lazy"></div><div class="legende">Famille & naissance · 3</div></div></figure>
+      <figure class="ph tall nb" data-theme="noir-et-blanc" tabindex="0" role="button" aria-label="Ouvrir la galerie Noir & blanc (4 photos)"><div class="mat"><div class="vue"><img src="assets/photos/photo-375nb.webp" alt="Portrait artistique en noir et blanc par MGLens" loading="lazy"></div><div class="legende">Noir & blanc · 4</div></div></figure>
+      <figure class="ph" data-theme="culinaire" tabindex="0" role="button" aria-label="Ouvrir la galerie Culinaire & commerces (4 photos)"><div class="mat"><div class="vue"><img src="assets/photos/pict16finale.webp" alt="Photographie culinaire pour restaurants et commerces en Guadeloupe" loading="lazy"></div><div class="legende">Culinaire & commerces · 4</div></div></figure>
+      <figure class="ph" data-theme="nature" tabindex="0" role="button" aria-label="Ouvrir la galerie Nature & animaux (2 photos)"><div class="mat"><div class="vue"><img src="assets/photos/retch6.webp" alt="Photographie animalière et nature par MGLens" loading="lazy"></div><div class="legende">Nature & animaux · 2</div></div></figure>
+    </div>
+    <p class="grid-note">Envie d'en voir plus ? <a href="https://www.instagram.com/mglenspro/" target="_blank" rel="noopener">Retrouvez toutes mes séances sur Instagram</a></p>
+  </div>
+</section>
+
+<!-- ============ PRESTATIONS ============ -->
+<section id="prestations" class="presta">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Prestations</h2>
+      <p class="sub">Chaque projet est préparé avec vous : le lieu, la lumière, l'objectif. Vous recevez des images retouchées, prêtes à être utilisées.</p>
+    </div>
+    <div class="presta-grid">
+      <div>
+        <div class="groupe">
+          <h3>Pour les particuliers</h3>
+          <div class="presta-item">
+            <h4>Portraits &amp; familles</h4>
+            <p>En studio ou en extérieur, seul·e ou à plusieurs. Une séance pensée pour vous mettre à l'aise et révéler ce qui vous rend unique.</p>
+          </div>
+          <div class="presta-item">
+            <h4>Couples &amp; événements</h4>
+            <p>Mariages, anniversaires, baptêmes : je capture les moments forts et les détails que vous n'avez pas vus passer, dans les plus beaux décors de la Guadeloupe.</p>
+          </div>
+        </div>
+        <div class="groupe" id="groupe-pros">
+          <h3>Pour les professionnels</h3>
+          <div class="presta-item">
+            <h4>Immobilier &amp; architecture</h4>
+            <p>Photos et vidéos d'appartements, de villas et de locaux : des visuels qui valorisent vos biens et accélèrent vos ventes et locations.</p>
+          </div>
+          <div class="presta-item">
+            <h4>Chantiers &amp; entreprises</h4>
+            <p>Suivi de chantier, avancement des travaux, équipes en action : des images professionnelles pour vos clients, vos rapports et votre communication.</p>
+          </div>
+          <div class="presta-item">
+            <h4>Drone &amp; vidéo</h4>
+            <p>Prises de vue aériennes photo et vidéo pour montrer vos biens, vos chantiers et vos sites sous leur meilleur angle.</p>
+          </div>
+          <div class="presta-item">
+            <h4>Contenu de marque</h4>
+            <p>Photos produits, portraits d'équipe et contenu pour vos réseaux : une image à la hauteur de votre activité.</p>
+          </div>
+        </div>
+      </div>
+      <div class="presta-side">
+        <div class="cam-stage">
+          <canvas id="cam-pola" aria-hidden="true"></canvas>
+        </div>
+        <p>Du boîtier au drone : continuez à faire défiler.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ À PROPOS ============ -->
+<section id="apropos" style="padding-top:0">
+  <div class="apropos">
+    <div class="wrap">
+      <div class="cam-stage">
+        <canvas id="cam-compact" aria-hidden="true"></canvas>
+      </div>
+      <div>
+        <h2>Derrière l'objectif</h2>
+        <p>Je suis Manon, photographe et vidéaste installée en Guadeloupe. Au studio, entre les affiches vintage et les appareils photo en LEGO, tout est pensé pour que vous soyez à l'aise. Dehors, l'île entière est mon décor.</p>
+        <p>Boîtiers, vidéo, drone : je suis équipée pour suivre vos projets du sol au ciel, du portrait en studio au chantier en cours.</p>
+        <p class="insta-line">Suivez mon travail au quotidien : <a href="https://www.instagram.com/mglenspro/" target="_blank" rel="noopener">@mglenspro</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section id="contact" class="contact">
+  <div class="wrap">
+    <h2>On parle de votre projet ?</h2>
+    <p class="sub">Écrivez-moi en quelques mots ce que vous imaginez, je vous réponds rapidement avec une proposition. Le plus simple : WhatsApp.</p>
+    <div class="contact-actions">
+      <a class="btn btn-wa" href="https://wa.me/33682368058?text=Bonjour%20Manon%2C%20je%20vous%20contacte%20depuis%20votre%20site%20pour%20un%20projet%20photo." target="_blank" rel="noopener">
+        <svg class="wa-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.33 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22c5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.02c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.26 8.26 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 4.54 0 8.24 3.7 8.24 8.24 0 4.55-3.7 8.24-8.24 8.24zm4.52-6.16c-.25-.13-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-2-1.23-.73-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.13-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.23-.16-.48-.29z"/></svg>
+        Discuter sur WhatsApp
+      </a>
+      <a class="btn btn-ghost" href="https://www.instagram.com/mglenspro/" target="_blank" rel="noopener">M'écrire sur Instagram</a>
+    </div>
+    <div class="contact-coords">
+      <span>Guadeloupe — déplacements sur toute l'île</span>
+      <a href="tel:+33682368058">+33 6 82 36 80 58</a>
+      <a href="https://www.instagram.com/mglenspro/" target="_blank" rel="noopener">@mglenspro</a>
+    </div>
+  </div>
+</section>
+
+<a class="wa-float" href="https://wa.me/33682368058?text=Bonjour%20Manon%2C%20je%20vous%20contacte%20depuis%20votre%20site." target="_blank" rel="noopener" aria-label="Contacter MGLens sur WhatsApp">
+  <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.33 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22c5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.02c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.26 8.26 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 4.54 0 8.24 3.7 8.24 8.24 0 4.55-3.7 8.24-8.24 8.24zm4.52-6.16c-.25-.13-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-2-1.23-.73-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.13-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.23-.16-.48-.29z"/></svg>
+</a>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-in">
+      <span>© 2026 MGLens — Photographe &amp; vidéaste en Guadeloupe</span>
+      <span>Site réalisé par <a href="https://studionovalem.fr" target="_blank" rel="noopener">Studio Novalem</a></span>
+    </div>
+    <details>
+      <summary>Mentions légales</summary>
+      <p>Éditeur du site : MGLens — [statut juridique, SIRET, adresse à compléter]. Directrice de la publication : Manon [nom à compléter]. Hébergement : OVH SAS, 2 rue Kellermann, 59100 Roubaix, France. Les photographies et vidéos présentées sur ce site sont la propriété exclusive de MGLens et ne peuvent être reproduites sans autorisation.</p>
+    </details>
+  </div>
+</footer>
+
+
+<!-- ============ LIGHTBOX GALERIES ============ -->
+<div class="lb" id="lb" aria-hidden="true" role="dialog" aria-label="Galerie photo">
+  <div class="lb-head">
+    <div class="lb-titre" id="lb-titre"></div>
+    <div class="lb-meta">
+      <span class="lb-count" id="lb-count"></span>
+      <button class="lb-close" id="lb-close" aria-label="Fermer la galerie">&#10005;</button>
+    </div>
+  </div>
+  <div class="lb-stage" id="lb-stage">
+    <div class="lb-nav">
+      <button class="lb-fleche" id="lb-prev" aria-label="Photo précédente">&#8592;</button>
+      <button class="lb-fleche" id="lb-next" aria-label="Photo suivante">&#8594;</button>
+    </div>
+  </div>
+  <p class="lb-note"><span class="lb-note-desk">&#8592; &#8594; pour naviguer &middot; Échap pour fermer</span><span class="lb-note-mob">Balayez pour passer d'une photo à l'autre</span></p>
+</div>
+
+<script>
+/* ============================================================
+   Galeries par thème : pile de cadres en 3D.
+   La photo courante est devant, les suivantes en retrait,
+   la navigation fait voler la carte de devant et avance la pile.
+   + révélation couleur au scroll sur mobile.
+   ============================================================ */
+(function(){
+  var THEMES = {"editorial": {"titre": "Éditorial & mode", "photos": ["jaky-wip27", "jaky-wip28", "jaky-wip31", "jaky-wip32", "jaky-wip47", "photo-446", "photo-409", "dsc05840"]}, "beaute": {"titre": "Beauté & bijoux", "photos": ["dsc-0375", "dsc-3843", "dsc-4065", "dsc-3747"]}, "evenementiel": {"titre": "Événementiel", "photos": ["gala-ac3", "gala-ac1", "gala-ac5", "gala-ac10", "gala-ac12", "gala-ac18"]}, "studio": {"titre": "Portraits studio", "photos": ["photo-108", "photo-110", "retch07", "retch1", "retch7", "retch8", "photo-425i", "photo-428", "photo-429", "photo-431", "photo-437i", "marjo6", "marjo7", "marjo18", "laulau", "photo-482"]}, "plage": {"titre": "Plage & lifestyle", "photos": ["img-6736-2", "img-3057", "img-3136", "img-3143", "img-3145", "img-6654-2", "img-6675-2", "img-6739-2", "img-9042", "img-9056", "img-9057", "photo-226", "photo-227", "dsc06889", "photo-57", "photo-66", "photo-67", "photo-476"]}, "noir-et-blanc": {"titre": "Noir & blanc", "photos": ["photo-375nb", "p2nb", "p3nb", "p11nb"]}, "famille": {"titre": "Famille & naissance", "photos": ["dsc-0767-2", "photo-95", "photo-96"]}, "culinaire": {"titre": "Culinaire & commerces", "photos": ["pict16finale", "pict9finale", "pict18finale", "pict21finale"]}, "nature": {"titre": "Nature & animaux", "photos": ["retch6", "retch3"]}};
+  var DIR = 'assets/photos/';
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- sélecteur de version LEGO / Classique ---------- */
+  (function(){
+    var boutons = document.querySelectorAll('.mode-switch button');
+    if (!boutons.length) return;
+    function applique(mode){
+      document.body.classList.toggle('mode-simple', mode === 'simple');
+      boutons.forEach(function(b){ b.classList.toggle('actif', b.dataset.mode === mode); });
+      try { localStorage.setItem('mglens-mode', mode); } catch(e){}
+    }
+    boutons.forEach(function(b){
+      b.addEventListener('click', function(){ applique(b.dataset.mode); });
+    });
+    var memo = null;
+    try { memo = localStorage.getItem('mglens-mode'); } catch(e){}
+    if (new URLSearchParams(location.search).get('mode') === 'simple') memo = 'simple';
+    if (memo === 'simple') applique('simple');
+  })();
+
+  /* ---------- révélation "développement argentique" au scroll ---------- */
+  var lesCadres = Array.prototype.slice.call(document.querySelectorAll('.ph[data-theme]'));
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window){
+    lesCadres.forEach(function(f){ f.classList.add('avenir'); });
+    var ioReveal = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var f = e.target;
+        ioReveal.unobserve(f);
+        var i = lesCadres.indexOf(f);
+        f.style.transitionDelay = (i % 3) * 120 + Math.floor(i / 3) * 70 + 'ms';
+        var vue = f.querySelector('.vue');
+        if (vue) vue.style.transitionDelay = f.style.transitionDelay;
+        f.classList.add('revele');
+        setTimeout(function(){
+          f.classList.remove('avenir','revele');
+          f.style.transitionDelay = '';
+          if (vue) vue.style.transitionDelay = '';
+          f.classList.add('pret');
+        }, 1450 + (i % 3) * 120 + Math.floor(i / 3) * 70);
+      });
+    }, {rootMargin:'0px 0px -12% 0px'});
+    lesCadres.forEach(function(f){ ioReveal.observe(f); });
+  }
+
+  /* ---------- inclinaison 3D + reflet de vitre sous le curseur ---------- */
+  if (window.matchMedia('(hover:hover)').matches){
+    lesCadres.forEach(function(f){
+      f.addEventListener('pointermove', function(e){
+        if (!f.classList.contains('pret')) return;
+        if (document.body.classList.contains('mode-simple')) return;
+        var r = f.getBoundingClientRect();
+        var x = (e.clientX - r.left) / r.width;
+        var y = (e.clientY - r.top) / r.height;
+        f.style.setProperty('--ry', ((x - 0.5) * 4.5).toFixed(2) + 'deg');
+        f.style.setProperty('--rx', ((0.5 - y) * 4.5).toFixed(2) + 'deg');
+        f.style.setProperty('--gx', (x * 100).toFixed(1) + '%');
+        f.style.setProperty('--gy', (y * 100).toFixed(1) + '%');
+        f.style.setProperty('--gl', '1');
+      });
+      f.addEventListener('pointerleave', function(){
+        f.style.setProperty('--ry', '0deg');
+        f.style.setProperty('--rx', '0deg');
+        f.style.setProperty('--gl', '0');
+      });
+    });
+  }
+
+  /* ---------- révélation couleur au scroll (écrans tactiles) ---------- */
+  if (window.matchMedia('(hover:none)').matches && 'IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        e.target.classList.toggle('vu', e.isIntersecting);
+      });
+    }, {rootMargin:'-32% 0px -32% 0px'});
+    document.querySelectorAll('.ph').forEach(function(f){ io.observe(f); });
+  }
+
+  /* ---------- deck 3D ---------- */
+  var lb = document.getElementById('lb');
+  if (!lb) return;
+  var stage = document.getElementById('lb-stage');
+  var titre = document.getElementById('lb-titre');
+  var count = document.getElementById('lb-count');
+  var cur = null, idx = 0, deck = [], lock = false, scrollY = 0;
+
+  function srcOf(name){ return DIR + name + '.webp'; }
+  function photoAt(i){
+    var t = THEMES[cur], n = t.photos.length;
+    return t.photos[((i % n) + n) % n];
+  }
+  function majCompteur(){
+    count.textContent = (((idx % THEMES[cur].photos.length) + THEMES[cur].photos.length) % THEMES[cur].photos.length + 1) + ' / ' + THEMES[cur].photos.length;
+  }
+  function carte(){
+    var f = document.createElement('figure');
+    f.className = 'lb-carte';
+    f.innerHTML = '<div class="lb-mat"><img alt=""><div class="lb-legende"></div></div>';
+    stage.appendChild(f);
+    return f;
+  }
+  function setPhoto(el, i){
+    var img = el.querySelector('img');
+    img.src = srcOf(photoAt(i));
+    img.alt = THEMES[cur].titre + ' — photographie MGLens';
+    el.querySelector('.lb-legende').textContent = 'MGLens — ' + THEMES[cur].titre;
+  }
+  function setPos(el, p){
+    el.classList.remove('p0','p1','p2','p3','out','s0','s1','s2','s3');
+    if (p !== null) el.classList.add('p' + p);
+  }
+  function reflow(el){ void el.offsetWidth; }
+
+  function open(theme){
+    var t = THEMES[theme]; if (!t) return;
+    cur = theme; idx = 0; lock = false;
+    titre.textContent = t.titre;
+    majCompteur();
+    /* précharger tout le thème (images légères) */
+    t.photos.forEach(function(p){ var im = new Image(); im.src = srcOf(p); });
+    /* construire la pile */
+    deck.forEach(function(d){ d.remove(); });
+    deck = [];
+    var n = Math.min(4, t.photos.length);
+    for (var i = 0; i < n; i++){
+      var el = carte();
+      setPhoto(el, i);
+      if (reduceMotion){ setPos(el, i); }
+      else {
+        el.classList.add('notrans','s' + i);
+        reflow(el);
+        el.classList.remove('notrans');
+      }
+      deck.push(el);
+    }
+    scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = (-scrollY) + 'px';
+    document.body.style.width = '100%';
+    lb.classList.add('open');
+    lb.setAttribute('aria-hidden','false');
+    if (!reduceMotion){
+      /* les cartes dispersées se rangent dans la pile */
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          deck.forEach(function(el, i){ setPos(el, i); });
+        });
+      });
+    }
+    brancherClics();
+  }
+  function close(){
+    lb.classList.remove('open');
+    lb.setAttribute('aria-hidden','true');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, scrollY);
+    cur = null;
+  }
+
+  function next(){
+    if (lock || !cur) return;
+    lock = true;
+    var front = deck.shift();
+    front.classList.remove('p0');
+    front.classList.add('out');
+    deck.forEach(function(el, i){ setPos(el, i); });
+    idx++;
+    majCompteur();
+    setTimeout(function(){
+      front.classList.add('notrans');
+      front.classList.remove('out');
+      setPhoto(front, idx + deck.length);
+      setPos(front, deck.length);
+      reflow(front);
+      front.classList.remove('notrans');
+      deck.push(front);
+      lock = false;
+    }, reduceMotion ? 0 : 560);
+  }
+  function prev(){
+    if (lock || !cur) return;
+    lock = true;
+    var back = deck.pop();
+    back.classList.add('notrans');
+    setPos(back, null);
+    back.classList.add('out');
+    setPhoto(back, idx - 1);
+    reflow(back);
+    back.classList.remove('notrans');
+    idx--;
+    majCompteur();
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        back.classList.remove('out');
+        setPos(back, 0);
+        deck.forEach(function(el, i){ setPos(el, i + 1); });
+        deck.unshift(back);
+        setTimeout(function(){ lock = false; }, reduceMotion ? 0 : 560);
+      });
+    });
+  }
+  function brancherClics(){
+    /* cliquer une carte en retrait avance jusqu'à elle */
+    deck.forEach(function(el){
+      el.onclick = function(){
+        var p = deck.indexOf(el);
+        if (p > 0) next();
+      };
+    });
+  }
+
+  document.querySelectorAll('.ph[data-theme]').forEach(function(f){
+    f.addEventListener('click', function(){ open(f.dataset.theme); });
+    f.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(f.dataset.theme); }
+    });
+  });
+  document.getElementById('lb-close').addEventListener('click', close);
+  document.getElementById('lb-prev').addEventListener('click', prev);
+  document.getElementById('lb-next').addEventListener('click', next);
+  lb.addEventListener('click', function(e){
+    if (e.target === lb || e.target === stage) close();
+  });
+  document.addEventListener('keydown', function(e){
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === 'ArrowRight') next();
+  });
+
+  /* balayage tactile */
+  var tx = null, ty = null;
+  lb.addEventListener('touchstart', function(e){
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+  }, {passive:true});
+  lb.addEventListener('touchend', function(e){
+    if (tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    var dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy)*1.4){
+      if (dx < 0) next(); else prev();
+    }
+    tx = ty = null;
+  }, {passive:true});
+})();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+/* ============================================================
+   MGLens — appareils photo LEGO en 3D
+   3 modèles construits brique par brique en Three.js,
+   rotation liée au scroll. Décoratif : si WebGL ou le CDN
+   échoue, les canvas restent simplement vides.
+   ============================================================ */
+(function(){
+  if (typeof THREE === 'undefined') return;
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- matériaux ---------- */
+  function plastic(hex, rough){
+    return new THREE.MeshStandardMaterial({color:hex, roughness:(rough!==undefined?rough:0.38), metalness:0.05});
+  }
+  var M = {
+    black:  plastic(0x1c1c1e),
+    dark:   plastic(0x2a2a2c),
+    silver: new THREE.MeshStandardMaterial({color:0xc9cbca, roughness:0.3, metalness:0.55}),
+    grey:   plastic(0x9a9c9b),
+    white:  plastic(0xf1efe8),
+    red:    plastic(0xdd3327),
+    glass:  new THREE.MeshStandardMaterial({color:0x0d1620, roughness:0.05, metalness:0.9}),
+    // arc-en-ciel Polaroid
+    rb: [plastic(0x0072bc), plastic(0x00a650), plastic(0xffd500), plastic(0xf7941d), plastic(0xed1c24)]
+  };
+
+  /* ---------- briques de base ---------- */
+  function box(w,h,d,mat,x,y,z){
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+    m.position.set(x||0,y||0,z||0);
+    return m;
+  }
+  function cyl(r,h,mat,x,y,z,seg){
+    var m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg||36), mat);
+    m.position.set(x||0,y||0,z||0);
+    return m;
+  }
+  /* grille de tenons LEGO, posée sur une face horizontale */
+  function studs(group, cols, rows, mat, cx, cy, cz, pitch){
+    pitch = pitch || 0.66;
+    var g = new THREE.CylinderGeometry(0.21, 0.21, 0.15, 20);
+    for (var i=0;i<cols;i++){
+      for (var j=0;j<rows;j++){
+        var s = new THREE.Mesh(g, mat);
+        s.position.set(
+          cx + (i - (cols-1)/2)*pitch,
+          cy + 0.075,
+          cz + (j - (rows-1)/2)*pitch
+        );
+        group.add(s);
+      }
+    }
+  }
+  /* grille de tenons sur une face verticale (avant/arrière) */
+  function studsFront(group, cols, rows, mat, cx, cy, cz, pitch){
+    pitch = pitch || 0.66;
+    var g = new THREE.CylinderGeometry(0.21, 0.21, 0.15, 20);
+    for (var i=0;i<cols;i++){
+      for (var j=0;j<rows;j++){
+        var s = new THREE.Mesh(g, mat);
+        s.rotation.x = Math.PI/2;
+        s.position.set(
+          cx + (i - (cols-1)/2)*pitch,
+          cy + (j - (rows-1)/2)*pitch,
+          cz + 0.075
+        );
+        group.add(s);
+      }
+    }
+  }
+
+  /* ============================================================
+     MODÈLE 1 — reflex rétro (argent / noir)
+     ============================================================ */
+  function buildSLR(){
+    var g = new THREE.Group();
+
+    // corps noir
+    g.add(box(6.6, 2.3, 2.3, M.black, 0, 0, 0));
+    // plaque supérieure argent
+    g.add(box(6.6, 0.85, 2.3, M.silver, 0, 1.575, 0));
+    // bosse du prisme
+    g.add(box(2.1, 0.7, 1.9, M.silver, 0, 2.35, 0));
+    g.add(box(1.3, 0.28, 1.1, M.grey, 0, 2.84, 0)); // griffe flash
+    // molette crantée (droite) + rembobinage (gauche)
+    g.add(cyl(0.56, 0.5, M.black, 2.45, 2.25, 0, 14));
+    g.add(cyl(0.34, 0.34, M.silver, 2.45, 2.62, 0, 20));
+    g.add(cyl(0.44, 0.42, M.silver, -2.5, 2.2, 0, 24));
+    g.add(cyl(0.3, 0.3, M.black, -2.5, 2.5, 0, 20));
+    // déclencheur rouge
+    g.add(cyl(0.16, 0.22, M.red, 1.55, 2.12, 0.55, 16));
+    // objectif
+    g.add(cyl(1.5, 0.35, M.silver, 0, 0.15, 1.3).rotateX(Math.PI/2));
+    g.add(cyl(1.38, 1.0, M.black, 0, 0.15, 1.95).rotateX(Math.PI/2));
+    g.add(cyl(1.18, 0.5, M.dark, 0, 0.15, 2.6).rotateX(Math.PI/2));
+    g.add(cyl(1.02, 0.1, M.glass, 0, 0.15, 2.88).rotateX(Math.PI/2));
+    // grip : tenons sur la face avant, de chaque côté de l'objectif
+    studsFront(g, 3, 3, M.black, 2.35, 0.15, 1.15);
+    studsFront(g, 3, 3, M.black, -2.35, 0.15, 1.15);
+    // tenons sur la plaque argent
+    studs(g, 3, 2, M.silver, 0.2, 2.0, 0, 0.7);
+
+    g.rotation.y = -0.5;
+    g.rotation.x = 0.12;
+    return g;
+  }
+
+  /* ============================================================
+     MODÈLE 2 — instantané (blanc, bande arc-en-ciel)
+     ============================================================ */
+  function buildPola(){
+    var g = new THREE.Group();
+
+    // socle noir
+    g.add(box(5.6, 1.35, 4.1, M.black, 0, -1.0, 0));
+    // corps blanc
+    g.add(box(5.6, 2.1, 4.1, M.white, 0, 0.72, 0));
+    // barre viseur noire à l'arrière
+    g.add(box(4.6, 0.75, 1.15, M.black, 0, 2.15, -1.3));
+    g.add(box(0.9, 0.55, 0.12, M.dark, 1.2, 2.15, -0.7)); // oeilleton
+    // bloc objectif
+    g.add(box(2.0, 1.9, 0.5, M.black, 0.15, 0.75, 2.15));
+    g.add(cyl(0.82, 0.4, M.dark, 0.15, 0.75, 2.5).rotateX(Math.PI/2));
+    g.add(cyl(0.6, 0.12, M.glass, 0.15, 0.75, 2.72).rotateX(Math.PI/2));
+    // bouton rouge
+    g.add(cyl(0.4, 0.3, M.red, -1.85, 0.75, 2.12, 24).rotateX(Math.PI/2));
+    // bande arc-en-ciel verticale sur la face avant
+    for (var i=0;i<5;i++){
+      g.add(box(0.24, 2.1, 0.08, M.rb[i], 2.1 + (i-2)*0.24, 0.72, 2.06));
+    }
+    // fente + photo qui sort
+    g.add(box(4.6, 0.16, 0.2, M.dark, 0, -0.15, 2.06));
+    var photo = new THREE.Group();
+    photo.add(box(3.1, 0.07, 2.2, M.white, 0, 0, 0));
+    photo.add(box(2.5, 0.075, 1.5, plastic(0x7fb3c8, 0.6), 0, 0.01, -0.15));
+    photo.position.set(0, -0.32, 3.2);
+    photo.rotation.x = 0.22;
+    g.add(photo);
+    // tenons sur le dessus
+    studs(g, 5, 3, M.white, 0, 1.77, 0.55, 0.72);
+
+    g.rotation.y = 0.55;
+    g.rotation.x = 0.14;
+    return g;
+  }
+
+  /* ============================================================
+     MODÈLE 3 — compact noir, gros objectif
+     ============================================================ */
+  function buildCompact(){
+    var g = new THREE.Group();
+
+    // corps
+    g.add(box(4.6, 2.8, 2.0, M.black, -0.4, 0, 0));
+    // coin supérieur gris
+    g.add(box(1.7, 0.8, 1.9, M.grey, -1.8, 1.7, 0));
+    g.add(box(1.1, 0.35, 0.9, M.dark, -1.8, 2.25, 0));
+    // liseré rouge
+    g.add(box(1.5, 0.14, 0.2, M.red, -0.35, 1.5, 1.0));
+    // gros objectif
+    var barrel = cyl(1.65, 0.7, M.black, 0,0,0);
+    barrel.rotation.z = Math.PI/2;
+    barrel.position.set(1.85, 0, 0.15);
+    g.add(barrel);
+    var ring = cyl(1.45, 0.5, M.dark, 0,0,0);
+    ring.rotation.z = Math.PI/2;
+    ring.position.set(2.45, 0, 0.15);
+    g.add(ring);
+    var lens = cyl(1.2, 0.12, M.glass, 0,0,0);
+    lens.rotation.z = Math.PI/2;
+    lens.position.set(2.75, 0, 0.15);
+    g.add(lens);
+    var innerRing = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.07, 12, 40), M.grey);
+    innerRing.rotation.y = Math.PI/2;
+    innerRing.position.set(2.78, 0, 0.15);
+    g.add(innerRing);
+    // poignée inclinée à l'arrière
+    var grip = box(2.4, 1.1, 1.5, M.black, 0,0,0);
+    grip.position.set(-3.1, 0.35, 0);
+    grip.rotation.z = 0.28;
+    g.add(grip);
+    studsFront(g, 3, 2, M.black, -3.0, 0.35, 0.78);
+    // tenons sur le corps
+    studs(g, 4, 2, M.black, -0.4, 1.4, 0, 0.72);
+
+    g.rotation.y = -0.75;
+    g.rotation.x = 0.1;
+    return g;
+  }
+
+  /* ============================================================
+     OUTILS BRIQUES — vraies briques LEGO à tenons.
+     Chaque brique = UN mesh (boîte + tenons fusionnés).
+     ============================================================ */
+  function mergeGeoms(parts){
+    var pos = [], nor = [];
+    parts.forEach(function(pt){
+      var g = pt.g.toNonIndexed();
+      if (pt.rx) g.rotateX(pt.rx);
+      g.translate(pt.x||0, pt.y||0, pt.z||0);
+      pos.push.apply(pos, g.getAttribute('position').array);
+      nor.push.apply(nor, g.getAttribute('normal').array);
+    });
+    var out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    return out;
+  }
+  var SP = 0.52;         // pas d'un tenon
+  var BH = 0.5;          // hauteur d'une brique
+  var PH = 0.22;         // hauteur d'une plaque fine
+  var geomCache = {};
+  function brickGeom(w, d, thin){
+    var key = w + '|' + d + '|' + (thin?1:0);
+    if (geomCache[key]) return geomCache[key];
+    var hh = thin ? PH : BH;
+    var parts = [{g:new THREE.BoxGeometry(w*SP, hh, d*SP), y:hh/2}];
+    var studG = new THREE.CylinderGeometry(0.145, 0.145, 0.11, 10);
+    for (var i=0;i<w;i++) for (var j=0;j<d;j++){
+      parts.push({g:studG.clone(), x:(i-(w-1)/2)*SP, y:hh+0.055, z:(j-(d-1)/2)*SP});
+    }
+    return geomCache[key] = mergeGeoms(parts);
+  }
+  function brique(w, d, mat, thin){
+    return new THREE.Mesh(brickGeom(w, d, thin), mat);
+  }
+
+  /* ============================================================
+     MODÈLE 4 — Manon en VRAIE minifig LEGO
+     tête jaune, cheveux blonds longs, débardeur noir, main en C
+     ============================================================ */
+  var Mn = {
+    jaune: plastic(0xf6c945, 0.42),
+    blond: plastic(0xead089, 0.42),
+    jean:  plastic(0x30506f),
+    trait: plastic(0x2a2018, 0.6),
+    rouge: plastic(0xc0392b, 0.5)
+  };
+  function trapezoid(wBot, wTop, hgt, dBot, dTop){
+    // prisme trapézoïdal du buste minifig (plus large en bas)
+    var g = new THREE.BoxGeometry(1, hgt, 1, 1, 1, 1);
+    var p = g.getAttribute('position');
+    for (var i=0;i<p.count;i++){
+      var top = p.getY(i) > 0;
+      p.setX(i, p.getX(i) * (top ? wTop : wBot));
+      p.setZ(i, p.getZ(i) * (top ? dTop : dBot));
+    }
+    g.computeVertexNormals();
+    return g;
+  }
+  function mainC(mat){
+    var m = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.09, 10, 18, 4.6), mat);
+    return m;
+  }
+  function buildManon(){
+    var g = new THREE.Group();
+    // jambes minifig : hanches + jambes carrées avec le pied qui avance
+    g.add(box(1.46, 0.42, 0.82, Mn.jean, 0, -1.32, 0));
+    g.add(box(0.3, 0.5, 0.5, Mn.jean, 0, -1.6, 0));
+    [-0.4, 0.4].forEach(function(x){
+      g.add(box(0.66, 1.15, 0.82, Mn.jean, x, -2.12, 0));
+      g.add(box(0.66, 0.38, 1.06, Mn.jean, x, -2.5, 0.12)); // pied
+    });
+    // buste trapèze (débardeur noir), épaules nues jaunes
+    var buste = new THREE.Mesh(trapezoid(1.9, 1.5, 1.62, 0.95, 0.8), M.black);
+    buste.position.set(0, -0.28, 0);
+    g.add(buste);
+    g.add(box(1.42, 0.2, 0.76, Mn.jaune, 0, 0.62, 0)); // épaules/clavicules
+    // cou + tenon de cou
+    g.add(cyl(0.3, 0.28, Mn.jaune, 0, 0.82, 0, 16));
+    // bras jaunes (nus) : gauche qui fait coucou, droit qui tient l'appareil
+    var brasG = new THREE.Group();
+    var hG = cyl(0.24, 0.85, Mn.jaune, 0, -0.32, 0, 16);
+    var aG  = cyl(0.22, 0.75, Mn.jaune, 0, -0.95, 0.18, 16); aG.rotation.x = -0.55;
+    brasG.add(hG); brasG.add(aG);
+    var mG = mainC(Mn.jaune); mG.position.set(0, -1.32, 0.42); mG.rotation.x = 1.2;
+    brasG.add(mG);
+    brasG.position.set(-1.08, 0.55, 0);
+    brasG.rotation.z = -2.6;  // bras levé vers l'extérieur : coucou
+    brasG.rotation.x = -0.15;
+    g.add(brasG);
+    g.userData.brasCoucou = brasG;
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), Mn.jaune)).children;
+    g.children[g.children.length-1].position.set(-1.02, 0.55, 0);
+    var brasD = new THREE.Group();
+    var hD = cyl(0.24, 0.85, Mn.jaune, 0, -0.32, 0, 16);
+    var aD  = cyl(0.22, 0.7, Mn.jaune, 0, -0.9, 0.22, 16); aD.rotation.x = -0.85;
+    brasD.add(hD); brasD.add(aD);
+    var mD = mainC(Mn.jaune); mD.position.set(0, -1.18, 0.55); mD.rotation.x = 1.35;
+    brasD.add(mD);
+    brasD.position.set(1.08, 0.55, 0);
+    brasD.rotation.z = -0.5;
+    g.add(brasD);
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), Mn.jaune)).children;
+    g.children[g.children.length-1].position.set(1.02, 0.55, 0);
+    // son petit appareil, en briques, dans la main droite
+    var cam = new THREE.Group();
+    cam.add(brique(2, 1, M.black).clone());
+    var camLens = cyl(0.18, 0.2, M.dark, 0, 0.25, 0.32, 14); camLens.rotation.x = Math.PI/2;
+    cam.add(camLens);
+    var camGlass = cyl(0.11, 0.05, M.glass, 0, 0.25, 0.44, 12); camGlass.rotation.x = Math.PI/2;
+    cam.add(camGlass);
+    cam.scale.setScalar(0.85);
+    cam.position.set(0.78, -0.78, 0.85);
+    cam.rotation.x = 0.25;
+    g.add(cam);
+    // collier
+    var col = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 8, 28), M.silver);
+    col.position.set(0, 0.42, 0.3); col.rotation.x = 1.3;
+    g.add(col);
+    // tête minifig : cylindre jaune arrondi + tenon
+    var tete = new THREE.Group();
+    tete.add(cyl(0.62, 0.92, Mn.jaune, 0, 0, 0, 28));
+    var haut = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.62, 0.14, 28), Mn.jaune);
+    haut.position.y = 0.53; tete.add(haut);
+    tete.add(cyl(0.28, 0.14, Mn.jaune, 0, 0.64, 0, 18));
+    // visage sympa : yeux ronds, sourcils fins, grand sourire
+    [-0.22, 0.22].forEach(function(x){
+      var oeil = cyl(0.08, 0.04, Mn.trait, x, 0.12, 0.6, 12); oeil.rotation.x = Math.PI/2;
+      tete.add(oeil);
+      var srcl = box(0.24, 0.045, 0.04, Mn.trait, x, 0.34, 0.6);
+      srcl.rotation.z = x < 0 ? -0.18 : 0.18;
+      tete.add(srcl);
+    });
+    var sourire = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.038, 8, 24, Math.PI), Mn.rouge);
+    sourire.position.set(0, -0.1, 0.61); sourire.rotation.z = Math.PI;
+    tete.add(sourire);
+    tete.position.set(0, 1.55, 0);
+    tete.rotation.y = 0.1;
+    g.add(tete);
+    // chevelure blonde longue : calotte, raie au milieu, frange, mèches jusqu'à la poitrine
+    var chev = new THREE.Group();
+    var calotte = new THREE.Mesh(new THREE.SphereGeometry(0.74, 26, 16, 0, Math.PI*2, 0, Math.PI/1.9), Mn.blond);
+    calotte.scale.set(1, 0.92, 1.02);
+    chev.add(calotte);
+    [-0.3, 0.3].forEach(function(x){ // frange en deux vagues, raie au milieu
+      chev.add(box(0.5, 0.3, 0.24, Mn.blond, x, 0.16, 0.56));
+    });
+    [-0.66, 0.66].forEach(function(x, i){ // mèches longues devant
+      var mc = box(0.42, 2.2, 0.46, Mn.blond, x, -1.14, 0.2);
+      mc.rotation.z = (i===0 ? -1 : 1) * 0.055;
+      chev.add(mc);
+      chev.add(box(0.44, 0.3, 0.48, Mn.blond, x*1.12, -2.18, 0.22)); // pointe qui rebique
+    });
+    chev.add(box(1.36, 2.5, 0.44, Mn.blond, 0, -0.95, -0.5)); // pan arrière
+    chev.position.set(0, 1.9, 0);
+    chev.rotation.y = 0.1;
+    g.add(chev);
+    g.rotation.y = 0.24;
+    g.rotation.x = 0.05;
+    return g;
+  }
+
+  /* ============================================================
+     MODÈLE 5 — MORPH en vraies briques : l'instantané côté
+     particuliers est bâti en petites briques à tenons ; au
+     scroll, CHAQUE brique s'envole et va se clipser dans le
+     drone. Les briques en trop s'empilent en tas de côté.
+     ============================================================ */
+  function rnd(i){
+    var x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  var MB = { // matériaux briques
+    noir:  M.black, blanc: M.white, gris: M.grey, fonce: M.dark,
+    verre: M.glass, rouge: M.red
+  };
+  function layoutCamera(){
+    var L = [];
+    function put(w,d,color,ix,iy,iz,rotY,thin){
+      L.push({w:w,d:d,c:color,thin:!!thin,p:[ix*SP, iy*(BH+0.02), iz*SP],r:[0,rotY||0,0]});
+    }
+    function fill(x0,x1,z0,z1,y,color){
+      // remplit un rectangle (en tenons) avec des 2x2 puis des 1x2 / 1x1
+      var x = x0;
+      while (x <= x1){
+        var w = (x+1 <= x1) ? 2 : 1;
+        var z = z0;
+        while (z <= z1){
+          var d = (z+1 <= z1) ? 2 : 1;
+          put(w, d, color, x + (w-1)/2, y, z + (d-1)/2);
+          z += d;
+        }
+        x += w;
+      }
+    }
+    // socle noir, 2 rangs
+    fill(-4, 4, -3, 2, 0, 'noir');
+    fill(-4, 4, -3, 2, 1, 'noir');
+    // corps blanc, 3 rangs
+    fill(-4, 4, -3, 2, 2, 'blanc');
+    fill(-4, 4, -3, 2, 3, 'blanc');
+    fill(-4, 4, -3, 2, 4, 'blanc');
+    // barre viseur noire au sommet, à l'arrière
+    fill(-3, 3, -3, -2, 5, 'noir');
+    // face avant (z=3) : cadre objectif en 1x1 noirs + verre au centre
+    for (var yy=2; yy<=4; yy++) for (var xx=-1; xx<=1; xx++){
+      if (yy===3 && xx===0) put(1,1,'verre',0,3,3);
+      else put(1,1,'noir',xx,yy,3);
+    }
+    put(1,1,'rouge',-3,4,3);           // déclencheur
+    for (var c=0;c<5;c++) put(1,1,'rb'+c, 3, c, 3);  // colonne arc-en-ciel
+    // photo qui sort : plaques fines
+    put(4,3,'blanc',0,-0.5,4.8,0,true);
+    put(2,2,'ciel', 0,-0.28,4.7,0,true);
+    return L;
+  }
+  function layoutDrone(){
+    var L = [];
+    function put(w,d,color,ix,iy,iz,rotY,thin){
+      L.push({w:w,d:d,c:color,thin:!!thin,p:[ix*SP, iy*(BH+0.02) + 0.6, iz*SP],r:[0,rotY||0,0]});
+    }
+    function fill(x0,x1,z0,z1,y,color){
+      var x = x0;
+      while (x <= x1){
+        var w = (x+1 <= x1) ? 2 : 1;
+        var z = z0;
+        while (z <= z1){
+          var d = (z+1 <= z1) ? 2 : 1;
+          put(w, d, color, x + (w-1)/2, y, z + (d-1)/2);
+          z += d;
+        }
+        x += w;
+      }
+    }
+    // corps central 5x5
+    fill(-2, 2, -2, 2, 0, 'noir');
+    fill(-2, 2, -2, 2, 1, 'blanc');
+    put(2,2,'fonce',0,2,0);            // capot
+    put(1,1,'noir',0,3,-1);            // GPS
+    // 4 bras en croix : 1x2 gris + moteur 2x2 + 2 pales fines qui tournent
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(dir, i){
+      var dx = dir[0], dz = dir[1];
+      var horiz = dx !== 0;
+      for (var k=0;k<2;k++){
+        var off = 3.5 + k*2;
+        put(horiz?2:1, horiz?1:2, 'gris', dx*off, 1, dz*off);
+      }
+      put(2,2,'noir', dx*7, 1, dz*7);
+      put(1,1,'rb'+i, dx*7, 2, dz*7);  // le tenon coloré du moteur
+      for (var b=0;b<2;b++){
+        L.push({w:3,d:1,c:'gris',thin:true,blade:true,
+          p:[dx*7*SP, 3*(BH+0.02)+0.6, dz*7*SP],
+          r:[0, b*Math.PI/2 + i*0.65, 0]});
+      }
+    });
+    put(1,1,'rb4',0,2,2);              // nez coloré
+    // nacelle caméra sous l'avant
+    put(2,2,'noir',0,-1,2);
+    put(1,1,'verre',0,-1,3.2);
+    // pieds : piles de 1x1 + patins fins
+    [[-2,-2],[2,-2],[-2,2],[2,2]].forEach(function(pd){
+      put(1,1,'noir',pd[0],-1,pd[1]);
+      put(1,1,'noir',pd[0],-2,pd[1]);
+    });
+    put(1,6,'noir',-2,-3,0,0,true);
+    put(1,6,'noir', 2,-3,0,0,true);
+    return L;
+  }
+  function matOf(c){
+    if (c === 'ciel') return plastic(0x7fb3c8, 0.6);
+    if (c.indexOf('rb') === 0) return M.rb[+c.slice(2)];
+    return MB[c];
+  }
+  function buildMorphRig(){
+    var g = new THREE.Group();
+    var pieces = [];
+    var A = layoutCamera(), B = layoutDrone();
+    function key(e){ return e.w + 'x' + e.d + (e.thin?'t':'') + '_' + e.c; }
+    var byA = {}, byB = {};
+    A.forEach(function(e){ (byA[key(e)] = byA[key(e)] || []).push(e); });
+    B.forEach(function(e){ (byB[key(e)] = byB[key(e)] || []).push(e); });
+    // tas de briques en trop : à côté de l'appareil (état A) et du drone (état B)
+    var pileA = 0, pileB = 0;
+    function pilePosA(){ var i = pileA++; return {p:[3.2 + (i%3)*0.58, -0.05 + Math.floor(i/9)*(BH+0.02), -2.2 + (Math.floor(i/3)%3)*0.6], r:[0, rnd(i)*0.5-0.25, 0]}; }
+    // les briques de l'appareil qui ne servent pas au drone forment
+    // sa plateforme d'atterrissage, posée en dessous
+    function pilePosB(){
+      var i = pileB++;
+      var ix = i % 7, iz = Math.floor(i/7) % 7, iy = Math.floor(i/49);
+      return {p:[(ix-3)*0.56, -2.2 + iy*(BH+0.02), (iz-3)*0.56], r:[0, rnd(i+40)*0.16-0.08, 0]};
+    }
+    var keys = {};
+    A.concat(B).forEach(function(e){ keys[key(e)] = e; });
+    var idx = 0;
+    Object.keys(keys).forEach(function(k){
+      var la = byA[k] || [], lb = byB[k] || [];
+      var n = Math.max(la.length, lb.length);
+      var proto = keys[k];
+      for (var i=0;i<n;i++){
+        var ea = la[i], eb = lb[i];
+        // brique absente de l'appareil : elle attend en tas à côté de lui ;
+        // brique absente du drone : elle finit en tas à côté du drone
+        var sa = ea ? {p:ea.p, r:ea.r} : pilePosA();
+        var sb = eb ? {p:eb.p, r:eb.r} : pilePosB();
+        var m = brique(proto.w, proto.d, matOf(proto.c), proto.thin);
+        m.userData.A = sa; m.userData.B = sb;
+        m.userData.delay = rnd(idx)*0.32;
+        m.userData.spin = (rnd(idx+50)*2-1)*2.6;
+        m.userData.blade = !!(eb && eb.blade);
+        var dx = sb.p[0]-sa.p[0], dy = sb.p[1]-sa.p[1], dz = sb.p[2]-sa.p[2];
+        var l = Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if (l < 0.4){ dx = rnd(idx+9)*2-1; dy = rnd(idx+17); dz = rnd(idx+31)*2-1; l = Math.sqrt(dx*dx+dy*dy+dz*dz)||1; }
+        m.userData.dir = [dx/l, dy/l, dz/l];
+        g.add(m); pieces.push(m);
+        idx++;
+      }
+    });
+    g.rotation.y = 0.5;
+    g.rotation.x = 0.14;
+    g.position.y = -0.6;
+    return {group:g, pieces:pieces};
+  }
+  function easeInOut(t){ return t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+  function applyMorph(rig, t, dt){
+    rig.pieces.forEach(function(m){
+      var u = m.userData;
+      var tt = Math.min(1, Math.max(0, (t - u.delay*0.35) / 0.65));
+      var e = easeInOut(tt);
+      var k = Math.sin(Math.PI * tt);
+      var A = u.A, B = u.B, d = u.dir;
+      m.position.set(
+        A.p[0] + (B.p[0]-A.p[0])*e + d[0]*k*1.7,
+        A.p[1] + (B.p[1]-A.p[1])*e + d[1]*k*1.7 + k*0.9,
+        A.p[2] + (B.p[2]-A.p[2])*e + d[2]*k*1.7
+      );
+      m.rotation.set(
+        A.r[0] + (B.r[0]-A.r[0])*e + u.spin*k*1.4,
+        A.r[1] + (B.r[1]-A.r[1])*e + u.spin*k*2.0,
+        A.r[2] + (B.r[2]-A.r[2])*e + u.spin*k*0.8
+      );
+      if (u.blade && t > 0.6){
+        u.spinAcc = (u.spinAcc || 0) + dt * 8 * (t - 0.6);
+        m.rotation.y += u.spinAcc;
+      } else if (u.blade){
+        u.spinAcc = 0;
+      }
+    });
+  }
+  function buildDrone(){
+    var rig = buildMorphRig();
+    applyMorph(rig, 1, 0);
+    rig.group.rotation.y = -0.35;
+    rig.group.rotation.x = 0.1;
+    return rig.group;
+  }
+
+  /* ============================================================
+     scènes + rendu
+     ============================================================ */
+  var scenes = [];
+  function makeScene(canvasId, camZ){
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    var renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({canvas:canvas, alpha:true, antialias:true});
+    } catch(e){ return null; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, (window.innerWidth || 1000) < 700 ? 1.6 : 2));
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+    camera.position.set(0, 0.6, camZ);
+    camera.lookAt(0, 0.2, 0);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8f8d85, 1.0));
+    var key = new THREE.DirectionalLight(0xffffff, 1.15);
+    key.position.set(4, 6, 6);
+    scene.add(key);
+    var fill = new THREE.DirectionalLight(0xfff3e0, 0.35);
+    fill.position.set(-5, 2, -4);
+    scene.add(fill);
+    var entry = {canvas:canvas, renderer:renderer, scene:scene, camera:camera, model:null, visible:true, camZ:camZ};
+    scenes.push(entry);
+    if ('IntersectionObserver' in window){
+      new IntersectionObserver(function(entries){
+        entry.visible = entries[0].isIntersecting;
+      }, {rootMargin:'120px'}).observe(canvas);
+    }
+    if ('ResizeObserver' in window){
+      new ResizeObserver(function(){ fitCanvas(entry); }).observe(canvas);
+    }
+    return entry;
+  }
+  function useModel(entry, obj){
+    if (!entry) return;
+    entry.scene.add(obj);
+    entry.model = obj;
+    fitCanvas(entry);
+    if (reduceMotion) entry.renderer.render(entry.scene, entry.camera);
+  }
+  function fitAndWrap(gltfScene, targetSize, rotY, rotX){
+    var inner = new THREE.Group();
+    var bb = new THREE.Box3().setFromObject(gltfScene);
+    var size = bb.getSize(new THREE.Vector3());
+    var center = bb.getCenter(new THREE.Vector3());
+    var maxDim = Math.max(size.x, size.y, size.z) || 1;
+    var s = targetSize / maxDim;
+    gltfScene.position.sub(center);
+    inner.add(gltfScene);
+    inner.scale.setScalar(s);
+    var wrap = new THREE.Group();
+    wrap.add(inner);
+    wrap.rotation.y = rotY;
+    wrap.rotation.x = rotX;
+    return wrap;
+  }
+  function fitCanvas(s){
+    var w = s.canvas.clientWidth, h = s.canvas.clientHeight;
+    if (!w || !h) return;
+    if (s.canvas.width !== Math.round(w * Math.min(window.devicePixelRatio,2))){
+      s.renderer.setSize(w, h, false);
+    }
+    if (Math.abs(s.camera.aspect - w / h) > 0.005){
+      s.camera.aspect = w / h;
+      s.camera.updateProjectionMatrix();
+    }
+  }
+  function resize(){
+    scenes.forEach(function(s){
+      fitCanvas(s);
+      if (reduceMotion && s.model) s.renderer.render(s.scene, s.camera);
+    });
+  }
+  function clamp01(v){ return Math.min(1, Math.max(0, v)); }
+  function smooth(t){ return t*t*(3-2*t); }
+
+  /* ============================================================
+     HERO — le studio éparpillé aux quatre coins autour du titre.
+     Chaque appareil arrive en volant le long d'une courbe avec
+     une traînée de briques en comète, et repart par le même
+     chemin au scroll. Le ZH1, lui, fonce vers la caméra et
+     traverse l'écran.
+     ============================================================ */
+  var heroScene = makeScene('cam-slr', 17);
+  var heroSats = [];
+  var heroCenter = null;
+  var heroRoot = null;
+
+  /* courbe de vol : bézier quadratique spawn -> contrôle -> position finale */
+  function bez(a, b, c, t){
+    var u = 1 - t;
+    return [
+      u*u*a[0] + 2*u*t*b[0] + t*t*c[0],
+      u*u*a[1] + 2*u*t*b[1] + t*t*c[1],
+      u*u*a[2] + 2*u*t*b[2] + t*t*c[2]
+    ];
+  }
+  function makeTrail(n, palette, seed){
+    var g = new THREE.Group();
+    var minis = [];
+    var geo = brickGeom(1, 1, false);
+    for (var i=0;i<n;i++){
+      var m = new THREE.Mesh(geo, palette[Math.floor(rnd(seed+i)*palette.length)]);
+      m.scale.setScalar(0.0001);
+      m.userData.jit = [(rnd(seed+i+7)*2-1)*0.5, (rnd(seed+i+13)*2-1)*0.5, (rnd(seed+i+23)*2-1)*0.5];
+      m.userData.tumble = (rnd(seed+i+31)*2-1)*5;
+      m.userData.size = 0.34 + rnd(seed+i+41)*0.36;
+      g.add(m); minis.push(m);
+    }
+    return {group:g, minis:minis};
+  }
+
+  if (heroScene){
+    heroRoot = new THREE.Group();
+    /* positions en FRACTIONS de l'écran : fx/fy dans [-1,1].
+       Le texte occupe la moitié gauche au centre : on l'évite. */
+    var SATS_CONF = [
+      {build:buildPola,    sc:0.38, fx:-0.72, fy: 0.8,  z:-1.4, lag:0.00, pal:[M.white, M.black, M.rb[0], M.rb[2], M.rb[4]], seed:11, mfx: 0.66, mfy:-0.92, msc:0.34},
+      {build:buildDrone,   sc:0.34, fx: 0.26, fy: 0.76, z:-2.0, lag:0.10, pal:[M.black, M.grey, M.white, M.rb[1]],           seed:33, mfx: 0.56, mfy:-0.2,  msc:0.3},
+      {build:buildCompact, sc:0.32, fx:-0.26, fy:-1.0,  z: 0.4, lag:0.20, pal:[M.black, M.dark, M.grey, M.silver],           seed:22, mfx: 0,   mfy: 0,    msc:0},
+      {build:buildManon,   sc:0.5,  fx: 0.56, fy:-0.76, z: 0.8, lag:0.30, pal:[Mn.blond, M.black, Mn.jaune, Mn.jean],        seed:44, mfx:-0.66, mfy:-0.82, msc:0.42}
+    ];
+    SATS_CONF.forEach(function(c){
+      var g = c.build();
+      g.scale.setScalar(0.0001);
+      heroRoot.add(g);
+      var trail = makeTrail(16, c.pal, c.seed);
+      heroRoot.add(trail.group);
+      heroSats.push({g:g, conf:c, trail:trail, phase:rnd(c.seed)*6.28,
+                     spd:0.35 + rnd(c.seed+3)*0.2, v:0, vDisp:0});
+    });
+    useModel(heroScene, heroRoot);
+    function placeCenter(obj){
+      heroCenter = obj;
+      heroCenter.scale.setScalar(0.0001);
+      heroRoot.add(heroCenter);
+      if (reduceMotion){
+        heroCenter.scale.setScalar(1);
+        heroScene.renderer.render(heroScene.scene, heroScene.camera);
+      }
+    }
+    if (typeof THREE.GLTFLoader !== 'undefined'){
+      new THREE.GLTFLoader().load('assets/models/mg-lens-zh1.glb', function(gltf){
+        placeCenter(fitAndWrap(gltf.scene, 5.8, -0.55, 0.08));
+      }, undefined, function(){
+        var f = buildSLR(); f.scale.setScalar(0.84); placeCenter(f);
+      });
+    } else {
+      var f2 = buildSLR(); f2.scale.setScalar(0.84); placeCenter(f2);
+    }
+  }
+
+  var mx = 0, my = 0, mxL = 0, myL = 0;
+  window.addEventListener('pointermove', function(e){
+    mx = (e.clientX / window.innerWidth  - 0.5) * 2;
+    my = (e.clientY / window.innerHeight - 0.5) * 2;
+  }, {passive:true});
+
+  /* ============================================================
+     PRESTATIONS : morph briques appareil -> drone au scroll
+     ============================================================ */
+  var prestaScene = makeScene('cam-pola', 19);
+  var prestaRig = null;
+  var prosAnchor = document.getElementById('groupe-pros');
+  if (prestaScene){
+    prestaRig = buildMorphRig();
+    applyMorph(prestaRig, 0, 0);
+    useModel(prestaScene, prestaRig.group);
+  }
+
+  /* ============================================================
+     À PROPOS : Manon, traitée comme une star — des flashs de
+     photographes crépitent autour d'elle, d'autant plus qu'on
+     scrolle. Et elle fait coucou.
+     ============================================================ */
+  var manonScene = makeScene('cam-compact', 14.5);
+  var manonModel = null;
+  var flashes = [];
+  function flashTexture(){
+    try {
+      var c = document.createElement('canvas');
+      c.width = c.height = 128;
+      var ctx = c.getContext('2d');
+      if (!ctx) return null;
+      var grd = ctx.createRadialGradient(64,64,2, 64,64,62);
+      grd.addColorStop(0,   'rgba(255,255,255,1)');
+      grd.addColorStop(0.25,'rgba(255,250,235,0.9)');
+      grd.addColorStop(1,   'rgba(255,250,235,0)');
+      ctx.fillStyle = grd; ctx.fillRect(0,0,128,128);
+      // quatre branches d'étoile
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(64,6); ctx.lineTo(64,122);
+      ctx.moveTo(6,64); ctx.lineTo(122,64);
+      ctx.stroke();
+      return new THREE.CanvasTexture(c);
+    } catch(e){ return null; }
+  }
+  if (manonScene){
+    manonModel = buildManon();
+    useModel(manonScene, manonModel);
+    var ftex = flashTexture();
+    var fmat = ftex
+      ? new THREE.MeshBasicMaterial({map:ftex, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending})
+      : new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.9, depthWrite:false});
+    for (var fi=0; fi<9; fi++){
+      var q = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), fmat.clone());
+      var ang = (fi / 9) * Math.PI * 2 + rnd(fi)*0.6;
+      q.position.set(Math.cos(ang) * (2.6 + rnd(fi+5)*1.4),
+                     -0.5 + rnd(fi+9) * 3.2,
+                     Math.sin(ang) * (2.2 + rnd(fi+13)*1.2));
+      q.scale.setScalar(0.0001);
+      manonScene.scene.add(q);
+      // chaque flash a son propre métronome
+      flashes.push({m:q, next: 0.4 + rnd(fi+21)*2.0, life: 0, size: 0.8 + rnd(fi+31)*0.9});
+    }
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  if (reduceMotion){
+    if (heroScene && heroRoot){
+      // version fixe : tout posé, pas de vol
+      heroSats.forEach(function(s){ s.v = 1; });
+    }
+    if (heroScene) heroScene.renderer.render(heroScene.scene, heroScene.camera);
+    return;
+  }
+
+  var t0 = performance.now(), last = t0;
+  var introT = 0, scrollS = 0, morphS = 0;
+  var lastScrollY = 0, scrollVel = 0;
+
+  function loop(now){
+    var t = (now - t0) / 1000;
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    var vh = window.innerHeight || 1;
+    // vitesse de scroll (pour les flashs de Manon)
+    var sy = window.scrollY;
+    scrollVel += (Math.abs(sy - lastScrollY) / Math.max(1, vh*dt*60) - scrollVel) * 0.12;
+    lastScrollY = sy;
+
+    /* ----- HERO ----- */
+    if (heroScene && heroScene.visible && heroRoot){
+      introT = Math.min(1, introT + dt / 1.35);
+      var target = clamp01(sy / (vh * 0.9));
+      scrollS += (target - scrollS) * 0.085;
+      mxL += (mx - mxL) * 0.045;
+      myL += (my - myL) * 0.045;
+
+      var aspect = heroScene.camera.aspect || 1.6;
+      var large = aspect > 1.15;
+      var halfH = Math.tan(15 * Math.PI/180) * heroScene.camZ;
+      var halfW = halfH * aspect;
+
+      heroRoot.rotation.y = mxL * 0.06;
+      heroRoot.rotation.x = myL * 0.03;
+
+      heroSats.forEach(function(s){
+        var c = s.conf;
+        var fx = large ? c.fx : c.mfx, fy = large ? c.fy : c.mfy;
+        var scl = c.sc * (large ? 1 : c.msc);
+        if (!large && c.msc === 0){ s.g.scale.setScalar(0.0001); s.trail.minis.forEach(function(m){m.scale.setScalar(0.0001);}); return; }
+        var B = [fx * halfW * 0.86, fy * halfH * 0.78, c.z];        // position de repos
+        var S = [fx * halfW * 2.1,  fy * halfH * 1.9 + 2.5, c.z - 6]; // point d'apparition, hors champ
+        var C = [(B[0]+S[0])/2 + fy * 2.2, (B[1]+S[1])/2 + 2.8, (B[2]+S[2])/2 + 2.5]; // contrôle : la courbe
+        // v = 0 hors champ, 1 posé ; l'arrivée et le départ suivent la même courbe
+        var arrive = smooth(clamp01((introT - c.lag) / 0.55));
+        var depart = smooth(clamp01((scrollS - c.lag * 0.6) / 0.5));
+        var vTarget = arrive * (1 - depart);
+        s.v += (vTarget - s.v) * 0.10;
+        s.vDisp += (Math.abs(vTarget - s.v) - s.vDisp) * 0.1;   // intensité du mouvement
+        var v = s.v;
+        var p = bez(S, C, B, v);
+        var flo = Math.sin(t * s.spd + s.phase) * 0.14 * v;
+        s.g.position.set(p[0], p[1] + flo, p[2]);
+        s.g.scale.setScalar(Math.max(0.0001, scl * (0.35 + 0.65 * smooth(v))));
+        s.g.rotation.y += dt * (0.25 + (1 - v) * 4.5);
+        s.g.rotation.z = (1 - v) * 0.5 * (c.fx < 0 ? -1 : 1);
+        // traînée de briques en comète le long de la courbe, visible pendant le vol
+        var moving = Math.min(1, s.vDisp * 26) * smooth(1 - Math.abs(2*v - 1) * 0.2);
+        s.trail.minis.forEach(function(m, j){
+          var vj = v - (j + 1) * 0.058 * (vTarget >= v ? 1 : -1);
+          if (vj <= 0.01 || vj >= 0.99 || moving < 0.03){ m.scale.setScalar(0.0001); return; }
+          var pj = bez(S, C, B, vj);
+          m.position.set(pj[0] + m.userData.jit[0], pj[1] + m.userData.jit[1], pj[2] + m.userData.jit[2]);
+          m.scale.setScalar(Math.max(0.0001, m.userData.size * moving * (1 - j / 20)));
+          m.rotation.x += dt * m.userData.tumble;
+          m.rotation.y += dt * m.userData.tumble * 0.7;
+        });
+      });
+      if (heroCenter){
+        var arriveC = smooth(clamp01((introT - 0.05) / 0.8));
+        var zh = large ? [0.66 * halfW * 0.86, 0.04 * halfH, 0] : [0.06 * halfW, -0.44 * halfH, 0];
+        var dive = smooth(scrollS);
+        heroCenter.position.set(
+          zh[0] * (1 - dive * 0.5),
+          zh[1] + Math.sin(t * 0.8) * 0.07 + (1 - arriveC) * -7 - dive * 1.5,
+          zh[2] + dive * (heroScene.camZ + 4)   // il fonce vers la caméra et la traverse
+        );
+        heroCenter.rotation.y = -0.55 + Math.sin(t * 0.6) * 0.04 + dive * 0.9 + (1 - arriveC) * 2.2;
+        heroCenter.rotation.z = dive * -0.25;
+        heroCenter.scale.setScalar(Math.max(0.0001, (large ? 1 : 0.34) * smooth(arriveC)));
+        heroCenter.visible = dive < 0.96;
+      }
+      heroScene.renderer.render(heroScene.scene, heroScene.camera);
+    }
+
+    /* ----- PRESTATIONS ----- */
+    if (prestaScene && prestaScene.visible && prestaRig){
+      var mTarget = 0;
+      if (prosAnchor){
+        var r = prosAnchor.getBoundingClientRect();
+        mTarget = clamp01((vh * 0.72 - r.top) / (vh * 0.55));
+      }
+      morphS += (mTarget - morphS) * 0.07;
+      applyMorph(prestaRig, morphS, dt);
+      prestaRig.group.scale.setScalar(prestaScene.camera.aspect < 1.6 ? 0.85 : 1);
+      prestaRig.group.rotation.y = 0.5 + morphS * 0.9 + Math.sin(t * 0.5) * 0.04;
+      prestaRig.group.position.y = -0.6 + morphS * 0.3 + Math.sin(t * 0.7) * 0.08 * morphS;
+      prestaScene.renderer.render(prestaScene.scene, prestaScene.camera);
+    }
+
+    /* ----- À PROPOS : Manon star sous les flashs ----- */
+    if (manonScene && manonScene.visible && manonModel){
+      var r2 = manonScene.canvas.getBoundingClientRect();
+      var prog = ((vh/2) - (r2.top + r2.height/2)) / vh;
+      manonModel.rotation.y = 0.24 + prog * 0.7 + Math.sin(t * 0.6) * 0.05;
+      manonModel.position.y = Math.sin(t * 0.8) * 0.08;
+      if (manonModel.userData.brasCoucou){
+        manonModel.userData.brasCoucou.rotation.z = -2.6 + Math.sin(t * 3.2) * 0.16;
+      }
+      // les flashs crépitent, plus vite quand on scrolle
+      var cadence = 1 + Math.min(3.5, scrollVel * 5);
+      flashes.forEach(function(fl){
+        fl.next -= dt * cadence;
+        if (fl.next <= 0 && fl.life <= 0){
+          fl.life = 0.3;
+          fl.next = 0.5 + rnd(t * 1000 % 97) * 2.2;
+        }
+        if (fl.life > 0){
+          fl.life -= dt;
+          var lp = fl.life / 0.3;                 // 1 -> 0
+          var pop = Math.sin(Math.PI * Math.pow(1 - lp, 0.35)); // montée éclair, descente douce
+          fl.m.scale.setScalar(Math.max(0.0001, fl.size * pop * 1.4));
+          fl.m.material.opacity = pop;
+          fl.m.lookAt(manonScene.camera.position);
+        } else {
+          fl.m.scale.setScalar(0.0001);
+        }
+      });
+      manonScene.renderer.render(manonScene.scene, manonScene.camera);
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+
+
+
+</script>
+</body>
+</html>
