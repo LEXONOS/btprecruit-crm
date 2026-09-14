@@ -1,0 +1,58 @@
+PFLOW ORDER, KIT DE LANCEMENT
+=============================
+
+CONTENU DU ZIP
+--------------
+01-plan-directeur.html   Le plan complet : stratégie, produit, archi, prix, process de vente, roadmap.
+                         À lire avec Jules, imprimable (Ctrl+P).
+02-fiche-produit.html    Le support de vente une page. Imprimable en A4, exportable en PDF (Ctrl+P,
+                         enregistrer en PDF) pour l'envoyer sur WhatsApp aux prospects.
+                         Jules peut reprendre la charte : toutes les couleurs sont dans les
+                         variables CSS en haut du fichier (:root).
+site/index.html          La nouvelle home pflow.fr, prête à mettre en ligne telle quelle.
+site/images/             Le dossier où poser les photos Pexels (liste ci-dessous).
+
+MISE EN LIGNE DU SITE
+---------------------
+1. Poser le contenu du dossier site/ à la racine de l'hébergement de pflow.fr
+   (index.html + le dossier images/).
+2. Le site fonctionne DÉJÀ sans les photos : il charge des images de secours en ligne,
+   et si elles ne répondent pas, un fallback propre s'affiche à la place.
+3. Dès qu'une photo est posée dans images/ avec le bon nom, elle prend le dessus
+   automatiquement. Rien d'autre à modifier.
+Option prudente : mettre d'abord le site sur pflow.fr/order pour valider,
+puis le passer en home quand Jules assume le recentrage.
+
+PHOTOS À TÉLÉCHARGER SUR PEXELS (pexels.com, gratuit, usage commercial ok)
+--------------------------------------------------------------------------
+Enregistrer chaque photo dans site/images/ avec EXACTEMENT ce nom de fichier :
+
+1. plat-burger.jpg        Recherche : "smash burger" ou "burger close up"
+                          Un burger appétissant en gros plan. Format carré de préférence.
+2. plat-poke.jpg          Recherche : "poke bowl"
+                          Un bowl coloré vu de dessus. Format carré.
+3. plat-pizza.jpg         Recherche : "pizza cheese" ou "pizza rustic"
+                          Une pizza entière ou une part, lumière chaude. Format carré.
+4. plat-jus.jpg           Recherche : "passion fruit juice" ou "tropical juice"
+                          Un jus frais, ambiance tropicale. Format carré.
+5. salle-restaurant.jpg   Recherche : "restaurant interior warm" ou "restaurant table"
+                          Une salle chaleureuse, tables dressées. Format paysage, large.
+6. burger-emporter.jpg    Recherche : "takeaway food" ou "food delivery bag"
+                          Sac kraft ou boîte à emporter, ambiance street food. Format paysage.
+
+Conseils :
+- Taille : 400 x 400 px suffisent pour les plats (1 à 4), 1200 px de large pour les
+  deux photos d'ambiance (5 et 6). Sur Pexels, choisir la taille "Moyen" au
+  téléchargement, ça évite d'alourdir le site.
+- Ambiance : privilégier des photos sombres ou à lumière chaude, elles se fondent
+  mieux dans le site (fond noir).
+- Pour la touche locale, chercher aussi "caribbean food" ou "creole food".
+- Dès que Jules a de vrais clients : remplacer par de VRAIES photos de leurs plats,
+  mêmes noms de fichiers. C'est ce qui convertira le mieux.
+
+RAPPEL DES PRIX AFFICHÉS (identiques fiche + site)
+--------------------------------------------------
+Carte à table : 49 euros/mois, mise en place 190 euros.
+Commande en ligne : 129 euros/mois, mise en place 490 euros.
+Pack complet : 159 euros/mois, mise en place 490 euros.
+Option livraison : +30 euros/mois. Sans engagement.

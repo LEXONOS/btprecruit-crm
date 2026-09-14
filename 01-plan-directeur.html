@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFlow Order, plan directeur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF9F6;
+    --ink:#131210;
+    --accent:#0B5A43;
+    --muted:#6E6A62;
+    --rule:#E6E2D9;
+    --tint:#F1EFE9;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{font-size:16px;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Archivo',system-ui,-apple-system,sans-serif;
+    font-size:.94rem;
+    line-height:1.58;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:780px;margin:0 auto;padding:56px 28px 90px;}
+
+  header.doc{
+    border-bottom:3px solid var(--ink);
+    padding-bottom:22px;
+    margin-bottom:40px;
+  }
+  header.doc .kicker{
+    font-size:.82rem;font-weight:500;color:var(--muted);margin-bottom:10px;
+  }
+  header.doc h1{
+    font-size:2.5rem;font-weight:800;letter-spacing:-.03em;line-height:1.04;
+  }
+  header.doc h1 span{color:var(--accent);}
+  header.doc .meta{
+    margin-top:14px;font-size:.85rem;color:var(--muted);
+  }
+
+  section{margin-bottom:46px;}
+  h2{
+    font-size:1.32rem;font-weight:800;letter-spacing:-.02em;
+    margin-bottom:14px;padding-top:6px;
+  }
+  h3{font-size:1rem;font-weight:700;margin:22px 0 8px;}
+  p{margin-bottom:12px;max-width:70ch;}
+  p.tight{margin-bottom:6px;}
+  strong{font-weight:700;}
+  em{font-style:normal;font-weight:500;color:var(--accent);}
+
+  ul.plain{list-style:none;margin:10px 0 14px;}
+  ul.plain li{
+    padding:7px 0 7px 20px;position:relative;max-width:70ch;
+    border-bottom:1px solid var(--rule);
+  }
+  ul.plain li:last-child{border-bottom:none;}
+  ul.plain li::before{
+    content:"";position:absolute;left:2px;top:16px;
+    width:7px;height:7px;background:var(--accent);
+  }
+
+  .decision{
+    background:var(--ink);color:var(--paper);
+    padding:26px 28px;margin:20px 0 8px;
+  }
+  .decision .label{font-size:.8rem;font-weight:700;color:#9FCDBB;margin-bottom:10px;}
+  .decision p{font-size:1.12rem;font-weight:500;line-height:1.45;margin:0;max-width:60ch;}
+  .decision p b{font-weight:800;color:#9FCDBB;}
+
+  /* comparatif constat */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);margin:16px 0;}
+  .duo>div{padding:18px 20px;}
+  .duo>div:first-child{border-right:1px solid var(--rule);}
+  .duo h4{font-size:.86rem;font-weight:700;margin-bottom:8px;}
+  .duo p{font-size:.88rem;margin-bottom:0;color:var(--muted);}
+  .duo p b{color:var(--ink);font-weight:700;}
+
+  /* parcours client, chaine */
+  .chain{margin:20px 0 6px;border-left:2px solid var(--accent);padding-left:0;}
+  .chain .step{
+    position:relative;padding:10px 0 10px 26px;
+  }
+  .chain .step::before{
+    content:"";position:absolute;left:-7px;top:17px;
+    width:12px;height:12px;border-radius:50%;
+    background:var(--paper);border:3px solid var(--accent);
+  }
+  .chain .step .t{font-weight:700;font-size:.95rem;}
+  .chain .step .d{font-size:.87rem;color:var(--muted);max-width:62ch;}
+
+  /* badges backlog */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.89rem;}
+  th{
+    text-align:left;font-weight:700;font-size:.82rem;
+    border-bottom:2px solid var(--ink);padding:8px 10px 8px 0;
+  }
+  td{border-bottom:1px solid var(--rule);padding:9px 10px 9px 0;vertical-align:top;}
+  td:first-child{white-space:nowrap;font-weight:700;}
+  .tag{
+    display:inline-block;font-size:.72rem;font-weight:700;
+    padding:2px 8px;border-radius:2px;white-space:nowrap;
+  }
+  .tag.done{background:#DDEDE5;color:var(--accent);}
+  .tag.todo{background:var(--tint);color:var(--muted);border:1px solid var(--rule);}
+
+  /* pricing */
+  .prix{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0;}
+  .prix .offre{border:1px solid var(--ink);padding:20px;}
+  .prix .offre.reco{background:var(--ink);color:var(--paper);}
+  .prix .offre h4{font-size:1rem;font-weight:800;margin-bottom:2px;}
+  .prix .offre .p{font-size:1.7rem;font-weight:800;letter-spacing:-.02em;margin:6px 0 10px;}
+  .prix .offre .p small{font-size:.85rem;font-weight:500;color:var(--muted);}
+  .prix .offre.reco .p small{color:#B9CFC5;}
+  .prix .offre ul{list-style:none;font-size:.85rem;}
+  .prix .offre li{padding:4px 0;border-bottom:1px solid var(--rule);}
+  .prix .offre.reco li{border-bottom:1px solid #2E2C29;}
+  .prix .offre li:last-child{border-bottom:none;}
+  .setup{
+    background:var(--tint);padding:16px 20px;margin:10px 0 4px;
+    font-size:.9rem;max-width:100%;
+  }
+  .setup b{font-weight:800;}
+
+  /* process etapes numerotees */
+  ol.proc{list-style:none;counter-reset:p;margin:14px 0;}
+  ol.proc li{
+    counter-increment:p;position:relative;
+    padding:12px 0 12px 44px;border-bottom:1px solid var(--rule);max-width:72ch;
+  }
+  ol.proc li:last-child{border-bottom:none;}
+  ol.proc li::before{
+    content:counter(p);
+    position:absolute;left:0;top:12px;
+    width:28px;height:28px;line-height:28px;text-align:center;
+    background:var(--ink);color:var(--paper);
+    font-weight:800;font-size:.85rem;
+  }
+  ol.proc li .t{font-weight:700;display:block;}
+  ol.proc li .d{font-size:.88rem;color:var(--muted);}
+
+  /* semaine onboarding */
+  .jours{border:1px solid var(--rule);margin:14px 0;}
+  .jours .j{display:grid;grid-template-columns:74px 1fr;border-bottom:1px solid var(--rule);}
+  .jours .j:last-child{border-bottom:none;}
+  .jours .j .n{
+    background:var(--tint);padding:10px 12px;font-weight:800;font-size:.82rem;
+    border-right:1px solid var(--rule);
+  }
+  .jours .j .c{padding:10px 14px;font-size:.88rem;}
+
+  /* missions du jour */
+  ol.missions{list-style:none;counter-reset:m;margin:14px 0;}
+  ol.missions li{
+    counter-increment:m;display:grid;grid-template-columns:44px 1fr auto;
+    align-items:baseline;gap:10px;
+    padding:11px 0;border-bottom:1px solid var(--rule);
+  }
+  ol.missions li::before{
+    content:"M" counter(m);
+    font-weight:800;color:var(--accent);font-size:.95rem;
+  }
+  ol.missions li .t{font-weight:700;}
+  ol.missions li .d{display:block;font-weight:400;font-size:.86rem;color:var(--muted);}
+
+  .note{
+    border-left:3px solid var(--accent);background:var(--tint);
+    padding:12px 16px;font-size:.88rem;margin:14px 0;max-width:72ch;
+  }
+
+  footer.doc{
+    margin-top:60px;padding-top:16px;border-top:3px solid var(--ink);
+    font-size:.82rem;color:var(--muted);
+    display:flex;justify-content:space-between;gap:20px;
+  }
+
+  @media(max-width:640px){
+    .page{padding:36px 18px 60px;}
+    header.doc h1{font-size:1.9rem;}
+    .duo{grid-template-columns:1fr;}
+    .duo>div:first-child{border-right:none;border-bottom:1px solid var(--rule);}
+    .prix{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;font-size:10.5pt;}
+    .page{max-width:100%;padding:0;}
+    section{page-break-inside:avoid;}
+    .decision,.prix .offre.reco,ol.proc li::before{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="doc">
+  <div class="kicker">Document de travail, Louis pour Jules, version 1</div>
+  <h1>PFlow <span>Order</span><br>Plan directeur de lancement</h1>
+  <div class="meta">Guadeloupe, septembre 2026. Le modèle Chwit appliqué à PFlow : un produit, une cible, une zone, un prix.</div>
+</header>
+
+<section>
+  <h2>Le constat</h2>
+  <p>PFlow aujourd'hui vend quatre automatisations sur mesure (rendez-vous, commandes, leads, avis) sans prix affiché. Résultat : chaque vente demande un échange, une analyse, un devis, un développement unique. C'est un métier de freelance, pas un produit. C'est exactement là que Jules s'éparpille.</p>
+  <p>Chwit fait l'inverse et c'est pour ça que ça marche : <em>l'assistant WhatsApp pour restaurateurs en Guyane et aux Antilles, commandes, livraison, paiement CB, un seul dashboard</em>. Une phrase suffit à vendre. Le client sait ce qu'il achète avant même de parler à quelqu'un.</p>
+  <div class="duo">
+    <div>
+      <h4>PFlow aujourd'hui</h4>
+      <p>4 offres, <b>0 prix</b>, tout sur mesure. Chaque client est un projet. Impossible à scaler, impossible à déléguer, épuisant à vendre.</p>
+    </div>
+    <div>
+      <h4>Le modèle Chwit</h4>
+      <p>1 produit, 1 cible, 1 zone, <b>1 abonnement</b>. Le client s'identifie en 3 secondes. Chaque nouveau client coûte quelques heures, pas quelques semaines.</p>
+    </div>
+  </div>
+  <p>La bonne nouvelle : le gros du travail est déjà fait. La démo dashboard.pflow.fr est excellente, elle a déjà le niveau d'un produit fini côté vitrine : commandes temps réel, carte et produits, paniers abandonnés, assistant IA, stats, notifications WhatsApp. Il ne manque pas une idée, il manque une décision et un moteur derrière la carrosserie.</p>
+
+  <div class="decision">
+    <div class="label">La décision</div>
+    <p>PFlow devient une entreprise mono-produit : <b>PFlow Order</b>, le système de commande WhatsApp des restaurants de Guadeloupe. Abonnement mensuel, prix affichés, mise en place en une semaine. Les autres automatisations (rendez-vous, leads, avis) ne disparaissent pas : elles deviennent des <b>modules</b> vendus plus tard aux clients déjà équipés.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Le produit fini, version 1</h2>
+  <p>Ce que le restaurateur achète : ses clients commandent sur WhatsApp, lui pilote tout depuis un seul écran, et le système relance tout seul ce qui aurait été perdu. Voici le parcours exact d'une commande, c'est le mécanisme central du produit.</p>
+
+  <div class="chain">
+    <div class="step"><div class="t">Entrée</div><div class="d">Le client scanne le QR code (comptoir, table, flyer) ou clique le lien wa.me dans la bio Insta du resto. Il arrive sur le WhatsApp du restaurant.</div></div>
+    <div class="step"><div class="t">Accueil automatique</div><div class="d">Message immédiat : bienvenue, horaires, et le lien vers la carte du jour. L'assistant IA répond à toute question (allergènes, plats du jour, recommandations, délais).</div></div>
+    <div class="step"><div class="t">Commande sur la carte web</div><div class="d">Le client compose son panier sur une page de commande aux couleurs du resto (maison-burger.pflow.fr) : produits, photos, suppléments, retrait ou livraison. Zéro erreur de saisie, contrairement à une commande dictée en messages.</div></div>
+    <div class="step"><div class="t">Paiement</div><div class="d">CB en ligne via Stripe, ou paiement sur place au choix du resto. La commande est validée et horodatée.</div></div>
+    <div class="step"><div class="t">La commande tombe dans le dashboard</div><div class="d">Notification sonore côté resto, ticket structuré, statuts en un clic : reçue, en préparation, prête.</div></div>
+    <div class="step"><div class="t">Le client est tenu au courant sans effort</div><div class="d">Chaque changement de statut part automatiquement sur son WhatsApp : confirmée, en préparation, prête à récupérer. Zéro appel entrant du type "c'est prêt ?".</div></div>
+    <div class="step"><div class="t">Relance des paniers abandonnés</div><div class="d">Panier créé mais pas payé : le système attend le bon moment puis relance le client avec son panier déjà rempli. C'est du chiffre d'affaires récupéré sans lever le petit doigt, et l'argument commercial numéro 1.</div></div>
+    <div class="step"><div class="t">Demande d'avis Google</div><div class="d">Une heure après la commande, message automatique avec le lien avis. Le module avis de PFlow trouve enfin sa vraie place : intégré au produit, pas vendu à part.</div></div>
+  </div>
+
+  <p class="note">Pourquoi hybride WhatsApp + page web, et pas une commande 100 % en conversation : la conversation c'est parfait pour accueillir, répondre et notifier, mais composer un panier de 4 produits avec suppléments en messages, c'est lent et source d'erreurs. WhatsApp reste la porte d'entrée et le canal de suivi, la page fait la prise de commande propre. C'est le schéma des leaders du secteur et très probablement celui de Chwit.</p>
+</section>
+
+<section>
+  <h2>Architecture technique cible</h2>
+  <p>À confronter à ce qui existe réellement derrière la démo (front seul ou back déjà branché), mais voici la cible propre et sécurisée.</p>
+  <ul class="plain">
+    <li><strong>WhatsApp Business Cloud API officielle (Meta).</strong> Un numéro par restaurant, rattaché à un compte Meta Business PFlow configuré en fournisseur technique. Jamais de librairie non officielle type whatsapp-web.js : risque de bannissement du numéro, donc de tuer le business d'un client du jour au lendemain. Les messages de suivi de commande coûtent quelques centimes au pire, souvent rien : coût variable négligeable.</li>
+    <li><strong>Paiement Stripe.</strong> Paiement CB en ligne, paiement sur place en option cochable. Plus tard, Stripe Connect permettra de prendre une commission par transaction si le modèle évolue, mais on n'en a pas besoin en v1.</li>
+    <li><strong>Multi-tenant dès le départ.</strong> Une seule base, un identifiant restaurant sur chaque donnée, un sous-domaine par client pour la page de commande et le dashboard. Un nouveau resto ne doit jamais être un nouveau projet de code.</li>
+    <li><strong>Back-office PFlow Admin.</strong> L'outil interne de Jules : il crée un restaurant via un formulaire (nom, logo, couleurs, carte, horaires, numéro WhatsApp, compte Stripe) et l'instance complète est générée. Objectif chiffré : <em>mise en place technique d'un nouveau client en moins de 2 heures</em>. C'est ce chiffre qui rend le business scalable.</li>
+    <li><strong>Sécurité de base non négociable.</strong> HTTPS partout, un accès par restaurateur avec mot de passe, données isolées par restaurant, sauvegardes automatiques quotidiennes, aucune clé API dans le front.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Ce qu'il faut développer</h2>
+  <p>La démo est la vitrine, voici le moteur. Priorisé : P0 = nécessaire pour encaisser le premier client, P1 = nécessaire pour tenir la promesse complète, P2 = confort et upsell.</p>
+  <table>
+    <tr><th>Priorité</th><th>Chantier</th><th>État</th></tr>
+    <tr><td>P0</td><td>Page de commande par resto : carte, panier, suppléments, retrait ou livraison, Stripe</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P0</td><td>Dashboard restaurateur branché sur de vraies données : commandes temps réel, statuts, carte et produits éditables</td><td><span class="tag todo">démo à rendre réelle</span></td></tr>
+    <tr><td>P0</td><td>Connexion WhatsApp Cloud API : accueil auto, confirmation, notifications de statut</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P0</td><td>Multi-tenant + PFlow Admin : créer un resto en formulaire, sous-domaine auto</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P1</td><td>Relance automatique des paniers abandonnés</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P1</td><td>Assistant IA questions clients : carte, allergènes, horaires, avec transfert humain</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P1</td><td>Statistiques réelles + rapport hebdo automatique envoyé au restaurateur sur WhatsApp</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P2</td><td>Module avis Google post-commande</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P2</td><td>Livraison : zones, frais, statut en route</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>P2</td><td>Confort cuisine : son de nouvelle commande, mode tablette plein écran, impression ticket</td><td><span class="tag todo">à développer</span></td></tr>
+    <tr><td>Fait</td><td>Design et structure complète du dashboard, tunnel, sections, pédagogie produit</td><td><span class="tag done">démo en ligne</span></td></tr>
+  </table>
+  <p class="note">Point à trancher avec Jules avant de coder : qu'y a-t-il aujourd'hui derrière la démo, et sur quelle stack est-il à l'aise. La v1 doit sortir sur ce qu'il maîtrise, pas sur la stack idéale théorique. Le premier client réel peut même tourner avec des morceaux manuels côté Jules (carte intégrée à la main, relances semi-auto) pendant que le moteur se finit : l'important est que le client, lui, vive l'expérience complète.</p>
+</section>
+
+<section>
+  <h2>L'offre et les prix</h2>
+  <p>Prix affichés publiquement, c'est le cœur du modèle Chwit : ça préqualifie, ça crédibilise, ça évite les négociations. Proposition à valider avec Jules, pensée pour le pouvoir d'achat d'un snack ou resto de Guadeloupe.</p>
+
+  <div class="setup"><b>Mise en place : 490 euros</b>, une fois. Configuration complète, intégration de la carte avec photos, numéro WhatsApp professionnel, formation d'une heure, kit de lancement fourni : QR codes imprimables comptoir et tables, visuels d'annonce pour Insta et la vitrine.</div>
+
+  <div class="prix">
+    <div class="offre">
+      <h4>Essentiel</h4>
+      <div class="p">89 &euro;<small> / mois</small></div>
+      <ul>
+        <li>Commande WhatsApp + page de commande</li>
+        <li>Paiement CB en ligne ou sur place</li>
+        <li>Dashboard commandes temps réel</li>
+        <li>Notifications client automatiques</li>
+        <li>Carte modifiable à volonté</li>
+      </ul>
+    </div>
+    <div class="offre reco">
+      <h4>Pro, l'offre à pousser</h4>
+      <div class="p">129 &euro;<small> / mois</small></div>
+      <ul>
+        <li>Tout Essentiel</li>
+        <li>Relance automatique des paniers abandonnés</li>
+        <li>Assistant IA questions clients</li>
+        <li>Demande d'avis Google automatique</li>
+        <li>Rapport hebdo WhatsApp + statistiques</li>
+      </ul>
+    </div>
+  </div>
+  <p class="tight">Option livraison (zones et frais) : +30 euros par mois. Sans engagement, résiliable chaque mois : ça enlève la peur de signer, et le produit retient les clients tout seul.</p>
+  <p><em>L'argument qui clôt la discussion</em> : à 129 euros par mois, 3 commandes récupérées suffisent à rembourser l'abonnement. La démo affiche déjà ce chiffre, 4 paniers récupérés pour 96 euros, c'est exactement le bon storytelling.</p>
+</section>
+
+<section>
+  <h2>Le process de vente, répétable</h2>
+  <ol class="proc">
+    <li><span class="t">Constituer la liste des 50</span><span class="d">Snacks, burgers, bokits, food trucks, lolos, poké et sushis de Guadeloupe qui prennent déjà des commandes par téléphone ou en DM Insta. Ceux-là ont déjà le problème, pas besoin de les éduquer. Sources : Google Maps, Instagram, PagesJaunes, le terrain.</span></li>
+    <li><span class="t">Premier contact, DM ou WhatsApp</span><span class="d">Message court + le lien de la démo dashboard.pflow.fr. La démo fait le travail d'explication toute seule, c'est déjà l'outil de vente. Passage physique en heures creuses (15 h à 17 h 30) pour les plus gros potentiels.</span></li>
+    <li><span class="t">La démo qui vend en 60 secondes</span><span class="d">Le prospect commande lui-même un burger fictif depuis son propre téléphone, et voit sa commande tomber en direct dans le dashboard. Effet garanti, personne d'autre ne montre ça en Guadeloupe aujourd'hui.</span></li>
+    <li><span class="t">Closing sur place</span><span class="d">Fiche produit une page + prix fixes + bon de commande simple. L'acompte de mise en place vaut signature. Pas de devis, pas de délai de réflexion imposé, décision à chaud.</span></li>
+    <li><span class="t">Onboarding en 7 jours</span><span class="d">Checklist standard ci-dessous, identique pour chaque client. Le restaurateur n'a qu'une chose à fournir : sa carte et ses photos.</span></li>
+    <li><span class="t">Rétention automatique</span><span class="d">Chaque lundi, rapport WhatsApp automatique au restaurateur : commandes, chiffre d'affaires via PFlow, paniers récupérés. Il voit la valeur chaque semaine, il ne résilie pas, et il devient une référence pour vendre au suivant.</span></li>
+  </ol>
+
+  <h3>La semaine d'onboarding type</h3>
+  <div class="jours">
+    <div class="j"><div class="n">J0</div><div class="c">Signature, acompte, récupération de la carte, des photos, du logo et des horaires.</div></div>
+    <div class="j"><div class="n">J1 à J3</div><div class="c">Création de l'instance : carte intégrée, couleurs du resto, numéro WhatsApp activé, Stripe connecté.</div></div>
+    <div class="j"><div class="n">J4</div><div class="c">Tests en conditions réelles avec le restaurateur : trois commandes fictives de bout en bout.</div></div>
+    <div class="j"><div class="n">J5</div><div class="c">Formation une heure sur place : dashboard, statuts, modification de la carte. Remise du kit QR codes.</div></div>
+    <div class="j"><div class="n">J6 à J7</div><div class="c">Lancement : post d'annonce Insta fourni, QR en caisse, lien en bio. Suivi rapproché des premières vraies commandes.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Les deux outils internes de Jules</h2>
+  <h3>PFlow CRM, le pilotage commercial</h3>
+  <p>Un outil simple où vivent la prospection et les clients : pipeline en colonnes (prospect, contacté, démo faite, proposition, signé, onboarding, actif), fiche par restaurant (contact, numéro, offre, statut technique, échéances), checklist d'onboarding intégrée à chaque fiche, et une vue chiffres : MRR, clients actifs, objectif du mois. C'est la Mission 4 de cet après-midi.</p>
+  <h3>PFlow Admin, le pilotage produit</h3>
+  <p>Le back-office technique décrit plus haut : créer, configurer et suivre les instances restaurants. CRM et Admin peuvent vivre dans la même application avec deux espaces, c'est même recommandé pour que Jules n'ait qu'un seul endroit où tout piloter.</p>
+</section>
+
+<section>
+  <h2>Le site pflow.fr recentré</h2>
+  <p>La home actuelle vend de l'automatisation générique, la nouvelle vend PFlow Order. Structure cible : promesse en une phrase au-dessus de la ligne de flottaison, la démo interactive en vedette, le parcours d'une commande, les prix affichés, la preuve (chiffres de la démo puis vrais témoignages dès le premier client), FAQ, et un seul appel à l'action partout : ouvrir une conversation WhatsApp avec Jules. Les automatisations rendez-vous, leads et avis descendent dans une section modules pour clients équipés. C'est la Mission 3.</p>
+</section>
+
+<section>
+  <h2>Le cap business</h2>
+  <p>Version courte ici, business plan complet chiffré en Mission 6. Coûts fixes très faibles (hébergement mutualisé, API WhatsApp aux centimes, Stripe au réel), marge brute au-dessus de 85 %, donc le point mort est quasi immédiat : le jeu se joue uniquement sur le nombre de clients actifs.</p>
+  <table>
+    <tr><th>Échéance</th><th>Clients actifs</th><th>Revenu mensuel récurrent</th><th>Encaissé en mises en place, cumulé</th></tr>
+    <tr><td>Mois 1</td><td>3</td><td>environ 390 &euro;</td><td>1 470 &euro;</td></tr>
+    <tr><td>Mois 3</td><td>10</td><td>environ 1 300 &euro;</td><td>4 900 &euro;</td></tr>
+    <tr><td>Mois 6</td><td>25</td><td>environ 3 200 &euro;</td><td>12 250 &euro;</td></tr>
+    <tr><td>Mois 12</td><td>50, extension Antilles</td><td>environ 6 500 &euro;</td><td>24 500 &euro;</td></tr>
+  </table>
+  <p>Ordre de grandeur du marché : plusieurs centaines de restaurants, snacks et food trucks actifs en Guadeloupe, avant même Martinique et Guyane. 50 clients, c'est une petite fraction du marché local, l'objectif est prudent.</p>
+</section>
+
+<section>
+  <h2>Les missions de l'après-midi</h2>
+  <ol class="missions">
+    <li><div><span class="t">Plan directeur</span><span class="d">Ce document. La référence unique du lancement.</span></div><span class="tag done">livrée</span></li>
+    <li><div><span class="t">Fiche produit + grille tarifaire</span><span class="d">Le support de vente une page, propre, envoyable en PDF sur WhatsApp et imprimable pour le terrain.</span></div><span class="tag todo">au go</span></li>
+    <li><div><span class="t">Site pflow.fr recentré</span><span class="d">La nouvelle home complète orientée PFlow Order, prête à mettre en ligne.</span></div><span class="tag todo">au go</span></li>
+    <li><div><span class="t">PFlow CRM</span><span class="d">L'application interne de Jules : pipeline, fiches clients, checklists d'onboarding, vue MRR.</span></div><span class="tag todo">au go</span></li>
+    <li><div><span class="t">Kit process</span><span class="d">Scripts de prospection DM et physique, script de démo 60 secondes, messages WhatsApp types, bon de commande, checklist J0 à J7 imprimable.</span></div><span class="tag todo">au go</span></li>
+    <li><div><span class="t">Business plan chiffré</span><span class="d">12 mois : hypothèses, charges, revenus, trésorerie, seuils, version présentable banque ou associé.</span></div><span class="tag todo">au go</span></li>
+  </ol>
+</section>
+
+<footer class="doc">
+  <div>PFlow Order, plan directeur v1</div>
+  <div>Préparé par Louis, Studio Novalem</div>
+</footer>
+
+</div>
+</body>
+</html>

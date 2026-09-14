@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFlow Order, fiche produit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF9F6;
+    --ink:#0B0B0A;
+    --accent:#0B5A43;
+    --mint:#9FCDBB;
+    --muted:#6E6A62;
+    --rule:#E6E2D9;
+    --tint:#F1EFE9;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:'Archivo',system-ui,-apple-system,sans-serif;
+    font-size:.92rem;line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:820px;margin:0 auto;padding:0 24px 60px;}
+
+  /* header */
+  .hero{
+    background:var(--ink);color:var(--paper);
+    margin:28px -24px 0;padding:38px 34px 34px;
+  }
+  .hero .brand{font-weight:800;font-size:.95rem;letter-spacing:.02em;margin-bottom:20px;}
+  .hero .brand i{font-style:normal;color:var(--mint);}
+  .hero h1{
+    font-size:2.15rem;font-weight:800;letter-spacing:-.03em;line-height:1.08;max-width:22ch;
+  }
+  .hero h1 span{color:var(--mint);}
+  .hero .sub{
+    margin-top:14px;font-size:.98rem;color:#CFCBC3;max-width:58ch;
+  }
+  .hero .points{
+    margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 22px;
+    font-size:.83rem;font-weight:600;color:var(--mint);
+  }
+
+  /* deux usages */
+  .usages{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:26px 0 8px;}
+  .usage{border:2px solid var(--ink);padding:22px;}
+  .usage .cadre{
+    display:inline-block;background:var(--ink);color:var(--paper);
+    font-size:.76rem;font-weight:700;padding:4px 10px;margin-bottom:12px;
+  }
+  .usage h2{font-size:1.22rem;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;}
+  .usage .pitch{font-size:.88rem;color:var(--muted);margin-bottom:12px;}
+  .usage ul{list-style:none;}
+  .usage li{
+    padding:7px 0 7px 18px;position:relative;font-size:.87rem;
+    border-bottom:1px solid var(--rule);
+  }
+  .usage li:last-child{border-bottom:none;}
+  .usage li::before{
+    content:"";position:absolute;left:0;top:15px;
+    width:7px;height:7px;background:var(--accent);
+  }
+
+  /* socle */
+  .socle{
+    background:var(--tint);padding:20px 24px;margin:18px 0;
+  }
+  .socle h3{font-size:.95rem;font-weight:800;margin-bottom:10px;}
+  .socle .grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:4px 26px;font-size:.86rem;
+  }
+  .socle .grid div{padding:5px 0;border-bottom:1px solid #DDD9CE;}
+  .socle .grid div b{font-weight:700;}
+
+  /* tarifs */
+  h2.sec{font-size:1.25rem;font-weight:800;letter-spacing:-.02em;margin:30px 0 4px;}
+  p.secnote{font-size:.86rem;color:var(--muted);margin-bottom:14px;}
+  .tarifs{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:14px;align-items:stretch;}
+  .offre{border:1px solid var(--ink);padding:20px;display:flex;flex-direction:column;}
+  .offre.pack{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .offre .nom{font-size:1rem;font-weight:800;}
+  .offre .pour{font-size:.8rem;color:var(--muted);margin-bottom:10px;}
+  .offre.pack .pour{color:#B9CFC5;}
+  .offre .prix{font-size:1.85rem;font-weight:800;letter-spacing:-.02em;line-height:1;}
+  .offre .prix small{font-size:.82rem;font-weight:500;color:var(--muted);}
+  .offre.pack .prix small{color:#B9CFC5;}
+  .offre .mep{font-size:.78rem;color:var(--muted);margin:6px 0 12px;}
+  .offre.pack .mep{color:#B9CFC5;}
+  .offre ul{list-style:none;font-size:.83rem;margin-top:auto;}
+  .offre li{padding:4px 0;border-top:1px solid var(--rule);}
+  .offre.pack li{border-top:1px solid #2C2B29;}
+  .offre .eco{
+    margin-top:12px;font-size:.78rem;font-weight:700;color:var(--accent);
+  }
+  .offre.pack .eco{color:var(--mint);}
+
+  .argument{
+    border-left:3px solid var(--accent);padding:12px 18px;margin:18px 0;
+    font-size:.92rem;max-width:70ch;background:var(--tint);
+  }
+  .argument b{font-weight:800;}
+
+  /* mise en place */
+  .mise{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--rule);margin:14px 0;}
+  .mise div{padding:14px 16px;border-right:1px solid var(--rule);font-size:.84rem;}
+  .mise div:last-child{border-right:none;}
+  .mise b{display:block;font-weight:800;font-size:.9rem;margin-bottom:3px;}
+
+  /* cta */
+  .cta{
+    background:var(--ink);color:var(--paper);
+    margin:30px -24px 0;padding:32px 34px;
+    display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;
+  }
+  .cta .txt h3{font-size:1.3rem;font-weight:800;letter-spacing:-.02em;}
+  .cta .txt p{font-size:.88rem;color:#CFCBC3;margin-top:4px;}
+  .cta .txt p b{color:var(--mint);font-weight:700;}
+  .cta a.btn{
+    display:inline-block;background:var(--mint);color:var(--ink);
+    font-weight:800;font-size:.95rem;text-decoration:none;
+    padding:14px 26px;white-space:nowrap;
+  }
+  .cta .coord{font-size:.8rem;color:#8F8B84;margin-top:8px;}
+
+  @media(max-width:680px){
+    .usages,.tarifs{grid-template-columns:1fr;}
+    .socle .grid{grid-template-columns:1fr;}
+    .mise{grid-template-columns:1fr 1fr;}
+    .mise div{border-bottom:1px solid var(--rule);}
+    .hero h1{font-size:1.7rem;}
+  }
+  @media print{
+    body{background:#fff;font-size:9.5pt;}
+    .page{max-width:100%;padding:0;}
+    .hero{margin:0;padding:26px 30px;}
+    .cta{margin:20px 0 0;}
+    .hero,.cta,.offre.pack,.usage .cadre{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .usages,.tarifs,.socle,.mise{page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="hero">
+  <div class="brand">P<i>Flow</i> Order</div>
+  <h1>Vos clients commandent tout seuls.<br><span>Vous encaissez, le système fait le reste.</span></h1>
+  <div class="sub">Le système de commande des restaurants, snacks et food trucks de Guadeloupe. Sur place par QR code, à emporter et en livraison par WhatsApp. Un seul écran pour tout piloter.</div>
+  <div class="points">
+    <span>Mise en place en 7 jours</span>
+    <span>Sans engagement</span>
+    <span>Aux couleurs de votre restaurant</span>
+  </div>
+</div>
+
+<div class="usages">
+  <div class="usage">
+    <span class="cadre">Sur place</span>
+    <h2>La carte QR à table</h2>
+    <div class="pitch">Un QR code par table. Le client scanne, votre carte s'ouvre, il commande sans attendre.</div>
+    <ul>
+      <li>Carte digitale à votre image : photos, prix, suppléments, plats du jour</li>
+      <li>Le client commande depuis sa table, la commande part directement en cuisine</li>
+      <li>Un produit en rupture disparaît en un clic, un prix change en temps réel</li>
+      <li>Plus jamais de cartes à réimprimer, plus de clients qui attendent pour commander</li>
+    </ul>
+  </div>
+  <div class="usage">
+    <span class="cadre">À emporter et livraison</span>
+    <h2>La commande en ligne WhatsApp</h2>
+    <div class="pitch">QR en vitrine, lien dans la bio Insta. Le client commande depuis chez lui, sur l'application qu'il a déjà.</div>
+    <ul>
+      <li>Accueil automatique sur votre WhatsApp, carte en ligne, panier, créneau de retrait</li>
+      <li>Paiement par carte en ligne ou sur place, au choix</li>
+      <li>Suivi automatique envoyé au client : confirmée, en préparation, prête</li>
+      <li>Panier abandonné : le système relance le client tout seul et récupère la vente</li>
+    </ul>
+  </div>
+</div>
+
+<div class="socle">
+  <h3>Dans les deux cas, vous pilotez tout depuis un seul écran</h3>
+  <div class="grid">
+    <div><b>Commandes en temps réel</b>, statuts en un clic, alerte sonore en cuisine</div>
+    <div><b>Assistant intelligent</b> qui répond aux questions clients : allergènes, horaires, recommandations</div>
+    <div><b>Statistiques claires</b> : chiffre d'affaires, meilleures ventes, heures de pointe</div>
+    <div><b>Avis Google automatiques</b> : chaque client satisfait reçoit le lien après sa commande</div>
+  </div>
+</div>
+
+<h2 class="sec">Les formules</h2>
+<p class="secnote">Prix fixes, sans engagement, résiliable chaque mois. La mise en place comprend l'intégration complète de votre carte avec photos, la configuration, la formation d'une heure et le kit de lancement.</p>
+
+<div class="tarifs">
+  <div class="offre">
+    <div class="nom">Carte à table</div>
+    <div class="pour">Pour le service sur place</div>
+    <div class="prix">49 &euro;<small> / mois</small></div>
+    <div class="mep">Mise en place : 190 &euro;</div>
+    <ul>
+      <li>Carte digitale QR sur chaque table</li>
+      <li>Commande à table vers la cuisine</li>
+      <li>Modifications illimitées</li>
+      <li>Dashboard et statistiques</li>
+    </ul>
+  </div>
+  <div class="offre">
+    <div class="nom">Commande en ligne</div>
+    <div class="pour">Pour l'emporter et la livraison</div>
+    <div class="prix">129 &euro;<small> / mois</small></div>
+    <div class="mep">Mise en place : 490 &euro;</div>
+    <ul>
+      <li>Commande et paiement via WhatsApp</li>
+      <li>Notifications client automatiques</li>
+      <li>Relance des paniers abandonnés</li>
+      <li>Assistant intelligent et avis Google</li>
+    </ul>
+  </div>
+  <div class="offre pack">
+    <div class="nom">Pack complet</div>
+    <div class="pour">Sur place + en ligne, tout inclus</div>
+    <div class="prix">159 &euro;<small> / mois</small></div>
+    <div class="mep">Mise en place : 490 &euro;</div>
+    <ul>
+      <li>La carte QR à table</li>
+      <li>La commande en ligne WhatsApp</li>
+      <li>Toutes les automatisations incluses</li>
+      <li>Un seul dashboard pour tout</li>
+    </ul>
+    <div class="eco">19 &euro; d'économie chaque mois</div>
+  </div>
+</div>
+
+<div class="argument">Option livraison avec zones et frais : +30 &euro; par mois. Et pour donner un ordre d'idée : <b>3 commandes récupérées par mois remboursent l'abonnement</b>. Le système en récupère en général bien plus, tout seul, pendant que vous êtes en cuisine.</div>
+
+<h2 class="sec">La mise en place, semaine type</h2>
+<div class="mise">
+  <div><b>Jour 0</b>Vous nous donnez votre carte, vos photos, votre logo et vos horaires. C'est tout ce qu'on vous demande.</div>
+  <div><b>Jours 1 à 3</b>On construit votre système : carte intégrée, couleurs, WhatsApp et paiement activés.</div>
+  <div><b>Jours 4 et 5</b>Tests ensemble en conditions réelles, puis formation d'une heure sur place.</div>
+  <div><b>Jours 6 et 7</b>Lancement : QR codes posés, visuels d'annonce fournis pour Insta et la vitrine.</div>
+</div>
+
+<div class="cta">
+  <div class="txt">
+    <h3>Voyez-le fonctionner en direct</h3>
+    <p>Testez la démo sur <b>dashboard.pflow.fr</b>, puis écrivez-nous : on vous répond dans la journée.</p>
+    <div class="coord">PFlow, Guadeloupe. 0690 93 81 08. Instagram @pflow.gp</div>
+  </div>
+  <a class="btn" href="https://wa.me/590690938108?text=Bonjour%20Jules%2C%20j%27ai%20vu%20la%20fiche%20PFlow%20Order%20et%20je%20veux%20en%20savoir%20plus%20pour%20mon%20restaurant.">Discuter sur WhatsApp</a>
+</div>
+
+</div>
+</body>
+</html>
