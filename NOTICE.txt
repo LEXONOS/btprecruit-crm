@@ -1,38 +1,60 @@
-PFLOW.FR, HOME V2.1 (ARCHITECTURE LANDING + CORRECTIF)
-======================================================
+PFLOW.FR, HOME V4 : NOUVEAUX TARIFS
+===================================
 
 OU POSER LE FICHIER (repo btprecruit-crm)
 -----------------------------------------
 site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
-                     Le dossier site/images/ ne bouge pas, memes noms de photos.
+                     Les photos de site/images/ ne bougent pas.
 
-Sur GitHub : ouvrir le repo, entrer dans le dossier site/, Add file > Upload files,
-glisser index.html par dessus, commit. Vercel redeploie tout seul.
-(Le NOTICE.txt pousse tout a l'heure a la racine du repo peut etre supprime, il ne sert
-qu'a la livraison.)
+Zip CUMULATIF : il contient tout depuis le debut du chantier (architecture landing,
+correctif des classes, double theme sombre/clair, animations) plus les tarifs ci-dessous.
 
-CORRECTIF DE CETTE VERSION
---------------------------
-Deux collisions de noms de classe CSS qui cassaient l'affichage :
-1. La typo fantome du fond utilisait la classe .ghost, deja portee par le bouton
-   secondaire .btn.ghost. Resultat : "Voir la demo en direct" affiche en 8,5 rem
-   avec un contour ovale geant au milieu du hero. La typo fantome s'appelle
-   maintenant .fantome et .fantome-xl.
-2. L'accroche du hero utilisait la classe .zone, deja portee par les colonnes du
-   dashboard anime. Resultat : tickets de commande en vert menthe et en majuscules.
-   L'accroche utilise maintenant .st, comme les autres sur-titres.
+1. NOUVEAUX TARIFS (repris exactement de ta fiche)
+--------------------------------------------------
+Formule unique PFlow Order :
+  Creation et mise en place ....... 390 euros, paiement unique
+  Ensuite ......................... 29 euros / mois, sans engagement
+  0 % de commission, affiche en pastille sur le bloc prix
+Inclus affiches : mini-page web de commande, integration du menu, personnalisation
+logo et identite, automatisation WhatsApp, dashboard prive, lien direct de commande,
+formation au dashboard, mise en ligne et tests.
 
-Rien d'autre n'a bouge par rapport a la v2 : memes textes, memes prix, memes liens
-WhatsApp, memes photos, memes animations.
+Options, en grille de 5 cartes sous la formule :
+  Zones de livraison .................. +69 euros
+  Paiement en ligne ................... +79 euros
+  Relance des paniers abandonnes ...... +79 euros
+  Avis Google apres la commande ....... +59 euros
+  Mini-site restaurant ................ des 290 euros
 
-RAPPEL DE L'ARCHITECTURE V2
----------------------------
-1. Nav : liens centres, bouton pilule a droite.
-2. Hero : titre a trois niveaux de couleur, filet, bloc "7 jours", pastille + paragraphe,
-   telephone relie a la carte flottante par une courbe tracee, mot fantome ORDER en fond,
-   trame quadrillee.
-3. Section 01 / 02 / 03, celle du milieu en aplat vert surelevee.
-4. Chaque section : titre a gauche, paragraphe a droite.
-5. Section gains : courbe montante a noeuds + trois cartes chiffrees flottantes.
-6. Tarifs : Pack complet au centre, aplat vert sureleve.
-7. FAQ encadree, section finale centree avec typo fantome.
+La formule reprend l'aplat vert sureleve de l'ancienne carte Pack complet, avec le bloc
+prix en vert fonce a droite. Les options sont des cartes classiques, prix en couleur
+d'accent (menthe en sombre, orange en clair).
+
+2. CE QUE J'AI ALIGNE AILLEURS SUR LA PAGE
+------------------------------------------
+Trois formules disparaissent, donc plusieurs endroits promettaient en inclus ce qui est
+devenu une option. Corrige pour rester honnete :
+- Hero : la phrase sur la relance automatique des paniers devient "aucune commission
+  sur vos ventes".
+- Etape 02 : "paiement en ligne ou sur place" devient "paiement en ligne disponible
+  en option".
+- Section Essayer : "paiement carte securise" devient "paiement en ligne en option,
+  via votre propre compte de paiement".
+- Carte "commande en ligne WhatsApp" : paiement en ligne et relance des paniers
+  marques en option.
+- FAQ paiement : reecrite (sur place inclus, en ligne en option a 79 euros, branche sur
+  ton compte, zero commission).
+- FAQ delai : precise que creation, automatisation, tests, mise en ligne et formation
+  sont compris dans les 390 euros.
+- FAQ engagement : parle des 29 euros par mois resiliables.
+- Module "Avis clients renforces" supprime de la section "Pour aller plus loin" :
+  il fait doublon avec l'option Avis Google a 59 euros. Restent la prise de rendez-vous
+  et les campagnes WhatsApp, la grille s'adapte toute seule.
+- L'ancienne mention "kit de lancement, QR codes imprimes et visuels d'annonce" a ete
+  retiree : elle n'apparait pas dans ta nouvelle fiche. Dis-moi si tu la gardes, je la
+  remets dans la liste des inclus.
+
+3. INCHANGE
+-----------
+Le theme, les animations, la demo de carte cliquable, le dashboard vivant, les liens
+WhatsApp et le reste des textes.
