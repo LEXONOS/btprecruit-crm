@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link id="police-bloom" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link id="police-bloom" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
   /* theme applique avant le premier rendu, pas de clignotement */
   (function(){
@@ -92,47 +92,45 @@
     --lien-ink:#0B6B45;
     --shine:rgba(255,255,255,.55);
   }
-  /* ============ DA AURORA (claire, verre et degrades) ============ */
+  /* ============ DA AURORA (bleu electrique, rose, blanc) ============ */
   [data-theme="bloom"]{
-    --bg:#F5F2FE;
+    --bg:#F6F6F6;
     --surface:#FFFFFF;
-    --surface2:#F1ECFE;
-    --ink:#150E26;
-    --muted:#6A6383;
-    --rule:#E7E0F7;
-    --line:#DCD3F2;
-    --pop:#6C3BFF;
-    --pop-soft:rgba(108,59,255,.10);
-    --wa:#12C463;
-    --wa-hover:#0FB159;
-    --wa-ink:#04220F;
-    --green:#0E9E6B;
-    --ombre:0 40px 90px -38px rgba(76,40,160,.42);
-    --ombre-s:0 26px 60px -30px rgba(76,40,160,.34);
-    --glow:rgba(108,59,255,.16);
-    --halo:rgba(255,106,176,.30);
-    --halo2:rgba(91,124,255,.26);
-    --trame:rgba(108,59,255,.05);
-    --fantome:rgba(108,59,255,.14);
+    --surface2:#EFEFF5;
+    --ink:#12143A;
+    --muted:#5E6280;
+    --rule:#E4E4EC;
+    --line:#D9D9E4;
+    --pop:#294BEF;
+    --pop-soft:rgba(41,75,239,.10);
+    --wa:#294BEF;
+    --wa-hover:#1C39D1;
+    --wa-ink:#FFFFFF;
+    --green:#294BEF;
+    --ombre:0 40px 80px -40px rgba(18,20,58,.35);
+    --ombre-s:0 24px 54px -32px rgba(18,20,58,.3);
+    --glow:rgba(41,75,239,.14);
+    --halo:rgba(255,136,207,.5);
+    --halo2:rgba(41,75,239,.32);
+    --trame:rgba(41,75,239,.06);
+    --fantome:rgba(41,75,239,.1);
     --phone:#FFFFFF;
-    --phone-rule:#EAE3F8;
-    --msg-in:#F1EDFB;
-    --msg-in-ink:#150E26;
-    --msg-out:#DCF6E8;
-    --msg-out-ink:#053324;
-    --msg-h:#8F87A6;
-    --lien-bg:#EDF2FF;
-    --lien-rule:#C9D6FF;
-    --lien-ink:#3B49C8;
-    --shine:rgba(255,255,255,.7);
+    --phone-rule:#E8E8F0;
+    --msg-in:#EFEFF5;
+    --msg-in-ink:#12143A;
+    --msg-out:#FFDCF0;
+    --msg-out-ink:#3A0B25;
+    --msg-h:#8A8EA8;
+    --lien-bg:#E8EDFF;
+    --lien-rule:#B9C6FF;
+    --lien-ink:#1C39D1;
+    --shine:rgba(255,255,255,.55);
     --r:26px;
-    /* propres a la DA aurora */
-    --rose:#FF6AB0;
-    --violet:#6C3BFF;
-    --bleu:#5B7CFF;
-    --ciel:#63D2FF;
-    --verre:rgba(255,255,255,.72);
-    --verre-bord:rgba(255,255,255,.9);
+    /* les quatre couleurs de la marque */
+    --bleu:#294BEF;
+    --rose:#FF88CF;
+    --gris:#F6F6F6;
+    --blanc:#FFFFFF;
   }
 
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -759,9 +757,9 @@
   footer a:hover{color:var(--pop);}
 
   /* ==================================================================
-     DA AURORA : fond degrade, verre, grands titres, cartes flottantes.
+     DA AURORA : bleu electrique, rose, gris clair, blanc.
+     Grands blocs de couleur arrondis, titrage lourd, aplats francs.
      Tout est prefixe [data-theme="bloom"] (nom interne de la DA).
-     Les themes clair et sombre restent disponibles et intacts.
      ================================================================== */
 
   /* --- le bouton orbe, present dans les trois themes --- */
@@ -772,203 +770,227 @@
     transition:color .25s ease,border-color .25s ease,background .25s ease,transform .2s ease,box-shadow .3s ease;
   }
   .fleur svg{width:19px;height:19px;display:block;}
-  .fleur:hover{color:#6C3BFF;border-color:#6C3BFF;transform:translateY(-1px);}
+  .fleur:hover{color:#294BEF;border-color:#294BEF;transform:translateY(-1px);}
   [data-theme="bloom"] .fleur{
-    background:#fff;border-color:rgba(108,59,255,.35);color:var(--violet);
-    box-shadow:0 10px 24px -12px rgba(108,59,255,.75);
+    background:var(--bleu);border-color:var(--bleu);color:var(--rose);
+    box-shadow:0 10px 22px -12px rgba(41,75,239,.9);
   }
   [data-theme="bloom"] .fleur svg{animation:orbite 18s linear infinite;}
   @keyframes orbite{to{transform:rotate(360deg);}}
 
-  /* --- le voile de bascule, part du bouton et traverse la page --- */
+  /* --- le voile de bascule --- */
   .voile{
     position:fixed;z-index:999;border-radius:50%;pointer-events:none;
-    transform:translate(-50%,-50%) scale(0);opacity:.55;
-    background:radial-gradient(circle,rgba(255,106,176,.9),rgba(108,59,255,.7) 45%,rgba(99,210,255,.5) 75%,transparent 82%);
+    transform:translate(-50%,-50%) scale(0);opacity:.7;
+    background:radial-gradient(circle,#FF88CF 0 45%,#294BEF 45% 72%,transparent 74%);
     transition:transform .8s cubic-bezier(.22,.8,.2,1),opacity .8s ease;
   }
   .voile.va{transform:translate(-50%,-50%) scale(1);opacity:0;}
 
-  /* --- la couche d'ambiance : nappes de couleur qui derivent --- */
+  /* --- couche d'ambiance : deux aplats flous et une grille fine --- */
   .jardin{display:none;}
   [data-theme="bloom"] .jardin{display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
-  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(90px);animation:derive 24s ease-in-out infinite alternate;}
-  .jardin .n1{width:56vw;height:56vw;top:-20vw;right:-14vw;background:radial-gradient(circle,rgba(255,106,176,.55),transparent 66%);}
-  .jardin .n2{width:52vw;height:52vw;bottom:-22vw;left:-16vw;background:radial-gradient(circle,rgba(91,124,255,.45),transparent 66%);animation-duration:30s;animation-direction:alternate-reverse;}
-  .jardin .n3{width:40vw;height:40vw;top:34%;left:42%;background:radial-gradient(circle,rgba(99,210,255,.35),transparent 68%);animation-duration:36s;}
+  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(90px);animation:derive 26s ease-in-out infinite alternate;}
+  .jardin .n1{width:48vw;height:48vw;top:-18vw;right:-14vw;background:radial-gradient(circle,rgba(255,136,207,.55),transparent 66%);}
+  .jardin .n2{width:46vw;height:46vw;bottom:-20vw;left:-16vw;background:radial-gradient(circle,rgba(41,75,239,.3),transparent 66%);animation-duration:32s;animation-direction:alternate-reverse;}
+  .jardin .n3{display:none;}
   .jardin .reseau{
-    position:absolute;inset:0;opacity:.5;
+    position:absolute;inset:0;opacity:.7;
     background-image:
-      linear-gradient(rgba(108,59,255,.05) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(108,59,255,.05) 1px,transparent 1px);
-    background-size:120px 120px;
-    mask-image:radial-gradient(ellipse 80% 70% at 50% 30%,#000 10%,transparent 100%);
-    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 30%,#000 10%,transparent 100%);
+      linear-gradient(rgba(41,75,239,.06) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(41,75,239,.06) 1px,transparent 1px);
+    background-size:88px 88px;
+    mask-image:radial-gradient(ellipse 85% 75% at 50% 28%,#000 10%,transparent 100%);
+    -webkit-mask-image:radial-gradient(ellipse 85% 75% at 50% 28%,#000 10%,transparent 100%);
   }
   .jardin .feuille{display:none;}
 
-  /* --- fond de page --- */
-  [data-theme="bloom"] body{
-    background:
-      radial-gradient(1100px 700px at 84% -12%,rgba(255,106,176,.28),transparent 60%),
-      radial-gradient(1000px 680px at -6% 8%,rgba(108,59,255,.18),transparent 58%),
-      radial-gradient(900px 620px at 20% 102%,rgba(99,210,255,.22),transparent 60%),
-      var(--bg);
-    background-attachment:fixed;
-  }
-  [data-theme="bloom"] .trame{background-size:120px 120px;}
-  [data-theme="bloom"] .halo{filter:blur(30px);}
+  [data-theme="bloom"] body{background:var(--gris);}
+  [data-theme="bloom"] .wrap{max-width:1220px;}
+  [data-theme="bloom"] .trame{background-size:88px 88px;}
 
-  /* --- typographie : grands titres serres, respiration --- */
-  [data-theme="bloom"] :is(h1,h2,h3,h4,.logo,.prixbloc .p,.preuveline .k,.flotc .k,.opt .op,.step .n,.panier,.noeud,.formule h3,.ucard h3){
-    font-family:'Inter','Archivo',system-ui,sans-serif;
+  /* --- typographie : titrage lourd en capitales, texte en Inter --- */
+  [data-theme="bloom"] body{font-family:'Inter','Archivo',system-ui,sans-serif;}
+  [data-theme="bloom"] :is(h1,h2,.logo,.prixbloc .p,.preuveline .k,.flotc .k,.opt .op,.step .n,.noeud,.panier){
+    font-family:'Anton','Archivo',system-ui,sans-serif;font-weight:400;
   }
-  [data-theme="bloom"] .hero h1{font-size:clamp(2.5rem,5.6vw,4.3rem);letter-spacing:-.045em;line-height:.98;}
-  [data-theme="bloom"] h2{font-size:clamp(2rem,3.6vw,3.1rem);letter-spacing:-.04em;line-height:1.02;}
+  [data-theme="bloom"] :is(h1,h2,.logo){text-transform:uppercase;letter-spacing:-.005em;}
+  [data-theme="bloom"] .hero h1{font-size:clamp(2.6rem,6.2vw,5rem);line-height:.94;}
+  [data-theme="bloom"] h2{font-size:clamp(2.1rem,4.2vw,3.5rem);line-height:.98;max-width:18ch;}
+  [data-theme="bloom"] :is(h3,h4){font-weight:700;letter-spacing:-.02em;}
   [data-theme="bloom"] .lead{font-size:1.06rem;line-height:1.6;}
+  [data-theme="bloom"] .logo i{color:var(--rose);}
 
-  /* les mots accentues prennent le degrade aurora */
-  [data-theme="bloom"] :is(.hero h1 .ac,h2 .ac,.logo i){
-    background:linear-gradient(100deg,var(--violet),var(--rose) 52%,var(--ciel));
-    -webkit-background-clip:text;background-clip:text;
-    color:transparent;-webkit-text-fill-color:transparent;
+  /* le mot accentue devient un bloc rose pose dans le titre */
+  [data-theme="bloom"] :is(.hero h1 .ac,h2 .ac){
+    background:var(--rose);color:var(--ink);-webkit-text-fill-color:var(--ink);
+    display:inline-block;padding:0 .14em .06em;border-radius:10px;
+    transform:rotate(-1.2deg);
   }
-  [data-theme="bloom"] .hero h1 .ac::after{
-    background:linear-gradient(90deg,var(--violet),var(--rose));opacity:.28;height:.1em;border-radius:99px;
-  }
-  /* le mot fantome du hero, tres grand et tres doux, comme sur les references */
-  [data-theme="bloom"] .fantome{
-    -webkit-text-stroke:0;color:rgba(108,59,255,.09);
-    font-size:11rem;letter-spacing:-.06em;
-  }
-  [data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke:0;color:rgba(108,59,255,.07);}
+  [data-theme="bloom"] .hero h1 .ac::after{display:none;}
+  [data-theme="bloom"] .fantome{-webkit-text-stroke:0;color:var(--fantome);font-size:10rem;letter-spacing:-.02em;}
+  [data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke:0;color:rgba(255,255,255,.14);}
 
-  /* surtitre : petite pastille de verre */
+  /* surtitre : pastille pleine */
   [data-theme="bloom"] .st{
-    display:inline-flex;color:var(--violet);background:rgba(255,255,255,.7);
-    border:1px solid rgba(255,255,255,.9);box-shadow:0 8px 22px -14px rgba(76,40,160,.5);
-    padding:7px 14px 7px 12px;border-radius:999px;backdrop-filter:blur(10px);letter-spacing:.12em;
+    display:inline-flex;background:var(--bleu);color:#fff;
+    padding:8px 15px 8px 13px;border-radius:999px;letter-spacing:.1em;font-size:.7rem;
   }
-  [data-theme="bloom"] .st::before{background:linear-gradient(140deg,var(--violet),var(--rose));}
+  [data-theme="bloom"] .st::before{background:var(--rose);}
 
-  /* --- barre de navigation, verre blanc --- */
-  [data-theme="bloom"] nav{
-    background:rgba(255,255,255,.62);backdrop-filter:blur(22px) saturate(160%);
-  }
-  [data-theme="bloom"] nav.colle{
-    border-bottom-color:rgba(255,255,255,.9);
-    box-shadow:0 20px 44px -40px rgba(76,40,160,.8);
-  }
-  [data-theme="bloom"] nav .links a{padding:8px 14px;border-radius:999px;transition:background .25s ease,color .25s ease;}
+  /* --- navigation --- */
+  [data-theme="bloom"] nav{background:rgba(246,246,246,.86);backdrop-filter:blur(16px);}
+  [data-theme="bloom"] nav.colle{border-bottom-color:var(--rule);}
+  [data-theme="bloom"] nav .links a{padding:8px 14px;border-radius:999px;font-weight:600;transition:background .2s ease,color .2s ease;}
   [data-theme="bloom"] nav .links a::after{display:none;}
-  [data-theme="bloom"] nav .links a:hover{background:rgba(108,59,255,.09);color:var(--pop);}
+  [data-theme="bloom"] nav .links a:hover{background:var(--rose);color:var(--ink);}
   [data-theme="bloom"] .bascul{background:#fff;border-color:var(--rule);}
-  [data-theme="bloom"] .bascul .bille{background:linear-gradient(140deg,var(--violet),var(--rose));}
+  [data-theme="bloom"] .bascul .bille{background:var(--bleu);}
 
-  /* --- boutons : pastilles nettes, un seul bouton plein par ecran --- */
-  [data-theme="bloom"] .btn{border-radius:999px;font-weight:700;padding:15px 30px;}
-  [data-theme="bloom"] .btn.wa{
-    background:linear-gradient(135deg,#19D873,#0FAE5C);color:#fff;
-    box-shadow:0 18px 38px -18px rgba(15,174,92,.95);
-  }
-  [data-theme="bloom"] .btn.wa:hover{
-    background:linear-gradient(135deg,#25E882,#12BD65);
-    box-shadow:0 24px 50px -18px rgba(15,174,92,1);
-  }
-  [data-theme="bloom"] .btn.dark{
-    background:#150E26;color:#fff;box-shadow:0 18px 38px -20px rgba(21,14,38,.9);
-  }
-  [data-theme="bloom"] .btn.ghost{
-    background:rgba(255,255,255,.75);border-color:rgba(255,255,255,.95);color:var(--ink);
-    backdrop-filter:blur(12px);box-shadow:0 14px 30px -20px rgba(76,40,160,.6);
-  }
-  [data-theme="bloom"] .btn.ghost:hover{border-color:rgba(108,59,255,.4);color:var(--pop);}
+  /* --- boutons : aplats francs, pas d'ombre molle --- */
+  [data-theme="bloom"] .btn{border-radius:999px;font-weight:700;padding:16px 32px;font-size:1rem;}
+  [data-theme="bloom"] .btn.wa{background:var(--bleu);color:#fff;box-shadow:0 14px 28px -16px rgba(41,75,239,.9);}
+  [data-theme="bloom"] .btn.wa:hover{background:var(--rose);color:var(--ink);box-shadow:0 18px 34px -16px rgba(255,136,207,.9);}
+  [data-theme="bloom"] .btn.dark{background:var(--ink);color:#fff;}
+  [data-theme="bloom"] .btn.dark:hover{background:var(--bleu);}
+  [data-theme="bloom"] .btn.ghost{background:#fff;border:2px solid var(--ink);color:var(--ink);}
+  [data-theme="bloom"] .btn.ghost:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
 
-  /* --- cartes de verre --- */
+  /* --- cartes : blanc franc, coins tres arrondis --- */
   [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.board,.carte,.faqbox,.drop,.phone,.flotc){
-    background:var(--verre);border:1px solid var(--verre-bord);border-radius:var(--r);
-    backdrop-filter:blur(18px) saturate(140%);
-    box-shadow:0 30px 60px -38px rgba(76,40,160,.5);
+    background:#fff;border:1px solid var(--rule);border-radius:var(--r);
+    box-shadow:0 26px 54px -40px rgba(18,20,58,.5);
   }
-  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.carte):hover{
-    border-color:rgba(255,255,255,1);
-    box-shadow:0 40px 80px -36px rgba(76,40,160,.6);
+  [data-theme="bloom"] :is(.step,.opt,.mod):hover{
+    background:var(--rose);border-color:var(--rose);transform:translateY(-6px);
   }
-  [data-theme="bloom"] .phone{border-radius:34px;background:rgba(255,255,255,.88);}
-  [data-theme="bloom"] .drop{border-radius:20px;}
+  [data-theme="bloom"] :is(.step,.opt,.mod):hover :is(p,h3,h4){color:var(--ink);}
+  [data-theme="bloom"] :is(.step,.opt,.mod):hover :is(.n,.op){color:#fff;-webkit-text-fill-color:#fff;}
+  [data-theme="bloom"] .ucard:hover{border-color:var(--bleu);}
+  [data-theme="bloom"] .phone{border-radius:34px;}
+  [data-theme="bloom"] .drop{border-radius:18px;border-color:var(--bleu);}
+  [data-theme="bloom"] .drop .dt{color:var(--bleu);}
   [data-theme="bloom"] .flotc{border-radius:18px;}
-  [data-theme="bloom"] .noeud{
-    background:linear-gradient(140deg,var(--violet),var(--rose));color:#fff;
-    box-shadow:0 0 0 8px rgba(108,59,255,.10),0 16px 30px -16px rgba(108,59,255,.9);
-  }
-  [data-theme="bloom"] .step .n,[data-theme="bloom"] .opt .op{
-    background:linear-gradient(120deg,var(--violet),var(--rose));
-    -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
-  }
+  [data-theme="bloom"] .noeud{background:var(--bleu);color:#fff;box-shadow:0 0 0 8px rgba(41,75,239,.12);}
+  [data-theme="bloom"] :is(.step .n,.opt .op){color:var(--bleu);-webkit-text-fill-color:var(--bleu);font-size:1.9rem;}
+  [data-theme="bloom"] .ring{border-color:var(--bleu);}
+  [data-theme="bloom"] ul.pts li::before,[data-theme="bloom"] .ucard li::before{background:var(--bleu);}
+  [data-theme="bloom"] .piste span::after{background:var(--rose);}
+
+  /* --- le bandeau defilant devient une barre bleue --- */
   [data-theme="bloom"] .bandeau{
-    background:rgba(255,255,255,.55);border-color:var(--verre-bord);backdrop-filter:blur(14px);
+    background:var(--bleu);border-color:var(--bleu);padding:18px 0;
+    border-radius:0;
   }
-  [data-theme="bloom"] .piste span::after{background:linear-gradient(140deg,var(--violet),var(--rose));}
-  [data-theme="bloom"] ul.pts li::before{background:linear-gradient(140deg,var(--violet),var(--rose));}
-  [data-theme="bloom"] .ucard li::before{background:var(--pop);}
+  [data-theme="bloom"] .piste span{
+    color:#fff;font-family:'Anton',sans-serif;font-weight:400;
+    text-transform:uppercase;letter-spacing:.02em;font-size:1.15rem;
+  }
 
-  /* --- l'etape mise en avant : le bloc degrade --- */
+  /* ============ NOUVELLE ARCHITECTURE : grands blocs de couleur ============
+     Une rubrique sur trois devient un bloc plein, arrondi, pleine largeur.
+     Les couleurs du texte sont reglees par variables, donc tout suit. */
+  [data-theme="bloom"] :is(#essayer,#gains,.final){
+    margin:0 14px;border-radius:44px;
+  }
+  /* bloc rose */
+  [data-theme="bloom"] #essayer{
+    background:var(--rose);color:var(--ink);
+    --muted:#4A2B3E;--rule:rgba(18,20,58,.14);--line:rgba(18,20,58,.18);--pop:var(--bleu);
+  }
+  [data-theme="bloom"] #essayer h2 .ac{background:var(--bleu);color:#fff;-webkit-text-fill-color:#fff;}
+  [data-theme="bloom"] #essayer .st{background:var(--ink);}
+  [data-theme="bloom"] #essayer .hint{color:var(--bleu);}
+  /* bloc bleu */
+  [data-theme="bloom"] #gains{
+    background:var(--bleu);color:#fff;
+    --ink:#FFFFFF;--muted:rgba(255,255,255,.74);--rule:rgba(255,255,255,.22);--pop:var(--rose);
+  }
+  [data-theme="bloom"] #gains .st{background:var(--rose);color:var(--ink);}
+  [data-theme="bloom"] #gains h2 .ac{background:var(--rose);color:#12143A;-webkit-text-fill-color:#12143A;}
+  [data-theme="bloom"] #gains :is(.flotc,.noeud){--ink:#12143A;--muted:#5E6280;color:#12143A;}
+  [data-theme="bloom"] #gains .noeud{background:#fff;color:var(--bleu);box-shadow:0 0 0 8px rgba(255,255,255,.18);}
+  [data-theme="bloom"] #gains .courbe svg.ligne path{stroke:#fff;}
+  [data-theme="bloom"] #gains .gain p.txt b{color:#fff;}
+  [data-theme="bloom"] #gains .gain .ask{color:rgba(255,255,255,.8);border-color:rgba(255,255,255,.35);}
+  [data-theme="bloom"] #gains .gain .ask:hover{color:#fff;border-color:#fff;}
+  [data-theme="bloom"] #gains .btn.ghost{background:transparent;border-color:#fff;color:#fff;}
+  [data-theme="bloom"] #gains .btn.ghost:hover{background:#fff;color:var(--bleu);}
+  [data-theme="bloom"] #gains .btn.wa{background:#fff;color:var(--bleu);}
+  [data-theme="bloom"] #gains .btn.wa:hover{background:var(--rose);color:var(--ink);}
+  /* bloc final rose */
+  [data-theme="bloom"] .final{
+    background:var(--rose);color:var(--ink);
+    --muted:#4A2B3E;--pop:var(--bleu);
+  }
+  [data-theme="bloom"] .final .st{background:var(--ink);}
+  [data-theme="bloom"] .final h2 .ac{background:var(--bleu);color:#fff;-webkit-text-fill-color:#fff;}
+  [data-theme="bloom"] .final .fantome-xl{color:rgba(18,20,58,.09);}
+  [data-theme="bloom"] .final .halo{display:none;}
+
+  /* --- l'etape mise en avant --- */
   [data-theme="bloom"] .step.hot{
-    background:linear-gradient(140deg,var(--violet),#9A47FF 46%,var(--rose));
-    border-color:transparent;color:#fff;
-    box-shadow:0 40px 80px -34px rgba(108,59,255,.9);
+    background:var(--bleu);border-color:var(--bleu);color:#fff;
+    box-shadow:0 30px 60px -32px rgba(41,75,239,.9);
   }
-  [data-theme="bloom"] .step.hot :is(.n,h3){color:#fff;-webkit-text-fill-color:#fff;background:none;}
-  [data-theme="bloom"] .step.hot p{color:rgba(255,255,255,.86);}
-  [data-theme="bloom"] .step.hot::before{background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.3),transparent 70%);}
+  [data-theme="bloom"] .step.hot :is(.n,h3){color:#fff;-webkit-text-fill-color:#fff;}
+  [data-theme="bloom"] .step.hot p{color:rgba(255,255,255,.82);}
+  [data-theme="bloom"] .step.hot:hover{background:var(--rose);border-color:var(--rose);}
+  [data-theme="bloom"] .step.hot:hover :is(.n,h3){color:var(--ink);-webkit-text-fill-color:var(--ink);}
+  [data-theme="bloom"] .step.hot:hover p{color:rgba(18,20,58,.78);}
 
-  /* --- le bloc tarif : degrade aurora, prix sur carte de verre blanche --- */
+  /* --- le bloc tarif : aplat bleu, prix sur carte blanche --- */
   [data-theme="bloom"] .formule{
-    background:linear-gradient(140deg,var(--violet),#9A47FF 44%,var(--rose));
-    border-color:transparent;color:#fff;
-    box-shadow:0 50px 100px -44px rgba(108,59,255,.95);
+    background:var(--bleu);border-color:var(--bleu);color:#fff;border-radius:36px;
+    box-shadow:0 40px 80px -42px rgba(41,75,239,.9);
   }
-  [data-theme="bloom"] .formule .sous{opacity:.88;}
   [data-theme="bloom"] .formule li{border-top-color:rgba(255,255,255,.22);}
-  [data-theme="bloom"] .formule li::before{background:#fff;}
+  [data-theme="bloom"] .formule li::before{background:var(--rose);}
   [data-theme="bloom"] .prixbloc{
-    background:rgba(255,255,255,.92);color:var(--ink);border-radius:20px;
-    border:1px solid rgba(255,255,255,.95);backdrop-filter:blur(16px);
-    box-shadow:0 30px 60px -34px rgba(21,14,38,.6);
+    background:#fff;color:var(--ink);border-radius:26px;
   }
   [data-theme="bloom"] .prixbloc .lab{color:var(--muted);opacity:1;}
-  [data-theme="bloom"] .prixbloc .p{
-    background:linear-gradient(100deg,var(--violet),var(--rose));
-    -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
-  }
+  [data-theme="bloom"] .prixbloc .p{color:var(--bleu);-webkit-text-fill-color:var(--bleu);font-size:3.1rem;}
   [data-theme="bloom"] .prixbloc .p small{-webkit-text-fill-color:var(--muted);}
   [data-theme="bloom"] .prixbloc .d{color:var(--muted);opacity:1;}
   [data-theme="bloom"] .prixbloc .filet{border-top-color:var(--rule);}
-  [data-theme="bloom"] .zero{
-    background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);color:#fff;
-  }
-  [data-theme="bloom"] .zero::before{background:#fff;}
-  [data-theme="bloom"] .tarifnote b{color:var(--pop);}
+  [data-theme="bloom"] .prixbloc .btn{background:var(--rose);color:var(--ink);}
+  [data-theme="bloom"] .prixbloc .btn:hover{background:var(--bleu);color:#fff;}
+  [data-theme="bloom"] .zero{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4);color:#fff;}
+  [data-theme="bloom"] .zero::before{background:var(--rose);}
+  [data-theme="bloom"] .tarifnote b{color:var(--bleu);}
 
   /* --- questions, mascotte, details --- */
-  [data-theme="bloom"] summary::after{color:var(--pop);}
-  [data-theme="bloom"] .flo .joue{fill:var(--violet);opacity:.22;}
-  [data-theme="bloom"] .flo .interro{fill:var(--violet);}
-  [data-theme="bloom"] .flot{box-shadow:0 18px 40px -18px rgba(15,174,92,.9);}
-  [data-theme="bloom"] .mot{
-    background:rgba(255,255,255,.9);border-color:var(--verre-bord);backdrop-filter:blur(14px);
-    box-shadow:0 24px 50px -30px rgba(76,40,160,.6);
-  }
-  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,var(--violet),var(--rose));}
-  [data-theme="bloom"] .ring{border-color:rgba(108,59,255,.35);}
+  [data-theme="bloom"] .faqbox{border-radius:30px;}
+  [data-theme="bloom"] summary::after{color:var(--bleu);}
+  [data-theme="bloom"] summary:hover{color:var(--bleu);}
+  [data-theme="bloom"] .flo .corps{fill:var(--bleu);}
+  [data-theme="bloom"] .flo .bras{stroke:var(--bleu);}
+  [data-theme="bloom"] .flo .oeil,[data-theme="bloom"] .flo .bouche{fill:#fff;stroke:#fff;}
+  [data-theme="bloom"] .flo .oeil{fill:#fff;}
+  [data-theme="bloom"] .flo .joue{fill:var(--rose);opacity:.9;}
+  [data-theme="bloom"] .flo .interro{fill:var(--rose);}
+  [data-theme="bloom"] .flot{background:var(--bleu);box-shadow:0 16px 34px -18px rgba(41,75,239,.95);}
+  [data-theme="bloom"] .flot::after{background:var(--rose);}
+  [data-theme="bloom"] .mot{background:#fff;border-color:var(--rule);border-radius:20px;}
+  [data-theme="bloom"] .mot b{color:var(--bleu);}
+  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,var(--bleu),var(--rose));}
+  [data-theme="bloom"] .ucard .uphoto .tag{background:var(--bleu);color:#fff;}
+  [data-theme="bloom"] .board .col h4 b{color:var(--bleu);}
+  [data-theme="bloom"] .board .btop .live{color:var(--bleu);}
+  [data-theme="bloom"] .ticket.hot{border-color:var(--bleu);}
 
-  /* --- l'aura derriere le telephone du hero --- */
+  /* --- l'aplat rose derriere le telephone du hero --- */
   [data-theme="bloom"] .scene::before{
-    content:"";position:absolute;inset:-18% -24%;z-index:0;border-radius:50%;
-    background:conic-gradient(from 210deg,rgba(255,106,176,.55),rgba(108,59,255,.45),rgba(99,210,255,.5),rgba(255,106,176,.55));
-    filter:blur(64px);animation:tourne 32s linear infinite;
+    content:"";position:absolute;inset:-12% -16%;z-index:0;
+    background:var(--rose);
+    border-radius:58% 42% 50% 50%/48% 54% 46% 52%;
+    animation:pate 18s ease-in-out infinite alternate;
   }
-  @keyframes tourne{to{transform:rotate(360deg);}}
+  @keyframes pate{
+    0%{border-radius:58% 42% 50% 50%/48% 54% 46% 52%;transform:rotate(0deg);}
+    100%{border-radius:44% 56% 58% 42%/56% 44% 56% 44%;transform:rotate(8deg);}
+  }
 
   @media(prefers-reduced-motion:reduce){
     .jardin .nuee,[data-theme="bloom"] .scene::before,[data-theme="bloom"] .fleur svg{animation:none;}
@@ -976,10 +998,11 @@
   }
 
   @media(max-width:900px){
-    .jardin .reseau{opacity:.3;}
-    [data-theme="bloom"] .scene::before{filter:blur(44px);}
-    [data-theme="bloom"] .fantome{font-size:5.5rem;}
+    .jardin .reseau{opacity:.4;}
+    [data-theme="bloom"] :is(#essayer,#gains,.final){margin:0 8px;border-radius:32px;}
+    [data-theme="bloom"] .fantome{font-size:5rem;}
     [data-theme="bloom"] .btn{padding:14px 26px;}
+    [data-theme="bloom"] .piste span{font-size:1rem;}
   }
 
   @media(max-width:1000px){
@@ -1569,7 +1592,7 @@
   function daPolices(){ /* les polices de la DA bloom ne se chargent qu'a la premiere activation */
     if(document.getElementById("police-bloom")){return;}
     var l=document.createElement("link");l.rel="stylesheet";l.id="police-bloom";
-    l.href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+    l.href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap";
     document.head.appendChild(l);
   }
   function daMaj(){

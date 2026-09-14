@@ -1,56 +1,56 @@
-PFLOW.FR, HOME V9 : DA AURORA, LUMINEUSE ET ORIENTEE VENTE
-===========================================================
+PFLOW.FR, HOME V10 : DA AURORA VERSION FLASH, BLEU ELECTRIQUE ET ROSE
+======================================================================
 
 OU POSER LE FICHIER (repo btprecruit-crm)
 -----------------------------------------
 site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
 NOTICE.txt        -> remplace la notice a la racine.
 
-Zip CUMULATIF : le correctif des boutons de la v8 est dedans. Aucun texte,
-aucune rubrique, aucun prix n'a bouge.
+Zip CUMULATIF. Aucun texte, aucune rubrique, aucun prix n'a bouge.
+La DA reste celle par defaut : le visiteur arrive dessus.
 
-CE QUI CHANGE
--------------
-La troisieme DA n'est plus la planche de scan noire : elle devient AURORA,
-claire, en verre et en degrades, dans l'esprit des references envoyees
-(Spacecloud, Visiora, Nicolai, Nike Cloud).
-Et elle est passee EN DA PAR DEFAUT : un visiteur qui arrive sur pflow.fr
-voit Aurora. Les themes sombre et clair restent disponibles avec
-l'interrupteur lune / soleil, le bouton orbe ramene a Aurora.
-Pour revenir a l'ancien defaut : ligne 2 du fichier, remplacer
-data-theme="bloom" par data-theme="sombre". Rien d'autre a toucher.
+LA PALETTE, STRICTE
+-------------------
+Bleu electrique #294BEF, rose #FF88CF, gris clair #F6F6F6, blanc #FFFFFF.
+Plus un bleu tres fonce #12143A pour le texte, sinon rien ne serait lisible.
+Ces quatre valeurs sont en bas du bloc CSS " DA AURORA " : --bleu, --rose,
+--gris, --blanc. Tout le site les reprend, il n'y a rien a changer ailleurs.
 
-POURQUOI CE CHOIX POUR VENDRE
------------------------------
-Un restaurateur qui ouvre le site doit comprendre en trois secondes. Le fond
-sombre faisait technique et studio ; le fond clair fait produit et confiance,
-c'est ce que font toutes les references envoyees. Le titre est plus gros et
-plus serre, la promesse arrive plus vite, et il n'y a plus qu'un seul bouton
-plein par ecran, toujours le vert WhatsApp : c'est lui qui doit etre clique.
+Le vert WhatsApp a disparu des boutons : il n'etait pas dans ta palette et il
+cassait l'identite. Les boutons d'action sont bleus et passent au rose au
+survol, la bulle flottante est bleue avec le logo WhatsApp blanc dedans, donc
+la reconnaissance reste. Si tu veux le vert, une ligne : --wa:#12C463.
 
-L'HABILLAGE
------------
-- Fond degrade rose, violet et bleu, avec trois nappes qui derivent lentement
-  et une grille tres fine, comme un ciel.
-- Titres en Inter, tres grands et tres serres. Les mots accentues sont remplis
-  du degrade violet vers rose vers bleu.
-- Les surtitres deviennent des pastilles de verre.
-- Toutes les cartes sont en verre blanc : flou d'arriere plan, filet blanc,
-  ombre coloree douce, coins arrondis a 26 px.
-- Boutons en pastille pleine. Le WhatsApp est un degrade vert avec son ombre
-  portee, le secondaire est une pastille de verre, le bouton du bloc prix est
-  noir profond.
-- Le bloc tarif passe en degrade aurora plein, avec le prix pose sur une carte
-  de verre blanche, en degrade lui aussi. L'etape mise en avant suit le meme
-  degrade.
-- Une aura coloree tourne lentement derriere le telephone du hero.
-- Flo garde son vert WhatsApp, avec les joues violettes.
+LA NOUVELLE ARCHITECTURE
+------------------------
+Le site n'est plus une suite de rubriques sur un meme fond. Une rubrique sur
+trois devient un GRAND BLOC PLEIN, pleine largeur, arrondi a 44 px, pose sur le
+gris clair. Ca donne un rythme visible au premier coup d'oeil, meme en scrollant
+vite, et ca reste simple parce que le contenu ne change pas.
+- Essayer : bloc rose, titres avec bloc bleu, texte bleu fonce.
+- Les gains : bloc bleu plein, texte blanc, boutons blancs.
+- L'appel final : bloc rose.
+Les couleurs de texte de chaque bloc sont pilotees par variables, donc tout ce
+qui est dedans suit automatiquement, y compris les cartes blanches.
+
+LE RESTE DE L'HABILLAGE
+-----------------------
+- Titres en Anton, capitales, tres gros et tres serres. Texte en Inter.
+- Le mot accentue de chaque titre devient un bloc rose legerement penche,
+  pose dans la phrase. C'est la signature de la DA, on la reconnait partout.
+- Les surtitres deviennent des pastilles bleues pleines.
+- Le bandeau defilant devient une barre bleue a texte blanc en capitales.
+- Cartes blanches, coins tres arrondis, ombre tres legere. Au survol, elles se
+  remplissent de rose et montent.
+- Bloc tarif en aplat bleu, prix sur carte blanche, bouton rose.
+- Derriere le telephone du hero, un aplat rose organique qui se deforme
+  lentement, au lieu de l'aura floue.
+- Flo passe en bleu avec les joues roses.
 
 Tout s'arrete si le visiteur a demande moins d'animations dans son systeme.
 
-POUR RETOUCHER
---------------
-Les couleurs sont dans le bloc CSS " DA AURORA " en haut du fichier. Les trois
-valeurs qui commandent tout sont en bas du bloc : --violet, --rose, --ciel.
-Les nappes de fond sont dans le bloc " la couche d'ambiance " : une ligne par
-nappe, taille, position, duree.
+POUR REVENIR EN ARRIERE
+-----------------------
+Pour que le site ouvre a nouveau sur le theme sombre : ligne 2 du fichier,
+data-theme="bloom" a remplacer par data-theme="sombre". Les trois themes
+restent accessibles par les boutons en haut a droite.
