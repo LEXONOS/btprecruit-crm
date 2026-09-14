@@ -1,60 +1,53 @@
-PFLOW.FR, HOME V4 : NOUVEAUX TARIFS
-===================================
+PFLOW.FR, HOME V5 : LE FIL PFLOW, SIGNATURE DE MARQUE
+=====================================================
 
 OU POSER LE FICHIER (repo btprecruit-crm)
 -----------------------------------------
 site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
-                     Les photos de site/images/ ne bougent pas.
+Zip CUMULATIF : architecture landing + correctif classes + double theme + animations
++ nouveaux tarifs + le fil ci-dessous.
 
-Zip CUMULATIF : il contient tout depuis le debut du chantier (architecture landing,
-correctif des classes, double theme sombre/clair, animations) plus les tarifs ci-dessous.
+L'IDEE
+------
+PFlow, c'est le flux. Le fil conducteur du site est donc un vrai fil : un seul trait
+vert qui ne se coupe jamais, du premier ecran au dernier. C'est l'element de marque,
+il se lit partout et il veut dire quelque chose : une commande qui va jusqu'au bout.
 
-1. NOUVEAUX TARIFS (repris exactement de ta fiche)
---------------------------------------------------
-Formule unique PFlow Order :
-  Creation et mise en place ....... 390 euros, paiement unique
-  Ensuite ......................... 29 euros / mois, sans engagement
-  0 % de commission, affiche en pastille sur le bloc prix
-Inclus affiches : mini-page web de commande, integration du menu, personnalisation
-logo et identite, automatisation WhatsApp, dashboard prive, lien direct de commande,
-formation au dashboard, mise en ligne et tests.
+OU IL APPARAIT
+--------------
+1. LE RAIL A GAUCHE (ecrans larges, a partir de 1340 px)
+   Un trait vertical fixe, avec un point par section : 01 Le flux, 02 Le parcours,
+   03 La carte, 04 Le produit, 05 Le pilotage, 06 Les gains, 07 Les tarifs,
+   08 Les questions, 09 On demarre.
+   - Le trait se remplit de vert au fur et a mesure de la lecture.
+   - Les points deja passes sont pleins, le point de la section en cours grossit
+     et affiche son nom.
+   - Chaque point est cliquable : c'est aussi un sommaire.
+   - Les points sont places aux vraies positions des sections, recalcules au
+     redimensionnement.
+2. LE TRAIT DE PROGRESSION (ecrans plus petits)
+   Le meme fil, mais en trait fin de progression tout en haut de la page.
+3. DANS LE HERO
+   La courbe verte qui relie le telephone a la carte de commande, deja la, devient
+   le premier segment du fil.
+4. DANS LES 3 ETAPES
+   Le fil passe horizontalement derriere les cartes 01 / 02 / 03 et se trace en vert
+   quand la section arrive a l'ecran. Il n'apparait que dans les intervalles entre
+   les cartes, comme s'il les traversait.
+5. DANS LA SECTION GAINS
+   La courbe montante a noeuds, deja la, est le meme trait qui repart vers le haut.
+6. EN PIED DE PAGE
+   La signature, avec un segment du fil devant :
+   "Le trait vert qui traverse cette page, c'est une commande qui va jusqu'au bout."
 
-Options, en grille de 5 cartes sous la formule :
-  Zones de livraison .................. +69 euros
-  Paiement en ligne ................... +79 euros
-  Relance des paniers abandonnes ...... +79 euros
-  Avis Google apres la commande ....... +59 euros
-  Mini-site restaurant ................ des 290 euros
+LE MOTIF TICKET
+---------------
+Deuxieme marqueur, discret, tire du metier : le ticket de commande.
+- Le bloc prix de la formule a deux encoches rondes sur les cotes et un trait pointille
+  entre les 390 euros et les 29 euros par mois : c'est un coupon detachable.
+- La carte "Nouvelle commande n. 47" du hero a une perforation en haut, comme un ticket
+  qui sort de l'imprimante.
+- La numerotation "N. 47" est la meme dans le hero et dans le dashboard anime.
 
-La formule reprend l'aplat vert sureleve de l'ancienne carte Pack complet, avec le bloc
-prix en vert fonce a droite. Les options sont des cartes classiques, prix en couleur
-d'accent (menthe en sombre, orange en clair).
-
-2. CE QUE J'AI ALIGNE AILLEURS SUR LA PAGE
-------------------------------------------
-Trois formules disparaissent, donc plusieurs endroits promettaient en inclus ce qui est
-devenu une option. Corrige pour rester honnete :
-- Hero : la phrase sur la relance automatique des paniers devient "aucune commission
-  sur vos ventes".
-- Etape 02 : "paiement en ligne ou sur place" devient "paiement en ligne disponible
-  en option".
-- Section Essayer : "paiement carte securise" devient "paiement en ligne en option,
-  via votre propre compte de paiement".
-- Carte "commande en ligne WhatsApp" : paiement en ligne et relance des paniers
-  marques en option.
-- FAQ paiement : reecrite (sur place inclus, en ligne en option a 79 euros, branche sur
-  ton compte, zero commission).
-- FAQ delai : precise que creation, automatisation, tests, mise en ligne et formation
-  sont compris dans les 390 euros.
-- FAQ engagement : parle des 29 euros par mois resiliables.
-- Module "Avis clients renforces" supprime de la section "Pour aller plus loin" :
-  il fait doublon avec l'option Avis Google a 59 euros. Restent la prise de rendez-vous
-  et les campagnes WhatsApp, la grille s'adapte toute seule.
-- L'ancienne mention "kit de lancement, QR codes imprimes et visuels d'annonce" a ete
-  retiree : elle n'apparait pas dans ta nouvelle fiche. Dis-moi si tu la gardes, je la
-  remets dans la liste des inclus.
-
-3. INCHANGE
------------
-Le theme, les animations, la demo de carte cliquable, le dashboard vivant, les liens
-WhatsApp et le reste des textes.
+Le fil prend les couleurs du theme : vert WhatsApp sur les deux, avec le halo assorti.
+Tout se coupe si le visiteur a demande moins d'animations dans son systeme.
