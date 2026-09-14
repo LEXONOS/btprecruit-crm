@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="sombre">
+<html lang="fr" data-theme="bloom">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,17 +12,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link id="police-bloom" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
   /* theme applique avant le premier rendu, pas de clignotement */
   (function(){
     try{
       var t=localStorage.getItem("pflow-theme");
       if(t==="clair"||t==="sombre"||t==="bloom"){document.documentElement.setAttribute("data-theme",t);}
-      if(t==="bloom"){
-        var l=document.createElement("link");l.rel="stylesheet";
-        l.href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap";
-        l.id="police-bloom";document.head.appendChild(l);
-      }
     }catch(e){}
   })();
 </script>
@@ -96,45 +92,47 @@
     --lien-ink:#0B6B45;
     --shine:rgba(255,255,255,.55);
   }
-  /* ============ THEME NEO-BLOOM (bloom system : rose neon + vert acide) ============ */
+  /* ============ DA AURORA (claire, verre et degrades) ============ */
   [data-theme="bloom"]{
-    --bg:#07060A;
-    --surface:#0E0C14;
-    --surface2:#15111F;
-    --ink:#F3EEF8;
-    --muted:#9C8FB2;
-    --rule:#241E33;
-    --line:#312846;
-    --pop:#FF2E9A;
-    --pop-soft:rgba(255,46,154,.14);
-    --wa:#7CFF4F;
-    --wa-hover:#96FF74;
-    --wa-ink:#06170A;
-    --green:#3CE07A;
-    --ombre:0 30px 80px rgba(0,0,0,.8);
-    --ombre-s:0 22px 60px rgba(0,0,0,.7);
-    --glow:rgba(255,46,154,.16);
-    --halo:rgba(255,46,154,.22);
-    --halo2:rgba(124,255,79,.14);
-    --trame:rgba(124,255,79,.08);
-    --fantome:rgba(255,46,154,.26);
-    --phone:#0A0910;
-    --phone-rule:#2B2340;
-    --msg-in:#181328;
-    --msg-in-ink:#EFE9F7;
-    --msg-out:#102C16;
-    --msg-out-ink:#D9FFC9;
-    --msg-h:#8B7EA6;
-    --lien-bg:#1B0F22;
-    --lien-rule:#4B2054;
-    --lien-ink:#FF6FB8;
-    --shine:rgba(255,255,255,.22);
-    --r:14px;
-    /* propres a la DA bloom */
-    --acide:#7CFF4F;
-    --rose:#FF2E9A;
-    --rose-clair:#FF7DC2;
-    --encoche:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
+    --bg:#F5F2FE;
+    --surface:#FFFFFF;
+    --surface2:#F1ECFE;
+    --ink:#150E26;
+    --muted:#6A6383;
+    --rule:#E7E0F7;
+    --line:#DCD3F2;
+    --pop:#6C3BFF;
+    --pop-soft:rgba(108,59,255,.10);
+    --wa:#12C463;
+    --wa-hover:#0FB159;
+    --wa-ink:#04220F;
+    --green:#0E9E6B;
+    --ombre:0 40px 90px -38px rgba(76,40,160,.42);
+    --ombre-s:0 26px 60px -30px rgba(76,40,160,.34);
+    --glow:rgba(108,59,255,.16);
+    --halo:rgba(255,106,176,.30);
+    --halo2:rgba(91,124,255,.26);
+    --trame:rgba(108,59,255,.05);
+    --fantome:rgba(108,59,255,.14);
+    --phone:#FFFFFF;
+    --phone-rule:#EAE3F8;
+    --msg-in:#F1EDFB;
+    --msg-in-ink:#150E26;
+    --msg-out:#DCF6E8;
+    --msg-out-ink:#053324;
+    --msg-h:#8F87A6;
+    --lien-bg:#EDF2FF;
+    --lien-rule:#C9D6FF;
+    --lien-ink:#3B49C8;
+    --shine:rgba(255,255,255,.7);
+    --r:26px;
+    /* propres a la DA aurora */
+    --rose:#FF6AB0;
+    --violet:#6C3BFF;
+    --bleu:#5B7CFF;
+    --ciel:#63D2FF;
+    --verre:rgba(255,255,255,.72);
+    --verre-bord:rgba(255,255,255,.9);
   }
 
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -761,297 +759,227 @@
   footer a:hover{color:var(--pop);}
 
   /* ==================================================================
-     DA NEO-BLOOM, version BLOOM SYSTEM : fiche de scan botanique.
-     Noir, rose neon pour la marque, vert acide pour la donnee.
-     Tout est prefixe [data-theme="bloom"], les themes clair et sombre
-     ne sont jamais touches.
+     DA AURORA : fond degrade, verre, grands titres, cartes flottantes.
+     Tout est prefixe [data-theme="bloom"] (nom interne de la DA).
+     Les themes clair et sombre restent disponibles et intacts.
      ================================================================== */
 
-  /* --- le bouton fleur, present dans les trois themes --- */
+  /* --- le bouton orbe, present dans les trois themes --- */
   .fleur{
-    width:34px;height:34px;border-radius:12px;cursor:pointer;flex-shrink:0;padding:0;
+    width:34px;height:34px;border-radius:999px;cursor:pointer;flex-shrink:0;padding:0;
     background:var(--surface2);border:1px solid var(--rule);color:var(--muted);
     display:flex;align-items:center;justify-content:center;
     transition:color .25s ease,border-color .25s ease,background .25s ease,transform .2s ease,box-shadow .3s ease;
   }
-  .fleur svg{width:18px;height:18px;display:block;}
-  .fleur:hover{color:#FF2E9A;border-color:#FF2E9A;transform:translateY(-1px);}
+  .fleur svg{width:19px;height:19px;display:block;}
+  .fleur:hover{color:#6C3BFF;border-color:#6C3BFF;transform:translateY(-1px);}
   [data-theme="bloom"] .fleur{
-    background:#120A18;border-color:var(--rose);color:var(--rose);border-radius:0;
-    clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px));
-    filter:drop-shadow(0 0 10px rgba(255,46,154,.55));
+    background:#fff;border-color:rgba(108,59,255,.35);color:var(--violet);
+    box-shadow:0 10px 24px -12px rgba(108,59,255,.75);
   }
-  [data-theme="bloom"] .fleur svg{animation:tournefleur 16s linear infinite;}
-  @keyframes tournefleur{to{transform:rotate(360deg);}}
+  [data-theme="bloom"] .fleur svg{animation:orbite 18s linear infinite;}
+  @keyframes orbite{to{transform:rotate(360deg);}}
 
   /* --- le voile de bascule, part du bouton et traverse la page --- */
   .voile{
     position:fixed;z-index:999;border-radius:50%;pointer-events:none;
-    transform:translate(-50%,-50%) scale(0);opacity:.6;
-    background:radial-gradient(circle,rgba(255,46,154,.95),rgba(124,255,79,.5) 55%,transparent 75%);
-    transition:transform .75s cubic-bezier(.22,.8,.2,1),opacity .75s ease;
+    transform:translate(-50%,-50%) scale(0);opacity:.55;
+    background:radial-gradient(circle,rgba(255,106,176,.9),rgba(108,59,255,.7) 45%,rgba(99,210,255,.5) 75%,transparent 82%);
+    transition:transform .8s cubic-bezier(.22,.8,.2,1),opacity .8s ease;
   }
   .voile.va{transform:translate(-50%,-50%) scale(1);opacity:0;}
 
-  /* --- la couche de scan : lueurs, grille, ligne qui balaie, feuilles fil de fer --- */
+  /* --- la couche d'ambiance : nappes de couleur qui derivent --- */
   .jardin{display:none;}
   [data-theme="bloom"] .jardin{display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
-  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(70px);animation:derive 20s ease-in-out infinite alternate;}
-  .jardin .n1{width:46vw;height:46vw;top:-16vw;right:-12vw;background:radial-gradient(circle,rgba(255,46,154,.28),transparent 66%);}
-  .jardin .n2{width:44vw;height:44vw;bottom:-18vw;left:-14vw;background:radial-gradient(circle,rgba(124,255,79,.16),transparent 66%);animation-duration:28s;animation-direction:alternate-reverse;}
-  /* la troisieme nuee devient la ligne de scan qui descend lentement */
-  .jardin .n3{
-    left:0;width:100%;height:1px;top:0;filter:none;border-radius:0;
-    background:linear-gradient(90deg,transparent,rgba(124,255,79,.55),rgba(255,46,154,.35),transparent);
-    box-shadow:0 0 18px rgba(124,255,79,.35);
-    animation:balaye 11s linear infinite;
-  }
-  @keyframes balaye{0%{transform:translateY(-2vh);opacity:0;}8%{opacity:.9;}92%{opacity:.9;}100%{transform:translateY(102vh);opacity:0;}}
+  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(90px);animation:derive 24s ease-in-out infinite alternate;}
+  .jardin .n1{width:56vw;height:56vw;top:-20vw;right:-14vw;background:radial-gradient(circle,rgba(255,106,176,.55),transparent 66%);}
+  .jardin .n2{width:52vw;height:52vw;bottom:-22vw;left:-16vw;background:radial-gradient(circle,rgba(91,124,255,.45),transparent 66%);animation-duration:30s;animation-direction:alternate-reverse;}
+  .jardin .n3{width:40vw;height:40vw;top:34%;left:42%;background:radial-gradient(circle,rgba(99,210,255,.35),transparent 68%);animation-duration:36s;}
   .jardin .reseau{
-    position:absolute;inset:0;opacity:.6;
+    position:absolute;inset:0;opacity:.5;
     background-image:
-      linear-gradient(rgba(124,255,79,.08) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(124,255,79,.08) 1px,transparent 1px),
-      linear-gradient(rgba(255,46,154,.05) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(255,46,154,.05) 1px,transparent 1px);
-    background-size:112px 112px,112px 112px,28px 28px,28px 28px;
-    mask-image:radial-gradient(ellipse 80% 70% at 50% 35%,#000 15%,transparent 100%);
-    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 35%,#000 15%,transparent 100%);
+      linear-gradient(rgba(108,59,255,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(108,59,255,.05) 1px,transparent 1px);
+    background-size:120px 120px;
+    mask-image:radial-gradient(ellipse 80% 70% at 50% 30%,#000 10%,transparent 100%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 30%,#000 10%,transparent 100%);
   }
-  /* grain de papier imprime */
-  [data-theme="bloom"] .jardin::before{
-    content:"";position:absolute;inset:0;opacity:.055;mix-blend-mode:overlay;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='120' height='120' filter='url(%23b)'/></svg>");
-  }
-  /* vignette */
-  [data-theme="bloom"] .jardin::after{
-    content:"";position:absolute;inset:0;
-    background:radial-gradient(ellipse 90% 80% at 50% 45%,transparent 40%,rgba(0,0,0,.72) 100%);
-  }
-  /* les feuilles sont dessinees en fil de fer, comme un releve de scan */
-  .jardin .feuille{
-    position:absolute;top:100%;width:28px;height:28px;opacity:.35;
-    border:1px solid rgba(124,255,79,.55);background:transparent;
-    border-radius:0 100% 0 100%;
-    animation:pousse 38s linear infinite;
-  }
-  .jardin .feuille::after{
-    content:"";position:absolute;left:12%;top:12%;width:1px;height:110%;
-    background:rgba(124,255,79,.45);transform:rotate(-45deg);transform-origin:top left;
-  }
-  .jardin .f1{left:5%;width:22px;height:22px;animation-duration:34s;animation-delay:-6s;}
-  .jardin .f2{left:21%;width:32px;height:32px;animation-duration:46s;animation-delay:-20s;opacity:.25;}
-  .jardin .f3{left:43%;width:18px;height:18px;animation-duration:30s;animation-delay:-11s;}
-  .jardin .f4{left:62%;width:36px;height:36px;animation-duration:50s;animation-delay:-30s;opacity:.2;}
-  .jardin .f5{left:80%;width:24px;height:24px;animation-duration:40s;animation-delay:-15s;}
-  .jardin .f6{left:93%;width:20px;height:20px;animation-duration:44s;animation-delay:-33s;opacity:.28;}
-  @keyframes pousse{
-    from{transform:translate3d(0,8vh,0) rotate(0deg);}
-    to{transform:translate3d(5vw,-118vh,0) rotate(230deg);}
-  }
+  .jardin .feuille{display:none;}
 
   /* --- fond de page --- */
   [data-theme="bloom"] body{
     background:
-      radial-gradient(1000px 640px at 86% -12%,rgba(255,46,154,.14),transparent 62%),
-      radial-gradient(900px 600px at -8% 104%,rgba(124,255,79,.09),transparent 62%),
+      radial-gradient(1100px 700px at 84% -12%,rgba(255,106,176,.28),transparent 60%),
+      radial-gradient(1000px 680px at -6% 8%,rgba(108,59,255,.18),transparent 58%),
+      radial-gradient(900px 620px at 20% 102%,rgba(99,210,255,.22),transparent 60%),
       var(--bg);
     background-attachment:fixed;
   }
-  [data-theme="bloom"] .trame{
-    background-image:
-      linear-gradient(var(--trame) 1px,transparent 1px),
-      linear-gradient(90deg,var(--trame) 1px,transparent 1px);
-    background-size:56px 56px;
-  }
+  [data-theme="bloom"] .trame{background-size:120px 120px;}
+  [data-theme="bloom"] .halo{filter:blur(30px);}
 
-  /* --- typographie : titrage technique, etiquettes en chasse fixe --- */
+  /* --- typographie : grands titres serres, respiration --- */
   [data-theme="bloom"] :is(h1,h2,h3,h4,.logo,.prixbloc .p,.preuveline .k,.flotc .k,.opt .op,.step .n,.panier,.noeud,.formule h3,.ucard h3){
-    font-family:'Chakra Petch','Archivo',system-ui,sans-serif;
+    font-family:'Inter','Archivo',system-ui,sans-serif;
   }
-  [data-theme="bloom"] :is(h1,h2){letter-spacing:-.015em;}
-  [data-theme="bloom"] :is(.st,.prixbloc .lab,.drop .dt,.board .col h4,.ucard .uphoto .tag,.zero,.hint,.piste span,.board .btop .live,.carte .ctop .o,.msg .h,.dessous,.final .rep,footer){
-    font-family:'Space Mono','Archivo',ui-monospace,monospace;
-  }
-  [data-theme="bloom"] :is(.piste span,.dessous,.final .rep,footer){
-    text-transform:uppercase;letter-spacing:.1em;font-size:.76rem;
-  }
-  [data-theme="bloom"] .hint{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;color:var(--acide);}
+  [data-theme="bloom"] .hero h1{font-size:clamp(2.5rem,5.6vw,4.3rem);letter-spacing:-.045em;line-height:.98;}
+  [data-theme="bloom"] h2{font-size:clamp(2rem,3.6vw,3.1rem);letter-spacing:-.04em;line-height:1.02;}
+  [data-theme="bloom"] .lead{font-size:1.06rem;line-height:1.6;}
 
-  /* surtitres : losange, texte vert acide, et un petit code barre au bout */
-  [data-theme="bloom"] .st{color:var(--acide);letter-spacing:.2em;}
-  [data-theme="bloom"] .st::before{
-    border-radius:0;background:var(--acide);
-    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);width:9px;height:9px;
-  }
-  [data-theme="bloom"] .st::after{
-    content:"";width:52px;height:10px;flex-shrink:0;opacity:.55;
-    background:repeating-linear-gradient(90deg,var(--acide) 0 2px,transparent 2px 5px);
-  }
-
-  /* --- les mots accentues passent en rose neon --- */
+  /* les mots accentues prennent le degrade aurora */
   [data-theme="bloom"] :is(.hero h1 .ac,h2 .ac,.logo i){
-    color:var(--rose);-webkit-text-fill-color:var(--rose);background:none;
-    text-shadow:0 0 26px rgba(255,46,154,.55);
+    background:linear-gradient(100deg,var(--violet),var(--rose) 52%,var(--ciel));
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;-webkit-text-fill-color:transparent;
   }
   [data-theme="bloom"] .hero h1 .ac::after{
-    background:var(--rose);opacity:.75;height:.08em;
-    box-shadow:0 0 14px rgba(255,46,154,.9);
+    background:linear-gradient(90deg,var(--violet),var(--rose));opacity:.28;height:.1em;border-radius:99px;
   }
-  [data-theme="bloom"] .fantome,[data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke-width:1.2px;}
+  /* le mot fantome du hero, tres grand et tres doux, comme sur les references */
+  [data-theme="bloom"] .fantome{
+    -webkit-text-stroke:0;color:rgba(108,59,255,.09);
+    font-size:11rem;letter-spacing:-.06em;
+  }
+  [data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke:0;color:rgba(108,59,255,.07);}
 
-  /* --- barre de navigation --- */
+  /* surtitre : petite pastille de verre */
+  [data-theme="bloom"] .st{
+    display:inline-flex;color:var(--violet);background:rgba(255,255,255,.7);
+    border:1px solid rgba(255,255,255,.9);box-shadow:0 8px 22px -14px rgba(76,40,160,.5);
+    padding:7px 14px 7px 12px;border-radius:999px;backdrop-filter:blur(10px);letter-spacing:.12em;
+  }
+  [data-theme="bloom"] .st::before{background:linear-gradient(140deg,var(--violet),var(--rose));}
+
+  /* --- barre de navigation, verre blanc --- */
   [data-theme="bloom"] nav{
-    background:rgba(7,6,10,.72);backdrop-filter:blur(18px) saturate(140%);
+    background:rgba(255,255,255,.62);backdrop-filter:blur(22px) saturate(160%);
   }
   [data-theme="bloom"] nav.colle{
-    border-bottom-color:rgba(124,255,79,.28);
-    box-shadow:0 18px 40px -34px rgba(255,46,154,.6);
+    border-bottom-color:rgba(255,255,255,.9);
+    box-shadow:0 20px 44px -40px rgba(76,40,160,.8);
   }
-  [data-theme="bloom"] nav .links a{font-family:'Space Mono',monospace;text-transform:uppercase;font-size:.78rem;letter-spacing:.08em;}
-  [data-theme="bloom"] nav .links a::after{background:var(--acide);box-shadow:0 0 10px rgba(124,255,79,.8);}
-  [data-theme="bloom"] .bascul{border-radius:0;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px));background:#120A18;}
-  [data-theme="bloom"] .bascul .bille{border-radius:0;background:var(--rose);}
+  [data-theme="bloom"] nav .links a{padding:8px 14px;border-radius:999px;transition:background .25s ease,color .25s ease;}
+  [data-theme="bloom"] nav .links a::after{display:none;}
+  [data-theme="bloom"] nav .links a:hover{background:rgba(108,59,255,.09);color:var(--pop);}
+  [data-theme="bloom"] .bascul{background:#fff;border-color:var(--rule);}
+  [data-theme="bloom"] .bascul .bille{background:linear-gradient(140deg,var(--violet),var(--rose));}
 
-  /* --- boutons : coins coupes, halo neon --- */
-  [data-theme="bloom"] .btn{
-    border-radius:0;font-family:'Chakra Petch',sans-serif;letter-spacing:.04em;
-    clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
-  }
+  /* --- boutons : pastilles nettes, un seul bouton plein par ecran --- */
+  [data-theme="bloom"] .btn{border-radius:999px;font-weight:700;padding:15px 30px;}
   [data-theme="bloom"] .btn.wa{
-    background:var(--wa);color:var(--wa-ink);box-shadow:none;
-    filter:drop-shadow(0 0 14px rgba(124,255,79,.45));
+    background:linear-gradient(135deg,#19D873,#0FAE5C);color:#fff;
+    box-shadow:0 18px 38px -18px rgba(15,174,92,.95);
   }
   [data-theme="bloom"] .btn.wa:hover{
-    background:var(--wa-hover);filter:drop-shadow(0 0 22px rgba(124,255,79,.75));
+    background:linear-gradient(135deg,#25E882,#12BD65);
+    box-shadow:0 24px 50px -18px rgba(15,174,92,1);
   }
   [data-theme="bloom"] .btn.dark{
-    background:var(--rose);color:#14000B;
-    filter:drop-shadow(0 0 16px rgba(255,46,154,.5));
+    background:#150E26;color:#fff;box-shadow:0 18px 38px -20px rgba(21,14,38,.9);
   }
   [data-theme="bloom"] .btn.ghost{
-    border-color:rgba(124,255,79,.45);color:var(--ink);background:rgba(124,255,79,.05);
+    background:rgba(255,255,255,.75);border-color:rgba(255,255,255,.95);color:var(--ink);
+    backdrop-filter:blur(12px);box-shadow:0 14px 30px -20px rgba(76,40,160,.6);
   }
-  [data-theme="bloom"] .btn.ghost:hover{border-color:var(--acide);color:var(--acide);}
+  [data-theme="bloom"] .btn.ghost:hover{border-color:rgba(108,59,255,.4);color:var(--pop);}
 
-  /* --- les cartes deviennent des cadres de releve --- */
-  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.board,.carte,.faqbox,.phone,.flotc){
-    background:var(--surface);border:1px solid var(--rule);border-radius:0;
-    clip-path:var(--encoche);
+  /* --- cartes de verre --- */
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.board,.carte,.faqbox,.drop,.phone,.flotc){
+    background:var(--verre);border:1px solid var(--verre-bord);border-radius:var(--r);
+    backdrop-filter:blur(18px) saturate(140%);
+    box-shadow:0 30px 60px -38px rgba(76,40,160,.5);
   }
-  /* la carte qui tombe garde sa pastille de notification, donc pas de decoupe */
-  [data-theme="bloom"] .drop{border-color:var(--acide);border-radius:0;background:rgba(21,17,31,.92);}
-  [data-theme="bloom"] .drop .dt{color:var(--acide);}
-  [data-theme="bloom"] .noeud{box-shadow:0 0 0 6px rgba(255,46,154,.12),0 0 22px rgba(124,255,79,.55);}
-  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.carte,.board):hover,
-  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard):hover{
-    border-color:var(--rose);
-    box-shadow:inset 0 0 44px -18px rgba(255,46,154,.55);
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.carte):hover{
+    border-color:rgba(255,255,255,1);
+    box-shadow:0 40px 80px -36px rgba(76,40,160,.6);
   }
-  [data-theme="bloom"] .flotc{
-    background:rgba(14,12,20,.86);backdrop-filter:blur(8px);border-color:rgba(124,255,79,.3);
+  [data-theme="bloom"] .phone{border-radius:34px;background:rgba(255,255,255,.88);}
+  [data-theme="bloom"] .drop{border-radius:20px;}
+  [data-theme="bloom"] .flotc{border-radius:18px;}
+  [data-theme="bloom"] .noeud{
+    background:linear-gradient(140deg,var(--violet),var(--rose));color:#fff;
+    box-shadow:0 0 0 8px rgba(108,59,255,.10),0 16px 30px -16px rgba(108,59,255,.9);
   }
-  [data-theme="bloom"] .step .n,[data-theme="bloom"] .opt .op{color:var(--acide);}
-  [data-theme="bloom"] .mod:hover,[data-theme="bloom"] .ucard:hover{border-color:var(--acide);}
-  [data-theme="bloom"] .phone{clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,26px 100%,0 calc(100% - 26px));border-color:var(--phone-rule);}
-  [data-theme="bloom"] .board .col h4 b{color:var(--acide);}
-  [data-theme="bloom"] .ticket.hot{border-color:var(--rose);box-shadow:0 0 0 1px rgba(255,46,154,.3);}
+  [data-theme="bloom"] .step .n,[data-theme="bloom"] .opt .op{
+    background:linear-gradient(120deg,var(--violet),var(--rose));
+    -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  }
+  [data-theme="bloom"] .bandeau{
+    background:rgba(255,255,255,.55);border-color:var(--verre-bord);backdrop-filter:blur(14px);
+  }
+  [data-theme="bloom"] .piste span::after{background:linear-gradient(140deg,var(--violet),var(--rose));}
+  [data-theme="bloom"] ul.pts li::before{background:linear-gradient(140deg,var(--violet),var(--rose));}
+  [data-theme="bloom"] .ucard li::before{background:var(--pop);}
 
-  /* --- les puces rondes deviennent des losanges de donnee --- */
-  [data-theme="bloom"] .piste span::after,
-  [data-theme="bloom"] ul.pts li::before,
-  [data-theme="bloom"] .ucard li::before,
-  [data-theme="bloom"] .formule li::before,
-  [data-theme="bloom"] .zero::before{
-    border-radius:0;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);width:9px;height:9px;
-  }
-  [data-theme="bloom"] .piste span::after{background:var(--acide);}
-  [data-theme="bloom"] ul.pts li::before{background:var(--acide);}
-
-  /* --- l'etape mise en avant : le bloc rose de l'affiche --- */
+  /* --- l'etape mise en avant : le bloc degrade --- */
   [data-theme="bloom"] .step.hot{
-    background:var(--rose);border-color:var(--rose);color:#14000B;
+    background:linear-gradient(140deg,var(--violet),#9A47FF 46%,var(--rose));
+    border-color:transparent;color:#fff;
+    box-shadow:0 40px 80px -34px rgba(108,59,255,.9);
   }
-  [data-theme="bloom"] .step.hot :is(.n,h3){color:#14000B;-webkit-text-fill-color:#14000B;text-shadow:none;}
-  [data-theme="bloom"] .step.hot p{color:rgba(20,0,11,.78);}
+  [data-theme="bloom"] .step.hot :is(.n,h3){color:#fff;-webkit-text-fill-color:#fff;background:none;}
+  [data-theme="bloom"] .step.hot p{color:rgba(255,255,255,.86);}
   [data-theme="bloom"] .step.hot::before{background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.3),transparent 70%);}
-  [data-theme="bloom"] .step.hot:hover{box-shadow:none;border-color:var(--rose);}
 
-  /* --- le bloc tarif : fiche technique --- */
+  /* --- le bloc tarif : degrade aurora, prix sur carte de verre blanche --- */
   [data-theme="bloom"] .formule{
-    background:linear-gradient(150deg,#0B1710,#0A0910 60%);
-    border:1px solid rgba(124,255,79,.4);color:var(--ink);
-    box-shadow:inset 0 0 70px -30px rgba(124,255,79,.4);
-    border-radius:0;clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,26px 100%,0 calc(100% - 26px));
+    background:linear-gradient(140deg,var(--violet),#9A47FF 44%,var(--rose));
+    border-color:transparent;color:#fff;
+    box-shadow:0 50px 100px -44px rgba(108,59,255,.95);
   }
-  [data-theme="bloom"] .formule li{border-top-color:rgba(124,255,79,.18);}
-  [data-theme="bloom"] .formule li::before{background:var(--acide);}
+  [data-theme="bloom"] .formule .sous{opacity:.88;}
+  [data-theme="bloom"] .formule li{border-top-color:rgba(255,255,255,.22);}
+  [data-theme="bloom"] .formule li::before{background:#fff;}
   [data-theme="bloom"] .prixbloc{
-    background:#0A0910;border:1px solid var(--rose);border-radius:0;
-    clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
-    box-shadow:inset 0 0 50px -22px rgba(255,46,154,.7);
+    background:rgba(255,255,255,.92);color:var(--ink);border-radius:20px;
+    border:1px solid rgba(255,255,255,.95);backdrop-filter:blur(16px);
+    box-shadow:0 30px 60px -34px rgba(21,14,38,.6);
   }
-  [data-theme="bloom"] .prixbloc .lab{color:var(--acide);opacity:.85;letter-spacing:.2em;}
+  [data-theme="bloom"] .prixbloc .lab{color:var(--muted);opacity:1;}
   [data-theme="bloom"] .prixbloc .p{
-    color:var(--rose);-webkit-text-fill-color:var(--rose);background:none;
-    text-shadow:0 0 30px rgba(255,46,154,.6);
+    background:linear-gradient(100deg,var(--violet),var(--rose));
+    -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
   }
-  [data-theme="bloom"] .zero{border-color:rgba(124,255,79,.35);background:rgba(124,255,79,.07);}
-  [data-theme="bloom"] .zero::before{background:var(--acide);}
-  [data-theme="bloom"] .tarifnote b{color:var(--acide);}
+  [data-theme="bloom"] .prixbloc .p small{-webkit-text-fill-color:var(--muted);}
+  [data-theme="bloom"] .prixbloc .d{color:var(--muted);opacity:1;}
+  [data-theme="bloom"] .prixbloc .filet{border-top-color:var(--rule);}
+  [data-theme="bloom"] .zero{
+    background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);color:#fff;
+  }
+  [data-theme="bloom"] .zero::before{background:#fff;}
+  [data-theme="bloom"] .tarifnote b{color:var(--pop);}
 
   /* --- questions, mascotte, details --- */
-  [data-theme="bloom"] .faqbox{clip-path:var(--encoche);}
-  [data-theme="bloom"] summary::after{color:var(--acide);}
-  [data-theme="bloom"] summary:hover{color:var(--acide);}
-  [data-theme="bloom"] .flo .joue{fill:var(--rose);opacity:.45;}
-  [data-theme="bloom"] .flo .interro{fill:var(--rose);}
-  [data-theme="bloom"] .flot{filter:drop-shadow(0 0 16px rgba(124,255,79,.5));}
-  [data-theme="bloom"] .mot{border-color:rgba(255,46,154,.4);background:rgba(14,12,20,.95);}
-  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,#0E3B18,#14000B);}
-  [data-theme="bloom"] .ucard .uphoto img{opacity:.6;filter:saturate(.7) contrast(1.1);transition:opacity .5s ease,transform .6s ease;}
-  [data-theme="bloom"] .ucard:hover .uphoto img{opacity:.85;}
-  [data-theme="bloom"] .prod .ph img{filter:saturate(.8) contrast(1.05);}
-
-  /* --- traces et courbes : signal --- */
-  [data-theme="bloom"] .lien-svg path,[data-theme="bloom"] .courbe svg.ligne path{
-    stroke:var(--acide);filter:drop-shadow(0 0 6px rgba(124,255,79,.7));
+  [data-theme="bloom"] summary::after{color:var(--pop);}
+  [data-theme="bloom"] .flo .joue{fill:var(--violet);opacity:.22;}
+  [data-theme="bloom"] .flo .interro{fill:var(--violet);}
+  [data-theme="bloom"] .flot{box-shadow:0 18px 40px -18px rgba(15,174,92,.9);}
+  [data-theme="bloom"] .mot{
+    background:rgba(255,255,255,.9);border-color:var(--verre-bord);backdrop-filter:blur(14px);
+    box-shadow:0 24px 50px -30px rgba(76,40,160,.6);
   }
-  [data-theme="bloom"] .lien-svg circle{fill:var(--acide);}
+  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,var(--violet),var(--rose));}
+  [data-theme="bloom"] .ring{border-color:rgba(108,59,255,.35);}
 
-  /* --- l'aura du telephone dans le hero --- */
+  /* --- l'aura derriere le telephone du hero --- */
   [data-theme="bloom"] .scene::before{
-    content:"";position:absolute;inset:-14% -18%;z-index:0;border-radius:50%;
-    background:conic-gradient(from 200deg,rgba(255,46,154,.38),rgba(124,255,79,.22),rgba(255,46,154,.38));
-    filter:blur(58px);animation:tourne 30s linear infinite;
+    content:"";position:absolute;inset:-18% -24%;z-index:0;border-radius:50%;
+    background:conic-gradient(from 210deg,rgba(255,106,176,.55),rgba(108,59,255,.45),rgba(99,210,255,.5),rgba(255,106,176,.55));
+    filter:blur(64px);animation:tourne 32s linear infinite;
   }
   @keyframes tourne{to{transform:rotate(360deg);}}
-  /* le cadre de visee autour de la scene, comme sur un releve */
-  [data-theme="bloom"] .scene::after{
-    content:"";position:absolute;inset:-22px -18px;z-index:1;pointer-events:none;
-    background:
-      linear-gradient(var(--acide),var(--acide)) 0 0/22px 1px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 0 0/1px 22px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 100% 0/22px 1px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 100% 0/1px 22px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 0 100%/22px 1px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 0 100%/1px 22px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 100% 100%/22px 1px no-repeat,
-      linear-gradient(var(--acide),var(--acide)) 100% 100%/1px 22px no-repeat;
-    opacity:.5;
-  }
 
   @media(prefers-reduced-motion:reduce){
-    .jardin .feuille,.jardin .nuee,.jardin .n3,[data-theme="bloom"] .scene::before,[data-theme="bloom"] .fleur svg{animation:none;}
-    .jardin .n3{opacity:0;}
+    .jardin .nuee,[data-theme="bloom"] .scene::before,[data-theme="bloom"] .fleur svg{animation:none;}
     .voile{display:none;}
   }
 
   @media(max-width:900px){
-    .jardin .reseau{opacity:.4;}
-    .jardin .f2,.jardin .f4,.jardin .f6{display:none;}
-    [data-theme="bloom"] .scene::before{filter:blur(40px);}
-    [data-theme="bloom"] .scene::after{inset:-14px -10px;}
+    .jardin .reseau{opacity:.3;}
+    [data-theme="bloom"] .scene::before{filter:blur(44px);}
+    [data-theme="bloom"] .fantome{font-size:5.5rem;}
+    [data-theme="bloom"] .btn{padding:14px 26px;}
   }
 
   @media(max-width:1000px){
@@ -1136,15 +1064,16 @@
         <svg class="lune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         <svg class="soleil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
-      <button class="fleur" id="fleur" type="button" aria-pressed="false" aria-label="Activer la direction artistique Néo-Bloom" title="Néo-Bloom, la version rose et verdure du site">
+      <button class="fleur" id="fleur" type="button" aria-pressed="false" aria-label="Activer la direction artistique Aurora" title="Aurora, la version claire et lumineuse du site">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <g fill="currentColor">
-            <ellipse cx="12" cy="5.4" rx="3" ry="4"/>
-            <ellipse cx="12" cy="18.6" rx="3" ry="4"/>
-            <ellipse cx="5.4" cy="12" rx="4" ry="3"/>
-            <ellipse cx="18.6" cy="12" rx="4" ry="3"/>
-          </g>
-          <circle class="pistil" cx="12" cy="12" r="3.1" fill="currentColor" opacity=".55"/>
+          <defs>
+            <linearGradient id="gOrbe" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#6C3BFF"/><stop offset=".55" stop-color="#FF6AB0"/><stop offset="1" stop-color="#5BC8FF"/>
+            </linearGradient>
+          </defs>
+          <circle cx="12" cy="12.6" r="7.4" fill="url(#gOrbe)"/>
+          <circle cx="9.7" cy="10.2" r="2.4" fill="#fff" opacity=".55"/>
+          <path d="M18.4 3.2 L19.3 5.4 L21.5 6.3 L19.3 7.2 L18.4 9.4 L17.5 7.2 L15.3 6.3 L17.5 5.4 Z" fill="currentColor"/>
         </svg>
       </button>
       <a class="btn wa" href="https://wa.me/590690938108?text=Bonjour%20PFlow%2C%20je%20veux%20en%20savoir%20plus%20sur%20PFlow%20Order%20pour%20mon%20restaurant.">Discuter</a>
@@ -1640,7 +1569,7 @@
   function daPolices(){ /* les polices de la DA bloom ne se chargent qu'a la premiere activation */
     if(document.getElementById("police-bloom")){return;}
     var l=document.createElement("link");l.rel="stylesheet";l.id="police-bloom";
-    l.href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap";
+    l.href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
     document.head.appendChild(l);
   }
   function daMaj(){
@@ -1648,7 +1577,7 @@
     if(bascul){bascul.setAttribute("aria-label",t==="bloom"?"Revenir au th\u00e8me "+daSocle():(t==="clair"?"Passer en th\u00e8me sombre":"Passer en th\u00e8me clair"));}
     if(fleur){
       fleur.setAttribute("aria-pressed",t==="bloom"?"true":"false");
-      fleur.setAttribute("aria-label",t==="bloom"?"Quitter la direction artistique N\u00e9o-Bloom":"Activer la direction artistique N\u00e9o-Bloom");
+      fleur.setAttribute("aria-label",t==="bloom"?"Quitter la direction artistique Aurora":"Activer la direction artistique Aurora");
     }
   }
   function daOnde(source){ /* le voile rose part du bouton clique */

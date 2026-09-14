@@ -1,59 +1,56 @@
-PFLOW.FR, HOME V8 : LES BOUTONS REPARES + NEO-BLOOM VERSION BLOOM SYSTEM
-=========================================================================
+PFLOW.FR, HOME V9 : DA AURORA, LUMINEUSE ET ORIENTEE VENTE
+===========================================================
 
 OU POSER LE FICHIER (repo btprecruit-crm)
 -----------------------------------------
 site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
 NOTICE.txt        -> remplace la notice a la racine.
 
-Zip CUMULATIF : tout ce qui existait est dedans. Aucun texte, aucune rubrique,
-aucun prix n'a bouge. Uniquement le correctif et l'habillage.
+Zip CUMULATIF : le correctif des boutons de la v8 est dedans. Aucun texte,
+aucune rubrique, aucun prix n'a bouge.
 
-1. LE CORRECTIF DES BOUTONS
----------------------------
-Les deux boutons de theme ne repondaient plus depuis la derniere livraison.
-Cause : ma fonction de bascule s'appelait pose(), et il existait deja une
-fonction pose() plus bas dans le script, celle qui range les tickets dans les
-colonnes du dashboard. Les deux vivaient dans le meme espace de noms, la
-deuxieme ecrasait la premiere, et chaque clic partait donc dans la mauvaise
-fonction et s'arretait sur une erreur.
-Toutes mes fonctions de theme sont maintenant prefixees daPose, daCourante,
-daSocle, daMaj, daOnde, daPolices. Plus aucune collision possible.
-Verifie en simulation : sombre vers bloom, bloom vers sombre, et l'interrupteur
-lune / soleil qui fait sortir du bloom. Les trois chemins repondent.
+CE QUI CHANGE
+-------------
+La troisieme DA n'est plus la planche de scan noire : elle devient AURORA,
+claire, en verre et en degrades, dans l'esprit des references envoyees
+(Spacecloud, Visiora, Nicolai, Nike Cloud).
+Et elle est passee EN DA PAR DEFAUT : un visiteur qui arrive sur pflow.fr
+voit Aurora. Les themes sombre et clair restent disponibles avec
+l'interrupteur lune / soleil, le bouton orbe ramene a Aurora.
+Pour revenir a l'ancien defaut : ligne 2 du fichier, remplacer
+data-theme="bloom" par data-theme="sombre". Rien d'autre a toucher.
 
-2. LA DA REPRISE SUR TES INSPIRATIONS
--------------------------------------
-Tes references disent toutes la meme chose : fond noir, rose neon, vert acide,
-chasse fixe, cadres de releve, grilles fines, planche de scan botanique.
-Neo-Bloom passe donc du rose pale a une fiche de scan. Le rose porte la marque,
-le vert acide porte la donnee, et les deux ne se melangent jamais.
+POURQUOI CE CHOIX POUR VENDRE
+-----------------------------
+Un restaurateur qui ouvre le site doit comprendre en trois secondes. Le fond
+sombre faisait technique et studio ; le fond clair fait produit et confiance,
+c'est ce que font toutes les references envoyees. Le titre est plus gros et
+plus serre, la promesse arrive plus vite, et il n'y a plus qu'un seul bouton
+plein par ecran, toujours le vert WhatsApp : c'est lui qui doit etre clique.
 
-Ce que ca donne :
-- Fond noir violace, deux lueurs, une grille double (large et fine), une ligne
-  de scan verte qui descend lentement, un grain d'impression et une vignette.
-- Feuilles en fil de fer, contour vert et nervure, qui remontent en fond.
-  C'est le releve botanique de tes affiches, pas de la deco pleine.
-- Titres en Chakra Petch, technique et anguleux. Surtitres, etiquettes, prix,
-  bandeau, pied de page et liens du menu en Space Mono majuscule espacee.
-- Chaque surtitre est precede d'un losange vert et suivi d'un petit code barre.
-- Cartes, tarifs, telephone et bloc questions : coins coupes en diagonale,
-  filet d'un pixel, lueur interieure au survol. Boutons coupes de la meme facon,
-  avec un halo neon autour.
-- Bloc tarif en fiche technique verte, prix en rose neon avec lueur.
-- L'etape mise en avant devient le bloc rose plein de tes affiches.
-- Autour du telephone du hero : une aura qui tourne et quatre equerres de visee,
-  comme un sujet en cours de scan.
-- Les puces rondes du site sont devenues des losanges de donnee.
-- Flo reste lui-meme, en vert acide, avec les joues roses.
+L'HABILLAGE
+-----------
+- Fond degrade rose, violet et bleu, avec trois nappes qui derivent lentement
+  et une grille tres fine, comme un ciel.
+- Titres en Inter, tres grands et tres serres. Les mots accentues sont remplis
+  du degrade violet vers rose vers bleu.
+- Les surtitres deviennent des pastilles de verre.
+- Toutes les cartes sont en verre blanc : flou d'arriere plan, filet blanc,
+  ombre coloree douce, coins arrondis a 26 px.
+- Boutons en pastille pleine. Le WhatsApp est un degrade vert avec son ombre
+  portee, le secondaire est une pastille de verre, le bouton du bloc prix est
+  noir profond.
+- Le bloc tarif passe en degrade aurora plein, avec le prix pose sur une carte
+  de verre blanche, en degrade lui aussi. L'etape mise en avant suit le meme
+  degrade.
+- Une aura coloree tourne lentement derriere le telephone du hero.
+- Flo garde son vert WhatsApp, avec les joues violettes.
 
 Tout s'arrete si le visiteur a demande moins d'animations dans son systeme.
-Sur telephone, la grille est attenuee et il ne reste que trois feuilles.
 
 POUR RETOUCHER
 --------------
-Les couleurs sont dans le bloc CSS " THEME NEO-BLOOM " en haut du fichier.
-Les deux valeurs qui commandent tout sont en bas du bloc : --rose et --acide.
-La forme des coins coupes est dans --encoche, une seule ligne pour tout le site.
-La couche de scan est dans le bloc " la couche de scan " : lueurs, grille,
-ligne qui balaie, feuilles. En supprimer une est sans risque.
+Les couleurs sont dans le bloc CSS " DA AURORA " en haut du fichier. Les trois
+valeurs qui commandent tout sont en bas du bloc : --violet, --rose, --ciel.
+Les nappes de fond sont dans le bloc " la couche d'ambiance " : une ligne par
+nappe, taille, position, duree.
