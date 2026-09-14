@@ -109,10 +109,6 @@
   .hero{padding:74px 0 88px;position:relative;overflow:hidden;}
   .hero .halo{top:-180px;right:-180px;width:620px;height:620px;}
   .hero .wrap{display:grid;grid-template-columns:1.02fr .98fr;gap:48px;align-items:center;}
-  .zone{
-    font-size:.76rem;font-weight:700;color:var(--mint);
-    letter-spacing:.14em;text-transform:uppercase;margin-bottom:20px;
-  }
   .hero h1{
     font-size:3.5rem;font-weight:800;letter-spacing:-.04em;line-height:1.02;
     margin-bottom:26px;
@@ -136,7 +132,7 @@
 
   /* scene hero */
   .scene{position:relative;max-width:380px;margin:0 auto;}
-  .ghost{
+  .fantome{
     position:absolute;top:2%;right:-32%;z-index:0;
     font-size:8.5rem;font-weight:800;letter-spacing:-.05em;
     color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.08);
@@ -464,7 +460,7 @@
   .final{padding:110px 0 120px;position:relative;overflow:hidden;text-align:center;}
   .final .halo{bottom:-260px;left:50%;margin-left:-320px;width:640px;height:640px;}
   .final h2{max-width:20ch;margin:0 auto;}
-  .final .ghostbig{
+  .final .fantome-xl{
     position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:0;
     font-size:15vw;font-weight:800;letter-spacing:-.05em;white-space:nowrap;
     color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.05);
@@ -489,7 +485,7 @@
     .hero{padding:48px 0 64px;}
     .hero h1{font-size:2.4rem;}
     .hero .wrap{gap:54px;}
-    .ghost{font-size:5rem;right:-10%;}
+    .fantome{font-size:5rem;right:-10%;}
     .drop{left:auto;right:-6px;bottom:-26px;width:212px;}
     .steps,.tarifs,.modules,.usages{grid-template-columns:1fr;}
     .step.hot,.offre.pack{transform:none;}
@@ -500,7 +496,7 @@
     .courbe svg.ligne,.courbe .noeud{display:none;}
     .flotc{position:static;max-width:none;opacity:1;transform:none;}
     .final{padding:74px 0 84px;}
-    .final .ghostbig{font-size:22vw;}
+    .final .fantome-xl{font-size:22vw;}
   }
   @media(prefers-reduced-motion:reduce){
     .rv{opacity:1;transform:none;transition:none;}
@@ -541,7 +537,7 @@
   <div class="halo"></div>
   <div class="wrap">
     <div>
-      <div class="zone">Restaurants, snacks et food trucks de Guadeloupe</div>
+      <div class="st">Restaurants, snacks et food trucks de Guadeloupe</div>
       <h1>Vos clients <span class="ac">commandent</span><br>tout seuls.<br><span class="gr">Vous ne perdez plus</span> une vente.</h1>
       <div class="sep"></div>
       <div class="preuveline">
@@ -560,7 +556,7 @@
     </div>
 
     <div class="scene">
-      <div class="ghost" aria-hidden="true">ORDER</div>
+      <div class="fantome" aria-hidden="true">ORDER</div>
       <svg class="lien-svg" viewBox="0 0 520 620" aria-hidden="true">
         <path d="M30 470 C 30 300, 150 250, 300 250 C 430 250, 470 180, 470 80"/>
         <circle cx="30" cy="470" r="7"/>
@@ -911,7 +907,7 @@
 </section>
 
 <section class="final">
-  <div class="ghostbig" aria-hidden="true">PFLOW ORDER</div>
+  <div class="fantome-xl" aria-hidden="true">PFLOW ORDER</div>
   <div class="halo"></div>
   <div class="wrap">
     <div class="st rv">On démarre ?</div>

@@ -1,33 +1,38 @@
-PFLOW.FR, HOME V2 (ARCHITECTURE LANDING)
-========================================
+PFLOW.FR, HOME V2.1 (ARCHITECTURE LANDING + CORRECTIF)
+======================================================
 
-OU POSER LES FICHIERS (repo btprecruit-crm)
--------------------------------------------
-site/index.html   -> remplace le fichier site/index.html existant. C'est le seul fichier modifie.
-                     Rien d'autre a toucher : le dossier site/images/ et les 6 photos ne bougent pas,
-                     les memes noms de fichiers sont utilises.
+OU POSER LE FICHIER (repo btprecruit-crm)
+-----------------------------------------
+site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
+                     Le dossier site/images/ ne bouge pas, memes noms de photos.
 
-Sur GitHub : ouvrir le repo, aller dans le dossier site/, glisser index.html par dessus,
-commit. Vercel redeploie tout seul (projet btprecruit-crm-k7zd, Root Directory = site/).
+Sur GitHub : ouvrir le repo, entrer dans le dossier site/, Add file > Upload files,
+glisser index.html par dessus, commit. Vercel redeploie tout seul.
+(Le NOTICE.txt pousse tout a l'heure a la racine du repo peut etre supprime, il ne sert
+qu'a la livraison.)
 
-CE QUI A CHANGE
----------------
-Architecture seulement. Zero texte commercial perdu, zero prix change, memes liens WhatsApp,
-memes photos, memes animations (conversation WhatsApp, panier cliquable, dashboard vivant).
+CORRECTIF DE CETTE VERSION
+--------------------------
+Deux collisions de noms de classe CSS qui cassaient l'affichage :
+1. La typo fantome du fond utilisait la classe .ghost, deja portee par le bouton
+   secondaire .btn.ghost. Resultat : "Voir la demo en direct" affiche en 8,5 rem
+   avec un contour ovale geant au milieu du hero. La typo fantome s'appelle
+   maintenant .fantome et .fantome-xl.
+2. L'accroche du hero utilisait la classe .zone, deja portee par les colonnes du
+   dashboard anime. Resultat : tickets de commande en vert menthe et en majuscules.
+   L'accroche utilise maintenant .st, comme les autres sur-titres.
 
+Rien d'autre n'a bouge par rapport a la v2 : memes textes, memes prix, memes liens
+WhatsApp, memes photos, memes animations.
+
+RAPPEL DE L'ARCHITECTURE V2
+---------------------------
 1. Nav : liens centres, bouton pilule a droite.
-2. Hero : titre en trois niveaux de couleur (blanc / vert / gris), filet de separation,
-   bloc preuve "7 jours", pastille ronde + paragraphe, telephone relie a la carte flottante
-   par une courbe qui se trace, mot fantome "ORDER" en fond, trame quadrillee.
-3. Section 01 / 02 / 03 : trois cartes, celle du milieu en aplat vert et surelevee.
-4. Chaque section demarre par un titre a gauche et son paragraphe a droite.
-5. Section gains : courbe montante avec noeuds et trois cartes chiffrees flottantes,
-   texte et CTA a droite.
-6. Tarifs : le Pack complet passe au centre, en aplat vert surleve.
-7. FAQ regroupee dans un bloc encadre, section finale centree avec typo fantome.
-8. Tout est en coins arrondis, boutons en pilule.
-
-MOBILE
-------
-Les elements flottants (courbe, noeuds) disparaissent sous 900 px et les cartes chiffrees
-repassent en liste simple. Les cartes surelevees redeviennent alignees.
+2. Hero : titre a trois niveaux de couleur, filet, bloc "7 jours", pastille + paragraphe,
+   telephone relie a la carte flottante par une courbe tracee, mot fantome ORDER en fond,
+   trame quadrillee.
+3. Section 01 / 02 / 03, celle du milieu en aplat vert surelevee.
+4. Chaque section : titre a gauche, paragraphe a droite.
+5. Section gains : courbe montante a noeuds + trois cartes chiffrees flottantes.
+6. Tarifs : Pack complet au centre, aplat vert sureleve.
+7. FAQ encadree, section finale centree avec typo fantome.
