@@ -17,7 +17,12 @@
   (function(){
     try{
       var t=localStorage.getItem("pflow-theme");
-      if(t==="clair"||t==="sombre"){document.documentElement.setAttribute("data-theme",t);}
+      if(t==="clair"||t==="sombre"||t==="bloom"){document.documentElement.setAttribute("data-theme",t);}
+      if(t==="bloom"){
+        var l=document.createElement("link");l.rel="stylesheet";
+        l.href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@700&display=swap";
+        l.id="police-bloom";document.head.appendChild(l);
+      }
     }catch(e){}
   })();
 </script>
@@ -90,6 +95,47 @@
     --lien-rule:#A6E5C4;
     --lien-ink:#0B6B45;
     --shine:rgba(255,255,255,.55);
+  }
+  /* ============ THEME NEO-BLOOM (rose technologique + verdure) ============ */
+  [data-theme="bloom"]{
+    --bg:#FFF3F9;
+    --surface:#FFFFFF;
+    --surface2:#FFEAF4;
+    --ink:#24071B;
+    --muted:#7C5A70;
+    --rule:#F7D9E9;
+    --line:#F0C6DF;
+    --pop:#D40C81;
+    --pop-soft:rgba(212,12,129,.12);
+    --wa:#17B87C;
+    --wa-hover:#12A26C;
+    --wa-ink:#04251A;
+    --green:#12A06B;
+    --ombre:0 38px 90px -32px rgba(190,30,120,.42);
+    --ombre-s:0 24px 60px -26px rgba(190,30,120,.34);
+    --glow:rgba(212,12,129,.20);
+    --halo:rgba(255,79,168,.30);
+    --halo2:rgba(23,184,124,.24);
+    --trame:rgba(212,12,129,.09);
+    --fantome:rgba(212,12,129,.20);
+    --phone:#FFFFFF;
+    --phone-rule:#F3D5E6;
+    --msg-in:#FBE7F2;
+    --msg-in-ink:#24071B;
+    --msg-out:#D8F5E7;
+    --msg-out-ink:#04311F;
+    --msg-h:#AE7A9B;
+    --lien-bg:#FFE6F3;
+    --lien-rule:#F7B8D9;
+    --lien-ink:#B60D70;
+    --shine:rgba(255,255,255,.62);
+    --r:26px;
+    /* propres a la DA bloom */
+    --rose:#FF4FA8;
+    --magenta:#C81E8B;
+    --vert:#17B87C;
+    --vert-clair:#5FD8A4;
+    --plume:#2A0620;
   }
 
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -715,6 +761,222 @@
   footer a{color:var(--muted);text-decoration:none;}
   footer a:hover{color:var(--pop);}
 
+  /* ==================================================================
+     DA NEO-BLOOM : habillage complet. Rien de tout cela ne s'applique
+     aux themes clair et sombre, tout est prefixe [data-theme="bloom"].
+     ================================================================== */
+
+  /* --- le bouton fleur (present dans les trois themes) --- */
+  .fleur{
+    width:34px;height:34px;border-radius:12px;cursor:pointer;flex-shrink:0;padding:0;
+    background:var(--surface2);border:1px solid var(--rule);color:var(--muted);
+    display:flex;align-items:center;justify-content:center;
+    transition:color .25s ease,border-color .25s ease,background .25s ease,transform .2s ease,box-shadow .3s ease;
+  }
+  .fleur svg{width:18px;height:18px;display:block;}
+  .fleur:hover{color:#D40C81;border-color:#D40C81;transform:translateY(-1px);}
+  [data-theme="bloom"] .fleur{
+    background:linear-gradient(140deg,#FF4FA8,#C81E8B);border-color:transparent;color:#fff;
+    box-shadow:0 12px 26px -12px rgba(212,12,129,.95);
+  }
+  [data-theme="bloom"] .fleur svg{animation:tournefleur 16s linear infinite;}
+  @keyframes tournefleur{to{transform:rotate(360deg);}}
+
+  /* --- le voile de bascule, part du bouton et recouvre la page --- */
+  .voile{
+    position:fixed;z-index:999;border-radius:50%;pointer-events:none;
+    transform:translate(-50%,-50%) scale(0);opacity:.6;
+    background:radial-gradient(circle,rgba(255,79,168,.95),rgba(200,30,139,.8) 45%,rgba(23,184,124,.55));
+    transition:transform .75s cubic-bezier(.22,.8,.2,1),opacity .75s ease;
+  }
+  .voile.va{transform:translate(-50%,-50%) scale(1);opacity:0;}
+
+  /* --- le jardin : nuees, trame de points, feuilles qui montent --- */
+  .jardin{display:none;}
+  [data-theme="bloom"] .jardin{display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
+  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(64px);animation:derive 18s ease-in-out infinite alternate;}
+  .jardin .n1{width:48vw;height:48vw;top:-16vw;right:-12vw;background:radial-gradient(circle,rgba(255,79,168,.34),transparent 66%);}
+  .jardin .n2{width:42vw;height:42vw;bottom:-18vw;left:-14vw;background:radial-gradient(circle,rgba(23,184,124,.28),transparent 66%);animation-duration:26s;animation-direction:alternate-reverse;}
+  .jardin .n3{width:34vw;height:34vw;top:42%;left:44%;background:radial-gradient(circle,rgba(200,30,139,.16),transparent 68%);animation-duration:32s;}
+  .jardin .reseau{
+    position:absolute;inset:0;opacity:.55;
+    background-image:radial-gradient(rgba(212,12,129,.22) 1px,transparent 1px);
+    background-size:24px 24px;
+    mask-image:radial-gradient(ellipse 70% 62% at 50% 38%,#000 20%,transparent 100%);
+    -webkit-mask-image:radial-gradient(ellipse 70% 62% at 50% 38%,#000 20%,transparent 100%);
+  }
+  .jardin .feuille{
+    position:absolute;top:100%;width:26px;height:26px;opacity:.16;
+    border-radius:0 100% 0 100%;
+    background:linear-gradient(140deg,var(--vert-clair),var(--vert));
+    animation:pousse 36s linear infinite;
+  }
+  .jardin .f1{left:5%;width:22px;height:22px;animation-duration:34s;animation-delay:-6s;}
+  .jardin .f2{left:21%;width:30px;height:30px;animation-duration:44s;animation-delay:-20s;opacity:.12;}
+  .jardin .f3{left:43%;width:18px;height:18px;animation-duration:29s;animation-delay:-11s;}
+  .jardin .f4{left:62%;width:34px;height:34px;animation-duration:48s;animation-delay:-30s;opacity:.1;}
+  .jardin .f5{left:80%;width:24px;height:24px;animation-duration:38s;animation-delay:-15s;}
+  .jardin .f6{left:93%;width:20px;height:20px;animation-duration:42s;animation-delay:-33s;opacity:.13;}
+  @keyframes pousse{
+    from{transform:translate3d(0,8vh,0) rotate(0deg);}
+    to{transform:translate3d(5vw,-118vh,0) rotate(230deg);}
+  }
+
+  /* --- fond de page --- */
+  [data-theme="bloom"] body{
+    background:
+      radial-gradient(1200px 720px at 88% -10%,rgba(255,79,168,.16),transparent 62%),
+      radial-gradient(900px 640px at -10% 94%,rgba(23,184,124,.13),transparent 62%),
+      var(--bg);
+    background-attachment:fixed;
+  }
+  [data-theme="bloom"] .trame{
+    background-image:radial-gradient(var(--trame) 1.2px,transparent 1.2px);
+    background-size:22px 22px;
+  }
+
+  /* --- typographie : titrage geometrique, etiquettes en chasse fixe --- */
+  [data-theme="bloom"] :is(h1,h2,h3,h4,.logo,.prixbloc .p,.preuveline .k,.flotc .k,.opt .op,.step .n,.panier,.noeud,.msg .lien){
+    font-family:'Space Grotesk','Archivo',system-ui,sans-serif;
+  }
+  [data-theme="bloom"] :is(h1,h2,.prixbloc .p){letter-spacing:-.045em;}
+  [data-theme="bloom"] :is(.st,.prixbloc .lab,.drop .dt,.board .col h4,.ucard .uphoto .tag,.zero,.hint){
+    font-family:'Space Mono','Archivo',ui-monospace,monospace;
+    text-transform:uppercase;letter-spacing:.16em;font-weight:700;
+  }
+  [data-theme="bloom"] .hint{letter-spacing:.1em;font-size:.72rem;}
+  [data-theme="bloom"] .st::before{border-radius:0 100% 0 100%;background:var(--vert);width:9px;height:9px;}
+
+  /* --- les mots accentues passent en degrade rose vers vert --- */
+  [data-theme="bloom"] :is(.hero h1 .ac,h2 .ac,.logo i){
+    background:linear-gradient(104deg,var(--rose),var(--magenta) 44%,var(--vert));
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;-webkit-text-fill-color:transparent;
+  }
+  [data-theme="bloom"] .hero h1 .ac::after{
+    background:linear-gradient(90deg,var(--rose),var(--vert));opacity:.5;height:.1em;border-radius:2px;
+  }
+  [data-theme="bloom"] .fantome,[data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke-width:1.4px;}
+
+  /* --- barre de navigation --- */
+  [data-theme="bloom"] nav{
+    background:color-mix(in srgb,var(--bg) 70%,transparent);
+    backdrop-filter:blur(20px) saturate(150%);
+  }
+  [data-theme="bloom"] nav.colle{
+    border-bottom-color:transparent;
+    box-shadow:0 1px 0 rgba(212,12,129,.14),0 22px 44px -38px rgba(212,12,129,.6);
+  }
+  [data-theme="bloom"] nav .links a::after{background:linear-gradient(90deg,var(--rose),var(--vert));}
+  [data-theme="bloom"] .bascul .bille{background:linear-gradient(140deg,var(--rose),var(--magenta));}
+
+  /* --- boutons : coins plus carres que les cartes, c'est la signature --- */
+  [data-theme="bloom"] .btn{border-radius:14px;}
+  [data-theme="bloom"] .btn.wa{
+    background:linear-gradient(135deg,#25D194,var(--vert) 60%,#0E9A67);
+    box-shadow:0 16px 34px -16px rgba(23,184,124,.95);
+  }
+  [data-theme="bloom"] .btn.wa:hover{
+    background:linear-gradient(135deg,#31E0A2,#14AE74);
+    box-shadow:0 22px 46px -16px rgba(23,184,124,1);
+  }
+  [data-theme="bloom"] .btn.dark{
+    background:linear-gradient(135deg,#D40C81,#8E0F63);color:#fff;
+    box-shadow:0 16px 34px -16px rgba(212,12,129,.95);
+  }
+  [data-theme="bloom"] .btn.ghost{
+    background:rgba(255,255,255,.55);backdrop-filter:blur(10px);border-color:var(--line);
+  }
+  [data-theme="bloom"] .btn.ghost:hover{border-color:var(--rose);color:var(--pop);}
+
+  /* --- toutes les grandes cartes : filet en degrade, verre rose --- */
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.board,.carte,.faqbox,.drop,.phone){
+    border:1px solid transparent;
+    background:linear-gradient(var(--surface),var(--surface)) padding-box,
+               linear-gradient(140deg,rgba(255,79,168,.6),rgba(23,184,124,.45)) border-box;
+  }
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.carte,.board,.drop){border-radius:var(--r);}
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard):hover{
+    background:linear-gradient(var(--surface),var(--surface)) padding-box,
+               linear-gradient(140deg,var(--rose),var(--vert)) border-box;
+    box-shadow:0 30px 64px -30px rgba(212,12,129,.6);
+  }
+  [data-theme="bloom"] .flotc,[data-theme="bloom"] .noeud{
+    border-color:rgba(255,79,168,.4);
+    background:rgba(255,255,255,.72);backdrop-filter:blur(10px);
+  }
+  [data-theme="bloom"] .phone{border-radius:34px;}
+
+  /* --- les puces rondes deviennent des feuilles --- */
+  [data-theme="bloom"] .piste span::after,
+  [data-theme="bloom"] ul.pts li::before,
+  [data-theme="bloom"] .ucard li::before,
+  [data-theme="bloom"] .formule li::before,
+  [data-theme="bloom"] .zero::before{
+    border-radius:0 100% 0 100%;width:9px;height:9px;
+  }
+  [data-theme="bloom"] ul.pts li::before{background:var(--vert);}
+  [data-theme="bloom"] .piste span::after{background:linear-gradient(140deg,var(--rose),var(--vert));}
+
+  /* --- l'etape mise en avant --- */
+  [data-theme="bloom"] .step.hot{
+    background:linear-gradient(145deg,#D40C81,#8E0F63);border-color:transparent;color:#fff;
+    box-shadow:0 34px 74px -32px rgba(212,12,129,.95);
+  }
+  [data-theme="bloom"] .step.hot :is(.n,h3){color:#fff;-webkit-text-fill-color:#fff;}
+  [data-theme="bloom"] .step.hot p{color:rgba(255,255,255,.84);}
+  [data-theme="bloom"] .step.hot::before{background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.3),transparent 70%);}
+
+  /* --- le bloc tarif : serre vert profond, prix sur plume rose --- */
+  [data-theme="bloom"] .formule{
+    background:linear-gradient(145deg,#0F7D58,#0A5F4A 58%,#0B6B62);
+    border-color:transparent;color:#EAFFF7;
+    box-shadow:0 44px 96px -40px rgba(10,95,74,.9);
+  }
+  [data-theme="bloom"] .formule li{border-top-color:rgba(255,255,255,.16);}
+  [data-theme="bloom"] .formule li::before{background:linear-gradient(140deg,#BDF5DD,#FFFFFF);}
+  [data-theme="bloom"] .prixbloc{
+    border:1px solid transparent;
+    background:linear-gradient(160deg,#2A0620,#4A0A34) padding-box,
+               linear-gradient(140deg,rgba(255,79,168,.7),rgba(23,184,124,.5)) border-box;
+    color:#fff;border-radius:20px;
+  }
+  [data-theme="bloom"] .prixbloc .p{
+    background:linear-gradient(100deg,#FF9ACE,#FFE2F0);
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;-webkit-text-fill-color:transparent;
+  }
+  [data-theme="bloom"] .zero::before{background:var(--rose);}
+  [data-theme="bloom"] .tarifnote b{color:var(--pop);}
+
+  /* --- questions, mascotte, details --- */
+  [data-theme="bloom"] .faqbox{border-radius:var(--r);}
+  [data-theme="bloom"] summary::after{color:var(--rose);}
+  [data-theme="bloom"] .flo .joue{fill:var(--pop);opacity:.3;}
+  [data-theme="bloom"] .flo .interro{fill:var(--pop);}
+  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,var(--vert),var(--plume));}
+  [data-theme="bloom"] .ticket.hot{box-shadow:0 0 0 3px rgba(255,79,168,.18);border-color:var(--rose);}
+  [data-theme="bloom"] .mot{border-color:rgba(255,79,168,.4);}
+
+  /* --- l'aura du telephone dans le hero, le moment d'impact --- */
+  [data-theme="bloom"] .scene::before{
+    content:"";position:absolute;inset:-16% -20%;z-index:0;border-radius:50%;
+    background:conic-gradient(from 200deg,rgba(255,79,168,.42),rgba(23,184,124,.3),rgba(200,30,139,.4),rgba(255,79,168,.42));
+    filter:blur(50px);animation:tourne 28s linear infinite;
+  }
+  @keyframes tourne{to{transform:rotate(360deg);}}
+
+  @media(prefers-reduced-motion:reduce){
+    .jardin .feuille,.jardin .nuee,[data-theme="bloom"] .scene::before,[data-theme="bloom"] .fleur svg{animation:none;}
+    .voile{display:none;}
+  }
+
+  @media(max-width:900px){
+    .jardin .reseau{opacity:.35;}
+    .jardin .f2,.jardin .f4,.jardin .f6{display:none;}
+    [data-theme="bloom"] .scene::before{filter:blur(38px);}
+  }
+
   @media(max-width:1000px){
     nav .links{display:none;}
     .hero .wrap,.split,.essai,.dash,.gain,.formule{grid-template-columns:1fr;}
@@ -766,6 +1028,13 @@
 </head>
 <body>
 
+<div class="jardin" aria-hidden="true">
+  <span class="nuee n1"></span><span class="nuee n2"></span><span class="nuee n3"></span>
+  <span class="reseau"></span>
+  <i class="feuille f1"></i><i class="feuille f2"></i><i class="feuille f3"></i>
+  <i class="feuille f4"></i><i class="feuille f5"></i><i class="feuille f6"></i>
+</div>
+
 <nav id="nav">
   <div class="wrap">
     <a class="logo" href="#top"><svg class="flo mini" viewBox="0 0 134 124" role="img" aria-label="Flo, la mascotte PFlow">
@@ -789,6 +1058,17 @@
         <span class="bille" aria-hidden="true"></span>
         <svg class="lune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         <svg class="soleil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button class="fleur" id="fleur" type="button" aria-pressed="false" aria-label="Activer la direction artistique Néo-Bloom" title="Néo-Bloom, la version rose et verdure du site">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <g fill="currentColor">
+            <ellipse cx="12" cy="5.4" rx="3" ry="4"/>
+            <ellipse cx="12" cy="18.6" rx="3" ry="4"/>
+            <ellipse cx="5.4" cy="12" rx="4" ry="3"/>
+            <ellipse cx="18.6" cy="12" rx="4" ry="3"/>
+          </g>
+          <circle class="pistil" cx="12" cy="12" r="3.1" fill="currentColor" opacity=".55"/>
+        </svg>
       </button>
       <a class="btn wa" href="https://wa.me/590690938108?text=Bonjour%20PFlow%2C%20je%20veux%20en%20savoir%20plus%20sur%20PFlow%20Order%20pour%20mon%20restaurant.">Discuter</a>
     </div>
@@ -1272,22 +1552,63 @@
   var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var racine=document.documentElement;
 
-  /* ---- bascule de theme ---- */
-  var bascul=document.getElementById("bascul");
-  function majBouton(){
-    var clair=racine.getAttribute("data-theme")==="clair";
-    bascul.setAttribute("aria-label",clair?"Passer en thème sombre":"Passer en thème clair");
+  /* ---- bascule de theme : sombre, clair, et la DA Neo-Bloom ---- */
+  var bascul=document.getElementById("bascul"),fleur=document.getElementById("fleur");
+
+  function theme(){return racine.getAttribute("data-theme");}
+  function socle(){ /* le dernier theme classique choisi, celui vers lequel on revient */
+    try{var b=localStorage.getItem("pflow-theme-socle");if(b==="clair"||b==="sombre"){return b;}}catch(e){}
+    var t=theme();return t==="bloom"?"sombre":t;
   }
+  function polices(){ /* les polices de la DA bloom ne se chargent qu'a la premiere activation */
+    if(document.getElementById("police-bloom")){return;}
+    var l=document.createElement("link");l.rel="stylesheet";l.id="police-bloom";
+    l.href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@700&display=swap";
+    document.head.appendChild(l);
+  }
+  function majBoutons(){
+    var t=theme();
+    if(bascul){bascul.setAttribute("aria-label",t==="bloom"?"Revenir au th\u00e8me "+socle():(t==="clair"?"Passer en th\u00e8me sombre":"Passer en th\u00e8me clair"));}
+    if(fleur){
+      fleur.setAttribute("aria-pressed",t==="bloom"?"true":"false");
+      fleur.setAttribute("aria-label",t==="bloom"?"Quitter la direction artistique N\u00e9o-Bloom":"Activer la direction artistique N\u00e9o-Bloom");
+    }
+  }
+  function onde(source){ /* le voile rose part du bouton clique */
+    if(reduced||!source){return;}
+    var r=source.getBoundingClientRect();
+    var d=Math.max(window.innerWidth,window.innerHeight)*2.4;
+    var v=document.createElement("div");
+    v.className="voile";
+    v.style.width=v.style.height=d+"px";
+    v.style.left=(r.left+r.width/2)+"px";
+    v.style.top=(r.top+r.height/2)+"px";
+    document.body.appendChild(v);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){v.classList.add("va");});});
+    setTimeout(function(){v.remove();},900);
+  }
+  function pose(suivant,source){
+    if(suivant==="bloom"){polices();onde(source);}
+    document.body.classList.add("bascule");
+    racine.setAttribute("data-theme",suivant);
+    try{
+      localStorage.setItem("pflow-theme",suivant);
+      if(suivant!=="bloom"){localStorage.setItem("pflow-theme-socle",suivant);}
+    }catch(e){}
+    majBoutons();
+    setTimeout(function(){document.body.classList.remove("bascule");},450);
+  }
+
+  majBoutons();
   if(bascul){
-    majBouton();
     bascul.addEventListener("click",function(){
-      var clair=racine.getAttribute("data-theme")==="clair";
-      var suivant=clair?"sombre":"clair";
-      document.body.classList.add("bascule");
-      racine.setAttribute("data-theme",suivant);
-      try{localStorage.setItem("pflow-theme",suivant);}catch(e){}
-      majBouton();
-      setTimeout(function(){document.body.classList.remove("bascule");},450);
+      /* depuis bloom, l'interrupteur ramene simplement au theme classique d'avant */
+      pose(theme()==="bloom"?socle():(theme()==="clair"?"sombre":"clair"),bascul);
+    });
+  }
+  if(fleur){
+    fleur.addEventListener("click",function(){
+      pose(theme()==="bloom"?socle():"bloom",fleur);
     });
   }
 
