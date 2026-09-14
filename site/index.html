@@ -20,7 +20,7 @@
       if(t==="clair"||t==="sombre"||t==="bloom"){document.documentElement.setAttribute("data-theme",t);}
       if(t==="bloom"){
         var l=document.createElement("link");l.rel="stylesheet";
-        l.href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@700&display=swap";
+        l.href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap";
         l.id="police-bloom";document.head.appendChild(l);
       }
     }catch(e){}
@@ -96,46 +96,45 @@
     --lien-ink:#0B6B45;
     --shine:rgba(255,255,255,.55);
   }
-  /* ============ THEME NEO-BLOOM (rose technologique + verdure) ============ */
+  /* ============ THEME NEO-BLOOM (bloom system : rose neon + vert acide) ============ */
   [data-theme="bloom"]{
-    --bg:#FFF3F9;
-    --surface:#FFFFFF;
-    --surface2:#FFEAF4;
-    --ink:#24071B;
-    --muted:#7C5A70;
-    --rule:#F7D9E9;
-    --line:#F0C6DF;
-    --pop:#D40C81;
-    --pop-soft:rgba(212,12,129,.12);
-    --wa:#17B87C;
-    --wa-hover:#12A26C;
-    --wa-ink:#04251A;
-    --green:#12A06B;
-    --ombre:0 38px 90px -32px rgba(190,30,120,.42);
-    --ombre-s:0 24px 60px -26px rgba(190,30,120,.34);
-    --glow:rgba(212,12,129,.20);
-    --halo:rgba(255,79,168,.30);
-    --halo2:rgba(23,184,124,.24);
-    --trame:rgba(212,12,129,.09);
-    --fantome:rgba(212,12,129,.20);
-    --phone:#FFFFFF;
-    --phone-rule:#F3D5E6;
-    --msg-in:#FBE7F2;
-    --msg-in-ink:#24071B;
-    --msg-out:#D8F5E7;
-    --msg-out-ink:#04311F;
-    --msg-h:#AE7A9B;
-    --lien-bg:#FFE6F3;
-    --lien-rule:#F7B8D9;
-    --lien-ink:#B60D70;
-    --shine:rgba(255,255,255,.62);
-    --r:26px;
+    --bg:#07060A;
+    --surface:#0E0C14;
+    --surface2:#15111F;
+    --ink:#F3EEF8;
+    --muted:#9C8FB2;
+    --rule:#241E33;
+    --line:#312846;
+    --pop:#FF2E9A;
+    --pop-soft:rgba(255,46,154,.14);
+    --wa:#7CFF4F;
+    --wa-hover:#96FF74;
+    --wa-ink:#06170A;
+    --green:#3CE07A;
+    --ombre:0 30px 80px rgba(0,0,0,.8);
+    --ombre-s:0 22px 60px rgba(0,0,0,.7);
+    --glow:rgba(255,46,154,.16);
+    --halo:rgba(255,46,154,.22);
+    --halo2:rgba(124,255,79,.14);
+    --trame:rgba(124,255,79,.08);
+    --fantome:rgba(255,46,154,.26);
+    --phone:#0A0910;
+    --phone-rule:#2B2340;
+    --msg-in:#181328;
+    --msg-in-ink:#EFE9F7;
+    --msg-out:#102C16;
+    --msg-out-ink:#D9FFC9;
+    --msg-h:#8B7EA6;
+    --lien-bg:#1B0F22;
+    --lien-rule:#4B2054;
+    --lien-ink:#FF6FB8;
+    --shine:rgba(255,255,255,.22);
+    --r:14px;
     /* propres a la DA bloom */
-    --rose:#FF4FA8;
-    --magenta:#C81E8B;
-    --vert:#17B87C;
-    --vert-clair:#5FD8A4;
-    --plume:#2A0620;
+    --acide:#7CFF4F;
+    --rose:#FF2E9A;
+    --rose-clair:#FF7DC2;
+    --encoche:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
   }
 
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -762,11 +761,13 @@
   footer a:hover{color:var(--pop);}
 
   /* ==================================================================
-     DA NEO-BLOOM : habillage complet. Rien de tout cela ne s'applique
-     aux themes clair et sombre, tout est prefixe [data-theme="bloom"].
+     DA NEO-BLOOM, version BLOOM SYSTEM : fiche de scan botanique.
+     Noir, rose neon pour la marque, vert acide pour la donnee.
+     Tout est prefixe [data-theme="bloom"], les themes clair et sombre
+     ne sont jamais touches.
      ================================================================== */
 
-  /* --- le bouton fleur (present dans les trois themes) --- */
+  /* --- le bouton fleur, present dans les trois themes --- */
   .fleur{
     width:34px;height:34px;border-radius:12px;cursor:pointer;flex-shrink:0;padding:0;
     background:var(--surface2);border:1px solid var(--rule);color:var(--muted);
@@ -774,49 +775,76 @@
     transition:color .25s ease,border-color .25s ease,background .25s ease,transform .2s ease,box-shadow .3s ease;
   }
   .fleur svg{width:18px;height:18px;display:block;}
-  .fleur:hover{color:#D40C81;border-color:#D40C81;transform:translateY(-1px);}
+  .fleur:hover{color:#FF2E9A;border-color:#FF2E9A;transform:translateY(-1px);}
   [data-theme="bloom"] .fleur{
-    background:linear-gradient(140deg,#FF4FA8,#C81E8B);border-color:transparent;color:#fff;
-    box-shadow:0 12px 26px -12px rgba(212,12,129,.95);
+    background:#120A18;border-color:var(--rose);color:var(--rose);border-radius:0;
+    clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px));
+    filter:drop-shadow(0 0 10px rgba(255,46,154,.55));
   }
   [data-theme="bloom"] .fleur svg{animation:tournefleur 16s linear infinite;}
   @keyframes tournefleur{to{transform:rotate(360deg);}}
 
-  /* --- le voile de bascule, part du bouton et recouvre la page --- */
+  /* --- le voile de bascule, part du bouton et traverse la page --- */
   .voile{
     position:fixed;z-index:999;border-radius:50%;pointer-events:none;
     transform:translate(-50%,-50%) scale(0);opacity:.6;
-    background:radial-gradient(circle,rgba(255,79,168,.95),rgba(200,30,139,.8) 45%,rgba(23,184,124,.55));
+    background:radial-gradient(circle,rgba(255,46,154,.95),rgba(124,255,79,.5) 55%,transparent 75%);
     transition:transform .75s cubic-bezier(.22,.8,.2,1),opacity .75s ease;
   }
   .voile.va{transform:translate(-50%,-50%) scale(1);opacity:0;}
 
-  /* --- le jardin : nuees, trame de points, feuilles qui montent --- */
+  /* --- la couche de scan : lueurs, grille, ligne qui balaie, feuilles fil de fer --- */
   .jardin{display:none;}
   [data-theme="bloom"] .jardin{display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
-  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(64px);animation:derive 18s ease-in-out infinite alternate;}
-  .jardin .n1{width:48vw;height:48vw;top:-16vw;right:-12vw;background:radial-gradient(circle,rgba(255,79,168,.34),transparent 66%);}
-  .jardin .n2{width:42vw;height:42vw;bottom:-18vw;left:-14vw;background:radial-gradient(circle,rgba(23,184,124,.28),transparent 66%);animation-duration:26s;animation-direction:alternate-reverse;}
-  .jardin .n3{width:34vw;height:34vw;top:42%;left:44%;background:radial-gradient(circle,rgba(200,30,139,.16),transparent 68%);animation-duration:32s;}
-  .jardin .reseau{
-    position:absolute;inset:0;opacity:.55;
-    background-image:radial-gradient(rgba(212,12,129,.22) 1px,transparent 1px);
-    background-size:24px 24px;
-    mask-image:radial-gradient(ellipse 70% 62% at 50% 38%,#000 20%,transparent 100%);
-    -webkit-mask-image:radial-gradient(ellipse 70% 62% at 50% 38%,#000 20%,transparent 100%);
+  .jardin .nuee{position:absolute;border-radius:50%;filter:blur(70px);animation:derive 20s ease-in-out infinite alternate;}
+  .jardin .n1{width:46vw;height:46vw;top:-16vw;right:-12vw;background:radial-gradient(circle,rgba(255,46,154,.28),transparent 66%);}
+  .jardin .n2{width:44vw;height:44vw;bottom:-18vw;left:-14vw;background:radial-gradient(circle,rgba(124,255,79,.16),transparent 66%);animation-duration:28s;animation-direction:alternate-reverse;}
+  /* la troisieme nuee devient la ligne de scan qui descend lentement */
+  .jardin .n3{
+    left:0;width:100%;height:1px;top:0;filter:none;border-radius:0;
+    background:linear-gradient(90deg,transparent,rgba(124,255,79,.55),rgba(255,46,154,.35),transparent);
+    box-shadow:0 0 18px rgba(124,255,79,.35);
+    animation:balaye 11s linear infinite;
   }
+  @keyframes balaye{0%{transform:translateY(-2vh);opacity:0;}8%{opacity:.9;}92%{opacity:.9;}100%{transform:translateY(102vh);opacity:0;}}
+  .jardin .reseau{
+    position:absolute;inset:0;opacity:.6;
+    background-image:
+      linear-gradient(rgba(124,255,79,.08) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(124,255,79,.08) 1px,transparent 1px),
+      linear-gradient(rgba(255,46,154,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,46,154,.05) 1px,transparent 1px);
+    background-size:112px 112px,112px 112px,28px 28px,28px 28px;
+    mask-image:radial-gradient(ellipse 80% 70% at 50% 35%,#000 15%,transparent 100%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 35%,#000 15%,transparent 100%);
+  }
+  /* grain de papier imprime */
+  [data-theme="bloom"] .jardin::before{
+    content:"";position:absolute;inset:0;opacity:.055;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='120' height='120' filter='url(%23b)'/></svg>");
+  }
+  /* vignette */
+  [data-theme="bloom"] .jardin::after{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse 90% 80% at 50% 45%,transparent 40%,rgba(0,0,0,.72) 100%);
+  }
+  /* les feuilles sont dessinees en fil de fer, comme un releve de scan */
   .jardin .feuille{
-    position:absolute;top:100%;width:26px;height:26px;opacity:.16;
+    position:absolute;top:100%;width:28px;height:28px;opacity:.35;
+    border:1px solid rgba(124,255,79,.55);background:transparent;
     border-radius:0 100% 0 100%;
-    background:linear-gradient(140deg,var(--vert-clair),var(--vert));
-    animation:pousse 36s linear infinite;
+    animation:pousse 38s linear infinite;
+  }
+  .jardin .feuille::after{
+    content:"";position:absolute;left:12%;top:12%;width:1px;height:110%;
+    background:rgba(124,255,79,.45);transform:rotate(-45deg);transform-origin:top left;
   }
   .jardin .f1{left:5%;width:22px;height:22px;animation-duration:34s;animation-delay:-6s;}
-  .jardin .f2{left:21%;width:30px;height:30px;animation-duration:44s;animation-delay:-20s;opacity:.12;}
-  .jardin .f3{left:43%;width:18px;height:18px;animation-duration:29s;animation-delay:-11s;}
-  .jardin .f4{left:62%;width:34px;height:34px;animation-duration:48s;animation-delay:-30s;opacity:.1;}
-  .jardin .f5{left:80%;width:24px;height:24px;animation-duration:38s;animation-delay:-15s;}
-  .jardin .f6{left:93%;width:20px;height:20px;animation-duration:42s;animation-delay:-33s;opacity:.13;}
+  .jardin .f2{left:21%;width:32px;height:32px;animation-duration:46s;animation-delay:-20s;opacity:.25;}
+  .jardin .f3{left:43%;width:18px;height:18px;animation-duration:30s;animation-delay:-11s;}
+  .jardin .f4{left:62%;width:36px;height:36px;animation-duration:50s;animation-delay:-30s;opacity:.2;}
+  .jardin .f5{left:80%;width:24px;height:24px;animation-duration:40s;animation-delay:-15s;}
+  .jardin .f6{left:93%;width:20px;height:20px;animation-duration:44s;animation-delay:-33s;opacity:.28;}
   @keyframes pousse{
     from{transform:translate3d(0,8vh,0) rotate(0deg);}
     to{transform:translate3d(5vw,-118vh,0) rotate(230deg);}
@@ -825,156 +853,205 @@
   /* --- fond de page --- */
   [data-theme="bloom"] body{
     background:
-      radial-gradient(1200px 720px at 88% -10%,rgba(255,79,168,.16),transparent 62%),
-      radial-gradient(900px 640px at -10% 94%,rgba(23,184,124,.13),transparent 62%),
+      radial-gradient(1000px 640px at 86% -12%,rgba(255,46,154,.14),transparent 62%),
+      radial-gradient(900px 600px at -8% 104%,rgba(124,255,79,.09),transparent 62%),
       var(--bg);
     background-attachment:fixed;
   }
   [data-theme="bloom"] .trame{
-    background-image:radial-gradient(var(--trame) 1.2px,transparent 1.2px);
-    background-size:22px 22px;
+    background-image:
+      linear-gradient(var(--trame) 1px,transparent 1px),
+      linear-gradient(90deg,var(--trame) 1px,transparent 1px);
+    background-size:56px 56px;
   }
 
-  /* --- typographie : titrage geometrique, etiquettes en chasse fixe --- */
-  [data-theme="bloom"] :is(h1,h2,h3,h4,.logo,.prixbloc .p,.preuveline .k,.flotc .k,.opt .op,.step .n,.panier,.noeud,.msg .lien){
-    font-family:'Space Grotesk','Archivo',system-ui,sans-serif;
+  /* --- typographie : titrage technique, etiquettes en chasse fixe --- */
+  [data-theme="bloom"] :is(h1,h2,h3,h4,.logo,.prixbloc .p,.preuveline .k,.flotc .k,.opt .op,.step .n,.panier,.noeud,.formule h3,.ucard h3){
+    font-family:'Chakra Petch','Archivo',system-ui,sans-serif;
   }
-  [data-theme="bloom"] :is(h1,h2,.prixbloc .p){letter-spacing:-.045em;}
-  [data-theme="bloom"] :is(.st,.prixbloc .lab,.drop .dt,.board .col h4,.ucard .uphoto .tag,.zero,.hint){
+  [data-theme="bloom"] :is(h1,h2){letter-spacing:-.015em;}
+  [data-theme="bloom"] :is(.st,.prixbloc .lab,.drop .dt,.board .col h4,.ucard .uphoto .tag,.zero,.hint,.piste span,.board .btop .live,.carte .ctop .o,.msg .h,.dessous,.final .rep,footer){
     font-family:'Space Mono','Archivo',ui-monospace,monospace;
-    text-transform:uppercase;letter-spacing:.16em;font-weight:700;
   }
-  [data-theme="bloom"] .hint{letter-spacing:.1em;font-size:.72rem;}
-  [data-theme="bloom"] .st::before{border-radius:0 100% 0 100%;background:var(--vert);width:9px;height:9px;}
+  [data-theme="bloom"] :is(.piste span,.dessous,.final .rep,footer){
+    text-transform:uppercase;letter-spacing:.1em;font-size:.76rem;
+  }
+  [data-theme="bloom"] .hint{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;color:var(--acide);}
 
-  /* --- les mots accentues passent en degrade rose vers vert --- */
+  /* surtitres : losange, texte vert acide, et un petit code barre au bout */
+  [data-theme="bloom"] .st{color:var(--acide);letter-spacing:.2em;}
+  [data-theme="bloom"] .st::before{
+    border-radius:0;background:var(--acide);
+    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);width:9px;height:9px;
+  }
+  [data-theme="bloom"] .st::after{
+    content:"";width:52px;height:10px;flex-shrink:0;opacity:.55;
+    background:repeating-linear-gradient(90deg,var(--acide) 0 2px,transparent 2px 5px);
+  }
+
+  /* --- les mots accentues passent en rose neon --- */
   [data-theme="bloom"] :is(.hero h1 .ac,h2 .ac,.logo i){
-    background:linear-gradient(104deg,var(--rose),var(--magenta) 44%,var(--vert));
-    -webkit-background-clip:text;background-clip:text;
-    color:transparent;-webkit-text-fill-color:transparent;
+    color:var(--rose);-webkit-text-fill-color:var(--rose);background:none;
+    text-shadow:0 0 26px rgba(255,46,154,.55);
   }
   [data-theme="bloom"] .hero h1 .ac::after{
-    background:linear-gradient(90deg,var(--rose),var(--vert));opacity:.5;height:.1em;border-radius:2px;
+    background:var(--rose);opacity:.75;height:.08em;
+    box-shadow:0 0 14px rgba(255,46,154,.9);
   }
-  [data-theme="bloom"] .fantome,[data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke-width:1.4px;}
+  [data-theme="bloom"] .fantome,[data-theme="bloom"] .final .fantome-xl{-webkit-text-stroke-width:1.2px;}
 
   /* --- barre de navigation --- */
   [data-theme="bloom"] nav{
-    background:color-mix(in srgb,var(--bg) 70%,transparent);
-    backdrop-filter:blur(20px) saturate(150%);
+    background:rgba(7,6,10,.72);backdrop-filter:blur(18px) saturate(140%);
   }
   [data-theme="bloom"] nav.colle{
-    border-bottom-color:transparent;
-    box-shadow:0 1px 0 rgba(212,12,129,.14),0 22px 44px -38px rgba(212,12,129,.6);
+    border-bottom-color:rgba(124,255,79,.28);
+    box-shadow:0 18px 40px -34px rgba(255,46,154,.6);
   }
-  [data-theme="bloom"] nav .links a::after{background:linear-gradient(90deg,var(--rose),var(--vert));}
-  [data-theme="bloom"] .bascul .bille{background:linear-gradient(140deg,var(--rose),var(--magenta));}
+  [data-theme="bloom"] nav .links a{font-family:'Space Mono',monospace;text-transform:uppercase;font-size:.78rem;letter-spacing:.08em;}
+  [data-theme="bloom"] nav .links a::after{background:var(--acide);box-shadow:0 0 10px rgba(124,255,79,.8);}
+  [data-theme="bloom"] .bascul{border-radius:0;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px));background:#120A18;}
+  [data-theme="bloom"] .bascul .bille{border-radius:0;background:var(--rose);}
 
-  /* --- boutons : coins plus carres que les cartes, c'est la signature --- */
-  [data-theme="bloom"] .btn{border-radius:14px;}
+  /* --- boutons : coins coupes, halo neon --- */
+  [data-theme="bloom"] .btn{
+    border-radius:0;font-family:'Chakra Petch',sans-serif;letter-spacing:.04em;
+    clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+  }
   [data-theme="bloom"] .btn.wa{
-    background:linear-gradient(135deg,#25D194,var(--vert) 60%,#0E9A67);
-    box-shadow:0 16px 34px -16px rgba(23,184,124,.95);
+    background:var(--wa);color:var(--wa-ink);box-shadow:none;
+    filter:drop-shadow(0 0 14px rgba(124,255,79,.45));
   }
   [data-theme="bloom"] .btn.wa:hover{
-    background:linear-gradient(135deg,#31E0A2,#14AE74);
-    box-shadow:0 22px 46px -16px rgba(23,184,124,1);
+    background:var(--wa-hover);filter:drop-shadow(0 0 22px rgba(124,255,79,.75));
   }
   [data-theme="bloom"] .btn.dark{
-    background:linear-gradient(135deg,#D40C81,#8E0F63);color:#fff;
-    box-shadow:0 16px 34px -16px rgba(212,12,129,.95);
+    background:var(--rose);color:#14000B;
+    filter:drop-shadow(0 0 16px rgba(255,46,154,.5));
   }
   [data-theme="bloom"] .btn.ghost{
-    background:rgba(255,255,255,.55);backdrop-filter:blur(10px);border-color:var(--line);
+    border-color:rgba(124,255,79,.45);color:var(--ink);background:rgba(124,255,79,.05);
   }
-  [data-theme="bloom"] .btn.ghost:hover{border-color:var(--rose);color:var(--pop);}
+  [data-theme="bloom"] .btn.ghost:hover{border-color:var(--acide);color:var(--acide);}
 
-  /* --- toutes les grandes cartes : filet en degrade, verre rose --- */
-  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.board,.carte,.faqbox,.drop,.phone){
-    border:1px solid transparent;
-    background:linear-gradient(var(--surface),var(--surface)) padding-box,
-               linear-gradient(140deg,rgba(255,79,168,.6),rgba(23,184,124,.45)) border-box;
+  /* --- les cartes deviennent des cadres de releve --- */
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.board,.carte,.faqbox,.phone,.flotc){
+    background:var(--surface);border:1px solid var(--rule);border-radius:0;
+    clip-path:var(--encoche);
   }
-  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.carte,.board,.drop){border-radius:var(--r);}
+  /* la carte qui tombe garde sa pastille de notification, donc pas de decoupe */
+  [data-theme="bloom"] .drop{border-color:var(--acide);border-radius:0;background:rgba(21,17,31,.92);}
+  [data-theme="bloom"] .drop .dt{color:var(--acide);}
+  [data-theme="bloom"] .noeud{box-shadow:0 0 0 6px rgba(255,46,154,.12),0 0 22px rgba(124,255,79,.55);}
+  [data-theme="bloom"] :is(.step,.opt,.mod,.ucard,.carte,.board):hover,
   [data-theme="bloom"] :is(.step,.opt,.mod,.ucard):hover{
-    background:linear-gradient(var(--surface),var(--surface)) padding-box,
-               linear-gradient(140deg,var(--rose),var(--vert)) border-box;
-    box-shadow:0 30px 64px -30px rgba(212,12,129,.6);
+    border-color:var(--rose);
+    box-shadow:inset 0 0 44px -18px rgba(255,46,154,.55);
   }
-  [data-theme="bloom"] .flotc,[data-theme="bloom"] .noeud{
-    border-color:rgba(255,79,168,.4);
-    background:rgba(255,255,255,.72);backdrop-filter:blur(10px);
+  [data-theme="bloom"] .flotc{
+    background:rgba(14,12,20,.86);backdrop-filter:blur(8px);border-color:rgba(124,255,79,.3);
   }
-  [data-theme="bloom"] .phone{border-radius:34px;}
+  [data-theme="bloom"] .step .n,[data-theme="bloom"] .opt .op{color:var(--acide);}
+  [data-theme="bloom"] .mod:hover,[data-theme="bloom"] .ucard:hover{border-color:var(--acide);}
+  [data-theme="bloom"] .phone{clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,26px 100%,0 calc(100% - 26px));border-color:var(--phone-rule);}
+  [data-theme="bloom"] .board .col h4 b{color:var(--acide);}
+  [data-theme="bloom"] .ticket.hot{border-color:var(--rose);box-shadow:0 0 0 1px rgba(255,46,154,.3);}
 
-  /* --- les puces rondes deviennent des feuilles --- */
+  /* --- les puces rondes deviennent des losanges de donnee --- */
   [data-theme="bloom"] .piste span::after,
   [data-theme="bloom"] ul.pts li::before,
   [data-theme="bloom"] .ucard li::before,
   [data-theme="bloom"] .formule li::before,
   [data-theme="bloom"] .zero::before{
-    border-radius:0 100% 0 100%;width:9px;height:9px;
+    border-radius:0;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);width:9px;height:9px;
   }
-  [data-theme="bloom"] ul.pts li::before{background:var(--vert);}
-  [data-theme="bloom"] .piste span::after{background:linear-gradient(140deg,var(--rose),var(--vert));}
+  [data-theme="bloom"] .piste span::after{background:var(--acide);}
+  [data-theme="bloom"] ul.pts li::before{background:var(--acide);}
 
-  /* --- l'etape mise en avant --- */
+  /* --- l'etape mise en avant : le bloc rose de l'affiche --- */
   [data-theme="bloom"] .step.hot{
-    background:linear-gradient(145deg,#D40C81,#8E0F63);border-color:transparent;color:#fff;
-    box-shadow:0 34px 74px -32px rgba(212,12,129,.95);
+    background:var(--rose);border-color:var(--rose);color:#14000B;
   }
-  [data-theme="bloom"] .step.hot :is(.n,h3){color:#fff;-webkit-text-fill-color:#fff;}
-  [data-theme="bloom"] .step.hot p{color:rgba(255,255,255,.84);}
+  [data-theme="bloom"] .step.hot :is(.n,h3){color:#14000B;-webkit-text-fill-color:#14000B;text-shadow:none;}
+  [data-theme="bloom"] .step.hot p{color:rgba(20,0,11,.78);}
   [data-theme="bloom"] .step.hot::before{background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.3),transparent 70%);}
+  [data-theme="bloom"] .step.hot:hover{box-shadow:none;border-color:var(--rose);}
 
-  /* --- le bloc tarif : serre vert profond, prix sur plume rose --- */
+  /* --- le bloc tarif : fiche technique --- */
   [data-theme="bloom"] .formule{
-    background:linear-gradient(145deg,#0F7D58,#0A5F4A 58%,#0B6B62);
-    border-color:transparent;color:#EAFFF7;
-    box-shadow:0 44px 96px -40px rgba(10,95,74,.9);
+    background:linear-gradient(150deg,#0B1710,#0A0910 60%);
+    border:1px solid rgba(124,255,79,.4);color:var(--ink);
+    box-shadow:inset 0 0 70px -30px rgba(124,255,79,.4);
+    border-radius:0;clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,26px 100%,0 calc(100% - 26px));
   }
-  [data-theme="bloom"] .formule li{border-top-color:rgba(255,255,255,.16);}
-  [data-theme="bloom"] .formule li::before{background:linear-gradient(140deg,#BDF5DD,#FFFFFF);}
+  [data-theme="bloom"] .formule li{border-top-color:rgba(124,255,79,.18);}
+  [data-theme="bloom"] .formule li::before{background:var(--acide);}
   [data-theme="bloom"] .prixbloc{
-    border:1px solid transparent;
-    background:linear-gradient(160deg,#2A0620,#4A0A34) padding-box,
-               linear-gradient(140deg,rgba(255,79,168,.7),rgba(23,184,124,.5)) border-box;
-    color:#fff;border-radius:20px;
+    background:#0A0910;border:1px solid var(--rose);border-radius:0;
+    clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+    box-shadow:inset 0 0 50px -22px rgba(255,46,154,.7);
   }
+  [data-theme="bloom"] .prixbloc .lab{color:var(--acide);opacity:.85;letter-spacing:.2em;}
   [data-theme="bloom"] .prixbloc .p{
-    background:linear-gradient(100deg,#FF9ACE,#FFE2F0);
-    -webkit-background-clip:text;background-clip:text;
-    color:transparent;-webkit-text-fill-color:transparent;
+    color:var(--rose);-webkit-text-fill-color:var(--rose);background:none;
+    text-shadow:0 0 30px rgba(255,46,154,.6);
   }
-  [data-theme="bloom"] .zero::before{background:var(--rose);}
-  [data-theme="bloom"] .tarifnote b{color:var(--pop);}
+  [data-theme="bloom"] .zero{border-color:rgba(124,255,79,.35);background:rgba(124,255,79,.07);}
+  [data-theme="bloom"] .zero::before{background:var(--acide);}
+  [data-theme="bloom"] .tarifnote b{color:var(--acide);}
 
   /* --- questions, mascotte, details --- */
-  [data-theme="bloom"] .faqbox{border-radius:var(--r);}
-  [data-theme="bloom"] summary::after{color:var(--rose);}
-  [data-theme="bloom"] .flo .joue{fill:var(--pop);opacity:.3;}
-  [data-theme="bloom"] .flo .interro{fill:var(--pop);}
-  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,var(--vert),var(--plume));}
-  [data-theme="bloom"] .ticket.hot{box-shadow:0 0 0 3px rgba(255,79,168,.18);border-color:var(--rose);}
-  [data-theme="bloom"] .mot{border-color:rgba(255,79,168,.4);}
+  [data-theme="bloom"] .faqbox{clip-path:var(--encoche);}
+  [data-theme="bloom"] summary::after{color:var(--acide);}
+  [data-theme="bloom"] summary:hover{color:var(--acide);}
+  [data-theme="bloom"] .flo .joue{fill:var(--rose);opacity:.45;}
+  [data-theme="bloom"] .flo .interro{fill:var(--rose);}
+  [data-theme="bloom"] .flot{filter:drop-shadow(0 0 16px rgba(124,255,79,.5));}
+  [data-theme="bloom"] .mot{border-color:rgba(255,46,154,.4);background:rgba(14,12,20,.95);}
+  [data-theme="bloom"] .ucard .uphoto{background:linear-gradient(135deg,#0E3B18,#14000B);}
+  [data-theme="bloom"] .ucard .uphoto img{opacity:.6;filter:saturate(.7) contrast(1.1);transition:opacity .5s ease,transform .6s ease;}
+  [data-theme="bloom"] .ucard:hover .uphoto img{opacity:.85;}
+  [data-theme="bloom"] .prod .ph img{filter:saturate(.8) contrast(1.05);}
 
-  /* --- l'aura du telephone dans le hero, le moment d'impact --- */
+  /* --- traces et courbes : signal --- */
+  [data-theme="bloom"] .lien-svg path,[data-theme="bloom"] .courbe svg.ligne path{
+    stroke:var(--acide);filter:drop-shadow(0 0 6px rgba(124,255,79,.7));
+  }
+  [data-theme="bloom"] .lien-svg circle{fill:var(--acide);}
+
+  /* --- l'aura du telephone dans le hero --- */
   [data-theme="bloom"] .scene::before{
-    content:"";position:absolute;inset:-16% -20%;z-index:0;border-radius:50%;
-    background:conic-gradient(from 200deg,rgba(255,79,168,.42),rgba(23,184,124,.3),rgba(200,30,139,.4),rgba(255,79,168,.42));
-    filter:blur(50px);animation:tourne 28s linear infinite;
+    content:"";position:absolute;inset:-14% -18%;z-index:0;border-radius:50%;
+    background:conic-gradient(from 200deg,rgba(255,46,154,.38),rgba(124,255,79,.22),rgba(255,46,154,.38));
+    filter:blur(58px);animation:tourne 30s linear infinite;
   }
   @keyframes tourne{to{transform:rotate(360deg);}}
+  /* le cadre de visee autour de la scene, comme sur un releve */
+  [data-theme="bloom"] .scene::after{
+    content:"";position:absolute;inset:-22px -18px;z-index:1;pointer-events:none;
+    background:
+      linear-gradient(var(--acide),var(--acide)) 0 0/22px 1px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 0 0/1px 22px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 100% 0/22px 1px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 100% 0/1px 22px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 0 100%/22px 1px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 0 100%/1px 22px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 100% 100%/22px 1px no-repeat,
+      linear-gradient(var(--acide),var(--acide)) 100% 100%/1px 22px no-repeat;
+    opacity:.5;
+  }
 
   @media(prefers-reduced-motion:reduce){
-    .jardin .feuille,.jardin .nuee,[data-theme="bloom"] .scene::before,[data-theme="bloom"] .fleur svg{animation:none;}
+    .jardin .feuille,.jardin .nuee,.jardin .n3,[data-theme="bloom"] .scene::before,[data-theme="bloom"] .fleur svg{animation:none;}
+    .jardin .n3{opacity:0;}
     .voile{display:none;}
   }
 
   @media(max-width:900px){
-    .jardin .reseau{opacity:.35;}
+    .jardin .reseau{opacity:.4;}
     .jardin .f2,.jardin .f4,.jardin .f6{display:none;}
-    [data-theme="bloom"] .scene::before{filter:blur(38px);}
+    [data-theme="bloom"] .scene::before{filter:blur(40px);}
+    [data-theme="bloom"] .scene::after{inset:-14px -10px;}
   }
 
   @media(max-width:1000px){
@@ -1555,26 +1632,26 @@
   /* ---- bascule de theme : sombre, clair, et la DA Neo-Bloom ---- */
   var bascul=document.getElementById("bascul"),fleur=document.getElementById("fleur");
 
-  function theme(){return racine.getAttribute("data-theme");}
-  function socle(){ /* le dernier theme classique choisi, celui vers lequel on revient */
+  function daCourante(){return racine.getAttribute("data-theme");}
+  function daSocle(){ /* le dernier theme classique choisi, celui vers lequel on revient */
     try{var b=localStorage.getItem("pflow-theme-socle");if(b==="clair"||b==="sombre"){return b;}}catch(e){}
-    var t=theme();return t==="bloom"?"sombre":t;
+    var t=daCourante();return t==="bloom"?"sombre":t;
   }
-  function polices(){ /* les polices de la DA bloom ne se chargent qu'a la premiere activation */
+  function daPolices(){ /* les polices de la DA bloom ne se chargent qu'a la premiere activation */
     if(document.getElementById("police-bloom")){return;}
     var l=document.createElement("link");l.rel="stylesheet";l.id="police-bloom";
-    l.href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@700&display=swap";
+    l.href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap";
     document.head.appendChild(l);
   }
-  function majBoutons(){
-    var t=theme();
-    if(bascul){bascul.setAttribute("aria-label",t==="bloom"?"Revenir au th\u00e8me "+socle():(t==="clair"?"Passer en th\u00e8me sombre":"Passer en th\u00e8me clair"));}
+  function daMaj(){
+    var t=daCourante();
+    if(bascul){bascul.setAttribute("aria-label",t==="bloom"?"Revenir au th\u00e8me "+daSocle():(t==="clair"?"Passer en th\u00e8me sombre":"Passer en th\u00e8me clair"));}
     if(fleur){
       fleur.setAttribute("aria-pressed",t==="bloom"?"true":"false");
       fleur.setAttribute("aria-label",t==="bloom"?"Quitter la direction artistique N\u00e9o-Bloom":"Activer la direction artistique N\u00e9o-Bloom");
     }
   }
-  function onde(source){ /* le voile rose part du bouton clique */
+  function daOnde(source){ /* le voile rose part du bouton clique */
     if(reduced||!source){return;}
     var r=source.getBoundingClientRect();
     var d=Math.max(window.innerWidth,window.innerHeight)*2.4;
@@ -1587,28 +1664,28 @@
     requestAnimationFrame(function(){requestAnimationFrame(function(){v.classList.add("va");});});
     setTimeout(function(){v.remove();},900);
   }
-  function pose(suivant,source){
-    if(suivant==="bloom"){polices();onde(source);}
+  function daPose(suivant,source){
+    if(suivant==="bloom"){daPolices();daOnde(source);}
     document.body.classList.add("bascule");
     racine.setAttribute("data-theme",suivant);
     try{
       localStorage.setItem("pflow-theme",suivant);
       if(suivant!=="bloom"){localStorage.setItem("pflow-theme-socle",suivant);}
     }catch(e){}
-    majBoutons();
+    daMaj();
     setTimeout(function(){document.body.classList.remove("bascule");},450);
   }
 
-  majBoutons();
+  daMaj();
   if(bascul){
     bascul.addEventListener("click",function(){
       /* depuis bloom, l'interrupteur ramene simplement au theme classique d'avant */
-      pose(theme()==="bloom"?socle():(theme()==="clair"?"sombre":"clair"),bascul);
+      daPose(daCourante()==="bloom"?daSocle():(daCourante()==="clair"?"sombre":"clair"),bascul);
     });
   }
   if(fleur){
     fleur.addEventListener("click",function(){
-      pose(theme()==="bloom"?socle():"bloom",fleur);
+      daPose(daCourante()==="bloom"?daSocle():"bloom",fleur);
     });
   }
 

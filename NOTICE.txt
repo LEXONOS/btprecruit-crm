@@ -1,52 +1,59 @@
-PFLOW.FR, HOME V7 : NEO-BLOOM, LA TROISIEME DIRECTION ARTISTIQUE
-=================================================================
+PFLOW.FR, HOME V8 : LES BOUTONS REPARES + NEO-BLOOM VERSION BLOOM SYSTEM
+=========================================================================
 
 OU POSER LE FICHIER (repo btprecruit-crm)
 -----------------------------------------
 site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
 NOTICE.txt        -> remplace la notice a la racine.
 
-Zip CUMULATIF : tout ce qu'il y avait avant (landing, double theme, animations,
-tarifs, Flo) est dedans, plus la nouvelle DA. Aucun texte du site n'a bouge,
-aucune rubrique n'a bouge, aucun prix n'a bouge. Uniquement de l'habillage.
+Zip CUMULATIF : tout ce qui existait est dedans. Aucun texte, aucune rubrique,
+aucun prix n'a bouge. Uniquement le correctif et l'habillage.
 
-LE TROISIEME BOUTON
--------------------
-Une petite fleur, en haut a droite, juste avant le bouton vert Discuter.
-Au clic : un voile rose part du bouton, traverse la page, et le site passe en
-Neo-Bloom. Nouveau clic sur la fleur : retour au theme d'ou l'on venait.
-L'interrupteur lune / soleil continue de fonctionner normalement, et depuis
-Neo-Bloom il ramene au theme classique precedent. Le choix est retenu d'une
-visite a l'autre, comme avant.
+1. LE CORRECTIF DES BOUTONS
+---------------------------
+Les deux boutons de theme ne repondaient plus depuis la derniere livraison.
+Cause : ma fonction de bascule s'appelait pose(), et il existait deja une
+fonction pose() plus bas dans le script, celle qui range les tickets dans les
+colonnes du dashboard. Les deux vivaient dans le meme espace de noms, la
+deuxieme ecrasait la premiere, et chaque clic partait donc dans la mauvaise
+fonction et s'arretait sur une erreur.
+Toutes mes fonctions de theme sont maintenant prefixees daPose, daCourante,
+daSocle, daMaj, daOnde, daPolices. Plus aucune collision possible.
+Verifie en simulation : sombre vers bloom, bloom vers sombre, et l'interrupteur
+lune / soleil qui fait sortir du bloom. Les trois chemins repondent.
 
-CE QU'EST NEO-BLOOM
--------------------
-Rose technologique et verdure. Le fond est un rose tres pale traverse de deux
-nuees, une rose en haut a droite, une verte en bas a gauche, et d'une trame de
-points fins facon interface. Six feuilles remontent lentement en fond, tres
-discretes, jamais devant le texte.
+2. LA DA REPRISE SUR TES INSPIRATIONS
+-------------------------------------
+Tes references disent toutes la meme chose : fond noir, rose neon, vert acide,
+chasse fixe, cadres de releve, grilles fines, planche de scan botanique.
+Neo-Bloom passe donc du rose pale a une fiche de scan. Le rose porte la marque,
+le vert acide porte la donnee, et les deux ne se melangent jamais.
 
-Le titrage passe en Space Grotesk, geometrique et serre. Les surtitres, les
-etiquettes et le label du prix passent en chasse fixe, en majuscules espacees :
-c'est ce qui donne le cote technologique. Les polices ne se telechargent qu'au
-moment ou quelqu'un active la DA, les deux autres themes ne paient rien.
+Ce que ca donne :
+- Fond noir violace, deux lueurs, une grille double (large et fine), une ligne
+  de scan verte qui descend lentement, un grain d'impression et une vignette.
+- Feuilles en fil de fer, contour vert et nervure, qui remontent en fond.
+  C'est le releve botanique de tes affiches, pas de la deco pleine.
+- Titres en Chakra Petch, technique et anguleux. Surtitres, etiquettes, prix,
+  bandeau, pied de page et liens du menu en Space Mono majuscule espacee.
+- Chaque surtitre est precede d'un losange vert et suivi d'un petit code barre.
+- Cartes, tarifs, telephone et bloc questions : coins coupes en diagonale,
+  filet d'un pixel, lueur interieure au survol. Boutons coupes de la meme facon,
+  avec un halo neon autour.
+- Bloc tarif en fiche technique verte, prix en rose neon avec lueur.
+- L'etape mise en avant devient le bloc rose plein de tes affiches.
+- Autour du telephone du hero : une aura qui tourne et quatre equerres de visee,
+  comme un sujet en cours de scan.
+- Les puces rondes du site sont devenues des losanges de donnee.
+- Flo reste lui-meme, en vert acide, avec les joues roses.
 
-Les mots accentues des titres sont remplis d'un degrade rose vers vert.
-Les grandes cartes gardent leur fond blanc mais recoivent un filet degrade rose
-et vert d'un pixel, et s'allument en rose au survol. Les boutons ont des coins
-plus carres que les cartes, volontairement : c'est la signature de la DA.
-Toutes les puces rondes du site sont devenues des feuilles.
-Le bloc tarif passe en vert profond avec le prix sur un bloc prune et rose.
-Dans le hero, une aura rose et verte tourne lentement derriere le telephone.
-
-Tout se coupe si le visiteur a demande moins d'animations dans son systeme.
-Sur telephone, la trame est attenuee et il ne reste que trois feuilles.
+Tout s'arrete si le visiteur a demande moins d'animations dans son systeme.
+Sur telephone, la grille est attenuee et il ne reste que trois feuilles.
 
 POUR RETOUCHER
 --------------
-Toutes les couleurs sont dans le bloc CSS " THEME NEO-BLOOM " en haut du
-fichier, la ou se trouvent deja les themes sombre et clair. Les quatre valeurs
-qui donnent le ton sont en bas du bloc : --rose, --magenta, --vert, --plume.
-Le reste de la page les reprend, il n'y a rien a changer ailleurs.
-Les feuilles de fond sont dans le bloc " le jardin " : une ligne par feuille,
-position, taille, duree. En supprimer est sans risque.
+Les couleurs sont dans le bloc CSS " THEME NEO-BLOOM " en haut du fichier.
+Les deux valeurs qui commandent tout sont en bas du bloc : --rose et --acide.
+La forme des coins coupes est dans --encoche, une seule ligne pour tout le site.
+La couche de scan est dans le bloc " la couche de scan " : lueurs, grille,
+ligne qui balaie, feuilles. En supprimer une est sans risque.
