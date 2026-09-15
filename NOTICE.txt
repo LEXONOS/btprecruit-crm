@@ -1,66 +1,42 @@
-PFLOW.FR, VERSION FINALE (V12)
-==============================
+PFLOW.FR : TEXTES, LOGO, BUG DES TITRES, DASHBOARD INTEGRE
+===========================================================
 
-OU POSER LES FICHIERS (repo btprecruit-crm, projet Vercel avec Root Directory = site/)
--------------------------------------------------------------------------------------
-Glisser le dossier site/ du zip sur GitHub, par-dessus l'existant.
+OU POSER LES FICHIERS (repo btprecruit-crm, Root Directory Vercel = site/)
+Glisser le dossier site/ du zip sur GitHub, par-dessus l'existant. Commit.
+Vercel redeploie tout seul.
 
-site/index.html              REMPLACE l'ancien. La page d'accueil.
-site/mentions-legales.html   NOUVEAU. Page obligatoire (lien en bas du site).
-site/404.html                NOUVEAU. Page affichee si un lien est casse.
-site/vercel.json             NOUVEAU. URLs propres (/mentions-legales), cache, securite.
-site/robots.txt              NOUVEAU. Pour Google.
-site/sitemap.xml             NOUVEAU. Pour Google.
-site/favicon-64.png          NOUVEAU. Icone de l'onglet (le P bulle).
-site/apple-touch-icon.png    NOUVEAU. Icone quand on ajoute le site sur l'ecran d'iPhone.
-site/fonts/                  NOUVEAU. 5 polices (Anton + Inter), hebergees sur le site.
-site/images/logo-pflow-420.webp    NOUVEAU. Logo du menu et du pied de page.
-site/images/logo-pflow-1000.webp   NOUVEAU. Grand logo du bloc final.
-site/images/bulle-p.webp           NOUVEAU. Le P seul, en reserve.
-site/images/og-pflow.jpg           NOUVEAU. L'image qui s'affiche quand on partage le lien.
-site/images/PHOTOS-A-POSER-ICI.txt inchange.
+site/index.html                    REMPLACE. Page d'accueil.
+site/404.html                      REMPLACE. Grand logo net.
+site/mentions-legales.html         REMPLACE. Logo net.
+site/images/logo-pflow-h56.webp    NOUVEAU. Logo du menu (ecran normal).
+site/images/logo-pflow-h112.webp   NOUVEAU. Logo du menu (ecran Retina).
+site/images/logo-pflow-h168.webp   NOUVEAU. Logo du menu (ecran 3x, iPhone).
+site/images/logo-pflow-1000.webp   REMPLACE. Grand logo du bloc final, plus net.
+site/demo/index.html               NOUVEAU. Le dashboard, dans le site.
+site/demo/style.css                NOUVEAU.
+site/demo/app.js                   NOUVEAU.
 
-Rien d'autre a toucher : Vercel redeploie tout seul apres le commit.
-Verifier ensuite sur btprecruit-crm-k7zd.vercel.app puis sur pflow.fr.
+site/images/logo-pflow-420.webp n'est plus utilise : il peut rester ou etre supprime.
 
-A FAIRE PAR JULES AVANT D'ANNONCER LE SITE
-------------------------------------------
-1. MENTIONS LEGALES (obligatoire)
-   Ouvrir site/mentions-legales.html sur GitHub (icone crayon), remplacer les
-   5 textes entre crochets : nom ou raison sociale, forme juridique, SIRET,
-   adresse, nom du directeur de la publication. Commit.
-2. LES 6 PHOTOS
-   Tant qu'elles ne sont pas dans site/images/, le site affiche des images de
-   secours en ligne. Noms exacts et recherches Pexels : voir LISEZMOI.txt.
-3. LES PRIX
-   Le site affiche 390 euros de creation puis 29 euros/mois + options.
-   Le LISEZMOI et la fiche produit parlent encore de 49 / 129 / 159 euros/mois.
-   Aligner la fiche produit sur le site (ou me dire lesquels sont les bons).
+VERIFIER
+btprecruit-crm-k7zd.vercel.app      (titres, textes, logo)
+btprecruit-crm-k7zd.vercel.app/demo (le dashboard)
+Puis pflow.fr et pflow.fr/demo.
 
 CE QUI A CHANGE
----------------
-- Une seule DA, bleu/rose, avec le nouveau logo PFlow detoure. Les anciens
-  themes sombre/clair et leurs boutons sont retires (source des bugs).
-- Bugs corriges : debordement horizontal mobile et PC, accents coupes dans les
-  titres, titres qui cassaient mal, onde du bouton WhatsApp qui masquait
-  l'icone, telephone du hero qui sautait, liens du menu qui se chevauchaient,
-  rubriques cachees sous la barre du haut, deux-points et points
-  d'interrogation seuls en debut de ligne.
-- Menu mobile plein ecran. Sur PC, une pastille suit la rubrique en cours.
-- Comment ca marche : rail qui se remplit au scroll, etapes qui s'allument.
-- Carte demo : le produit vole vers le sac, Commander envoie la commande qui
-  apparait en rose dans le dashboard juste en dessous.
-- Conversation du hero en boucle, telephone qui s'incline sous la souris.
-- Bandeau qui accelere avec le scroll, prix en compteur, FAQ qui s'ouvre en
-  douceur, bulles de verre et logo qui suit la souris dans le bloc final.
-- Puce prix dans le hero, qui mene aux tarifs.
-- Polices sur le site (plus d'appel a Google), images de partage, donnees
-  Google (LocalBusiness), page 404, en-tetes de securite.
-- Tout se coupe si le visiteur a demande moins d'animations.
+1. Bug des titres : les accents (E accent, O circonflexe) debordaient sur la
+   ligne du dessus. Interligne des titres corrige partout.
+2. Plus aucune mention de QR code sur le site. Etape 01 = le client contacte
+   le restaurant (numero WhatsApp, Instagram, Google, Facebook).
+   Section produit reecrite : "Un seul numero, toutes vos commandes".
+3. "Lolo" retire (bandeau et FAQ).
+4. Logo net sur tous les ecrans.
+5. Dashboard integre sur pflow.fr/demo, aux couleurs PFlow, avec bouton
+   "Retour au site". Les 5 boutons "demo" du site ouvrent cette page.
+   Page non referencee sur Google (donnees fictives).
+   Corrige au passage : police des boutons, titre de page en haut.
 
-POUR RETOUCHER
---------------
-Couleurs : bloc ":root" en haut de index.html (--bleu, --rose, --ink).
-Textes : directement dans le HTML. Les textes des questions sont en bas,
-dans les balises <details>.
-Numero WhatsApp : chercher 590690938108 et remplacer partout.
+LE SOUS-DOMAINE dashboard.pflow.fr
+Plus aucun lien du site n'y mene. Jules peut le garder ou le supprimer.
+S'il le garde, il peut le rediriger vers pflow.fr/demo dans Vercel
+(Settings > Domains > dashboard.pflow.fr > Redirect to pflow.fr/demo).

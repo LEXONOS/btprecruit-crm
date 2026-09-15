@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#F6F6F6">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="/favicon-64.png">
+  <link rel="preload" href="/fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="description" content="PFlow Order : démonstration du dashboard restaurateur, avec des données fictives.">
+  <title>Démo du dashboard | PFlow Order</title>
+  <link rel="stylesheet" href="/demo/style.css">
+</head>
+<body>
+  <div class="demo-ribbon"><a href="/">&larr; Retour au site</a><span class="rib-txt"><i></i>Démonstration · données fictives</span></div>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+      <div class="logo"><img src="/images/bulle-p.webp" width="200" height="243" alt="PFlow"><div><strong>PFlow Order</strong><small>Maison Burger</small></div></div>
+      <nav id="main-nav">
+        <button class="active" data-page="overview"><span>⌂</span>Vue d’ensemble</button>
+        <button data-page="orders"><span>◫</span>Commandes <b>4</b></button>
+        <button data-page="products"><span>◇</span>Carte & produits</button>
+        <button data-page="carts"><span>🛒</span>Paniers abandonnés <b>9</b></button>
+        <button data-page="ai"><span>✦</span>Assistant IA</button>
+        <button data-page="stats"><span>↗</span>Statistiques</button>
+        <button data-page="settings"><span>⚙</span>Paramètres</button>
+      </nav>
+      <div class="side-card"><span class="pulse"></span><strong>Système opérationnel</strong><small>Tout fonctionne normalement</small></div>
+      <a class="side-cta" href="https://wa.me/590690938108?text=Bonjour%20Jules%2C%20je%20viens%20de%20voir%20la%20d%C3%A9mo%20PFlow%20Order%20et%20j%E2%80%99aimerais%20en%20savoir%20plus%20pour%20mon%20restaurant." target="_blank" rel="noreferrer">🚀 Je veux PFlow Order</a>
+      <p class="side-foot">Mode démo · lecture seule</p>
+    </aside>
+    <button class="scrim" id="scrim" aria-label="Fermer le menu"></button>
+    <main>
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" aria-label="Ouvrir le menu">☰</button>
+        <div class="crumb"><strong id="page-label">Vue d’ensemble</strong><small>Dernière synchronisation : à l’instant</small></div>
+        <div class="top-actions"><span class="demo-pill">MODE DÉMO</span><button class="avatar" id="profile-button"><span>🍔</span><i>Maison Burger</i><b>⌄</b></button></div>
+      </header>
+      <div class="content" id="content">
+        <section class="page active" data-view="overview">
+          <div class="welcome"><div><span class="eyebrow">Aujourd’hui · Mercredi 9 septembre</span><h1>Bonjour 👋</h1><p>Voici ce qu’il se passe chez Maison Burger aujourd’hui.</p></div><button class="tour-link" data-tour>Découvrir en 30 secondes <span>→</span></button></div>
+          <p class="intro">Pendant que vos clients commandent sur WhatsApp, PFlow Order centralise ici vos commandes, vos performances et le suivi de votre activité.</p>
+          <div class="kpis">
+            <article class="kpi"><span class="kpi-icon orange">▣</span><small>Commandes aujourd’hui</small><strong data-count="47">0</strong><em class="up">↗ 12 % vs hier</em></article>
+            <article class="kpi"><span class="kpi-icon dark">€</span><small>Chiffre d’affaires</small><strong data-money="1128.40">0 €</strong><em class="up">↗ 8,4 %</em></article>
+            <article class="kpi"><span class="kpi-icon gray">◒</span><small>Panier moyen</small><strong data-money="24.01">0 €</strong><em>Stable cette semaine</em></article>
+            <article class="kpi"><span class="kpi-icon sand">🛒</span><small>Paniers abandonnés</small><strong data-count="9">0</strong><em>4 récupérés</em></article>
+            <article class="kpi"><span class="kpi-icon green">↻</span><small>Revenu récupéré</small><strong data-money="96.40">0 €</strong><em class="up">Automatiquement</em></article>
+            <article class="kpi"><span class="kpi-icon violet">%</span><small>Taux de conversion</small><strong data-percent="54.7">0 %</strong><em class="up">↗ 3,2 pts</em></article>
+          </div>
+
+          <div class="grid grid-main">
+            <article class="panel live-orders"><div class="panel-head"><div><span class="eyebrow"><i class="live-dot"></i> Temps réel</span><h2>Commandes en direct</h2></div><button data-page-link="orders">Tout afficher →</button></div><div class="order-list compact" id="overview-orders"></div></article>
+            <article class="panel chart-panel"><div class="panel-head"><div><span class="eyebrow">Activité</span><h2>Commandes aujourd’hui</h2></div><div class="chart-tabs"><button class="active">Commandes</button><button>CA</button></div></div><div class="chart-total"><strong>47</strong><span>commandes<br><em>+12 %</em></span></div><div class="chart-wrap"><svg viewBox="0 0 620 220" role="img" aria-label="Évolution des commandes de 11 heures à 18 heures"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#294BEF" stop-opacity=".22"/><stop offset="1" stop-color="#294BEF" stop-opacity="0"/></linearGradient></defs><path class="area" d="M20 184 C75 175 90 150 140 156 S210 112 260 128 S330 58 380 82 S450 36 500 66 S560 42 600 50 L600 205 L20 205Z"/><path class="line" d="M20 184 C75 175 90 150 140 156 S210 112 260 128 S330 58 380 82 S450 36 500 66 S560 42 600 50"/><g class="points"><circle cx="20" cy="184" r="5"/><circle cx="140" cy="156" r="5"/><circle cx="260" cy="128" r="5"/><circle cx="380" cy="82" r="5"/><circle cx="500" cy="66" r="5"/><circle cx="600" cy="50" r="5"/></g></svg><div class="axis"><span>11h</span><span>12h</span><span>13h</span><span>14h</span><span>16h</span><span>18h</span></div></div></article>
+          </div>
+
+          <div class="grid grid-insights">
+            <article class="panel funnel"><div class="panel-head"><div><span class="eyebrow">Conversion</span><h2>Tunnel de commande</h2></div><span class="metric-pill">54,7 %</span></div><div class="funnel-steps"><div><strong>86</strong><span>Carte ouverte</span><i style="--w:100%"></i></div><b>→</b><div><strong>61</strong><span>Panier créé</span><i style="--w:71%"></i></div><b>→</b><div><strong>52</strong><span>Paiement</span><i style="--w:60%"></i></div><b>→</b><div><strong>47</strong><span>Commande</span><i style="--w:55%"></i></div></div><div class="recovery"><span>♻️</span><div><small>Paniers récupérés automatiquement</small><strong>4 sur 9 · 96,40 € récupérés</strong></div></div><p>PFlow Order relance automatiquement un client lorsque sa commande n’est pas terminée.</p></article>
+            <article class="panel automations"><div class="panel-head"><div><span class="eyebrow">WhatsApp</span><h2>Automatisations</h2></div><span class="online">● Actives</span></div><div class="automation-list"><div><span>✅</span><p>Confirmation de commande<small>47 envoyées</small></p></div><div><span>👨‍🍳</span><p>Commande en préparation<small>42 envoyées</small></p></div><div><span>🍔</span><p>Commande prête<small>39 envoyées</small></p></div><div><span>🛒</span><p>Panier abandonné<small>9 relances</small></p></div><div><span>♻️</span><p>Panier récupéré<small>4 commandes</small></p></div></div></article>
+            <article class="panel activity"><div class="panel-head"><div><span class="eyebrow">En direct</span><h2>Activité récente</h2></div></div><div class="activity-list" id="activity-list"></div></article>
+          </div>
+
+          <section class="commercial"><div><span class="eyebrow">POUR VOTRE RESTAURANT</span><h2>Vous aimeriez avoir ce système ?</h2><p>Votre carte, votre identité, vos produits, votre IA, vos paiements et vos automatisations, entièrement personnalisés.</p></div><div><a class="primary-cta" href="https://wa.me/590690938108?text=Bonjour%20Jules%2C%20je%20viens%20de%20voir%20la%20d%C3%A9mo%20PFlow%20Order%20et%20j%E2%80%99aimerais%20en%20savoir%20plus%20pour%20mon%20restaurant." target="_blank" rel="noreferrer">🚀 Je veux PFlow Order</a><a href="/">Découvrir PFlow</a></div></section>
+        </section>
+
+        <section class="page" data-view="orders"><div class="page-title"><div><span class="eyebrow">TEMPS RÉEL</span><h1>Commandes</h1><p>Suivez chaque commande, du paiement jusqu’à la remise au client.</p></div><button class="fake-action" data-demo-action>+ Commande manuelle</button></div><div class="sub-kpis"><div><small>À traiter</small><strong>4</strong></div><div><small>En préparation</small><strong>8</strong></div><div><small>Prêtes</small><strong>3</strong></div><div><small>Temps moyen</small><strong>14 min</strong></div></div><article class="panel"><div class="filters"><div><button class="active">Toutes <b>47</b></button><button>Reçues <b>4</b></button><button>En préparation <b>8</b></button><button>Prêtes <b>3</b></button></div><label>⌕ <input type="search" placeholder="Rechercher une commande"></label></div><div class="orders-table" id="all-orders"></div></article></section>
+
+        <section class="page" data-view="products"><div class="page-title"><div><span class="eyebrow">VOTRE CARTE</span><h1>Carte & produits</h1><p>Ce que vos clients voient lorsqu’ils commandent.</p></div><button class="fake-action" data-product-action>+ Ajouter un produit</button></div><div class="product-toolbar"><span>18 produits · 17 disponibles</span><div><button class="active">Tous</button><button>Burgers</button><button>Accompagnements</button><button>Boissons</button></div></div><div class="product-grid" id="product-grid"></div></section>
+
+        <section class="page" data-view="carts"><div class="page-title"><div><span class="eyebrow">RÉCUPÉRATION AUTOMATIQUE</span><h1>Paniers abandonnés</h1><p>Transformez les hésitations en commandes, sans intervention.</p></div></div><div class="kpis carts-kpis"><article class="kpi"><small>Paniers abandonnés</small><strong>9</strong><em>sur 61 paniers créés</em></article><article class="kpi"><small>Récupérés automatiquement</small><strong>4</strong><em class="up">44,4 % récupérés</em></article><article class="kpi"><small>Revenu récupéré</small><strong>96,40 €</strong><em class="up">sans action manuelle</em></article></div><article class="panel"><div class="panel-head"><div><span class="eyebrow">AUJOURD’HUI</span><h2>Suivi des relances</h2></div><span class="online">● Automatisation active</span></div><div class="cart-list" id="cart-list"></div></article><div class="recovery-banner"><span>✨</span><div><h3>4 commandes qui auraient pu être perdues</h3><p>PFlow Order détecte l’abandon, attend le bon moment, puis relance le client avec son panier déjà rempli.</p></div><strong>+96,40 €</strong></div></section>
+
+        <section class="page" data-view="ai"><div class="page-title"><div><span class="eyebrow">ASSISTANT WHATSAPP</span><h1>Assistant IA</h1><p>Les questions clients sont traitées instantanément, même pendant le service.</p></div><span class="system-large"><i></i> IA opérationnelle</span></div><div class="ai-hero"><div><span class="ai-orb">✦</span><div><small>Taux de résolution automatique</small><strong>92 %</strong><p>35 conversations sur 38 résolues sans intervention humaine.</p></div></div><div class="ring" style="--p:92"><span>92<small>%</small></span></div></div><div class="grid ai-grid"><article class="panel"><h2>Questions traitées aujourd’hui</h2><div class="ai-bars"><div><span>Questions produits</span><i><b style="--v:100%"></b></i><strong>12</strong></div><div><span>Allergènes</span><i><b style="--v:58%"></b></i><strong>7</strong></div><div><span>Livraison</span><i><b style="--v:50%"></b></i><strong>6</strong></div><div><span>Recommandations</span><i><b style="--v:33%"></b></i><strong>4</strong></div><div><span>Transfert humain</span><i><b style="--v:25%"></b></i><strong>3</strong></div></div></article><article class="panel conversation"><span class="eyebrow">EXEMPLE DE CONVERSATION</span><h2>Une réponse naturelle</h2><div class="bubble customer">Est-ce que le Smash Bacon contient des oignons ?</div><div class="bubble bot"><span>✦</span> Oui, mais vous pouvez les retirer en un clic lorsque vous composez votre burger. Souhaitez-vous commander ?</div><div class="answer-time">Réponse envoyée en 1,2 seconde</div></article></div></section>
+
+        <section class="page" data-view="stats"><div class="page-title"><div><span class="eyebrow">PERFORMANCES</span><h1>Statistiques</h1><p>Les chiffres essentiels pour piloter votre restaurant.</p></div><button class="period">7 derniers jours⌄</button></div><div class="kpis"><article class="kpi"><small>Chiffre d’affaires</small><strong>7 684 €</strong><em class="up">↗ 11,8 %</em></article><article class="kpi"><small>Commandes</small><strong>318</strong><em class="up">↗ 9,2 %</em></article><article class="kpi"><small>Nouveaux clients</small><strong>86</strong><em class="up">↗ 14,5 %</em></article><article class="kpi"><small>Temps économisé</small><strong>22 h</strong><em>cette semaine</em></article></div><article class="panel big-chart"><div class="panel-head"><div><span class="eyebrow">7 JOURS</span><h2>Chiffre d’affaires</h2></div><strong>7 684,20 € <em>+11,8 %</em></strong></div><div class="bar-chart"><div style="--h:48%"><b>846 €</b><span>Lun.</span></div><div style="--h:63%"><b>1 024 €</b><span>Mar.</span></div><div style="--h:57%"><b>942 €</b><span>Mer.</span></div><div style="--h:76%"><b>1 218 €</b><span>Jeu.</span></div><div style="--h:88%"><b>1 384 €</b><span>Ven.</span></div><div style="--h:100%"><b>1 502 €</b><span>Sam.</span></div><div style="--h:46%"><b>768 €</b><span>Dim.</span></div></div></article><div class="grid stats-grid"><article class="panel"><h2>Produits les plus commandés</h2><ol class="ranking"><li><span>🍔</span><p>Smash Bacon<small>82 commandes</small></p><strong>1 139,80 €</strong></li><li><span>🍔</span><p>Burger Classic<small>67 commandes</small></p><strong>636,50 €</strong></li><li><span>🍗</span><p>Crispy Chicken<small>54 commandes</small></p><strong>675,00 €</strong></li></ol></article><article class="panel"><h2>Modes de commande</h2><div class="donut-row"><div class="donut"><span>64%</span></div><div><p><i class="orange-dot"></i>À emporter <strong>64 %</strong></p><p><i class="dark-dot"></i>Livraison <strong>36 %</strong></p></div></div></article></div></section>
+
+        <section class="page" data-view="settings"><div class="locked"><span>⚙</span><h1>Paramètres</h1><p>La configuration complète est réservée à l’espace restaurateur.</p><div><b>Dans votre version personnalisée</b><span>Identité et couleurs du restaurant</span><span>Horaires et zones de livraison</span><span>Moyens de paiement</span><span>Équipe et notifications</span></div><a class="primary-cta" href="https://wa.me/590690938108?text=Bonjour%20Jules%2C%20je%20viens%20de%20voir%20la%20d%C3%A9mo%20PFlow%20Order%20et%20j%E2%80%99aimerais%20en%20savoir%20plus%20pour%20mon%20restaurant." target="_blank" rel="noreferrer">Je veux ma version</a></div></section>
+      </div>
+      <footer>Dashboard de démonstration, toutes les données sont fictives. <span><a href="/" style="color:inherit">Propulsé par PFlow</a></span></footer>
+    </main>
+  </div>
+
+  <div class="drawer-wrap" id="drawer-wrap" aria-hidden="true"><button class="drawer-scrim" data-close-drawer aria-label="Fermer"></button><aside class="drawer" id="order-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"></aside></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="tour" id="tour" aria-hidden="true"><button class="tour-scrim" data-tour-close aria-label="Ignorer la visite"></button><div class="tour-card"><div class="tour-top"><span>Visite guidée · <b id="tour-step">1</b>/4</span><button data-tour-close>Ignorer</button></div><span class="tour-icon" id="tour-icon">▣</span><h2 id="tour-title">Vos commandes arrivent ici automatiquement.</h2><p id="tour-copy">Plus besoin de recopier les messages WhatsApp : chaque commande est structurée et prête à traiter.</p><div class="tour-progress"><i class="active"></i><i></i><i></i><i></i></div><button class="tour-next" id="tour-next">Continuer →</button></div></div>
+  <script src="/demo/app.js"></script>
+</body>
+</html>
