@@ -1,49 +1,66 @@
-PFLOW.FR, HOME V11 : NOUVEAU FOND + COUCHE D'ANIMATIONS AU SCROLL
-==================================================================
+PFLOW.FR, VERSION FINALE (V12)
+==============================
 
-OU POSER LE FICHIER (repo btprecruit-crm)
------------------------------------------
-site/index.html   -> remplace le site/index.html existant. Seul fichier a pousser.
-NOTICE.txt        -> remplace la notice a la racine.
+OU POSER LES FICHIERS (repo btprecruit-crm, projet Vercel avec Root Directory = site/)
+-------------------------------------------------------------------------------------
+Glisser le dossier site/ du zip sur GitHub, par-dessus l'existant.
 
-Zip CUMULATIF. Aucun texte, aucune rubrique, aucun prix n'a bouge.
+site/index.html              REMPLACE l'ancien. La page d'accueil.
+site/mentions-legales.html   NOUVEAU. Page obligatoire (lien en bas du site).
+site/404.html                NOUVEAU. Page affichee si un lien est casse.
+site/vercel.json             NOUVEAU. URLs propres (/mentions-legales), cache, securite.
+site/robots.txt              NOUVEAU. Pour Google.
+site/sitemap.xml             NOUVEAU. Pour Google.
+site/favicon-64.png          NOUVEAU. Icone de l'onglet (le P bulle).
+site/apple-touch-icon.png    NOUVEAU. Icone quand on ajoute le site sur l'ecran d'iPhone.
+site/fonts/                  NOUVEAU. 5 polices (Anton + Inter), hebergees sur le site.
+site/images/logo-pflow-420.webp    NOUVEAU. Logo du menu et du pied de page.
+site/images/logo-pflow-1000.webp   NOUVEAU. Grand logo du bloc final.
+site/images/bulle-p.webp           NOUVEAU. Le P seul, en reserve.
+site/images/og-pflow.jpg           NOUVEAU. L'image qui s'affiche quand on partage le lien.
+site/images/PHOTOS-A-POSER-ICI.txt inchange.
 
-1. LE FOND
-----------
-Le gris plat est remplace par un lavis fixe : blanc en haut, bleu tres pale au
-tiers, rose tres pale aux deux tiers, gris en bas. Par dessus, deux grandes
-nappes de couleur qui derivent lentement, une grille tres fine et un grain
-d'impression leger pour que les aplats ne fassent pas plastique.
-Le fond ne bouge pas au scroll : c'est le contenu qui glisse dessus, comme sur
-les pages produit d'Apple.
+Rien d'autre a toucher : Vercel redeploie tout seul apres le commit.
+Verifier ensuite sur btprecruit-crm-k7zd.vercel.app puis sur pflow.fr.
 
-2. LES ANIMATIONS
------------------
-Elles marchent dans les trois themes, pas seulement dans la DA couleur.
+A FAIRE PAR JULES AVANT D'ANNONCER LE SITE
+------------------------------------------
+1. MENTIONS LEGALES (obligatoire)
+   Ouvrir site/mentions-legales.html sur GitHub (icone crayon), remplacer les
+   5 textes entre crochets : nom ou raison sociale, forme juridique, SIRET,
+   adresse, nom du directeur de la publication. Commit.
+2. LES 6 PHOTOS
+   Tant qu'elles ne sont pas dans site/images/, le site affiche des images de
+   secours en ligne. Noms exacts et recherches Pexels : voir LISEZMOI.txt.
+3. LES PRIX
+   Le site affiche 390 euros de creation puis 29 euros/mois + options.
+   Le LISEZMOI et la fiche produit parlent encore de 49 / 129 / 159 euros/mois.
+   Aligner la fiche produit sur le site (ou me dire lesquels sont les bons).
 
-- Barre de progression de lecture en haut de page, en degrade bleu vers rose.
-- TOUS les titres sont decoupes mot par mot et montent un mot apres l'autre
-  quand ils entrent a l'ecran. C'est l'effet qui marque le plus.
-- Le bloc rose du mot accentue se devoile de gauche a droite juste apres, comme
-  un surligneur qu'on passe sur le mot.
-- Les paragraphes d'introduction arrivent en fondu montant.
-- Les trois grands blocs de couleur s'OUVRENT au scroll : ils arrivent plus
-  etroits et plus arrondis, puis s'elargissent a mesure qu'ils montent dans
-  l'ecran. C'est fait en decoupe, pas en redimensionnement, donc le texte ne
-  bouge jamais d'un pixel et ca ne rame pas.
-- La scene du telephone du hero remonte et retrecit tres legerement au scroll.
-- Les chiffres des cartes arrivent en ressort.
-- Les cartes montent de plus haut et avec un leger zoom.
-- Les boutons sont aimantes : sur ordinateur, ils suivent un peu le curseur.
-
-Tout est en transform et en decoupe, donc aucun calcul de mise en page pendant
-le scroll, un seul ecouteur, et tout se coupe si le visiteur a demande moins
-d'animations dans son systeme.
+CE QUI A CHANGE
+---------------
+- Une seule DA, bleu/rose, avec le nouveau logo PFlow detoure. Les anciens
+  themes sombre/clair et leurs boutons sont retires (source des bugs).
+- Bugs corriges : debordement horizontal mobile et PC, accents coupes dans les
+  titres, titres qui cassaient mal, onde du bouton WhatsApp qui masquait
+  l'icone, telephone du hero qui sautait, liens du menu qui se chevauchaient,
+  rubriques cachees sous la barre du haut, deux-points et points
+  d'interrogation seuls en debut de ligne.
+- Menu mobile plein ecran. Sur PC, une pastille suit la rubrique en cours.
+- Comment ca marche : rail qui se remplit au scroll, etapes qui s'allument.
+- Carte demo : le produit vole vers le sac, Commander envoie la commande qui
+  apparait en rose dans le dashboard juste en dessous.
+- Conversation du hero en boucle, telephone qui s'incline sous la souris.
+- Bandeau qui accelere avec le scroll, prix en compteur, FAQ qui s'ouvre en
+  douceur, bulles de verre et logo qui suit la souris dans le bloc final.
+- Puce prix dans le hero, qui mene aux tarifs.
+- Polices sur le site (plus d'appel a Google), images de partage, donnees
+  Google (LocalBusiness), page 404, en-tetes de securite.
+- Tout se coupe si le visiteur a demande moins d'animations.
 
 POUR RETOUCHER
 --------------
-Le fond est dans le bloc CSS " fond : lavis blanc vers bleu tres pale ".
-Les animations sont dans le bloc CSS " COUCHE D'ANIMATION " et dans le bloc de
-script " couche d'animation au scroll ", tout en bas du fichier.
-Le rythme du mot a mot est la valeur .045 dans le script : monter a .07 pour un
-effet plus lent et plus theatral, descendre a .02 pour plus nerveux.
+Couleurs : bloc ":root" en haut de index.html (--bleu, --rose, --ink).
+Textes : directement dans le HTML. Les textes des questions sont en bas,
+dans les balises <details>.
+Numero WhatsApp : chercher 590690938108 et remplacer partout.
