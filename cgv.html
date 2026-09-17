@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="canonical" href="https://officine-gp.com/cgv">
+<title>Conditions générales de vente | L'Officine, atelier de création</title>
+<meta name="description" content="Conditions générales de vente | L'Officine, atelier de création">
+<meta property="og:title" content="Conditions générales de vente | L'Officine, atelier de création">
+<meta property="og:description" content="Conditions générales de vente | L'Officine, atelier de création">
+<meta property="og:image" content="https://officine-gp.com/img/og-officine.jpg">
+<meta property="og:site_name" content="L'Officine, atelier de création">
+<meta property="og:locale" content="fr_FR">
+<meta name="theme-color" content="#0C5059">
+<link rel="icon" href="/img/favicon.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/officine.css?v=15">
+</head>
+<body class="fige" data-page="/cgv">
+<div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
+  <div class="haut"><span>L'Officine, atelier de création</span><span>Jarry, Guadeloupe</span></div>
+  <div class="centre">
+    <img src="/img/logo-atelier-blanc.png" alt="L'Officine, atelier de création" width="150" height="165">
+    <h2 class="d3" id="ageTitre">Avant d'entrer, avez-vous l'âge légal pour découvrir nos spiritueux ?</h2>
+    <div class="choix">
+      <button class="cta plein" id="ageOui">J'ai 18 ans ou plus <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
+      <button class="cta ligne" id="ageNon">Pas encore</button>
+    </div>
+    <p id="ageRefus" hidden>La maison vous accueillera avec plaisir le moment venu.</p>
+  </div>
+  <p class="bas">L'abus d'alcool est dangereux pour la santé, à consommer avec modération.</p>
+</div>
+<div id="rideau" class="net"><span class="mot">L'Officine</span></div>
+<script>(function(){try{var a=JSON.parse(localStorage.getItem('officine_age')||'0');if(a&&Date.now()-a<2592e6)document.getElementById('age').hidden=true;if(sessionStorage.getItem('officine_rideau')){sessionStorage.removeItem('officine_rideau');document.getElementById('rideau').className='tombe sans';}}catch(e){}})();</script>
+<div class="curseur" aria-hidden="true"><span>Voir</span></div>
+
+<header class="nav clair" id="nav">
+  <a class="logo-nav" href="/" aria-label="L'Officine, atelier de création, accueil"><img src="/img/symbole-cle.png" alt="" width="13" height="25"><span>L'Officine<small>Atelier de création</small></span></a>
+  <nav class="menu" aria-label="Navigation principale"><a href="/selection">Sélection</a><a href="/cuvee">Cuvée sur mesure</a><a href="/evenements">Showroom</a><a href="/a-propos">La maison</a><a href="/contact">Contact</a></nav>
+  <div class="outils">
+    <button class="btn-panier" data-panier aria-label="Ouvrir le panier"><span class="mot-p">Panier</span><span class="nb">0</span></button>
+    <button class="burger" data-menu aria-label="Ouvrir le menu"><i></i></button>
+  </div>
+</header>
+<div id="menuMobile" aria-hidden="true">
+  <button class="fermer" data-menu>Fermer</button>
+  <nav><a href="/"><span>Accueil</span></a><a href="/selection"><span>Sélection</span></a><a href="/cuvee"><span>Cuvée sur mesure</span></a><a href="/evenements"><span>Showroom</span></a><a href="/a-propos"><span>La maison</span></a><a href="/contact"><span>Contact</span></a></nav>
+  <p class="pied-m">Du mardi au samedi, 9 h à 18 h<br>Jarry, Baie-Mahault</p>
+</div>
+<div id="voilePanier"></div>
+<aside id="panier" aria-hidden="true" aria-label="Panier">
+  <div class="p-tete"><h2>Panier</h2><button id="panierFermer" class="souligne">Fermer</button></div>
+  <div class="p-corps" id="panierCorps"></div>
+  <div class="p-pied">
+    <div class="p-total"><span>Total</span><span id="panierTotal">0 €</span></div>
+    <p class="p-info" id="panierInfo"></p>
+    <div class="p-client" id="panierClient" hidden>
+      <input id="pcNom" autocomplete="name" placeholder="Nom et prénom" aria-label="Nom et prénom">
+      <div class="p-deux"><input id="pcTel" type="tel" autocomplete="tel" placeholder="Téléphone" aria-label="Téléphone"><input id="pcMail" type="email" autocomplete="email" placeholder="E-mail" aria-label="E-mail"></div>
+      <input id="pcNote" maxlength="300" placeholder="Un mot pour la boutique (facultatif)" aria-label="Note">
+      <input type="text" id="pcSite" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    </div>
+    <label class="p-accord" id="panierAccord" hidden><input type="checkbox" id="panierOk"> <span id="accordTxt">Je certifie avoir 18 ans ou plus et j'accepte les <a class="souligne" href="/cgv" target="_blank">conditions de vente</a>.</span></label>
+    <button class="cta encre" id="panierPayer"><span id="panierPayerTxt">Régler par carte</span> <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
+  </div>
+</aside>
+<main>
+<section class="tete-p">
+  <p class="fil"><a href="/">Accueil</a> / Conditions de vente</p>
+  <h1 class="lignes" data-entree>Conditions de vente</h1>
+  
+</section>
+<div class="legal-cadre"><nav class="sommaire" id="sommaire" aria-label="Sommaire"></nav>
+<section class="legal-txt">
+<p>Dernière mise à jour : <span class="a-completer">date de mise en ligne</span></p>
+<h2>1. Objet et vendeur</h2>
+<p>Les présentes conditions régissent les commandes de produits en click &amp; collect et les réservations d'événements passées sur officine-gp.com, site de la marque L'Officine, atelier de création, exploitée par la société L'Officine Sélection, SASU au capital de 3 000 €, Calvaire Dumonter, Impasse Tisseur, 97122 Baie-Mahault, SIRET 994 699 981 00019, TVA FR06 994 699 981 (ci-après « L'Officine »). Toute commande vaut acceptation des présentes conditions.</p>
+<h2>2. Vente d'alcool</h2>
+<p>La vente de boissons alcoolisées est réservée aux personnes majeures. En commandant, le client certifie avoir 18 ans révolus. Une pièce d'identité est demandée au retrait ; la remise des produits est refusée si elle n'est pas présentée ou si le client est mineur. Licence : <span class="a-completer">type et numéro</span>.</p>
+<h2>3. Produits, prix et disponibilité</h2>
+<p>Les prix sont indiqués en euros toutes taxes comprises. Les photos et descriptions, issues des fiches techniques des producteurs, sont données à titre indicatif. Les produits sont proposés dans la limite des stocks affichés. Une référence affichée « En boutique » n'est pas proposée à la vente en ligne. Si un produit commandé se révèle indisponible, le client est prévenu et le produit est retiré de la commande ou remboursé.</p>
+<h2>4. Commande et paiement</h2>
+<p>Le panier peut réunir des produits et des places d'événements. La commande est ferme après paiement en ligne par carte bancaire sur la plateforme sécurisée Stripe ; L'Officine n'a jamais accès aux données bancaires. Les prix affichés sont les prix définitifs : aucun frais n'est ajouté au moment du paiement. Un e-mail de confirmation reprenant le numéro et le détail de la commande est envoyé au client.</p>
+<p>Les clients qui ne souhaitent pas commander en ligne peuvent acheter directement en boutique.</p>
+<h2>5. Retrait</h2>
+<p>Les produits se retirent à L'Officine, 39 rue de l'Industrie, ZI de Jarry, 97122 Baie-Mahault, du mardi au samedi de 9 h à 18 h, dès réception de l'e-mail indiquant que la commande est prête. Le client dispose de 30 jours pour retirer sa commande ; passé ce délai, la commande est annulée et remboursée. Le retrait se fait sur présentation du numéro de commande et d'une pièce d'identité.</p>
+<h2>6. Réservations d'événements</h2>
+<p>La réservation d'une place à une masterclass, un atelier ou un lancement est confirmée par e-mail. Le client peut annuler sa réservation et être remboursé, ou demander un report, jusqu'à 72 heures avant l'événement en écrivant à contact@eiffel-gp.com ; passé ce délai, la place reste due. En cas d'annulation d'un événement par L'Officine, les places sont intégralement remboursées ou reportées au choix du client.</p>
+<h2>7. Droit de rétractation</h2>
+<p>Pour les produits, le client dispose de 14 jours à compter du retrait pour exercer son droit de rétractation, en écrivant à contact@eiffel-gp.com ; les produits doivent être rapportés intacts, non ouverts, dans leur emballage d'origine. Le remboursement intervient sous 14 jours. Conformément à l'article L221-28 du Code de la consommation, ce droit ne s'applique pas aux prestations de loisirs fournies à une date déterminée, donc aux réservations d'événements, ni aux produits descellés après le retrait.</p>
+<h2>8. Garanties</h2>
+<p>Les produits bénéficient de la garantie légale de conformité (articles L217-3 et suivants du Code de la consommation) et de la garantie des vices cachés (articles 1641 et suivants du Code civil).</p>
+<h2>9. Données personnelles</h2>
+<p>Les données transmises lors de la commande servent à son traitement. Leur utilisation est détaillée dans les <a href="/mentions-legales">mentions légales</a>.</p>
+<h2>10. Réclamations et médiation</h2>
+<p>Toute réclamation s'adresse à contact@eiffel-gp.com. À défaut de solution amiable dans un délai de 60 jours, le client peut recourir gratuitement au médiateur de la consommation : <span class="a-completer">nom, adresse et site du médiateur</span>. La plateforme européenne de règlement des litiges est également accessible : ec.europa.eu/consumers/odr.</p>
+<h2>11. Droit applicable</h2>
+<p>Les présentes conditions sont soumises au droit français. À défaut d'accord amiable, les tribunaux compétents sont ceux prévus par la loi.</p>
+</section>
+</div>
+</main>
+<footer class="pied">
+  <div class="haut">
+    <div class="pied-marque">
+      <img class="logo-pied" src="/img/logo-atelier-blanc.png" alt="L'Officine, atelier de création" width="120" height="132">
+      <p class="d3">Ne proposer que ce qui mérite d'être découvert.</p>
+    </div>
+    <div>
+      <h3>La maison</h3>
+      <a href="/selection">Notre sélection</a>
+      <a href="/cuvee">Cuvée sur mesure</a>
+      <a href="/evenements">Showroom et événements</a>
+      <a href="/a-propos">La maison</a>
+    </div>
+    <div>
+      <h3>Services</h3>
+      <a href="/selection">Click &amp; collect</a>
+      <a href="/evenements#programme">Réserver un atelier</a>
+      <a href="/evenements#privatiser">Privatiser le showroom</a>
+      <a href="/contact?profil=fournisseur">Producteurs</a>
+    </div>
+    <div>
+      <h3>Nous trouver</h3>
+      <a href="/contact">39 rue de l'Industrie, Jarry</a>
+      <a href="/contact">Mardi au samedi, 9 h à 18 h</a>
+      <a href="https://www.instagram.com/officine_gpe/" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.facebook.com/p/LOfficine-Guadeloupe-61583902664630/" target="_blank" rel="noopener">Facebook</a>
+    </div>
+  </div>
+  <div class="legal">
+    <span><b>L'abus d'alcool est dangereux pour la santé, à consommer avec modération.</b> Vente interdite aux mineurs.</span>
+    <span class="liens-l"><a href="/mentions-legales">Mentions légales</a><a href="/cgv">Conditions de vente</a><a class="lien-equipe" href="/espace" rel="nofollow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Espace équipe</a></span>
+    <span>© 2026 L'Officine, atelier de création. Site par <a href="https://www.studionovalem.fr" target="_blank" rel="noopener" class="souligne">Studio Novalem</a></span>
+  </div>
+</footer>
+<script src="/assets/vendor/gsap.min.js" defer></script>
+<script src="/assets/vendor/ScrollTrigger.min.js" defer></script>
+<script src="/assets/vendor/lenis.min.js" defer></script>
+<script src="/assets/js/config.js" defer></script>
+<script src="/assets/js/donnees.js?v=3" defer></script>
+<script src="/assets/js/officine.js?v=15" defer></script>
+<script src="/assets/js/anim.js?v=15" defer></script>
+</body>
+</html>

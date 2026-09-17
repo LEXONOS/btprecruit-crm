@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://officine-gp.com/merci">
+<title>Merci pour votre commande | L'Officine, atelier de création</title>
+<meta name="description" content="Confirmation de commande.">
+<meta property="og:title" content="Merci pour votre commande | L'Officine, atelier de création">
+<meta property="og:description" content="Confirmation de commande.">
+<meta property="og:image" content="https://officine-gp.com/img/og-officine.jpg">
+<meta property="og:site_name" content="L'Officine, atelier de création">
+<meta property="og:locale" content="fr_FR">
+<meta name="theme-color" content="#0C5059">
+<link rel="icon" href="/img/favicon.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/officine.css?v=15">
+</head>
+<body class="fige" data-page="/merci">
+<div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
+  <div class="haut"><span>L'Officine, atelier de création</span><span>Jarry, Guadeloupe</span></div>
+  <div class="centre">
+    <img src="/img/logo-atelier-blanc.png" alt="L'Officine, atelier de création" width="150" height="165">
+    <h2 class="d3" id="ageTitre">Avant d'entrer, avez-vous l'âge légal pour découvrir nos spiritueux ?</h2>
+    <div class="choix">
+      <button class="cta plein" id="ageOui">J'ai 18 ans ou plus <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
+      <button class="cta ligne" id="ageNon">Pas encore</button>
+    </div>
+    <p id="ageRefus" hidden>La maison vous accueillera avec plaisir le moment venu.</p>
+  </div>
+  <p class="bas">L'abus d'alcool est dangereux pour la santé, à consommer avec modération.</p>
+</div>
+<div id="rideau" class="net"><span class="mot">L'Officine</span></div>
+<script>(function(){try{var a=JSON.parse(localStorage.getItem('officine_age')||'0');if(a&&Date.now()-a<2592e6)document.getElementById('age').hidden=true;if(sessionStorage.getItem('officine_rideau')){sessionStorage.removeItem('officine_rideau');document.getElementById('rideau').className='tombe sans';}}catch(e){}})();</script>
+<div class="curseur" aria-hidden="true"><span>Voir</span></div>
+
+<header class="nav clair" id="nav">
+  <a class="logo-nav" href="/" aria-label="L'Officine, atelier de création, accueil"><img src="/img/symbole-cle.png" alt="" width="13" height="25"><span>L'Officine<small>Atelier de création</small></span></a>
+  <nav class="menu" aria-label="Navigation principale"><a href="/selection">Sélection</a><a href="/cuvee">Cuvée sur mesure</a><a href="/evenements">Showroom</a><a href="/a-propos">La maison</a><a href="/contact">Contact</a></nav>
+  <div class="outils">
+    <button class="btn-panier" data-panier aria-label="Ouvrir le panier"><span class="mot-p">Panier</span><span class="nb">0</span></button>
+    <button class="burger" data-menu aria-label="Ouvrir le menu"><i></i></button>
+  </div>
+</header>
+<div id="menuMobile" aria-hidden="true">
+  <button class="fermer" data-menu>Fermer</button>
+  <nav><a href="/"><span>Accueil</span></a><a href="/selection"><span>Sélection</span></a><a href="/cuvee"><span>Cuvée sur mesure</span></a><a href="/evenements"><span>Showroom</span></a><a href="/a-propos"><span>La maison</span></a><a href="/contact"><span>Contact</span></a></nav>
+  <p class="pied-m">Du mardi au samedi, 9 h à 18 h<br>Jarry, Baie-Mahault</p>
+</div>
+<div id="voilePanier"></div>
+<aside id="panier" aria-hidden="true" aria-label="Panier">
+  <div class="p-tete"><h2>Panier</h2><button id="panierFermer" class="souligne">Fermer</button></div>
+  <div class="p-corps" id="panierCorps"></div>
+  <div class="p-pied">
+    <div class="p-total"><span>Total</span><span id="panierTotal">0 €</span></div>
+    <p class="p-info" id="panierInfo"></p>
+    <div class="p-client" id="panierClient" hidden>
+      <input id="pcNom" autocomplete="name" placeholder="Nom et prénom" aria-label="Nom et prénom">
+      <div class="p-deux"><input id="pcTel" type="tel" autocomplete="tel" placeholder="Téléphone" aria-label="Téléphone"><input id="pcMail" type="email" autocomplete="email" placeholder="E-mail" aria-label="E-mail"></div>
+      <input id="pcNote" maxlength="300" placeholder="Un mot pour la boutique (facultatif)" aria-label="Note">
+      <input type="text" id="pcSite" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    </div>
+    <label class="p-accord" id="panierAccord" hidden><input type="checkbox" id="panierOk"> <span id="accordTxt">Je certifie avoir 18 ans ou plus et j'accepte les <a class="souligne" href="/cgv" target="_blank">conditions de vente</a>.</span></label>
+    <button class="cta encre" id="panierPayer"><span id="panierPayerTxt">Régler par carte</span> <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
+  </div>
+</aside>
+<main>
+
+<section class="tete-p merci-tete">
+  <img class="sceau" src="/img/symbole-cle.png" alt="" width="62" height="120">
+  <p class="fil"><a href="/">Accueil</a> / Commande confirmée</p>
+  <h1 class="lignes" data-entree>Merci, c'est confirmé.</h1>
+  <p class="tp-lead rv" data-entree-rv>Commande <b id="numero">en cours d'enregistrement</b>. Un e-mail de confirmation vous est envoyé.</p>
+</section>
+<section class="bloc merci-corps">
+  <div class="recap" id="recap"><p class="doux">Récupération du récapitulatif…</p></div>
+  <ol class="etapes-merci">
+    <li><span class="t-n">1</span><b>Préparation</b><p class="doux">Nous préparons vos bouteilles en boutique.</p></li>
+    <li><span class="t-n">2</span><b>E-mail « prête »</b><p class="doux">Vous êtes prévenu dès que votre commande vous attend.</p></li>
+    <li><span class="t-n">3</span><b>Retrait à Jarry</b><p class="doux">Du mardi au samedi, 9 h à 18 h, avec votre numéro et une pièce d'identité.</p></li>
+  </ol>
+  <p class="merci-actions"><a class="cta ligne" href="/contact">Itinéraire et horaires</a><a class="cta encre" href="/selection">Continuer la visite <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
+</section>
+</main>
+<footer class="pied">
+  <div class="haut">
+    <div class="pied-marque">
+      <img class="logo-pied" src="/img/logo-atelier-blanc.png" alt="L'Officine, atelier de création" width="120" height="132">
+      <p class="d3">Ne proposer que ce qui mérite d'être découvert.</p>
+    </div>
+    <div>
+      <h3>La maison</h3>
+      <a href="/selection">Notre sélection</a>
+      <a href="/cuvee">Cuvée sur mesure</a>
+      <a href="/evenements">Showroom et événements</a>
+      <a href="/a-propos">La maison</a>
+    </div>
+    <div>
+      <h3>Services</h3>
+      <a href="/selection">Click &amp; collect</a>
+      <a href="/evenements#programme">Réserver un atelier</a>
+      <a href="/evenements#privatiser">Privatiser le showroom</a>
+      <a href="/contact?profil=fournisseur">Producteurs</a>
+    </div>
+    <div>
+      <h3>Nous trouver</h3>
+      <a href="/contact">39 rue de l'Industrie, Jarry</a>
+      <a href="/contact">Mardi au samedi, 9 h à 18 h</a>
+      <a href="https://www.instagram.com/officine_gpe/" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.facebook.com/p/LOfficine-Guadeloupe-61583902664630/" target="_blank" rel="noopener">Facebook</a>
+    </div>
+  </div>
+  <div class="legal">
+    <span><b>L'abus d'alcool est dangereux pour la santé, à consommer avec modération.</b> Vente interdite aux mineurs.</span>
+    <span class="liens-l"><a href="/mentions-legales">Mentions légales</a><a href="/cgv">Conditions de vente</a><a class="lien-equipe" href="/espace" rel="nofollow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Espace équipe</a></span>
+    <span>© 2026 L'Officine, atelier de création. Site par <a href="https://www.studionovalem.fr" target="_blank" rel="noopener" class="souligne">Studio Novalem</a></span>
+  </div>
+</footer>
+<script src="/assets/vendor/gsap.min.js" defer></script>
+<script src="/assets/vendor/ScrollTrigger.min.js" defer></script>
+<script src="/assets/vendor/lenis.min.js" defer></script>
+<script src="/assets/js/config.js" defer></script>
+<script src="/assets/js/donnees.js?v=3" defer></script>
+<script src="/assets/js/officine.js?v=15" defer></script>
+<script src="/assets/js/anim.js?v=15" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var s = new URLSearchParams(location.search).get('session');
+  var cr = null; try { cr = JSON.parse(sessionStorage.getItem('officine_commande') || 'null'); } catch(e){}
+  try { localStorage.removeItem('officine_panier'); } catch(e){}
+  if (window.OfficinePanier){ window.OfficinePanier.items = []; window.OfficinePanier.rendre(); }
+  var zone = document.getElementById('recap'), essais = 0;
+  if (!s && cr){
+    document.getElementById('numero').textContent = cr.numero;
+    zone.innerHTML = cr.lignes.map(function(l){ return '<div class="l"><span>' + l.qte + ' x ' + esc(l.nom) + '</span><span>' + eur(l.prix * l.qte) + '</span></div>'; }).join('') +
+      '<div class="l t"><span>À régler au retrait</span><span>' + eur(cr.total) + '</span></div>' +
+      '<p class="doux" style="margin-top:14px">Règlement en boutique, par carte ou en espèces, au moment du retrait.' + (cr.mail ? ' Confirmation envoyée par e-mail.' : '') + '</p>';
+    return;
+  }
+  if (!s){ zone.innerHTML = ''; return; }
+  function eur(n){ return Number(n).toLocaleString('fr-FR', {minimumFractionDigits: 2}) + ' €'; }
+  function esc(t){ var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  (function lire(){
+    fetch('/api/commande?session=' + encodeURIComponent(s)).then(function(r){ return r.json(); }).then(function(d){
+      if (d.attente && essais++ < 8) return setTimeout(lire, 2000);
+      if (!d.numero){ zone.innerHTML = '<p class="doux">Votre récapitulatif arrive par e-mail dans quelques minutes.</p>'; return; }
+      document.getElementById('numero').textContent = d.numero;
+      zone.innerHTML = d.lignes.map(function(l){ return '<div class="l"><span>' + l.qte + ' x ' + esc(l.nom) + '</span><span>' + eur(l.prix * l.qte) + '</span></div>'; }).join('') +
+        '<div class="l t"><span>Total payé</span><span>' + eur(d.total) + '</span></div>' +
+        (d.email ? '<p class="doux" style="margin-top:14px">Confirmation envoyée à ' + esc(d.email) + '.</p>' : '');
+    }).catch(function(){ zone.innerHTML = '<p class="doux">Votre récapitulatif arrive par e-mail dans quelques minutes.</p>'; });
+  })();
+});
+</script>
+</body>
+</html>

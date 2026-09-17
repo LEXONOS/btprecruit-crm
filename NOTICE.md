@@ -1,11 +1,10 @@
-# L'Officine : photos détourées, espace pro et vitrine
+# L'Officine, mission Sélection et panier
 
 | Fichier | Emplacement | Ce qui change |
 |---|---|---|
-| img/vitrine/*.png (14) | img/vitrine/ | tes bouteilles détourées, utilisées par la vitrine de l'accueil |
-| index.html | racine | version des fichiers |
-| assets/css/officine.css | assets/css/ | mise en page de la vitrine |
-| assets/js/anim.js | assets/js/ | une photo déjà transparente est utilisée telle quelle, sans retraitement |
-| espace.html + assets/js/espace.js | racine et assets/js/ | l'envoi d'une photo garde la transparence des PNG, et nouveau bouton « Réimporter les photos du site » (gérant) |
+| assets/css/officine.css | assets/css/ | cartes produit (survol, ombre, formats larges), fiche, onglets sans compteurs |
+| assets/js/anim.js | assets/js/ | détection des formats larges, ombre au sol, retour visuel à l'ajout au panier |
+| assets/js/officine.js | assets/js/ | onglets sans compteurs, curseur discret, mention 18 ans seulement si le panier contient de l'alcool |
+| *.html (10 pages) | racine | mention du panier identifiée (accordTxt) et versions des fichiers |
 
-Rien d'autre n'a été touché : api/, config.js, donnees.js, officine.js, vercel.json, supabase/.
+Contient aussi la refonte de l'accueil livrée juste avant (index.html).

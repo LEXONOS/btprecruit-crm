@@ -60,6 +60,62 @@ function surveiller(racine){
   $$('.rv:not([data-entree-rv]), [data-revele], .lignes:not([data-entree])', racine).forEach(function(el){ obs.observe(el); });
 }
 document.addEventListener('officine:contenu', function(e){ surveiller(e.detail); });
+/* ---------- Écran de chargement : après le mur d'âge, l'écrin se remplit ---------- */
+var ecran = $('#chargement');
+function lancerChargement(fin){
+  if (!ecran || !avecGsap || reduit){ if (ecran) ecran.remove(); fin(); return; }
+  ecran.hidden = false; ecran.classList.add('on');
+  document.body.classList.add('charge');
+  var pcEl = $('#chPc'), mot = $('#chMot'), liquide = $('.ch-liquide', ecran);
+  var mots = ['Ouverture de l\u2019atelier', 'Mise en place des flacons', 'Derniers réglages'];
+  var aff = 0, reel = 0, fini = false;
+  G.set(liquide, {attr: {y: 194}});
+  G.to('.ch-trait', {strokeDashoffset: 0, duration: 1.5, ease: 'power2.inOut', stagger: .12});
+  G.to('.ch-cle', {opacity: .9, duration: 1, delay: .5});
+  var rendre = function(v){
+    pcEl.textContent = Math.round(v);
+    G.set(liquide, {attr: {y: 194 - 188 * v / 100}});
+    mot.textContent = mots[Math.min(2, Math.floor(v / 38))];
+  };
+  var tic = function(){
+    var plafond = Math.min(94, aff + .55);
+    var cible = reel > aff ? Math.max(reel, plafond) : plafond;
+    aff += Math.max(.12, (cible - aff) * .08);
+    if (aff > cible) aff = cible;
+    if (aff > 100) aff = 100;
+    rendre(aff);
+    if (aff >= 99.5 && !fini) terminer();
+  };
+  G.ticker.add(tic);
+  var terminer = function(){
+    fini = true; G.ticker.remove(tic); rendre(100);
+    var tl = G.timeline({onComplete: function(){ ecran.remove(); document.body.classList.remove('charge'); }});
+    tl.to('.ch-centre', {y: -14, duration: .5, ease: 'power2.out'})
+      .to('.ch-ecrin', {scale: 1.14, duration: .9, ease: 'expo.in'}, '<')
+      .to(['.ch-pc', '.ch-mot'], {opacity: 0, y: 10, duration: .35, ease: 'power2.in'}, '<')
+      .add(fin, '-=.15')
+      .to(ecran, {clipPath: 'inset(0% 0% 100% 0%)', duration: 1.1, ease: 'expo.inOut'}, '<')
+      .to('.ch-centre', {opacity: 0, duration: .4}, '<');
+  };
+  /* progression réelle : polices, images, vidéo */
+  var taches = [];
+  if (document.fonts && document.fonts.ready) taches.push(document.fonts.ready);
+  $$('img').slice(0, 14).forEach(function(im){
+    if (im.complete) return;
+    taches.push(new Promise(function(ok){ im.addEventListener('load', ok, {once: true}); im.addEventListener('error', ok, {once: true}); }));
+  });
+  var v = $('.hero video');
+  if (v && v.readyState < 3) taches.push(new Promise(function(ok){ v.addEventListener('canplay', ok, {once: true}); v.addEventListener('error', ok, {once: true}); }));
+  taches.push(new Promise(function(ok){ document.addEventListener('officine:contenu', ok, {once: true}); }));
+  var total = taches.length || 1, faits = 0;
+  var pas = function(){ faits++; reel = Math.max(reel, Math.round(faits / total * 100)); };
+  taches.forEach(function(t){ Promise.resolve(t).then(pas, pas); });
+  setTimeout(function(){ reel = 100; }, 5200);
+  Promise.all(taches.map(function(t){ return Promise.resolve(t).catch(function(){}); })).then(function(){
+    setTimeout(function(){ reel = 100; }, 250);
+  });
+}
+
 function entree(){
   document.body.classList.add('entre');
   $$('[data-entree], [data-entree-rv]').forEach(function(el){ el.classList.add('vu'); });
@@ -69,8 +125,9 @@ var pret = document.fonts && document.fonts.ready ? document.fonts.ready : Promi
 pret.then(function(){
   prepLignes();
   surveiller();
-  if (window.OfficineEntree && window.OfficineEntree()) entree();
-  else document.addEventListener('officine:entree', entree, {once: true});
+  var demarrer = function(){ if (ecran) lancerChargement(entree); else entree(); };
+  if (window.OfficineEntree && window.OfficineEntree()) demarrer();
+  else document.addEventListener('officine:entree', demarrer, {once: true});
   if (avecGsap) scenes(); else replis();
   var re; window.addEventListener('resize', function(){ clearTimeout(re); re = setTimeout(function(){ if (avecGsap) ST.refresh(); }, 250); });
 });
@@ -476,6 +533,52 @@ if (som){
   }
 }
 
+/* ---------- Sélection : les formats larges (cubis, coffrets) tiennent mieux dans la carte ---------- */
+function ajusterVisuels(racine){
+  $$('.fiche-c .visuel.detoure', racine || document).forEach(function(v){
+    if (v.dataset.ajuste) return;
+    var im = $('img', v); if (!im) return;
+    v.dataset.ajuste = '1';
+    if (!$('.ombre-c', v)) v.insertAdjacentHTML('beforeend', '<span class="ombre-c" aria-hidden="true"></span>');
+    var mesurer = function(){ if (im.naturalWidth / im.naturalHeight > .78) v.classList.add('plat'); };
+    if (im.complete && im.naturalWidth) mesurer(); else im.addEventListener('load', mesurer, {once: true});
+  });
+}
+if ($('#grille')){
+  ajusterVisuels();
+  new MutationObserver(function(){ ajusterVisuels(); }).observe($('#grille'), {childList: true});
+  $('#grille').addEventListener('click', function(e){
+    var b = e.target.closest('.ajout:not(.voir)');
+    if (!b || b.disabled) return;
+    b.classList.remove('ok'); void b.offsetWidth; b.classList.add('ok');
+    setTimeout(function(){ b.classList.remove('ok'); }, 900);
+  });
+}
+
+/* ---------- Bandeau : ce qui vient d'entrer, défile en continu ---------- */
+var piste = $('#bdPiste');
+if (piste && D){
+  D.produits().then(function(l){
+    var sel = (l || []).filter(function(p){ return p.image; }).sort(function(a, b){ return (a.ordre || 999) - (b.ordre || 999); }).slice(0, 10);
+    if (!sel.length) return;
+    var html = sel.map(function(p){
+      return '<a class="bd-i" href="/selection?cat=' + encodeURIComponent(p.categorie) + '&ref=' + encodeURIComponent(p.id) + '">' +
+        '<span class="bd-v"><img src="' + esc(p.image) + '" alt="" loading="lazy"></span>' +
+        '<span class="bd-t"><b>' + esc(p.nom) + '</b><span>' + esc([p.marque, CATSN[p.categorie]].filter(Boolean).join(', ')) + '</span></span></a>';
+    }).join('');
+    piste.innerHTML = html + html;
+    if (!avecGsap || reduit) return;
+    var largeur = function(){ return piste.scrollWidth / 2; };
+    var boucle = G.to(piste, {x: function(){ return -largeur(); }, duration: function(){ return largeur() / 55; }, ease: 'none', repeat: -1,
+      modifiers: {x: function(x){ return (parseFloat(x) % largeur()) + 'px'; }}});
+    ST.create({trigger: '#bandeau', start: 'top bottom', end: 'bottom top',
+      onUpdate: function(st){ boucle.timeScale(1 + Math.min(6, Math.abs(st.getVelocity() / 260))); }});
+    $('#bandeau').addEventListener('mouseenter', function(){ G.to(boucle, {timeScale: .25, duration: .6}); });
+    $('#bandeau').addEventListener('mouseleave', function(){ G.to(boucle, {timeScale: 1, duration: .6}); });
+  }).catch(function(){});
+}
+var CATSN = {'rhums': 'Rhums & canne', 'spiritueux': 'Spiritueux', 'vins': 'Vins & champagnes', 'epicerie': 'Épicerie fine', 'sans-alcool': 'Sans alcool'};
+
 /* ---------- Accueil : la vitrine des rayons (bouteilles detourees, rotation en orbite) ---------- */
 function detourer(src){
   return new Promise(function(ok){
@@ -618,7 +721,7 @@ if (vitrine && D){
   var courant = 0, pret = [], occupe = false, catalogue = [], survol = false, visibleV = false;
   var euro = function(n){ n = Number(n) || 0; return n.toLocaleString('fr-FR', {minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2}) + ' €'; };
 
-  /* bouteilles detourees a la main (img/vitrine/<id>.png) : prioritaires sur le detourage automatique */
+  /* ordre de mise en avant : ces references passent en premier si leur photo se detache bien */
   var VITRINE = {
     'rhums': ['baie-des-tresors-fleurs-du-vent', 'barbancourt-5-etoiles-8-ans', 'neisson-esb-mizunara'],
     'spiritueux': ['algebra-extra-dry', 'kyro-gin', 'june-mangue-passion'],
@@ -626,41 +729,22 @@ if (vitrine && D){
     'epicerie': ['estoublon-picholine', 'estoublon-koroneiki', 'kalios-huile-d-olive-fumee'],
     'sans-alcool': ['cielo-e-terra-zero', 'elixia-cola', 'hysope-tonic-water']
   };
-  var chargerPng = function(src){
-    return new Promise(function(ok){
-      var im = new Image();
-      im.onload = function(){ ok(im.naturalWidth ? {url: src, ratio: im.naturalWidth / im.naturalHeight, rug: 0} : null); };
-      im.onerror = function(){ ok(null); };
-      im.src = src;
-    });
-  };
   var preparer = function(i){
     if (pret[i]) return pret[i];
     var r = RAYONS[i];
     var du = catalogue.filter(function(p){ return p.categorie === r.cat && p.image; });
-    var faits = (VITRINE[r.cat] || []).map(function(id){ return du.filter(function(p){ return p.id === id; })[0]; }).filter(Boolean);
-    pret[i] = Promise.all(faits.map(function(p){ return chargerPng('/img/vitrine/' + p.id + '.png'); })).then(function(res){
-      var mains = [];
-      res.forEach(function(x, k){ if (x) mains.push({p: faits[k], img: x}); });
-      if (mains.length >= 3) return {r: r, n: du.length, items: mains.slice(0, 3), secours: du[0] || null};
-      return auto(i, mains);
-    });
-    return pret[i];
-  };
-  var auto = function(i, deja){
-    var r = RAYONS[i];
-    var du = catalogue.filter(function(p){ return p.categorie === r.cat && p.image; });
-    var cands = du.filter(function(p){ return p.photo_type !== 'ambiance'; }).concat(du.filter(function(p){ return p.photo_type === 'ambiance'; })).slice(0, 14);
-    var pris = deja.map(function(x){ return x.p.id; });
-    cands = cands.filter(function(p){ return pris.indexOf(p.id) < 0; });
-    return (function suite(k, sortie){
+    var mis = VITRINE[r.cat] || [];
+    var rang = function(p){ var k = mis.indexOf(p.id); return k < 0 ? 99 + (p.photo_type === 'ambiance' ? 10 : 0) : k; };
+    var cands = du.slice().sort(function(x, y){ return rang(x) - rang(y); }).slice(0, 14);
+    pret[i] = (function suite(k, sortie){
       var nets = sortie.filter(function(x){ return x.img.rug <= 1; });
-      if (deja.length + nets.length >= 3 || sortie.length >= 6 || k >= cands.length){
-        var choix = deja.concat(nets, sortie.filter(function(x){ return x.img.rug > 1; })).slice(0, 3);
+      if (nets.length >= 3 || sortie.length >= 6 || k >= cands.length){
+        var choix = nets.concat(sortie.filter(function(x){ return x.img.rug > 1; })).slice(0, 3);
         return Promise.resolve({r: r, n: du.length, items: choix, secours: du[0] || null});
       }
       return detourer(cands[k].image).then(function(res){ if (res) sortie.push({p: cands[k], img: res}); return suite(k + 1, sortie); });
     })(0, []);
+    return pret[i];
   };
 
   var groupe = function(v){
@@ -690,8 +774,9 @@ if (vitrine && D){
     $('#vtCompte').textContent = v.n ? v.n + (v.n > 1 ? ' références dans ce rayon' : ' référence dans ce rayon') : '';
   };
 
+  var attente = null;
   var montrer = function(i, sens){
-    if (occupe && sens) return;
+    if (occupe && sens){ attente = [i, sens]; return; }
     i = (i + RAYONS.length) % RAYONS.length;
     occupe = true;
     var r = RAYONS[i];
@@ -703,7 +788,11 @@ if (vitrine && D){
       courant = i;
       var ancien = $('.vt-groupe', scene), neuf = groupe(v), nom = $('#vtNom'), num = $('#vtNum');
       scene.appendChild(neuf);
-      var fin = function(){ occupe = false; relancer(); };
+      var fin = function(){
+        occupe = false;
+        if (attente){ var a = attente; attente = null; if (a[0] !== courant) return montrer(a[0], a[1]); }
+        relancer();
+      };
       if (!avecGsap || !sens){
         if (ancien) ancien.remove();
         nom.innerHTML = '<span>' + esc(r.nom) + '</span>'; num.textContent = r.num;
@@ -750,8 +839,9 @@ if (vitrine && D){
 
   /* lecture automatique, visible sur l'anneau du bouton */
   var anneau = $('.vt-anneau circle'), minuteur = null;
+  var epingle = false;
   var relancer = function(){
-    if (!avecGsap || !anneau) return;
+    if (!avecGsap || !anneau || epingle) return;
     if (minuteur) minuteur.kill();
     minuteur = G.fromTo(anneau, {strokeDashoffset: 138.2}, {strokeDashoffset: 0, duration: 7, ease: 'none', paused: !(visibleV && !survol), onComplete: function(){ montrer(courant + 1, 1); }});
   };
@@ -798,6 +888,19 @@ if (vitrine && D){
     if (tx === null) return; var dx = e.changedTouches[0].clientX - tx; tx = null;
     if (Math.abs(dx) > 50) montrer(courant + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
   });
+
+  /* plein écran : le scroll fait défiler les rayons */
+  if (avecGsap && window.matchMedia('(min-width:861px)').matches){
+    epingle = true;
+    ST.create({
+      trigger: '#rayons', start: 'top top', end: '+=' + (RAYONS.length * 70) + '%',
+      pin: '#vtCadre', pinSpacing: true, anticipatePin: 1, invalidateOnRefresh: true,
+      onUpdate: function(st){
+        var i = Math.max(0, Math.min(RAYONS.length - 1, Math.floor(st.progress * RAYONS.length * .999)));
+        if (i !== courant) montrer(i, i > courant ? 1 : -1);
+      }
+    });
+  }
 
   D.produits().then(function(l){
     catalogue = (l || []).slice().sort(function(a, b){ return (a.ordre || 999) - (b.ordre || 999); });

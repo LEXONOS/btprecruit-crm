@@ -19,7 +19,7 @@
 <link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/img/bouteille.jpg" as="image">
 <link rel="preload" href="/img/logo-atelier-blanc.png" as="image">
-<link rel="stylesheet" href="/assets/css/officine.css?v=12">
+<link rel="stylesheet" href="/assets/css/officine.css?v=15">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "LiquorStore", "name": "L'Officine, atelier de création", "alternateName": "L'Officine Atelier de Création", "description": "Caviste et sélectionneur de spiritueux, rhums, vins, champagnes et épicerie fine à Jarry, Baie-Mahault, Guadeloupe.", "url": "https://officine-gp.com/", "image": "https://officine-gp.com/img/showroom.jpg", "logo": "https://officine-gp.com/img/logo-atelier-blanc.png", "email": "contact@eiffel-gp.com", "address": {"@type": "PostalAddress", "streetAddress": "39 rue de l'Industrie, ZI de Jarry", "addressLocality": "Baie-Mahault", "postalCode": "97122", "addressRegion": "Guadeloupe", "addressCountry": "FR"}, "openingHoursSpecification": [{"@type": "OpeningHoursSpecification", "dayOfWeek": ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "opens": "09:00", "closes": "18:00"}], "sameAs": ["https://www.instagram.com/officine_gpe/", "https://www.facebook.com/p/LOfficine-Guadeloupe-61583902664630/"], "areaServed": "Guadeloupe", "priceRange": "€€"}</script>
 </head>
 <body class="fige" data-page="/">
@@ -35,6 +35,19 @@
     <p id="ageRefus" hidden>La maison vous accueillera avec plaisir le moment venu.</p>
   </div>
   <p class="bas">L'abus d'alcool est dangereux pour la santé, à consommer avec modération.</p>
+</div>
+<div class="chargement" id="chargement" hidden aria-hidden="true">
+  <div class="ch-centre">
+    <svg class="ch-ecrin" viewBox="0 0 120 200" aria-hidden="true">
+      <defs><clipPath id="chClip"><rect class="ch-liquide" x="6" y="194" width="108" height="188" rx="54"></rect></clipPath></defs>
+      <rect class="ch-trait" x="6" y="6" width="108" height="188" rx="54"></rect>
+      <rect class="ch-trait fin" x="13" y="13" width="94" height="174" rx="47"></rect>
+      <g clip-path="url(#chClip)"><rect class="ch-plein" x="6" y="6" width="108" height="188" rx="54"></rect></g>
+      <image class="ch-cle" href="/img/symbole-cle.png" x="46" y="60" width="28" height="80"></image>
+    </svg>
+    <p class="ch-pc"><span id="chPc">0</span><i>%</i></p>
+    <p class="ch-mot" id="chMot">Ouverture de l'atelier</p>
+  </div>
 </div>
 <div id="rideau" class="net"><span class="mot">L'Officine</span></div>
 <script>(function(){try{var a=JSON.parse(localStorage.getItem('officine_age')||'0');if(a&&Date.now()-a<2592e6)document.getElementById('age').hidden=true;if(sessionStorage.getItem('officine_rideau')){sessionStorage.removeItem('officine_rideau');document.getElementById('rideau').className='tombe sans';}}catch(e){}})();</script>
@@ -66,7 +79,7 @@
       <input id="pcNote" maxlength="300" placeholder="Un mot pour la boutique (facultatif)" aria-label="Note">
       <input type="text" id="pcSite" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     </div>
-    <label class="p-accord" id="panierAccord" hidden><input type="checkbox" id="panierOk"> <span>Je certifie avoir 18 ans ou plus et j'accepte les <a class="souligne" href="/cgv" target="_blank">conditions de vente</a>.</span></label>
+    <label class="p-accord" id="panierAccord" hidden><input type="checkbox" id="panierOk"> <span id="accordTxt">Je certifie avoir 18 ans ou plus et j'accepte les <a class="souligne" href="/cgv" target="_blank">conditions de vente</a>.</span></label>
     <button class="cta encre" id="panierPayer"><span id="panierPayerTxt">Régler par carte</span> <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
   </div>
 </aside>
@@ -76,61 +89,78 @@
   <img class="poster" src="/img/bouteille.jpg" alt="">
   <video autoplay muted loop playsinline preload="auto" poster="/img/bouteille.jpg" data-mobile="/video/hero-mobile.mp4" aria-hidden="true"><source src="/video/hero.mp4" type="video/mp4"></video>
   <div class="embleme" id="embleme"><img src="/img/logo-atelier-blanc.png" alt="" width="382" height="420"></div>
+  <p class="hero-lieu rv" data-entree-rv>Caviste et sélectionneur<br>39 rue de l'Industrie, Jarry</p>
   <div class="couche">
-    <h1 class="hero-titre lignes" data-entree>Spiritueux, rhums, vins et épicerie fine, choisis à Jarry.</h1>
-    <div class="hero-actions rv" style="--d:.55s" data-entree-rv>
-      <a class="cta plein" href="/selection">Voir la sélection <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
-      <a class="cta ligne" href="/evenements#programme">Réserver un atelier</a>
-    </div>
-  </div>
-</section>
-
-<section class="manifeste">
-  <p class="note">La maison</p>
-  <p class="d2" id="manifeste">Née du désir de réconcilier artisanat et élégance, L'Officine choisit chaque flacon pour la matière, le geste et l'humain qu'il porte.</p>
-  <div class="vignettes">
-    <div class="v1 masque" data-revele><img src="/img/bar.jpg" alt="Le comptoir de L'Officine" data-plx="-8"></div>
-    <div class="v2 masque" data-revele><img src="/img/futs.jpg" alt="Fûts de vieillissement" data-plx="10"></div>
-    <p class="legende doux rv">Nos marques ne sont pas choisies pour leur notoriété, mais pour la passion de ceux qui les font. Rhums de canne, grands spiritueux, vins de vignerons, épicerie d'artisans : rien n'entre ici par hasard.</p>
-  </div>
-</section>
-
-<section class="etagere sombre" id="rayons">
-  <div class="entete-r">
-    <h2 class="d2 lignes">Cinq rayons,<br>une même exigence.</h2>
-    <a class="cta ligne rv" href="/selection">Toute la sélection <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
-  </div>
-  <div class="vitrine" id="vitrine">
-    <div class="vt-forme" id="vtForme" aria-hidden="true"></div>
-    <img class="vt-cle" src="/img/symbole-cle.png" alt="" width="62" height="120">
-    <div class="vt-nom"><span class="vt-num" id="vtNum">I</span><h3 id="vtNom"><span>Rhums &amp; canne</span></h3></div>
-    <div class="vt-scene" id="vtScene" aria-hidden="true"></div>
-    <div class="vt-liste">
-      <p class="vt-titre">Sur l'étagère</p>
-      <div class="vt-entete"><span>Référence</span><span>Prix</span></div>
-      <div class="vt-lignes" id="vtLignes"></div>
-    </div>
-    <p class="vt-compte" id="vtCompte" aria-live="polite"></p>
-    <nav class="vt-barre" aria-label="Choisir un rayon">
-      <button class="vt-prec" id="vtPrec" type="button" aria-label="Rayon précédent"><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M18 5H2M6 1L2 5l4 4"/></svg></button>
-      <div class="vt-rayons" id="vtRayons">
-        <span class="vt-curseur" id="vtCurseur" aria-hidden="true"></span>
-        <a href="/selection?cat=rhums" data-r="0" aria-current="true" style="--c:#A8602F"><i></i>Rhums</a>
-        <a href="/selection?cat=spiritueux" data-r="1" style="--c:#2E5A5E"><i></i>Spiritueux</a>
-        <a href="/selection?cat=vins" data-r="2" style="--c:#6A2130"><i></i>Vins</a>
-        <a href="/selection?cat=epicerie" data-r="3" style="--c:#6F7F35"><i></i>Épicerie</a>
-        <a href="/selection?cat=sans-alcool" data-r="4" style="--c:#2F8479"><i></i>Sans alcool</a>
+    <div class="hero-txt">
+      <h1 class="lignes" data-entree>Rhums, spiritueux, vins et épicerie fine.</h1>
+      <p class="hero-lead rv" style="--d:.45s" data-entree-rv>Une sélection choisie flacon par flacon, à goûter au showroom de Jarry ou à commander en ligne.</p>
+      <div class="hero-actions rv" style="--d:.55s" data-entree-rv>
+        <a class="cta plein" href="/selection">Voir la sélection <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+        <a class="cta ligne" href="/evenements#programme">Réserver un atelier</a>
       </div>
-      <a class="vt-voir" id="vtVoir" href="/selection?cat=rhums">Voir le rayon</a>
-      <button class="vt-suivant" id="vtSuivant" type="button" aria-label="Rayon suivant"><svg class="vt-anneau" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"/></svg><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
+    </div>
+    <nav class="piliers rv" style="--d:.65s" data-entree-rv aria-label="Ce que vous trouverez ici">
+      <a href="/selection"><b>La sélection</b><span>142 références, retrait en boutique</span><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+      <a href="/cuvee"><b>Cuvée sur mesure</b><span>Votre propre cuvée, de la matière à l'étiquette</span><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+      <a href="/evenements"><b>Le showroom</b><span>Masterclass, dégustations, privatisation</span><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
     </nav>
   </div>
 </section>
 
+<section class="bandeau" id="bandeau" aria-label="Entrées récentes">
+  <div class="bd-tete"><span class="note">Entré récemment</span></div>
+  <div class="bd-piste" id="bdPiste"></div>
+</section>
+
+<section class="maison">
+  <p class="note rv">La maison</p>
+  <p class="d3" id="manifeste">Nous ne référençons que ce que nous avons goûté. Des maisons petites ou rares, choisies pour la matière et pour la main qui la travaille.</p>
+  <div class="ms-photos">
+    <div class="p1 masque" data-revele><img src="/img/bar.jpg" alt="Le comptoir de L'Officine" data-plx="-8"></div>
+    <div class="p2 masque" data-revele><img src="/img/futs.jpg" alt="Fûts de vieillissement" data-plx="10"></div>
+  </div>
+  <div class="ms-lien rv"><a class="cta ligne" href="/a-propos">La maison en deux mots <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></div>
+</section>
+
+<section class="etagere sombre plein" id="rayons">
+  <div class="vt-cadre" id="vtCadre">
+    <div class="entete-r">
+      <h2 class="d3">Cinq rayons</h2>
+      <a class="cta ligne" href="/selection">Toute la sélection <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+    </div>
+    <div class="vitrine" id="vitrine">
+      <div class="vt-forme" id="vtForme" aria-hidden="true"></div>
+      <img class="vt-cle" src="/img/symbole-cle.png" alt="" width="62" height="120">
+      <div class="vt-nom"><span class="vt-num" id="vtNum">I</span><h3 id="vtNom"><span>Rhums &amp; canne</span></h3></div>
+      <div class="vt-scene" id="vtScene" aria-hidden="true"></div>
+      <div class="vt-liste">
+        <p class="vt-titre">Sur l'étagère</p>
+        <div class="vt-entete"><span>Référence</span><span>Prix</span></div>
+        <div class="vt-lignes" id="vtLignes"></div>
+      </div>
+      <p class="vt-compte" id="vtCompte" aria-live="polite"></p>
+      <nav class="vt-barre" aria-label="Choisir un rayon">
+        <button class="vt-prec" id="vtPrec" type="button" aria-label="Rayon précédent"><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M18 5H2M6 1L2 5l4 4"/></svg></button>
+        <div class="vt-rayons" id="vtRayons">
+          <span class="vt-curseur" id="vtCurseur" aria-hidden="true"></span>
+          <a href="/selection?cat=rhums" data-r="0" aria-current="true" style="--c:#A8602F"><i></i>Rhums</a>
+          <a href="/selection?cat=spiritueux" data-r="1" style="--c:#2E5A5E"><i></i>Spiritueux</a>
+          <a href="/selection?cat=vins" data-r="2" style="--c:#6A2130"><i></i>Vins</a>
+          <a href="/selection?cat=epicerie" data-r="3" style="--c:#6F7F35"><i></i>Épicerie</a>
+          <a href="/selection?cat=sans-alcool" data-r="4" style="--c:#2F8479"><i></i>Sans alcool</a>
+        </div>
+        <a class="vt-voir" id="vtVoir" href="/selection?cat=rhums">Voir le rayon</a>
+        <button class="vt-suivant" id="vtSuivant" type="button" aria-label="Rayon suivant"><svg class="vt-anneau" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"/></svg><svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></button>
+      </nav>
+    </div>
+  </div>
+</section>
+
 <section class="piece" id="piece" hidden>
-  <div class="piece-visuel"><span class="cadre"><i class="losange g" aria-hidden="true"></i><i class="losange d" aria-hidden="true"></i><span class="ecrin"><img id="pieceImg" src="data:," alt=""></span></span></div>
-  <div class="piece-texte">
-    <p class="note">Création de l'atelier</p>
+  <div class="pc-fond" aria-hidden="true"></div>
+  <div class="pc-visuel"><span class="cadre"><i class="losange g" aria-hidden="true"></i><i class="losange d" aria-hidden="true"></i><span class="ecrin"><img id="pieceImg" src="data:," alt=""></span></span></div>
+  <div class="pc-texte">
+    <p class="note">Notre propre cuvée</p>
     <p class="piece-marque" id="pieceMarque"></p>
     <h2 class="d2" id="pieceNom"></h2>
     <p class="piece-acc" id="pieceAcc"></p>
@@ -145,28 +175,35 @@
     <div class="media"><video muted loop playsinline preload="metadata" poster="/img/chai.jpg" aria-hidden="true"><source src="/video/cave.mp4" type="video/mp4"></video></div>
     <div class="coins" aria-hidden="true"><span class="it">Cuvée</span><span class="it">sur mesure</span></div>
     <div class="titres">
+      <p class="note">Sur commande, à partir de 50 bouteilles</p>
       <h2 class="d1">Une cuvée à votre nom.</h2>
-      <p>Pour une maison, un événement ou une envie singulière, nous composons avec vous une cuvée unique, de la matière première jusqu'à l'étiquette.</p>
-      <a class="cta plein" href="/cuvee">Découvrir le service <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+      <p>Nous composons avec vous un rhum ou un vin unique, de la matière première jusqu'à l'étiquette. Pour une maison, un mariage, un lancement.</p>
+      <a class="cta plein" href="/cuvee">Comment ça se passe <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
     </div>
   </div>
 </section>
 
 <section class="programme sombre">
   <div class="haut">
-    <div><p class="note">Showroom</p><h2 class="d2 lignes">Prochaines dates.</h2></div>
+    <div><p class="note">Au showroom</p><h2 class="d3">Prochaines dates</h2></div>
     <a class="cta ligne rv" href="/evenements">Tout le programme <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
   </div>
   <div class="agenda" id="agenda" data-limite="3"></div>
-  <div class="attente" id="attente" hidden><p class="d3">La programmation arrive très bientôt.</p><p class="doux" style="margin-top:12px">Suivez <a class="souligne" href="https://www.instagram.com/officine_gpe/" target="_blank" rel="noopener">@officine_gpe</a> pour les premières dates.</p></div>
+  <div class="attente" id="attente" hidden>
+    <div class="at-txt"><p class="d3">Les prochaines dates arrivent.</p><p class="doux">Masterclass, ateliers dégustation et lancements, une à deux fois par mois à Jarry.</p></div>
+    <div class="at-act"><a class="cta plein" href="/contact?sujet=evenement">Être prévenu des dates <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a><a class="cta ligne" href="https://www.instagram.com/officine_gpe/" target="_blank" rel="noopener">Instagram</a></div>
+  </div>
 </section>
 
 <section class="retrait" id="retrait">
-  <h2 class="d2 lignes">Commandez en ligne,<br>retirez à Jarry.</h2>
+  <div class="rt-tete">
+    <p class="note rv">Click &amp; collect</p>
+    <h2 class="d3 rv">Commandez en ligne, retirez à Jarry.</h2>
+  </div>
   <ol class="temps" id="temps">
-    <li class="rv"><span class="t-n">1</span><h3>Choisir</h3><p>Parcourez les rayons, ouvrez les fiches, ajoutez vos bouteilles au panier.</p></li>
-    <li class="rv" style="--d:.12s"><span class="t-n">2</span><h3>Régler</h3><p>Paiement par carte en ligne. La confirmation arrive aussitôt par e-mail.</p></li>
-    <li class="rv" style="--d:.24s"><span class="t-n">3</span><h3>Retirer</h3><p>Un e-mail vous prévient quand tout est prêt. Passez avec votre numéro et une pièce d'identité.</p></li>
+    <li class="rv"><span class="t-n">1</span><h3>Choisir</h3><p>Parcourez les rayons et ajoutez vos bouteilles au panier.</p></li>
+    <li class="rv" style="--d:.12s"><span class="t-n">2</span><h3>Régler</h3><p>Paiement par carte en ligne, confirmation immédiate par e-mail.</p></li>
+    <li class="rv" style="--d:.24s"><span class="t-n">3</span><h3>Retirer</h3><p>Un e-mail vous prévient dès que la commande est prête.</p></li>
   </ol>
   <p class="rv"><a class="cta encre" href="/selection">Commencer ma sélection <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
 </section>
@@ -174,11 +211,11 @@
 <section class="visite">
   <div class="photo masque" data-revele><img src="/img/showroom.jpg" alt="Le showroom de L'Officine à Jarry" data-plx="12"></div>
   <div class="infos">
-    <div><p class="note">Nous rendre visite</p><h2 class="d2 lignes" style="margin-top:14px">Venez pousser la porte.</h2></div>
+    <div><p class="note">Nous rendre visite</p><h2 class="d3" style="margin-top:14px">39 rue de l'Industrie, Jarry.</h2></div>
     <dl class="rv">
-      <dt>Adresse</dt><dd>39 rue de l'Industrie, ZI de Jarry<br>97122 Baie-Mahault</dd>
-      <dt>Horaires</dt><dd>Du mardi au samedi<br>de 9 h à 18 h</dd>
-      <dt>Retrait</dt><dd>Vos commandes en ligne vous attendent en boutique.</dd>
+      <dt>Horaires</dt><dd>Du mardi au samedi, de 9 h à 18 h</dd>
+      <dt>Retrait</dt><dd>Vos commandes en ligne vous attendent au comptoir</dd>
+      <dt>Sur place</dt><dd>Dégustation et conseil, sans rendez-vous</dd>
     </dl>
     <p class="rv"><a class="cta encre" href="/contact">Itinéraire et contact <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
   </div>
@@ -223,7 +260,7 @@
 <script src="/assets/vendor/lenis.min.js" defer></script>
 <script src="/assets/js/config.js" defer></script>
 <script src="/assets/js/donnees.js?v=3" defer></script>
-<script src="/assets/js/officine.js?v=7" defer></script>
-<script src="/assets/js/anim.js?v=12" defer></script>
+<script src="/assets/js/officine.js?v=15" defer></script>
+<script src="/assets/js/anim.js?v=15" defer></script>
 </body>
 </html>
