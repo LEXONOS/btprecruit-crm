@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/officine.css?v=15">
+<link rel="stylesheet" href="/assets/css/officine.css?v=16">
 </head>
 <body class="fige" data-page="/merci">
 <div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
@@ -69,20 +69,46 @@
 </aside>
 <main>
 
-<section class="tete-p merci-tete">
-  <img class="sceau" src="/img/symbole-cle.png" alt="" width="62" height="120">
-  <p class="fil"><a href="/">Accueil</a> / Commande confirmée</p>
-  <h1 class="lignes" data-entree>Merci, c'est confirmé.</h1>
-  <p class="tp-lead rv" data-entree-rv>Commande <b id="numero">en cours d'enregistrement</b>. Un e-mail de confirmation vous est envoyé.</p>
+<section class="merci-haut">
+  <div class="mh-fond" aria-hidden="true"></div>
+  <div class="mh-txt">
+    <p class="fil"><a href="/">Accueil</a> / Commande confirmée</p>
+    <h1 class="lignes" data-entree>Merci, c'est confirmé.</h1>
+    <p class="mh-lead rv" data-entree-rv id="mhLead">Un e-mail de confirmation vous est envoyé.</p>
+  </div>
+  <div class="mh-num rv" data-entree-rv>
+    <span class="cadre"><i class="losange g" aria-hidden="true"></i><i class="losange d" aria-hidden="true"></i><span class="ecrin">
+      <span class="note">Votre commande</span>
+      <b id="numero">…</b>
+      <span class="mh-etat" id="mhEtat">À présenter au retrait</span>
+    </span></span>
+  </div>
 </section>
-<section class="bloc merci-corps">
-  <div class="recap" id="recap"><p class="doux">Récupération du récapitulatif…</p></div>
-  <ol class="etapes-merci">
-    <li><span class="t-n">1</span><b>Préparation</b><p class="doux">Nous préparons vos bouteilles en boutique.</p></li>
-    <li><span class="t-n">2</span><b>E-mail « prête »</b><p class="doux">Vous êtes prévenu dès que votre commande vous attend.</p></li>
-    <li><span class="t-n">3</span><b>Retrait à Jarry</b><p class="doux">Du mardi au samedi, 9 h à 18 h, avec votre numéro et une pièce d'identité.</p></li>
-  </ol>
-  <p class="merci-actions"><a class="cta ligne" href="/contact">Itinéraire et horaires</a><a class="cta encre" href="/selection">Continuer la visite <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
+
+<section class="merci-corps">
+  <div class="mc-recap">
+    <h2 class="d3">Votre commande</h2>
+    <div class="recap" id="recap"><p class="doux">Récupération du récapitulatif…</p></div>
+    <ol class="etapes-merci">
+      <li><span class="t-n">1</span><b>Préparation</b><p class="doux">Nous préparons vos bouteilles en boutique.</p></li>
+      <li><span class="t-n">2</span><b>E-mail « prête »</b><p class="doux">Vous êtes prévenu dès que la commande vous attend.</p></li>
+      <li><span class="t-n">3</span><b>Retrait</b><p class="doux">Avec votre numéro et une pièce d'identité.</p></li>
+    </ol>
+    <p class="merci-actions"><a class="cta encre" href="/selection">Continuer la visite <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
+  </div>
+  <aside class="mc-retrait">
+    <div class="carte-maps"><iframe src="https://www.google.com/maps?q=39+rue+de+l%27Industrie,+Jarry,+97122+Baie-Mahault,+Guadeloupe&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Plan d'accès à L'Officine"></iframe></div>
+    <div class="mc-infos">
+      <p class="note">Où retirer</p>
+      <p class="mc-adresse">39 rue de l'Industrie, ZI de Jarry<br>97122 Baie-Mahault</p>
+      <dl>
+        <dt>Horaires</dt><dd>Du mardi au samedi, de 9 h à 18 h</dd>
+        <dt>À apporter</dt><dd>Votre numéro de commande et une pièce d'identité</dd>
+        <dt>Une question</dt><dd><a class="souligne" href="mailto:contact@eiffel-gp.com">contact@eiffel-gp.com</a></dd>
+      </dl>
+      <a class="cta plein" href="https://www.google.com/maps/dir/?api=1&amp;destination=39+rue+de+l%27Industrie+97122+Baie-Mahault+Guadeloupe" target="_blank" rel="noopener">Ouvrir l'itinéraire <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+    </div>
+  </aside>
 </section>
 </main>
 <footer class="pied">
@@ -124,33 +150,51 @@
 <script src="/assets/vendor/lenis.min.js" defer></script>
 <script src="/assets/js/config.js" defer></script>
 <script src="/assets/js/donnees.js?v=3" defer></script>
-<script src="/assets/js/officine.js?v=15" defer></script>
-<script src="/assets/js/anim.js?v=15" defer></script>
+<script src="/assets/js/officine.js?v=16" defer></script>
+<script src="/assets/js/anim.js?v=16" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
   var s = new URLSearchParams(location.search).get('session');
   var cr = null; try { cr = JSON.parse(sessionStorage.getItem('officine_commande') || 'null'); } catch(e){}
   try { localStorage.removeItem('officine_panier'); } catch(e){}
   if (window.OfficinePanier){ window.OfficinePanier.items = []; window.OfficinePanier.rendre(); }
-  var zone = document.getElementById('recap'), essais = 0;
-  if (!s && cr){
-    document.getElementById('numero').textContent = cr.numero;
-    zone.innerHTML = cr.lignes.map(function(l){ return '<div class="l"><span>' + l.qte + ' x ' + esc(l.nom) + '</span><span>' + eur(l.prix * l.qte) + '</span></div>'; }).join('') +
-      '<div class="l t"><span>À régler au retrait</span><span>' + eur(cr.total) + '</span></div>' +
-      '<p class="doux" style="margin-top:14px">Règlement en boutique, par carte ou en espèces, au moment du retrait.' + (cr.mail ? ' Confirmation envoyée par e-mail.' : '') + '</p>';
-    return;
+  var zone = document.getElementById('recap'), essais = 0, photos = {};
+  function eur(n){ return Number(n).toLocaleString('fr-FR', {minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2}) + ' €'; }
+  function esc(t){ var d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
+  function norm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
+  if (window.OfficineDonnees) window.OfficineDonnees.produits().then(function(l){
+    (l || []).forEach(function(p){
+      if (!p.image) return;
+      photos[norm((p.marque ? p.marque + ' ' : '') + p.nom)] = {img: p.image, det: p.photo_type !== 'ambiance'};
+      photos[norm(p.nom)] = photos[norm((p.marque ? p.marque + ' ' : '') + p.nom)];
+    });
+    rendre();
+  }).catch(function(){});
+  var dernier = null;
+  function ligne(l){
+    var ph = photos[norm(l.nom)];
+    return '<div class="r-l">' +
+      '<span class="r-v' + (ph && ph.det ? ' det' : '') + '">' + (ph ? '<img src="' + esc(ph.img) + '" alt="" loading="lazy">' : '') + '</span>' +
+      '<span class="r-t"><b>' + esc(l.nom) + '</b><span>' + l.qte + ' x ' + eur(l.prix) + '</span></span>' +
+      '<span class="r-p">' + eur(l.prix * l.qte) + '</span></div>';
   }
-  if (!s){ zone.innerHTML = ''; return; }
-  function eur(n){ return Number(n).toLocaleString('fr-FR', {minimumFractionDigits: 2}) + ' €'; }
-  function esc(t){ var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  function rendre(d){
+    if (d) dernier = d;
+    if (!dernier) return;
+    var x = dernier;
+    document.getElementById('numero').textContent = x.numero || '';
+    document.getElementById('mhEtat').textContent = x.paye === false ? 'À régler au retrait' : 'Payée en ligne';
+    document.getElementById('mhLead').textContent = x.email ? 'Confirmation envoyée à ' + x.email + '.' : 'Un e-mail de confirmation vous est envoyé.';
+    zone.innerHTML = (x.lignes || []).map(ligne).join('') +
+      '<div class="r-total"><span>' + (x.paye === false ? 'À régler au retrait' : 'Total payé') + '</span><span>' + eur(x.total) + '</span></div>';
+  }
+  if (!s && cr){ rendre({numero: cr.numero, lignes: cr.lignes, total: cr.total, email: cr.mail, paye: false}); return; }
+  if (!s){ zone.innerHTML = '<p class="doux">Votre récapitulatif arrive par e-mail dans quelques minutes.</p>'; return; }
   (function lire(){
     fetch('/api/commande?session=' + encodeURIComponent(s)).then(function(r){ return r.json(); }).then(function(d){
       if (d.attente && essais++ < 8) return setTimeout(lire, 2000);
       if (!d.numero){ zone.innerHTML = '<p class="doux">Votre récapitulatif arrive par e-mail dans quelques minutes.</p>'; return; }
-      document.getElementById('numero').textContent = d.numero;
-      zone.innerHTML = d.lignes.map(function(l){ return '<div class="l"><span>' + l.qte + ' x ' + esc(l.nom) + '</span><span>' + eur(l.prix * l.qte) + '</span></div>'; }).join('') +
-        '<div class="l t"><span>Total payé</span><span>' + eur(d.total) + '</span></div>' +
-        (d.email ? '<p class="doux" style="margin-top:14px">Confirmation envoyée à ' + esc(d.email) + '.</p>' : '');
+      rendre({numero: d.numero, lignes: d.lignes, total: d.total, email: d.email, paye: true});
     }).catch(function(){ zone.innerHTML = '<p class="doux">Votre récapitulatif arrive par e-mail dans quelques minutes.</p>'; });
   })();
 });
