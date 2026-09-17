@@ -1,10 +1,10 @@
-# L'Officine, mission Cuvée sur mesure et La maison
+# L'Officine, mission Contact, navigation et chargement
 
 | Fichier | Emplacement | Ce qui change |
 |---|---|---|
-| cuvee.html | racine | page refaite : chiffres clés dans le bandeau, les quatre choix, occasions, méthode en 4 étapes |
-| a-propos.html | racine | page refaite : phrase du métier raccourcie, trois critères de sélection, fondateur, maisons |
-| assets/css/officine.css | assets/css/ | styles des deux pages |
-| autres *.html | racine | version des fichiers uniquement |
+| contact.html | racine | plan en tête du bloc coordonnées, adresse et horaires lisibles, bouton itinéraire |
+| toutes les pages *.html | racine | menu « Showroom et dates », écran de chargement ajouté, version des fichiers |
+| assets/js/anim.js | assets/js/ | le chargement ne se rejoue pas lors d'une navigation interne |
+| assets/css/officine.css | assets/css/ | styles du bloc coordonnées |
 
-Cumulatif : contient aussi l'accueil, la sélection, la page commande confirmée et le showroom.
+Cumulatif : contient tout le chantier depuis l'accueil.

@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/officine.css?v=18">
+<link rel="stylesheet" href="/assets/css/officine.css?v=19">
 </head>
 <body class="fige" data-page="/mentions-legales">
 <div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
@@ -33,13 +33,26 @@
   </div>
   <p class="bas">L'abus d'alcool est dangereux pour la santé, à consommer avec modération.</p>
 </div>
+<div class="chargement" id="chargement" hidden aria-hidden="true">
+  <div class="ch-centre">
+    <svg class="ch-ecrin" viewBox="0 0 120 200" aria-hidden="true">
+      <defs><clipPath id="chClip"><rect class="ch-liquide" x="6" y="194" width="108" height="188" rx="54"></rect></clipPath></defs>
+      <rect class="ch-trait" x="6" y="6" width="108" height="188" rx="54"></rect>
+      <rect class="ch-trait fin" x="13" y="13" width="94" height="174" rx="47"></rect>
+      <g clip-path="url(#chClip)"><rect class="ch-plein" x="6" y="6" width="108" height="188" rx="54"></rect></g>
+      <image class="ch-cle" href="/img/symbole-cle.png" x="46" y="60" width="28" height="80"></image>
+    </svg>
+    <p class="ch-pc"><span id="chPc">0</span><i>%</i></p>
+    <p class="ch-mot" id="chMot">Ouverture de l'atelier</p>
+  </div>
+</div>
 <div id="rideau" class="net"><span class="mot">L'Officine</span></div>
 <script>(function(){try{var a=JSON.parse(localStorage.getItem('officine_age')||'0');if(a&&Date.now()-a<2592e6)document.getElementById('age').hidden=true;if(sessionStorage.getItem('officine_rideau')){sessionStorage.removeItem('officine_rideau');document.getElementById('rideau').className='tombe sans';}}catch(e){}})();</script>
 <div class="curseur" aria-hidden="true"><span>Voir</span></div>
 
 <header class="nav clair" id="nav">
   <a class="logo-nav" href="/" aria-label="L'Officine, atelier de création, accueil"><img src="/img/symbole-cle.png" alt="" width="13" height="25"><span>L'Officine<small>Atelier de création</small></span></a>
-  <nav class="menu" aria-label="Navigation principale"><a href="/selection">Sélection</a><a href="/cuvee">Cuvée sur mesure</a><a href="/evenements">Showroom</a><a href="/a-propos">La maison</a><a href="/contact">Contact</a></nav>
+  <nav class="menu" aria-label="Navigation principale"><a href="/selection">Sélection</a><a href="/cuvee">Cuvée sur mesure</a><a href="/evenements">Showroom et dates</a><a href="/a-propos">La maison</a><a href="/contact">Contact</a></nav>
   <div class="outils">
     <button class="btn-panier" data-panier aria-label="Ouvrir le panier"><span class="mot-p">Panier</span><span class="nb">0</span></button>
     <button class="burger" data-menu aria-label="Ouvrir le menu"><i></i></button>
@@ -47,7 +60,7 @@
 </header>
 <div id="menuMobile" aria-hidden="true">
   <button class="fermer" data-menu>Fermer</button>
-  <nav><a href="/"><span>Accueil</span></a><a href="/selection"><span>Sélection</span></a><a href="/cuvee"><span>Cuvée sur mesure</span></a><a href="/evenements"><span>Showroom</span></a><a href="/a-propos"><span>La maison</span></a><a href="/contact"><span>Contact</span></a></nav>
+  <nav><a href="/"><span>Accueil</span></a><a href="/selection"><span>Sélection</span></a><a href="/cuvee"><span>Cuvée sur mesure</span></a><a href="/evenements"><span>Showroom et dates</span></a><a href="/a-propos"><span>La maison</span></a><a href="/contact"><span>Contact</span></a></nav>
   <p class="pied-m">Du mardi au samedi, 9 h à 18 h<br>Jarry, Baie-Mahault</p>
 </div>
 <div id="voilePanier"></div>
@@ -150,7 +163,7 @@ Contact : contact@eiffel-gp.com</p>
 <script src="/assets/vendor/lenis.min.js" defer></script>
 <script src="/assets/js/config.js" defer></script>
 <script src="/assets/js/donnees.js?v=3" defer></script>
-<script src="/assets/js/officine.js?v=18" defer></script>
-<script src="/assets/js/anim.js?v=18" defer></script>
+<script src="/assets/js/officine.js?v=19" defer></script>
+<script src="/assets/js/anim.js?v=19" defer></script>
 </body>
 </html>

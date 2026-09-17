@@ -125,7 +125,11 @@ var pret = document.fonts && document.fonts.ready ? document.fonts.ready : Promi
 pret.then(function(){
   prepLignes();
   surveiller();
-  var demarrer = function(){ if (ecran) lancerChargement(entree); else entree(); };
+  var rideauSans = $('#rideau') && $('#rideau').classList.contains('sans');
+  var demarrer = function(){
+    if (ecran && !rideauSans) lancerChargement(entree);
+    else { if (ecran) ecran.remove(); entree(); }
+  };
   if (window.OfficineEntree && window.OfficineEntree()) demarrer();
   else document.addEventListener('officine:entree', demarrer, {once: true});
   if (avecGsap) scenes(); else replis();
