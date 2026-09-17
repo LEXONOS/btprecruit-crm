@@ -539,17 +539,27 @@ if (agenda){
     if (agenda.dataset.limite) evts = evts.slice(0, +agenda.dataset.limite);
     var demo = $('#demoEvt'); if (demo && evts.some(function(e){ return e.demo; })) demo.hidden = false;
     if (!evts.length){ $('#attente').hidden = false; agenda.hidden = true; return; }
-    agenda.innerHTML = evts.map(function(e){
+    var carteEvt = function(e, majeur){
       var d = jour(e.date), r = e.places_restantes, complet = r <= 0;
       var total = e.places_total || Math.max(r, 12);
       var pris = Math.max(0, Math.min(100, Math.round((total - Math.max(r, 0)) / total * 100)));
+      var img = e.image ? '<img src="' + esc(e.image) + '" alt="" loading="lazy">' : '<img class="evt-cle" src="/img/symbole-cle.png" alt="">';
+      var places = '<div class="places"><span class="p-prix">' + euros(e.prix) + ' la place</span><span class="p-reste">' + (complet ? 'Complet' : r + (r > 1 ? ' places restantes' : ' place restante')) + '</span><span class="jauge" aria-hidden="true"><i style="width:' + pris + '%"></i></span></div>';
+      var bouton = complet ? '<span class="etat">Complet, liste d\'attente en boutique</span>' : '<button class="cta plein" data-resa="' + esc(e.id) + '">Réserver une place ' + FL + '</button>';
+      if (majeur){
+        return '<article class="evt-majeur rv' + (complet ? ' complet' : '') + '">' +
+          '<div class="em-img">' + img + '<span class="em-quand"><b>' + d.getDate() + '</b><span>' + MOIS[d.getMonth()] + '</span></span></div>' +
+          '<div class="em-corps"><p class="note">Prochaine date, ' + esc(e.heure) + '</p><p class="fmt">' + esc(e.format) + '</p><h3 class="d2">' + esc(e.titre) + '</h3>' +
+          (e.description ? '<p class="desc">' + esc(e.description) + '</p>' : '') + places + bouton + '</div></article>';
+      }
       return '<article class="evt rv' + (complet ? ' complet' : '') + (e.image ? ' avec-img' : '') + '">' +
-        '<div class="evt-img">' + (e.image ? '<img src="' + esc(e.image) + '" alt="" loading="lazy">' : '<img class="evt-cle" src="/img/symbole-cle.png" alt="">') + '</div>' +
+        '<div class="evt-img">' + img + '</div>' +
         '<div class="date"><b>' + d.getDate() + '</b><span>' + MOIS[d.getMonth()] + '</span><em>' + esc(e.heure) + '</em></div>' +
         '<div class="evt-corps"><p class="fmt">' + esc(e.format) + '</p><h3>' + esc(e.titre) + '</h3>' + (e.description ? '<p class="desc">' + esc(e.description) + '</p>' : '') + '</div>' +
-        '<div class="places"><span class="p-prix">' + euros(e.prix) + ' la place</span><span class="p-reste">' + (complet ? 'Complet' : r + (r > 1 ? ' places restantes' : ' place restante')) + '</span><span class="jauge" aria-hidden="true"><i style="width:' + pris + '%"></i></span></div>' +
-        (complet ? '<span class="etat">Liste d\'attente en boutique</span>' : '<button class="cta plein" data-resa="' + esc(e.id) + '">Réserver ' + FL + '</button>') + '</article>';
-    }).join('');
+        places + (complet ? '<span class="etat">Liste d\'attente en boutique</span>' : '<button class="cta plein" data-resa="' + esc(e.id) + '">Réserver ' + FL + '</button>') + '</article>';
+    };
+    var vedette = agenda.dataset.vedette === '1';
+    agenda.innerHTML = evts.map(function(e, i){ return carteEvt(e, vedette && i === 0); }).join('');
     document.dispatchEvent(new CustomEvent('officine:contenu', {detail: agenda}));
     agenda.addEventListener('click', function(ev){
       var b = ev.target.closest('[data-resa]'); if (!b) return;

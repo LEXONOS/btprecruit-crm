@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/officine.css?v=16">
+<link rel="stylesheet" href="/assets/css/officine.css?v=17">
 </head>
 <body class="fige" data-page="/evenements">
 <div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
@@ -71,29 +71,42 @@
 <section class="hero-p court">
   <img src="/img/showroom.jpg" alt="" class="hp-img">
   <div class="hp-contenu">
-    <p class="fil"><a href="/">Accueil</a> / Showroom et événements</p>
-    <h1 class="lignes" data-entree>Un lieu pour goûter, apprendre, transmettre.</h1>
+    <p class="fil"><a href="/">Accueil</a> / Showroom</p>
+    <h1 class="lignes" data-entree>Goûter, comprendre, repartir avec.</h1>
     <div class="hp-bas rv" style="--d:.45s" data-entree-rv>
-      <p>Masterclass, ateliers dégustation et lancements, au cœur de Jarry.</p>
-      <div class="hp-actions"><a class="cta plein" href="#programme">Voir les dates <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a><a class="cta ligne" href="#privatiser">Privatiser le showroom</a></div>
+      <p>Le showroom de Jarry reçoit une à deux fois par mois pour une masterclass, un atelier dégustation ou un lancement. Douze places, deux heures, un intervenant.</p>
+      <div class="hp-actions"><a class="cta plein" href="#programme">Voir les dates <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a><a class="cta ligne" href="#privatiser">Privatiser le lieu</a></div>
     </div>
   </div>
 </section>
 
 <section class="programme creme-bloc" id="programme">
-  <div class="haut"><div><p class="note">Programme</p><h2 class="d2 lignes">Les prochaines dates.</h2></div><p class="doux prog-info">Places réglées en ligne avec votre panier, accueil au showroom de Jarry.</p></div>
+  <div class="haut">
+    <div><p class="note">Programme</p><h2 class="d3">Les prochaines dates</h2></div>
+    <p class="doux prog-info">Réservation et paiement en ligne avec votre panier. Vous recevez la confirmation par e-mail.</p>
+  </div>
   <p class="demo" id="demoEvt" hidden style="padding:18px 0 0">Aperçu de travail : dates d'exemple, l'équipe publiera ici son vrai programme.</p>
-  <div class="agenda" id="agenda"></div>
-  <div class="attente" id="attente" hidden><p class="d3">La programmation arrive très bientôt.</p><p class="doux" style="margin-top:12px">Suivez <a class="souligne" href="https://www.instagram.com/officine_gpe/" target="_blank" rel="noopener">@officine_gpe</a> ou <a class="souligne" href="/contact?sujet=evenement">écrivez-nous</a> pour être prévenu.</p></div>
+  <div class="agenda" id="agenda" data-vedette="1"></div>
+  <div class="attente" id="attente" hidden>
+    <div class="at-txt"><p class="d3">Rien d'affiché pour l'instant.</p><p class="doux">Laissez-nous votre adresse ou suivez le compte : vous serez prévenu dès l'ouverture des réservations, les places partent vite.</p></div>
+    <div class="at-act"><a class="cta plein" href="/contact?sujet=evenement">Être prévenu des dates <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a><a class="cta ligne" href="https://www.instagram.com/officine_gpe/" target="_blank" rel="noopener">Instagram</a></div>
+  </div>
 </section>
 
 <section class="bloc sombre formats-bloc">
-  <p class="note rv">Les formats</p>
-  <h2 class="d2 lignes" style="margin-top:14px">Trois manières de vivre la sélection.</h2>
+  <div class="fm-tete">
+    <div><p class="note rv">Ce qui se passe ici</p><h2 class="d3 rv" style="margin-top:12px">Trois formats, un même lieu.</h2></div>
+    <dl class="fm-cadre rv">
+      <dt>Durée</dt><dd>2 heures</dd>
+      <dt>Places</dt><dd>12 maximum</dd>
+      <dt>Compris</dt><dd>Les dégustations et le carnet de notes</dd>
+      <dt>Tarif</dt><dd>De 25 à 55 € la place</dd>
+    </dl>
+  </div>
   <div class="formats">
-    <div class="format rv"><div class="f-img"><img src="/img/whisky.jpg" alt="" loading="lazy"></div><h3 class="d3">Masterclass</h3><p>Un univers, un intervenant, deux heures pour comprendre une matière en profondeur.</p></div>
-    <div class="format rv" style="--d:.1s"><div class="f-img"><img src="/img/verre-vin.jpg" alt="" loading="lazy"></div><h3 class="d3">Ateliers dégustation</h3><p>Apprendre à goûter, comparer, mettre des mots sur ce que l'on ressent.</p></div>
-    <div class="format rv" style="--d:.2s"><div class="f-img"><img src="/img/bouteille.jpg" alt="" loading="lazy"></div><h3 class="d3">Lancements</h3><p>Les nouvelles références en avant-première, en présence de ceux qui les font.</p></div>
+    <div class="format rv"><div class="f-img"><img src="/img/whisky.jpg" alt="" loading="lazy"></div><h3 class="d3">Masterclass</h3><p>Un univers, un intervenant, six à huit flacons pour comprendre une matière en profondeur.</p></div>
+    <div class="format rv" style="--d:.1s"><div class="f-img"><img src="/img/verre-vin.jpg" alt="" loading="lazy"></div><h3 class="d3">Atelier dégustation</h3><p>Apprendre à goûter, comparer, mettre des mots sur ce que l'on ressent. Aucun prérequis.</p></div>
+    <div class="format rv" style="--d:.2s"><div class="f-img"><img src="/img/bouteille.jpg" alt="" loading="lazy"></div><h3 class="d3">Lancement</h3><p>Une nouvelle référence en avant-première, en présence de ceux qui la font.</p></div>
   </div>
 </section>
 
@@ -101,12 +114,15 @@
   <div class="c-img2 img-portrait masque arche" data-revele><img src="/img/bar.jpg" alt="Le bar du showroom" data-plx="10"></div>
   <div class="c-txt2">
     <p class="note rv">Privatisation</p>
-    <h2 class="d2 lignes" style="margin-top:14px">Le showroom, pour vos invités.</h2>
-    <div class="prose lead rv" style="margin-top:30px">
-      <p>Soirée clients, séminaire, dégustation privée ou célébration : le showroom se privatise, avec une animation autour de la sélection si vous le souhaitez.</p>
-      <p class="doux">Indiquez la date, le nombre de personnes et l'esprit de la soirée, nous revenons vers vous avec une proposition.</p>
-    </div>
-    <p class="rv" style="margin-top:34px"><a class="cta encre" href="/contact?profil=entreprise&amp;sujet=privatisation">Demander une privatisation <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
+    <h2 class="d3 rv" style="margin-top:14px">Le showroom, pour vos invités.</h2>
+    <p class="lead rv" style="margin-top:26px">Soirée clients, séminaire, dégustation privée ou célébration. Le lieu se privatise en soirée, avec ou sans animation autour de la sélection.</p>
+    <ul class="pv-liste rv">
+      <li>Jusqu'à 40 personnes debout, 20 assises</li>
+      <li>Animation dégustation en option, menée par l'équipe</li>
+      <li>Traiteur et prestataires de votre choix</li>
+      <li>Devis sous 48 heures</li>
+    </ul>
+    <p class="rv" style="margin-top:30px"><a class="cta encre" href="/contact?profil=entreprise&amp;sujet=privatisation">Demander une date <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
   </div>
 </section>
 </main>
@@ -149,7 +165,7 @@
 <script src="/assets/vendor/lenis.min.js" defer></script>
 <script src="/assets/js/config.js" defer></script>
 <script src="/assets/js/donnees.js?v=3" defer></script>
-<script src="/assets/js/officine.js?v=16" defer></script>
-<script src="/assets/js/anim.js?v=16" defer></script>
+<script src="/assets/js/officine.js?v=17" defer></script>
+<script src="/assets/js/anim.js?v=17" defer></script>
 </body>
 </html>

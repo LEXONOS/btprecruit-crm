@@ -1,9 +1,11 @@
-# L'Officine, mission Commande confirmée
+# L'Officine, mission Showroom
 
 | Fichier | Emplacement | Ce qui change |
 |---|---|---|
-| merci.html | racine | page refaite : bandeau sombre avec le numéro dans l'écrin, récapitulatif avec photos, bloc retrait avec plan et itinéraire |
-| assets/css/officine.css | assets/css/ | styles de la page |
+| evenements.html | racine | page refaite : bandeau, programme avec date en vedette, cadre pratique des formats, privatisation détaillée |
+| assets/js/officine.js | assets/js/ | HTML de la carte événement (vedette + suivantes). Réservation et data-resa inchangés |
+| assets/css/officine.css | assets/css/ | styles du programme et des formats |
+| index.html | racine | texte d'attente des dates |
 | autres *.html | racine | version des fichiers uniquement |
 
-Cumulatif : contient aussi l'accueil et la sélection livrés juste avant.
+Cumulatif : contient aussi l'accueil, la sélection et la page commande confirmée.
