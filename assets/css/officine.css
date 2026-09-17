@@ -1116,3 +1116,38 @@ body.charge .chargement{pointer-events:none}
 .em-corps .jauge i{display:block;height:100%;background:var(--laiton)}
 .sombre .em-corps .jauge{background:var(--trait-c)}
 .em-corps .etat{display:block;font-size:14px;color:var(--doux)}
+
+/* ================= v18 : cuvée sur mesure et la maison ================= */
+.hp-cles{position:absolute;right:var(--marge);bottom:clamp(30px,6vh,64px);z-index:3;display:flex;gap:clamp(18px,2.4vw,40px);color:var(--creme)}
+.hp-cles div{padding-left:14px;border-left:1px solid rgba(241,235,224,.3)}
+.hp-cles dt{font-size:12px;color:rgba(241,235,224,.6)}
+.hp-cles dd{font-family:var(--serif);font-size:clamp(16px,1.4vw,20px);margin-top:4px;white-space:nowrap}
+@media(max-width:1100px){.hp-cles{position:static;margin:26px var(--marge) 0;flex-wrap:wrap;gap:16px 24px}}
+
+.cb-tete{margin-bottom:clamp(36px,4vw,60px)}
+.choix{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(16px,2vw,34px)}
+.ch-i{padding-top:20px;border-top:1px solid var(--trait)}
+.ch-n{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--laiton)}
+.ch-i h3{font-family:var(--serif);font-weight:400;font-size:clamp(21px,1.9vw,28px);line-height:1.1;margin:12px 0 10px}
+.ch-i p{font-size:14.5px;color:var(--doux);max-width:24em}
+@media(max-width:860px){.choix{grid-template-columns:1fr 1fr;gap:20px}}
+@media(max-width:560px){.choix{grid-template-columns:1fr}}
+
+.cuvee-preuve{align-items:center;gap:40px 20px}
+.cuvee-preuve .preuve{grid-column:2/6}
+.cuvee-preuve .cp-txt{grid-column:7/13}
+@media(max-width:900px){.cuvee-preuve .preuve{grid-column:3/11}.cuvee-preuve .cp-txt{grid-column:1/-1}}
+
+.criteres{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(20px,3vw,50px)}
+.cr-i{padding-top:22px;border-top:1px solid var(--trait)}
+.cr-i h3{font-family:var(--serif);font-weight:400;font-size:clamp(20px,1.8vw,26px);line-height:1.15}
+.cr-i p{margin-top:12px;font-size:14.5px;color:var(--doux);max-width:26em}
+@media(max-width:800px){.criteres{grid-template-columns:1fr}}
+.metier .d3{font-size:clamp(22px,2.4vw,36px);line-height:1.25}
+.appel .contenu .d2{font-size:clamp(30px,3.6vw,56px)}
+.metier .note{grid-column:1/3}
+.metier .d3{grid-column:3/11}
+@media(max-width:800px){.metier .d3{grid-column:1/-1}}
+.hp-cles{top:calc(var(--h-nav) + 22px);bottom:auto;flex-direction:column;align-items:flex-end;text-align:right;gap:14px}
+.hp-cles div{padding:0 0 0 0;border-left:0;border-right:1px solid rgba(241,235,224,.3);padding-right:14px}
+@media(max-width:1100px){.hp-cles{position:static;flex-direction:row;text-align:left;align-items:flex-start}.hp-cles div{border-right:0;border-left:1px solid rgba(241,235,224,.3);padding:0 0 0 14px}}

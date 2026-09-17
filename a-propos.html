@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/officine.css?v=17">
+<link rel="stylesheet" href="/assets/css/officine.css?v=18">
 </head>
 <body class="fige" data-page="/a-propos">
 <div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
@@ -73,30 +73,41 @@
   <div class="hp-contenu">
     <p class="fil"><a href="/">Accueil</a> / La maison</p>
     <h1 class="lignes" data-entree>Sélectionner, c'est choisir ce que l'on défend.</h1>
-    <div class="hp-bas rv" style="--d:.45s" data-entree-rv><p>L'ambassade guadeloupéenne des spiritueux et des vins d'exception.</p></div>
+    <div class="hp-bas rv" style="--d:.45s" data-entree-rv>
+      <p>L'Officine choisit et fait venir en Guadeloupe des spiritueux, des vins et une épicerie que l'on ne trouve pas ailleurs sur l'île.</p>
+    </div>
   </div>
 </section>
 
 <section class="bloc metier">
   <p class="note rv">Notre métier</p>
-  <p class="d2" id="manifeste">L'Officine parcourt le monde à la recherche de matières nobles et de savoir-faire rares, pour les faire vivre en Guadeloupe avec la même exigence que celle qui les a vus naître.</p>
+  <p class="d3" id="manifeste">Nous cherchons la matière noble et le geste rare, puis nous les faisons vivre ici avec la même exigence que celle qui les a vus naître.</p>
+</section>
+
+<section class="bloc criteres-bloc" style="padding-top:0">
+  <div class="criteres">
+    <div class="cr-i rv"><h3>Goûté avant d'être référencé</h3><p>Aucune bouteille n'entre dans la sélection sans être passée par le comptoir.</p></div>
+    <div class="cr-i rv" style="--d:.1s"><h3>Une main derrière chaque flacon</h3><p>Maisons familiales, distilleries de taille humaine, vignerons que l'on peut appeler.</p></div>
+    <div class="cr-i rv" style="--d:.2s"><h3>Introuvable ailleurs ici</h3><p>Nous évitons ce qui est déjà en rayon partout en Guadeloupe.</p></div>
+  </div>
 </section>
 
 <section class="bloc grille12 fondateur" style="padding-top:0">
   <div class="c-img2 img-portrait masque arche" data-revele><img src="/img/showroom.jpg" alt="Le showroom de L'Officine" data-plx="10"></div>
   <div class="c-txt2">
     <p class="note rv">Le fondateur</p>
-    <h2 class="d2 lignes" style="margin-top:14px">Quinze ans d'innovation artisanale.</h2>
-    <div class="prose lead rv" style="margin-top:30px">
-      <p>À la tête de L'Officine, François Longueteau explore depuis plus de quinze ans les chemins de l'innovation artisanale au service des spiritueux et de l'épicerie fine.</p>
-      <p class="doux">Fondateur de Gentleman Spirit Guadeloupe puis de L'Officine, il construit une vision singulière de la sélection : un art de vivre, de transmettre et de transformer.</p>
+    <h2 class="d3 rv" style="margin-top:14px">Quinze ans d'innovation artisanale.</h2>
+    <div class="prose lead rv" style="margin-top:26px">
+      <p>François Longueteau explore depuis plus de quinze ans les chemins de l'innovation artisanale au service des spiritueux et de l'épicerie fine.</p>
+      <p class="doux">Fondateur de Gentleman Spirit Guadeloupe puis de L'Officine, il en a fait un lieu où l'on sélectionne, où l'on transmet, et où l'on crée ses propres cuvées.</p>
     </div>
+    <p class="rv" style="margin-top:28px"><a class="cta ligne" href="/cuvee">Les cuvées de l'atelier <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
   </div>
 </section>
 
 <section class="maisons sombre" id="maisons" hidden>
   <div class="ms-tete">
-    <h2 class="d2 lignes">Les maisons<br>que nous défendons.</h2>
+    <h2 class="d3">Les maisons que nous défendons</h2>
     <p class="doux rv">Chaque nom ouvre sa sélection.</p>
   </div>
   <div class="ms-liste" id="listeMaisons"></div>
@@ -104,7 +115,7 @@
 
 <section class="appel">
   <img src="/img/chai.jpg" alt="" data-plx="10">
-  <div class="contenu"><h2 class="d1 lignes">Producteur ou maison, présentez-nous votre travail.</h2><a class="cta plein rv" href="/contact?profil=fournisseur&amp;sujet=partenariat">Proposer une référence <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></div>
+  <div class="contenu"><h2 class="d2 lignes">Producteur ou maison, présentez-nous votre travail.</h2><p class="appel-sous rv">Nous répondons à chaque proposition, même quand nous ne référençons pas.</p><a class="cta plein rv" href="/contact?profil=fournisseur&amp;sujet=partenariat">Proposer une référence <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></div>
 </section>
 </main>
 <footer class="pied">
@@ -146,7 +157,7 @@
 <script src="/assets/vendor/lenis.min.js" defer></script>
 <script src="/assets/js/config.js" defer></script>
 <script src="/assets/js/donnees.js?v=3" defer></script>
-<script src="/assets/js/officine.js?v=17" defer></script>
-<script src="/assets/js/anim.js?v=17" defer></script>
+<script src="/assets/js/officine.js?v=18" defer></script>
+<script src="/assets/js/anim.js?v=18" defer></script>
 </body>
 </html>

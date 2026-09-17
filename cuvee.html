@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/bodoni-moda-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/officine.css?v=17">
+<link rel="stylesheet" href="/assets/css/officine.css?v=18">
 </head>
 <body class="fige" data-page="/cuvee">
 <div id="age" role="dialog" aria-modal="true" aria-labelledby="ageTitre">
@@ -72,40 +72,60 @@
   <video autoplay muted loop playsinline preload="metadata" poster="/img/chai.jpg" aria-hidden="true"><source src="/video/cave.mp4" type="video/mp4"></video>
   <div class="hp-contenu">
     <p class="fil"><a href="/">Accueil</a> / Cuvée sur mesure</p>
-    <h1 class="lignes" data-entree>Une cuvée qui ne ressemble qu'à vous.</h1>
+    <h1 class="lignes" data-entree>Votre propre cuvée, de la matière à l'étiquette.</h1>
     <div class="hp-bas rv" style="--d:.45s" data-entree-rv>
-      <p>Pour une maison, un événement ou une envie singulière, de la matière première jusqu'à l'étiquette.</p>
-      <a class="cta plein" href="/contact?profil=entreprise&amp;sujet=cuvee">Présenter mon projet <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a>
+      <p>Nous assemblons avec vous un rhum ou un vin qui n'existe qu'à votre nom, embouteillé et habillé pour l'occasion.</p>
+      <div class="hp-actions"><a class="cta plein" href="/contact?profil=entreprise&amp;sujet=cuvee">Présenter mon projet <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></div>
     </div>
+  </div>
+  <dl class="hp-cles rv" style="--d:.6s" data-entree-rv>
+    <div><dt>À partir de</dt><dd>50 bouteilles</dd></div>
+    <div><dt>Délai</dt><dd>8 à 12 semaines</dd></div>
+    <div><dt>Départ</dt><dd>Rhum, vin ou spiritueux</dd></div>
+  </dl>
+</section>
+
+<section class="bloc choix-bloc">
+  <div class="cb-tete">
+    <p class="note rv">Ce que vous décidez</p>
+    <h2 class="d3 rv" style="margin-top:12px">Quatre choix, et la cuvée est la vôtre.</h2>
+  </div>
+  <div class="choix">
+    <div class="ch-i rv"><span class="ch-n">01</span><h3>La matière</h3><p>Le rhum, le vin ou l'eau-de-vie de départ, choisi parmi nos maisons partenaires.</p></div>
+    <div class="ch-i rv" style="--d:.08s"><span class="ch-n">02</span><h3>Le profil</h3><p>L'assemblage, le degré, le passage en fût, jusqu'au goût que vous cherchez.</p></div>
+    <div class="ch-i rv" style="--d:.16s"><span class="ch-n">03</span><h3>Le flacon</h3><p>La bouteille, le bouchon, la capsule, le coffret s'il en faut un.</p></div>
+    <div class="ch-i rv" style="--d:.24s"><span class="ch-n">04</span><h3>L'étiquette</h3><p>Votre nom, votre date, votre visuel. Dessin réalisé avec vous si besoin.</p></div>
   </div>
 </section>
 
-<section class="bloc cuvee-intro">
-  <div class="ci-texte">
-    <p class="note rv">Un service rare</p>
-    <h2 class="d2 lignes">Le geste de l'atelier, à votre nom.</h2>
-    <div class="prose lead rv">
-      <p>Offrir à ses clients une bouteille qui porte son nom, marquer un anniversaire d'entreprise, sceller un mariage ou un lancement : la cuvée sur mesure raconte une histoire qui n'appartient qu'à vous.</p>
-      <p class="doux">Nous partons de vos envies et de l'usage prévu, puis nous construisons ensemble la matière, le goût et l'habillage.</p>
-    </div>
-  </div>
+<section class="bloc grille12 cuvee-preuve" style="padding-top:0">
   <a class="preuve" id="piece" hidden href="/selection">
     <span class="cadre"><i class="losange g" aria-hidden="true"></i><i class="losange d" aria-hidden="true"></i><span class="ecrin"><img id="pieceImg" src="data:," alt=""></span></span>
     <span class="preuve-txt"><span class="note">Déjà sorti de l'atelier</span><b id="pieceNom"></b><span id="pieceAcc"></span><span class="souligne">Voir la fiche</span></span>
   </a>
+  <div class="cp-txt">
+    <p class="note rv">Pour quelles occasions</p>
+    <ul class="pv-liste rv">
+      <li>Cadeau client ou fin d'année, avec le nom de la maison sur l'étiquette</li>
+      <li>Anniversaire d'entreprise, inauguration, lancement de produit</li>
+      <li>Mariage et grandes tablées, avec la date gravée sur la capsule</li>
+      <li>Série limitée pour un restaurant, un hôtel ou une boutique</li>
+    </ul>
+    <p class="rv" style="margin-top:30px"><a class="cta ligne" href="/contact?profil=entreprise&amp;sujet=cuvee">Parler de la vôtre <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></p>
+  </div>
 </section>
 
 <section class="methode sombre" id="methode">
   <div class="m-tete">
-    <p class="note rv">Comment nous travaillons</p>
-    <h2 class="d2 lignes">Quatre étapes,<br>décidées avec vous.</h2>
+    <p class="note rv">Comment ça se passe</p>
+    <h2 class="d3 lignes" style="margin-top:12px">De la première dégustation<br>à la livraison.</h2>
   </div>
   <div class="m-corps">
     <ol class="m-etapes" id="etapes">
-      <li class="m-etape" data-img="0"><span class="m-n">1</span><div><h3>L'échange</h3><p>Votre projet, l'occasion, le nombre de bouteilles, l'univers à transmettre.</p></div><img class="m-mini" src="/img/bar.jpg" alt=""></li>
-      <li class="m-etape" data-img="1"><span class="m-n">2</span><div><h3>La matière</h3><p>Nous sélectionnons les eaux-de-vie ou les vins de départ et vous les faisons goûter.</p></div><img class="m-mini" src="/img/futs.jpg" alt=""></li>
-      <li class="m-etape" data-img="2"><span class="m-n">3</span><div><h3>L'assemblage</h3><p>Le profil se précise jusqu'à la cuvée qui vous ressemble.</p></div><img class="m-mini" src="/img/whisky.jpg" alt=""></li>
-      <li class="m-etape" data-img="3"><span class="m-n">4</span><div><h3>L'habillage</h3><p>Étiquette, flacon, coffret : l'objet final, prêt à être offert.</p></div><img class="m-mini" src="/img/bouteille.jpg" alt=""></li>
+      <li class="m-etape" data-img="0"><span class="m-n">1</span><div><h3>L'échange</h3><p>Le projet, l'occasion, la quantité, le budget. Une heure suffit pour cadrer.</p></div><img class="m-mini" src="/img/bar.jpg" alt=""></li>
+      <li class="m-etape" data-img="1"><span class="m-n">2</span><div><h3>La dégustation</h3><p>Nous vous faisons goûter les matières de départ et nous écartons ensemble.</p></div><img class="m-mini" src="/img/futs.jpg" alt=""></li>
+      <li class="m-etape" data-img="2"><span class="m-n">3</span><div><h3>L'assemblage</h3><p>Nous ajustons le profil jusqu'à l'échantillon que vous validez.</p></div><img class="m-mini" src="/img/whisky.jpg" alt=""></li>
+      <li class="m-etape" data-img="3"><span class="m-n">4</span><div><h3>L'habillage</h3><p>Embouteillage, étiquette, coffret, puis livraison ou retrait à Jarry.</p></div><img class="m-mini" src="/img/bouteille.jpg" alt=""></li>
     </ol>
     <div class="m-visuel" aria-hidden="true">
       <span class="cadre"><i class="losange g" aria-hidden="true"></i><i class="losange d" aria-hidden="true"></i><span class="ecrin">
@@ -117,7 +137,7 @@
 
 <section class="appel">
   <img src="/img/chai.jpg" alt="" data-plx="10">
-  <div class="contenu"><h2 class="d1 lignes">Parlons de votre cuvée.</h2><p class="appel-sous rv">Date, quantité, occasion : quelques lignes suffisent pour commencer.</p><a class="cta plein rv" href="/contact?profil=entreprise&amp;sujet=cuvee">Présenter mon projet <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></div>
+  <div class="contenu"><h2 class="d2 lignes">Parlons de votre cuvée.</h2><p class="appel-sous rv">La date, la quantité et l'occasion suffisent pour démarrer. Nous revenons vers vous sous 48 heures.</p><a class="cta plein rv" href="/contact?profil=entreprise&amp;sujet=cuvee">Présenter mon projet <svg class="fl" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4"/></svg></a></div>
 </section>
 </main>
 <footer class="pied">
@@ -159,7 +179,7 @@
 <script src="/assets/vendor/lenis.min.js" defer></script>
 <script src="/assets/js/config.js" defer></script>
 <script src="/assets/js/donnees.js?v=3" defer></script>
-<script src="/assets/js/officine.js?v=17" defer></script>
-<script src="/assets/js/anim.js?v=17" defer></script>
+<script src="/assets/js/officine.js?v=18" defer></script>
+<script src="/assets/js/anim.js?v=18" defer></script>
 </body>
 </html>

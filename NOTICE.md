@@ -1,11 +1,10 @@
-# L'Officine, mission Showroom
+# L'Officine, mission Cuvée sur mesure et La maison
 
 | Fichier | Emplacement | Ce qui change |
 |---|---|---|
-| evenements.html | racine | page refaite : bandeau, programme avec date en vedette, cadre pratique des formats, privatisation détaillée |
-| assets/js/officine.js | assets/js/ | HTML de la carte événement (vedette + suivantes). Réservation et data-resa inchangés |
-| assets/css/officine.css | assets/css/ | styles du programme et des formats |
-| index.html | racine | texte d'attente des dates |
+| cuvee.html | racine | page refaite : chiffres clés dans le bandeau, les quatre choix, occasions, méthode en 4 étapes |
+| a-propos.html | racine | page refaite : phrase du métier raccourcie, trois critères de sélection, fondateur, maisons |
+| assets/css/officine.css | assets/css/ | styles des deux pages |
 | autres *.html | racine | version des fichiers uniquement |
 
-Cumulatif : contient aussi l'accueil, la sélection et la page commande confirmée.
+Cumulatif : contient aussi l'accueil, la sélection, la page commande confirmée et le showroom.
