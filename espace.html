@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0C5059">
+<title>Espace équipe | L'Officine</title>
+<link rel="icon" href="/img/favicon.png">
+<link rel="stylesheet" href="/assets/css/espace.css?v=4">
+</head>
+<body>
+
+<!-- ============ Connexion ============ -->
+<section id="vueConnexion" class="connexion" hidden>
+  <form class="carte-cnx" id="formCnx">
+    <img src="/img/logo-atelier-blanc.png" alt="L'Officine, atelier de création">
+    <h1 id="cnxTitre">Espace équipe</h1>
+    <p class="aide" id="cnxAide">Catalogue, stocks, offres, événements et commandes.</p>
+    <label id="lblMail">E-mail<input type="email" id="cnxMail" autocomplete="username" required></label>
+    <label>Mot de passe<input type="password" id="cnxMdp" autocomplete="off" required minlength="6"></label>
+    <button class="b plein grand" type="submit" id="cnxBtn">Se connecter</button>
+    <label id="lblNom" hidden>Prénom et nom<input id="cnxNom" autocomplete="name"></label>
+    <button class="b lien" type="button" id="cnxOubli">Mot de passe oublié</button>
+    <button class="b lien" type="button" id="cnxCreer">Première fois ? Créer mon compte</button>
+    <p class="msg" id="cnxMsg" role="status"></p>
+    <a class="retour-site" href="/">Retour au site</a>
+  </form>
+</section>
+
+<!-- ============ Application ============ -->
+<div id="vueApp" class="app" hidden>
+  <aside class="lateral">
+    <div class="marque">L'Officine<span>Atelier de création, espace équipe</span></div>
+    <nav class="navapp" id="navApp">
+      <button data-vue-btn="commandes"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1.2 12.2a2 2 0 0 1-2 1.8H9.2a2 2 0 0 1-2-1.8L6 7Z"/><path d="M9 7V5.8a3 3 0 0 1 6 0V7"/></svg><span>Commandes</span><i class="badge" id="badgeCmd" hidden></i></button>
+      <button data-vue-btn="catalogue"><svg viewBox="0 0 24 24"><path d="M10 3h4v4c0 1 3 2 3 5v8a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-8c0-3 3-4 3-5V3Z"/></svg><span>Catalogue</span><i class="badge alerte" id="badgeStock" hidden></i></button>
+      <button data-vue-btn="evenements"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>Événements</span></button>
+      <button data-vue-btn="studio" id="navStudio" hidden><svg viewBox="0 0 24 24"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4l-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z"/></svg><span>Studio</span><i class="badge" id="badgeStudio" hidden></i></button>
+      <button data-vue-btn="equipe"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.2 5 2.6 5 5.8"/></svg><span>Équipe</span></button>
+    </nav>
+    <div class="moi">
+      <div><b id="moiNom"></b><span id="moiRole"></span></div>
+      <a class="b discret mini" href="/" target="_blank" rel="noopener">Voir le site</a>
+      <button class="b discret mini" id="deco">Déconnexion</button>
+    </div>
+  </aside>
+
+  <main class="page">
+    <!-- COMMANDES -->
+    <section data-vue="commandes">
+      <header class="tete">
+        <div><h2>Commandes</h2><p class="aide">Chaque commande du site arrive ici (et par e-mail). Préparez, prévenez le client, marquez la commande retirée.</p></div>
+        <div class="grp"><button class="b contour" data-notifs>E-mails de notification</button><button class="b contour" data-export="commandes">Exporter</button><button class="b contour" id="cmdActu">Actualiser</button></div>
+      </header>
+      <div class="barre-outils">
+        <div class="segments" id="cmdFiltres">
+          <button data-statut="a_preparer">À préparer</button><button data-statut="prete">Prêtes</button><button data-statut="retiree">Retirées</button><button data-statut="annulee">Annulées</button><button data-statut="">Toutes</button>
+        </div>
+        <input type="search" id="cmdRech" placeholder="Numéro, nom, e-mail">
+      </div>
+      <div id="cmdListe" class="pile"></div>
+    </section>
+
+    <!-- CATALOGUE -->
+    <section data-vue="catalogue" hidden>
+      <header class="tete">
+        <div><h2>Catalogue</h2><p class="aide">Stock, prix, photos, offres et ordre d'affichage. Tout ce que vous changez ici apparaît sur le site.</p></div>
+        <div class="grp">
+          <button class="b discret" data-export="catalogue">Exporter</button>
+          <a class="b discret" href="/data/tarifs-stocks-officine.xlsx" download>Fichier tarifs</a>
+          <label class="b contour">Importer<input type="file" id="csv" accept=".csv,text/csv" hidden></label>
+          <button class="b plein" id="prodNouveau">+ Ajouter un produit</button>
+        </div>
+      </header>
+      <div class="encart-migration" id="initial" hidden>
+        <div><b>Catalogue à installer</b><span>La base est vide : installez en un clic les 142 références déjà présentes sur le site (textes, caractéristiques, photos).</span></div>
+        <button class="b plein" id="initialBtn">Installer le catalogue</button>
+      </div>
+      <div class="encart-migration" id="reimport" hidden>
+        <div><b>Réimporter les photos du site</b><span id="reimportTxt"></span></div>
+        <button class="b plein" id="reimportBtn">Réimporter les photos</button>
+      </div>
+      <div class="encart-migration" id="migration" hidden>
+        <div><b>Photos à transférer vers la base</b><span id="migrationTxt"></span></div>
+        <button class="b plein" id="migrationBtn">Transférer les photos</button>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="barre-outils">
+        <input type="search" id="catRech" placeholder="Chercher un produit">
+        <select id="catRayon"></select>
+        <select id="catFiltre">
+          <option value="">Tous les produits</option>
+          <option value="ligne">En ligne</option>
+          <option value="horsligne">Hors ligne</option>
+          <option value="rupture">En rupture</option>
+          <option value="faible">Stock faible</option>
+          <option value="offre">Avec une offre</option>
+          <option value="incomplete">Fiches à compléter</option>
+        </select>
+      </div>
+      <p class="astuce" id="astuceOrdre"></p>
+      <div class="liste-prod" id="listeProd"></div>
+    </section>
+
+    <!-- EVENEMENTS -->
+    <section data-vue="evenements" hidden>
+      <header class="tete">
+        <div><h2>Événements</h2><p class="aide">Glissez les événements pour choisir l'ordre du programme. Un événement complet se ferme tout seul.</p></div>
+        <button class="b plein" id="evtNouveau">+ Créer un événement</button>
+      </header>
+      <div class="barre-outils">
+        <div class="segments" id="evtFiltres"><button data-periode="avenir">À venir</button><button data-periode="passes">Passés</button></div>
+        <button class="b discret mini" id="evtTriDate">Remettre dans l'ordre des dates</button>
+      </div>
+      <div id="evtListe" class="liste-prod"></div>
+    </section>
+
+    <!-- STUDIO (compte Studio Novalem uniquement) -->
+    <section data-vue="studio" hidden>
+      <header class="tete"><div><h2>Studio</h2><p class="aide">Réglages réservés à Studio Novalem. Ce compte n'apparaît nulle part pour l'équipe de L'Officine.</p></div></header>
+      <div class="sect"><h4>Comptes en attente</h4><p class="aide">Les personnes qui ont créé leur compte depuis l'écran de connexion. Donnez-leur l'accès ici.</p><div id="stAttente" class="pile" style="margin-top:12px"></div></div>
+      <div class="sect"><h4>Équipe de L'Officine</h4><div id="stEquipe" class="pile" style="margin-top:12px"></div></div>
+      <div class="sect"><h4>Sauvegarde</h4><p class="aide">La base gratuite n'a pas de sauvegarde automatique : téléchargez une copie complète (commandes, catalogue, événements) une fois par semaine.</p>
+        <p style="margin-top:10px"><button class="b plein mini" data-export="tout">Télécharger la sauvegarde complète</button></p>
+      </div>
+      <div class="sect"><h4>Paiement par carte (Stripe)</h4>
+        <p class="aide" id="stStripeEtat">Aucune clé reçue pour l'instant.</p>
+        <p style="margin-top:10px"><button class="b plein mini" id="stStripeLien">Créer le lien à envoyer à L'Officine</button></p>
+        <div id="stStripeUrl" hidden class="copie-lien"></div>
+        <details class="secours">
+          <summary>Secours : webhook et clés à la main</summary>
+          <p class="aide">Si le webhook n'a pas été créé automatiquement, le bouton ci-dessous le recrée avec la clé déjà reçue.</p>
+          <p style="margin-top:8px"><button class="b contour mini" id="stWebhook">Créer / recréer le webhook</button></p>
+          <p class="aide" style="margin-top:14px">Création manuelle dans Stripe (Développeurs, Webhooks) : adresse <code id="stWebhookUrl"></code>, événements <code>checkout.session.completed</code> et <code>checkout.session.async_payment_succeeded</code>. Collez ensuite ici :</p>
+          <label class="chp">Clé secrète (facultatif)<input id="stSk" placeholder="sk_live_..." autocomplete="off"></label>
+          <label class="chp">Secret du webhook<input id="stWh" placeholder="whsec_..." autocomplete="off"></label>
+          <p style="margin-top:10px"><button class="b plein mini" id="stManuel">Enregistrer dans le coffre</button></p>
+        </details>
+      </div>
+      <div class="sect"><h4>Prise de commande</h4>
+        <div class="choix" id="stMode">
+          <label><input type="radio" name="mode_commande" value="retrait"><span>Sans paiement en ligne (secours)</span></label>
+          <label><input type="radio" name="mode_commande" value="stripe"><span>Click &amp; collect payé en ligne (Stripe)</span></label>
+          <label><input type="radio" name="mode_commande" value="ferme"><span>Commandes fermées</span></label>
+        </div>
+        <p class="aide" style="margin-top:8px">Mode normal : click &amp; collect payé en ligne. « Sans paiement en ligne » ne sert qu'en secours ou pour tester. Le site applique le choix immédiatement.</p>
+      </div>
+      <div class="sect"><h4>E-mails des commandes</h4><p class="aide">Les adresses qui reçoivent chaque commande. Chaque adresse ajoutée reçoit un lien d'activation.</p>
+        <p style="margin-top:10px"><button class="b plein mini" data-notifs>Gérer les adresses</button></p>
+      </div>
+    </section>
+
+    <!-- EQUIPE -->
+    <section data-vue="equipe" hidden>
+      <header class="tete">
+        <div><h2>Équipe</h2><p class="aide">Les personnes qui ont accès à cet espace. Le gérant invite, retire et choisit les rôles.</p></div>
+        <button class="b plein" id="eqInviter" hidden>+ Inviter une personne</button>
+      </header>
+      <div id="eqListe" class="pile"></div>
+      <div class="encart">
+        <h3>Rôles</h3>
+        <p><b>Gérant</b> : tout l'espace, plus la gestion de l'équipe.</p>
+        <p><b>Équipe</b> : commandes, catalogue et événements.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="barre-mobile" id="navMobile"></nav>
+</div>
+
+<!-- ============ Éditeur (panneau) ============ -->
+<div class="voile" id="voile"></div>
+<aside class="panneau" id="panneau" aria-hidden="true" role="dialog">
+  <div class="p-tete"><button class="b discret" data-fermer>← Retour</button><h3 id="pTitre"></h3><span></span></div>
+  <div class="p-zone">
+    <form id="pForm" class="p-corps" novalidate></form>
+    <div class="p-apercu" id="pApercu" hidden></div>
+  </div>
+  <div class="p-pied"><button type="button" class="b danger" id="pSuppr" hidden>Supprimer</button><span class="p-etat" id="pEtat"></span><button class="b plein" id="pOk" form="pForm" type="submit">Enregistrer</button></div>
+</aside>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/assets/vendor/Sortable.min.js"></script>
+<script src="/assets/js/config.js?v=4"></script>
+<script src="/assets/js/espace.js?v=4"></script>
+</body>
+</html>
