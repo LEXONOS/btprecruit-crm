@@ -876,7 +876,7 @@
     setBusy(imgs.length || pdfs.length ? `Lecture de ${[imgs.length ? `${imgs.length} capture${imgs.length > 1 ? "s" : ""}` : "", pdfs.length ? `${pdfs.length} PDF` : ""].filter(Boolean).join(" et ")}…` : "Analyse de ta saisie…");
     if (!ui.pane) ui.unread++;
     renderPane();
-    const ctx = ctxNow();
+    const ctx = Object.assign(ctxNow(), { hasText: !!text });
     const snapshot = JSON.stringify(state);
     const groups = batches(imgs).map((g) => ({ images: g }));
     for (const p of pdfs) groups.push({ pdf: p });
@@ -1024,7 +1024,7 @@
     }
     const when = now();
     if (Array.isArray(d.emails)) for (const e of d.emails) if (e && (e.summary || e.subject)) state.journal.push({ when, m: ctx.m, kind: "Mail", text: `${e.from ? `De ${e.from}` : ""}${e.subject ? ` (${e.subject})` : ""} : ${e.summary || ""}` });
-    if (d.notes) state.journal.push({ when, m: ctx.m, kind: "Lu", text: String(d.notes) });
+    if (d.notes && !d.remember) state.journal.push({ when, m: ctx.m, kind: "Lu", text: String(d.notes) });
     if (d.remember) state.journal.push({ when, m: ctx.m, kind: "À retenir", text: String(d.remember) });
     const screens = Array.isArray(d.screens) ? d.screens : typeof d.screen === "string" ? d.screen.split(/[,|]/).map((x) => x.trim()) : [];
     const got = E.markSeen(state, ctx.m, ctx.phase, screens.filter(Boolean));
@@ -1033,7 +1033,7 @@
       const r = E.recoSort(state, mD);
       for (const o of ["A", "B", "C"]) put(`months.${mD}.p2.sort.${o}`, r[o], `${MN(mD)}, tri conseillé ${prodLabel(o)}`);
     }
-    if (d.current && typeof d.current === "object") {
+    if (d.current && typeof d.current === "object" && ctx.hasText) {
       const cm = N(d.current.m), cp = N(d.current.phase);
       if (cm && cm >= 1 && cm <= last && cp && cp >= 1 && cp <= 3 && (cm !== state.current.m || cp !== state.current.phase)) {
         moveTo(cm, cp);
