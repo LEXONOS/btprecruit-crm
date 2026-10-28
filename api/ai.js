@@ -16,6 +16,7 @@ RÈGLES DU JEU (valeurs des vidéos Sciado, à remplacer par celles de la sessio
 - Besoins par distributeur : agglomérés 200 / 1 200 / 6 000. Naturels mars : Q1 130/200/0, Q2 260/200/300, Q3 390/200/600, Q4 520/600/900. Vignerons avril x1,23, mai x1,54 (pic), juin = mars.
 - Charges distributeur : salaires 40 000 €/mois puis 150 000 € dès mars, admin 20 000 €, stockage 0,33 % de la valeur du stock. Pub jan-fév 2,5 à 5 % du CA. Dès mars actions ciblées par client : flyers 10 000, e-mailing 20 000, visite 50 000 € HT. Ne pas cumuler pub produit et actions ciblées.
 - Mars : le fournisseur allemand est en liquidation, plus d'offres externes. Le distributeur rachète un stock de naturels (285 000 € payés en mars) et une trieuse (30 000 € comptant). Les industriels rachètent des planches (175 000 € payés en mars).
+- Phase 2 du distributeur, dans cet ordre : Production (tri des naturels), puis Sales (ventes), puis Negotiations. Les lots triés en Production sont donc vendables dans le même mois (vidéos Sciado Month 3 Phase 2 Production puis Sales).
 - Trieuse : 2 € par lot, 20 000 lots/mois. Rendements Q1/Q2/Q3/Q4 : Espagne A 15/30/30/25 %, B 20/30/30/20 %, C 25/30/25/20 %.
 - Prix moyens d'achat des naturels : A 55, B 60, C 65 €. Coût industriel estimé : agglo 8-9 € variable, 18-20 € complet ; naturel A environ 18 €.
 
@@ -49,6 +50,56 @@ const EXTRACT_SCHEMA = `{
   "emails": [ { "from": "", "subject": "", "summary": "résumé utile en une phrase" } ],
   "notes": "ce qui est important pour la stratégie, en français, 3 phrases max"
 }`;
+
+const SMART_SYSTEM = `${PLAYBOOK}
+
+TON RÔLE ICI
+Tu es l'assistant intégré au tableau de suivi de Louis (il est distributeur). Il t'envoie n'importe quoi : des captures d'écran du simulateur, du texte copié d'une page, un PDF, une info qu'il tape vite (« j'ai 4 000 lots de Q3 », « I2 me propose 48 € à 60 jours »), une consigne (« le formateur a dit qu'on joue 5 mois », « on passe en phase 2 »), ou une question.
+Tu fais toujours deux choses :
+1. DATA : tu ranges toutes les informations dans le JSON pour que l'outil les enregistre au bon endroit. Rien d'inventé : seulement ce qui est visible ou dit.
+2. REPLY : tu réponds à Louis.
+
+Correspondances : Winemakers = winemakers (vignerons), Cellars ou Sellers = cellars (cavistes), Traders ou Key accounts = keyacc (grands comptes). Mixed stoppers = mixed. Spain A / semi-finished Spain A = A (naturels non triés), idem B et C. Q1 à Q4 = Q1 à Q4.
+Écrans : Decisions > Planning (prix, délais, publicité par client) = planning ; Decisions > Sales (Quantity of ordered products by the customers = demand ; Quantity of final products to deliver = deliveries) = sales ; Decisions > Production (trieuse, quantités triées = sort) = production ; Decisions > Negotiations (flèche vers la gauche = reçue (in), vers la droite = envoyée (out) ; Purchase = achat (buy), Sale = vente (sell)) = negotiations ; détail d'une offre = offer_detail ; Stock for sale = stock ; Settings = settings ; Results : Ranking = results_ranking, Income statement = results_income, Cash = results_cash (prévisions des mois suivants = cashM1 et cashM2), Balance sheet = results_balance, Negotiation KPIs = results_kpi ; Email Box = email ; guide utilisateur = guide.
+Délais : At order = order, At delivery = delivery, 30 days = 30, 60 days after delivery = 60.
+
+FORMAT DE SORTIE OBLIGATOIRE, rien d'autre :
+<reply>
+ta réponse à Louis
+</reply>
+<data>
+{ objet JSON }
+</data>
+
+Clés possibles du JSON (toutes optionnelles, omets ce qui n'est pas donné) :
+${EXTRACT_SCHEMA.replace(/\n}$/, "")},
+  "screens": ["planning", "sales", "..."],
+  "current": { "m": 3, "phase": 2 },
+  "remember": "un fait utile à noter dans le journal (règle annoncée par le formateur, info sur un concurrent), ou null"
+}
+Dans "settings" tu peux aussi mettre : "months" (nombre de mois joués), "naturalsFrom", "nDist", "nInd", "startStock", "startStockValue", "mixedCost", "naturalCost" { "A": 55 }, "buyTargets" { "A": { "anchor": 42, "target": 48, "ceiling": 60 } }, "fixed" { "wagesNat": 150000 }, "scoreNotes" (texte du calcul du score s'il est visible).
+"month" : le mois auquel appartiennent les données s'il est visible ou dit (janvier = 1), sinon null. Des résultats (Results) sans mois visible appartiennent au dernier mois terminé.
+"current" : seulement si Louis écrit lui-même qu'il passe à un autre mois ou une autre phase (phase 3 = résultats). Jamais à partir d'une capture.
+Nombres sans espaces ni symboles (12 000 = 12000 ; -48 520,01 € = -48520.01).
+
+RÈGLES POUR REPLY
+- Question posée : réponds-y d'abord, de façon chiffrée, à partir de ses données et de la stratégie. Donne la décision à prendre, pas un cours.
+- Les recommandations calculées par l'outil sont dans toolRecos (prix, délais, marketing, tri, répartition, plan d'achat, contrôles). Appuie-toi dessus ; ne les contredis qu'avec une raison chiffrée, et dis-le clairement.
+- Offre d'achat reçue : prix inférieur ou égal à la cible = bon prix, accepte (vérifie la quantité et la trésorerie) ; entre la cible et le plafond = négocie, contre-offre entre les deux ; au-dessus du plafond = refuse ou contre-offre à la cible. Les offres externes (fournisseur allemand) ne se négocient pas : accepter ou refuser.
+- N'invente aucune règle du jeu. Si tu n'es pas sûr d'une règle, dis-le en une phrase et dis comment vérifier.
+- Données lues : dis en 1 à 3 lignes ce que tu as lu (les chiffres clés) et ce que ça change pour sa prochaine décision.
+- Capture floue, coupée ou pas du bon écran : dis exactement quoi recapturer.
+- 8 lignes maximum sauf si la question demande plus. Tutoiement, français, direct. Pas de tirets cadratins, pas d'emojis, pas de titres.`;
+
+function splitSmart(text) {
+  const t = text || "";
+  const r = t.match(/<reply>([\s\S]*?)<\/reply>/i);
+  const d = t.match(/<data>([\s\S]*?)(<\/data>|$)/i);
+  let reply = r ? r[1].trim() : "";
+  let data = d ? parseJson(d[1]) : null;
+  if (!r && !d) { data = parseJson(t); reply = data ? "" : t.trim(); }
+  return { reply, data: data || {} };
+}
 
 const EXTRACT_SYSTEM = `Tu lis des captures d'écran, du texte copié ou des PDF du simulateur ViNego (Sciado) côté distributeur, et tu en extrais les données en JSON.
 
@@ -151,6 +202,34 @@ module.exports = async (req, res) => {
       const data = parseJson(out.text);
       if (!data) return json(res, 502, { error: "La réponse de l'IA n'était pas du JSON lisible.", raw: out.text.slice(0, 2000) });
       return json(res, 200, { ok: true, data, model: out.model });
+    }
+
+    if (action === "smart") {
+      const content = [];
+      for (const img of (body.images || []).slice(0, 8)) {
+        if (img && img.data) content.push({ type: "image", source: { type: "base64", media_type: img.mediaType || "image/jpeg", data: img.data } });
+      }
+      if (body.pdf && body.pdf.data) content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: body.pdf.data } });
+      const ctx = body.context || {};
+      const text = String(body.text || "").slice(0, 60000);
+      if (!content.length && !text.trim()) return json(res, 400, { error: "Rien à lire : ajoute une capture, un PDF ou du texte." });
+      let instr = `Position actuelle de Louis : mois ${ctx.m || "?"} (${ctx.monthName || ""}), phase ${ctx.phase || "?"} (${ctx.phaseName || ""}).`;
+      if (ctx.steps) instr += `\nCaptures attendues à cette étape : ${ctx.steps}.`;
+      if (content.length) instr += `\nIl t'envoie ${content.length} fichier(s). Lis tout ce qui est visible.`;
+      if (text.trim()) instr += `\n\nCe que Louis écrit ou colle :\n"""\n${text}\n"""`;
+      content.push({ type: "text", text: instr });
+      const history = (body.history || []).slice(-6).map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "").slice(0, 4000) })).filter((m) => m.content);
+      while (history.length && history[0].role !== "user") history.shift();
+      const msgs = [];
+      for (const h of history) { if (msgs.length && msgs[msgs.length - 1].role === h.role) msgs[msgs.length - 1].content += "\n" + h.content; else msgs.push(h); }
+      if (msgs.length && msgs[msgs.length - 1].role === "user") msgs.push({ role: "assistant", content: "(noté)" });
+      msgs.push({ role: "user", content });
+      const system = `${SMART_SYSTEM}\n\nDONNÉES ACTUELLES DE LA PARTIE (JSON) :\n${JSON.stringify(body.state || {}).slice(0, 80000)}`;
+      const imagesOnly = content.length > 1 && !text.trim();
+      const out = await callClaude({ system, messages: msgs, maxTokens: 7000, effort: imagesOnly ? "low" : "medium" });
+      const { reply, data } = splitSmart(out.text);
+      const cut = out.stop === "max_tokens" ? "\n\nRéponse coupée : renvoie tes captures en plus petits paquets (2 ou 3 à la fois) pour être sûr que tout est rangé." : "";
+      return json(res, 200, { ok: true, reply: (reply || "") + cut, data, model: out.model });
     }
 
     if (action === "coach") {

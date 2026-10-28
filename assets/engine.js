@@ -119,7 +119,9 @@
   function num(v) {
     if (v === null || v === undefined || v === "") return null;
     if (typeof v === "number") return isFinite(v) ? v : null;
-    const s = String(v).replace(/[\s  €%]/g, "").replace(",", ".");
+    let s = String(v).replace(/[\s  €%]/g, "");
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, "");
+    s = s.replace(",", ".");
     const n = parseFloat(s);
     return isFinite(n) ? n : null;
   }
@@ -186,13 +188,20 @@
     return num(get(state.months, [m, "p2", "stock", p], null));
   }
 
+  /* Rendement en fraction (0,25), accepte 25 ou 0,25 */
+  function yld(state, o, i) {
+    const v = num(get(state.settings, ["yields", o, i], null));
+    if (v === null || v <= 0) return 0;
+    return v <= 1 ? v : v / 100;
+  }
   function sortedOutput(state, m) {
     const out = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
-    const sort = get(state.months, [m, "p2", "sort"], {});
+    let sort = get(state.months, [m, "p2", "sort"], {});
+    // Rien de saisi : on compte le tri conseillé
+    if (isNat(state, m) && !["A", "B", "C"].some((o) => num(sort[o]) !== null)) sort = recoSort(state, m);
     for (const o of ["A", "B", "C"]) {
       const lots = num(sort[o]) || 0;
-      const y = state.settings.yields[o] || [0, 0, 0, 0];
-      ["Q1", "Q2", "Q3", "Q4"].forEach((q, i) => (out[q] += Math.floor((lots * (num(y[i]) || 0)) / 100)));
+      ["Q1", "Q2", "Q3", "Q4"].forEach((q, i) => (out[q] += Math.floor(lots * yld(state, o, i))));
     }
     return out;
   }
@@ -218,9 +227,22 @@
     return any ? t : null;
   }
 
+  /* Livré : ce qui est saisi, sinon la répartition conseillée (si la demande est connue) */
+  function effDelivered(state, m, p) {
+    const stored = CLIENTS.some((c) => num(get(state.months, [m, "p2", "deliveries", c.k, p], null)) !== null);
+    if (stored) return delivered(state, m, p);
+    if (demandTotal(state, m, p) === null) return 0;
+    const a = allocate(state, m);
+    return CLIENTS.reduce((t, c) => t + (num(get(a, [c.k, p], 0)) || 0), 0);
+  }
   function leftover(state, m, p) {
     const s = availableStock(state, m, p);
-    return Math.max(0, s - delivered(state, m, p));
+    return Math.max(0, s - effDelivered(state, m, p));
+  }
+  function effSort(state, m, o) {
+    const sort = get(state.months, [m, "p2", "sort"], {});
+    if (["A", "B", "C"].some((k) => num(sort[k]) !== null)) return num(sort[o]) || 0;
+    return isNat(state, m) ? recoSort(state, m)[o] || 0 : 0;
   }
 
   function step(state, c, p) {
@@ -241,7 +263,9 @@
   /* Prix conseillé + raison, à partir du mois précédent et de l'indice obtenu */
   function recoPrice(state, m, c, p) {
     const [lo, hi] = range(state, c, p);
-    const prevP = num(get(state.months, [m - 1, "p1", "prices", c, p], null));
+    // Prix du mois précédent : celui saisi, sinon celui que l'outil conseillait (supposé appliqué)
+    let prevP = num(get(state.months, [m - 1, "p1", "prices", c, p], null));
+    if (prevP === null && m - 1 >= 1 && (p === "mixed" || isNat(state, m - 1))) prevP = recoPrice(state, m - 1, c, p).price;
     let price, reason;
     if (prevP === null || !isNat(state, m - 1) && p !== "mixed") {
       price = defaultPrice(state, m, c, p);
@@ -251,7 +275,7 @@
       const dem = num(get(state.months, [m - 1, "p2", "demand", c, p], null));
       const del = num(get(state.months, [m - 1, "p2", "deliveries", c, p], null));
       const rate = dem ? (del === null ? null : del / dem) : null;
-      const left = leftover(state, m - 1, p);
+      const left = Math.max(0, availableStock(state, m - 1, p) - (demandTotal(state, m - 1, p) || 0));
       const st = step(state, c, p);
       if (idx === null) {
         price = prevP; reason = "Pas de demande relevée le mois dernier : prix inchangé";
@@ -270,9 +294,6 @@
     if (p === "mixed") {
       const floor = Math.ceil(mixedCost(state) + 2);
       if (price < floor) { price = floor; reason += " (plancher : coût + 2 €)"; }
-    }
-    if (p === "Q4" && price < hi - 3) {
-      price = Math.max(price, hi - 3);
     }
     price = clamp(Math.round(price), lo, hi);
     return { price, reason };
@@ -301,10 +322,10 @@
     let ca = 0;
     for (const p of productsFor(state, m)) {
       for (const c of CLIENTS) {
-        const price = useReco ? recoPrice(state, m, c.k, p.k).price : num(get(state.months, [m, "p1", "prices", c.k, p.k], null));
+        const price = useReco ? recoPrice(state, m, c.k, p.k).price : effPrice(state, m, c.k, p.k);
         if (price === null) continue;
         const idx = index(state, m - 1, c.k, p.k);
-        ca += need(state, m, c.k, p.k) * (idx ? Math.min(idx, 1.5) : 1) * price;
+        ca += need(state, m, c.k, p.k) * (idx !== null ? Math.min(idx, 1.5) : 1) * price;
       }
     }
     return Math.round(ca);
@@ -324,10 +345,10 @@
   }
 
   function marketingCost(state, m) {
-    const mo = get(state.months, [m, "p1"], {});
-    let t = num(mo.adProduct) || 0;
+    const eff = effMarketing(state, m);
+    let t = num(eff.adProduct) || 0;
     for (const c of CLIENTS) {
-      const k = get(mo, ["marketing", c.k], "none");
+      const k = eff.targeted[c.k] || "none";
       const def = MKT.find((x) => x.k === k);
       if (def) t += def.cost;
     }
@@ -345,10 +366,10 @@
     let ca = 0, cogs = 0, lots = 0;
     for (const p of productsFor(state, m)) {
       for (const c of CLIENTS) {
-        const price = useReco ? recoPrice(state, m, c.k, p.k).price : num(get(state.months, [m, "p1", "prices", c.k, p.k], null));
+        const price = useReco ? recoPrice(state, m, c.k, p.k).price : effPrice(state, m, c.k, p.k);
         if (price === null) continue;
         const idx = index(state, m - 1, c.k, p.k);
-        const q = need(state, m, c.k, p.k) * (idx ? Math.min(idx, 1.5) : 1);
+        const q = need(state, m, c.k, p.k) * (idx !== null ? Math.min(idx, 1.5) : 1);
         ca += q * price;
         cogs += q * (p.k === "mixed" ? mixedCost(state) : natCost(state, "A"));
         lots += q;
@@ -365,7 +386,7 @@
     for (const c of CLIENTS) out[c.k] = {};
     for (const p of productsFor(state, m)) {
       let left = availableStock(state, m, p.k);
-      const order = CLIENTS.map((c) => ({ c: c.k, price: num(get(state.months, [m, "p1", "prices", c.k, p.k], 0)) || 0, dem: num(get(state.months, [m, "p2", "demand", c.k, p.k], 0)) || 0 }))
+      const order = CLIENTS.map((c) => ({ c: c.k, price: effPrice(state, m, c.k, p.k) || 0, dem: num(get(state.months, [m, "p2", "demand", c.k, p.k], 0)) || 0 }))
         .sort((a, b) => b.price - a.price);
       for (const o of order) {
         const q = Math.max(0, Math.min(o.dem, left));
@@ -389,25 +410,42 @@
     let exp = 0;
     for (const c of CLIENTS) {
       const idx = index(state, m, c.k, "mixed");
-      exp += need(state, next, c.k, "mixed") * (idx ? Math.min(idx, 1.5) : 1);
+      exp += need(state, next, c.k, "mixed") * (idx !== null ? Math.min(idx, 1.5) : 1);
     }
     const leftMixed = leftover(state, m, "mixed");
     const t = m < (num(state.settings.naturalsFrom) || 3) ? state.settings.buyTargets.mixedEarly : state.settings.buyTargets.mixedLate;
-    plan.mixed = { expected: Math.round(exp), leftover: leftMixed, buy: Math.max(0, Math.round(exp - leftMixed)), targets: t };
+    const accepted = (state.offers || []).filter((o) => num(o.month) === m && o.type === "buy" && ["accepted", "confirmed"].includes(o.status));
+    const boughtMixed = accepted.filter((o) => o.product === "mixed").reduce((a, o) => a + (num(o.qty) || 0), 0);
+    const boughtNat = accepted.filter((o) => ["A", "B", "C"].includes(o.product)).reduce((a, o) => a + (num(o.qty) || 0), 0);
+    plan.mixed = { expected: Math.round(exp), leftover: leftMixed, bought: boughtMixed, buy: Math.max(0, Math.round(exp - leftMixed - boughtMixed)), targets: t };
     // Naturels
     if (isNat(state, next) && next === (num(state.settings.naturalsFrom) || 3)) {
       plan.notes.push("Le stock de naturels racheté au fournisseur allemand couvre déjà mars : n'achète des naturels que pour avril, en mars.");
     } else if (isNat(state, next)) {
-      let q3 = 0;
-      for (const c of CLIENTS) {
-        const idx = index(state, m, c.k, "Q3");
-        q3 += need(state, next, c.k, "Q3") * (idx ? Math.min(idx, 1.5) : 1);
+      const exp = {};
+      for (const q of ["Q1", "Q2", "Q3", "Q4"]) {
+        exp[q] = 0;
+        for (const c of CLIENTS) {
+          const idx = index(state, m, c.k, q);
+          exp[q] += need(state, next, c.k, q) * (idx !== null ? Math.min(idx, 1.5) : 1);
+        }
       }
-      const yA = (num(state.settings.yields.A[2]) || 30) / 100;
-      const rawLeftA = Math.max(0, (stockOf(state, m, "A") || 0) - (num(get(state.months, [m, "p2", "sort", "A"], 0)) || 0));
-      const q3Left = leftover(state, m, "Q3");
-      const lots = Math.max(0, Math.ceil((q3 - q3Left) / yA) - rawLeftA);
-      plan.natural = { q3Expected: Math.round(q3), q3Leftover: q3Left, rawLeftA, buyA: lots, targets: { A: state.settings.buyTargets.A, B: state.settings.buyTargets.B, C: state.settings.buyTargets.C } };
+      const y3 = yld(state, "A", 2) || 0.3, y4 = yld(state, "A", 3) || 0.25;
+      // Naturels non triés qui restent en fin de mois (en équivalent lots d'A)
+      const rawLeft = ["A", "B", "C"].reduce((t, o) => t + Math.max(0, (stockOf(state, m, o) || 0) - effSort(state, m, o)), 0);
+      const rawLeftA = Math.max(0, (stockOf(state, m, "A") || 0) - effSort(state, m, "A"));
+      const q3Left = leftover(state, m, "Q3"), q4Left = leftover(state, m, "Q4");
+      const netQ3 = Math.max(0, exp.Q3 - q3Left), netQ4 = Math.max(0, exp.Q4 - q4Left);
+      const forQ3 = Math.ceil(netQ3 / y3);
+      const usual = Math.ceil(exp.Q3 / y3);
+      const forQ4 = Math.ceil(netQ4 / y4);
+      // Règle : couvrir le Q3. Si ton surplus de Q3 le couvre déjà mais que le Q4 manque, on garde le volume habituel
+      // (le surplus de Q3 servira le mois d'après), sauf si le mois suivant est le dernier.
+      let base = forQ3, rule = "q3";
+      if (next < last && forQ4 > forQ3) { const v = Math.min(forQ4, usual); if (v > base) { base = v; rule = "q4"; } }
+      const lots = Math.max(0, base - rawLeft - boughtNat);
+      plan.natural = { q3Expected: Math.round(exp.Q3), q4Expected: Math.round(exp.Q4), q3Leftover: q3Left, q4Leftover: q4Left, rawLeftA, rawLeft, bought: boughtNat, buyA: lots, rule, targets: { A: state.settings.buyTargets.A, B: state.settings.buyTargets.B, C: state.settings.buyTargets.C } };
+      if (next === last) plan.notes.push(`${MONTHS[next - 1]} est le dernier mois : n'achète que ce qui se vendra, le surplus sera perdu.`);
       if (next === 5) plan.notes.push("Mai = pic des vignerons : vise plutôt le haut du plan.");
     }
     return plan;
@@ -536,7 +574,7 @@
         const dt = demandTotal(state, m, p.k);
         const st = availableStock(state, m, p.k);
         if (dt !== null && st !== null && dt > st * 1.1 && st > 0) out.push({ lvl: "info", t: `${p.label} : demande ${dt.toLocaleString("fr-FR")} pour ${st.toLocaleString("fr-FR")} en stock. Sers d'abord les clients les plus chers, rachète du stock immédiat à un distributeur, monte le prix le mois prochain.` });
-        if (dt !== null && st && dt < st * 0.5) out.push({ lvl: "info", t: `${p.label} : peu de demande (${dt.toLocaleString("fr-FR")}) pour ton stock (${st.toLocaleString("fr-FR")}). Garde le surplus, n'achète presque rien, propose-le aux distributeurs à court.` });
+        if (dt !== null && st && dt < st * 0.5) out.push({ lvl: "info", t: p.k.startsWith("Q") ? `${p.label} : le tri en sort ${st.toLocaleString("fr-FR")} pour ${dt.toLocaleString("fr-FR")} demandés. Le surplus reste en stock pour le mois prochain, ou se revend à un distributeur à court.` : `${p.label} : peu de demande (${dt.toLocaleString("fr-FR")}) pour ton stock (${st.toLocaleString("fr-FR")}). Garde le surplus, n'achète presque rien, propose-le aux distributeurs à court.` });
       }
       const bought = (state.offers || []).filter((o) => num(o.month) === m && o.type === "buy" && ["accepted", "confirmed"].includes(o.status));
       const last = num(state.settings.months) || 6;
@@ -547,6 +585,273 @@
     const prevRes = num(get(state.months, [m - 1, "results", "monthlyResult"], null));
     if (prevRes !== null && prevRes < 0) out.push({ lvl: "warn", t: `Résultat de ${MONTHS[m - 2]} négatif (${prevRes.toLocaleString("fr-FR")} €) : il compte double. Si tu as beaucoup vendu, tes prix étaient trop bas ou tes achats trop chers ; si tu as peu vendu, tes prix étaient trop hauts.` });
     return out;
+  }
+
+  /* ---------- Valeurs effectives : ce qui a été saisi, sinon la reco ---------- */
+  function effPrice(state, m, c, p) {
+    const v = num(get(state.months, [m, "p1", "prices", c, p], null));
+    return v !== null ? v : recoPrice(state, m, c, p).price;
+  }
+  function effTerm(state, m, c) {
+    const v = get(state.months, [m, "p1", "terms", c], null);
+    return v ? String(v) : recoTerms(state, m)[c];
+  }
+  function effMarketing(state, m) {
+    const mo = get(state.months, [m, "p1"], {});
+    const r = recoMarketing(state, m);
+    const stored = CLIENTS.some((c) => get(mo, ["marketing", c.k], null)) || num(mo.adProduct) !== null;
+    if (!stored) return { adProduct: r.adProduct, targeted: Object.assign({}, r.targeted), reco: true };
+    const t = {};
+    for (const c of CLIENTS) t[c.k] = get(mo, ["marketing", c.k], null) || "none";
+    return { adProduct: num(mo.adProduct) || 0, targeted: t, reco: false };
+  }
+
+  /* Tri conseillé : couvrir la demande Q3 et Q4 restante avec l'Espagne A d'abord, puis B, puis C pour le Q1 */
+  function recoSort(state, m) {
+    const s = state.settings;
+    const out = { A: 0, B: 0, C: 0, why: "", rem: {} };
+    if (!isNat(state, m)) return out;
+    let capLeft = num(s.sortCap) || 20000;
+    const rem = {};
+    for (const q of ["Q1", "Q2", "Q3", "Q4"]) {
+      const dem = demandTotal(state, m, q);
+      const target = dem !== null ? dem : CLIENTS.reduce((t, c) => t + need(state, m, c.k, q), 0);
+      rem[q] = Math.max(0, target - (stockOf(state, m, q) || 0));
+    }
+    const y = (o, i) => yld(state, o, i);
+    const qi = { Q1: 0, Q2: 1, Q3: 2, Q4: 3 };
+    for (const o of ["A", "B", "C"]) {
+      const stock = stockOf(state, m, o) || 0;
+      if (!stock || capLeft <= 0) continue;
+      const focus = o === "C" ? ["Q1", "Q2", "Q3", "Q4"] : ["Q3", "Q4"];
+      let lots = 0;
+      for (const q of focus) {
+        const yy = y(o, qi[q]);
+        if (yy > 0 && rem[q] > 0) lots = Math.max(lots, Math.ceil(rem[q] / yy));
+      }
+      lots = Math.min(lots, stock, capLeft);
+      if (!lots) continue;
+      out[o] = lots;
+      capLeft -= lots;
+      for (const q of Object.keys(qi)) rem[q] = Math.max(0, rem[q] - Math.floor(lots * y(o, qi[q])));
+    }
+    out.rem = rem;
+    const parts = [];
+    if (out.A) parts.push(`${out.A.toLocaleString("fr-FR")} lots d'Espagne A`);
+    if (out.B) parts.push(`${out.B.toLocaleString("fr-FR")} de B`);
+    if (out.C) parts.push(`${out.C.toLocaleString("fr-FR")} de C`);
+    out.why = parts.length
+      ? `Trier ${parts.join(", ")} couvre la demande Q3 et Q4 de ce mois (les plus gros volumes). Le reste reste non trié : il se revend plus facilement et ne coûte rien à trier.`
+      : "Rien à trier : ton stock trié couvre déjà la demande, ou tu n'as pas de naturels non triés.";
+    if (rem.Q4 > 0 || rem.Q3 > 0) out.why += ` Il manquera encore ${rem.Q4 ? `${rem.Q4.toLocaleString("fr-FR")} Q4` : ""}${rem.Q4 && rem.Q3 ? " et " : ""}${rem.Q3 ? `${rem.Q3.toLocaleString("fr-FR")} Q3` : ""} : sers d'abord les clients qui paient le plus, rachète à un distributeur (livraison immédiate).`;
+    return out;
+  }
+
+  /* Remplit ce qui n'a pas été saisi avec les recos (quand on passe à l'étape suivante) */
+  function commitP1(state, m) {
+    const mo = month(state, m);
+    for (const p of productsFor(state, m)) for (const c of CLIENTS) {
+      mo.p1.prices[c.k] = mo.p1.prices[c.k] || {};
+      if (num(mo.p1.prices[c.k][p.k]) === null) mo.p1.prices[c.k][p.k] = recoPrice(state, m, c.k, p.k).price;
+    }
+    const rt = recoTerms(state, m);
+    for (const c of CLIENTS) if (!mo.p1.terms[c.k]) mo.p1.terms[c.k] = rt[c.k];
+    const eff = effMarketing(state, m);
+    if (eff.reco) { mo.p1.adProduct = eff.adProduct; mo.p1.marketing = Object.assign({}, eff.targeted); }
+  }
+  function commitP2(state, m) {
+    const mo = month(state, m);
+    if (isNat(state, m) && !["A", "B", "C"].some((o) => num(get(mo, ["p2", "sort", o], null)) !== null)) {
+      const r = recoSort(state, m);
+      mo.p2.sort = { A: r.A, B: r.B, C: r.C };
+    }
+    const hasDel = CLIENTS.some((c) => Object.keys(get(mo, ["p2", "deliveries", c.k], {})).length);
+    if (!hasDel && Object.keys(mo.p2.demand || {}).length) mo.p2.deliveries = allocate(state, m);
+  }
+
+  /* ---------- Parcours guidé : captures à faire, phase par phase ---------- */
+  function steps(state, m, phase) {
+    const nf = num(state.settings.naturalsFrom) || 3;
+    const S = [];
+    const add = (id, screen, where, what, why, optional) => S.push({ id, screen, where, what, why, optional: !!optional });
+    if (phase === 1) {
+      if (m === 1) {
+        add("email", "email", "Email Box", "Le mail « Starting notes », puis la liste des destinataires quand tu fais New email (toutes les équipes D… et I…)", "Je compte les distributeurs et les industriels : c'est le rapport de force de toute la partie, et la demande des clients se partage entre distributeurs.");
+        add("settings", "settings", "Settings (les 3 onglets : Production, Delays and costs, Customer information)", "Les fourchettes de prix par client et par produit, les délais, les coûts", "Tes prix doivent rester dans les fourchettes (sinon le jeu les ramène à la borne) et tous les calculs partent de ces chiffres.");
+        add("balance", "results_balance", "Results > Balance sheet", "La valeur de ton stock de départ", "Elle donne ton vrai coût par lot : on ne vend jamais en dessous.");
+        add("guide", "guide", "Guide utilisateur (PDF ou captures)", "Le calcul du score et les besoins des clients", "Les besoins servent à calculer ton attractivité ; le calcul du score dit ce qui rapporte des points.", true);
+      } else {
+        add("email", "email", "Email Box", m === nf ? "Le mail « Cessation of activity » et les nouveaux mails du mois" : "Les nouveaux mails du mois (s'il y en a)", m === nf ? "Mars change tout : nouveaux produits, nouvelles charges, nouvelles règles de marketing." : "Le formateur change parfois les règles par mail en début de mois.", m !== nf);
+        add("cash", "results_cash", "Results > Cash", "La trésorerie et sa prévision sur les 2 mois suivants", "Tes délais de paiement dépendent de ta trésorerie : chaque mois sous zéro coûte 10 points.");
+        if (m === nf) add("settings", "settings", "Settings > Customer information et Production", "Les fourchettes Q1 à Q4 et les rendements de la trieuse", "Les nouveaux produits ont leurs propres fourchettes : je recale les prix dessus.");
+      }
+      add("stock", "stock", "Decisions, panneau du stock (flèche bleue à droite)", "Ton stock vendable ce mois-ci", "On ne vend que ce qu'on a : ça cale la demande à viser.");
+      add("planning", "planning", "Decisions > Planning (écran vert), une fois tes valeurs saisies", "L'écran rempli, avant de cliquer sur Finish the phase", "Je vérifie que tout est bien saisi : le jeu ramène sans prévenir un prix hors fourchette à la borne.", true);
+    } else if (phase === 2) {
+      add("sales", "sales", "Decisions > Sales", "La quantité commandée par chaque client (Quantity of ordered products)", "C'est ta vraie demande : elle donne ton attractivité, la répartition à saisir et les prix du mois prochain.");
+      add("stock", "stock", "Panneau du stock (flèche bleue)", isNat(state, m) ? "Ton stock à jour, avec les naturels non triés Espagne A, B, C, AVANT de lancer le tri" : "Ton stock à jour", "Pour répartir les ventes sans dépasser ce que tu as.");
+      if (isNat(state, m)) add("production", "production", "Decisions > Production", "La trieuse (capacité, quantités à trier)", "Je calcule combien trier pour couvrir la demande Q3 et Q4.");
+      add("nego", "negotiations", "Decisions > Negotiations", "La liste des offres, et le détail (loupe) de chaque offre reçue", "Je juge chaque offre : accepter, négocier ou refuser, avec la contre-offre.");
+      add("email", "email", "Email Box", "Les mails des industriels ou des distributeurs", "Leurs prix et leurs stocks annoncés aident à négocier.", true);
+    } else {
+      add("ranking", "results_ranking", "Results > Ranking", "Ton score du mois, le score moyen et ton rang", "Pour savoir si tu es devant le peloton.");
+      add("income", "results_income", "Results > Income statement", "CA, charges, résultat du mois et cumulé", "Le résultat mensuel compte double dans le score.");
+      add("cash", "results_cash", "Results > Cash", "La trésorerie de fin de mois et la prévision des 2 mois suivants", "Une prévision négative se corrige maintenant, pas le mois prochain.");
+      add("balance", "results_balance", "Results > Balance sheet", "La valeur du stock, les dettes, le découvert", "Le découvert coûte environ 1 % par mois.", true);
+      add("kpi", "results_kpi", "Results > Negotiation KPIs", "Qui accepte, qui refuse", "Pour choisir tes partenaires du mois prochain.", true);
+    }
+    return S;
+  }
+
+  function stepDone(state, m, phase, st) {
+    const mo = month(state, m);
+    const seen = (mo.seen && mo.seen[phase]) || {};
+    if (seen[st.id] === true) return true;
+    if (seen[st.id] === false) return false;
+    const has = (o) => o && typeof o === "object" && Object.keys(o).length > 0;
+    const r = mo.results || {};
+    const rPrev = m > 1 ? get(state.months, [m - 1, "results"], {}) : {};
+    const s = state.settings;
+    switch (st.id) {
+      case "settings": return !!(s.seen && s.seen[`settings${m === 1 ? "" : m}`]);
+      case "balance": return phase === 1 ? num(s.startStockValue) !== null : num(r.stockValue) !== null;
+      case "guide": return !!(s.scoreNotes && s.scoreNotes.trim());
+      case "stock": return has(mo.p2.stock);
+      case "cash": return phase === 1 ? [rPrev.cashEnd, rPrev.cashM1].some((v) => num(v) !== null) : [r.cashEnd, r.cashM1].some((v) => num(v) !== null);
+      case "sales": return has(mo.p2.demand);
+      case "nego": return (state.offers || []).some((o) => num(o.month) === m);
+      case "ranking": return [r.score, r.totalScore, r.rank].some((v) => num(v) !== null);
+      case "income": return [r.monthlyResult, r.turnover].some((v) => num(v) !== null);
+      default: return false;
+    }
+  }
+
+  function markSeen(state, m, phase, screens) {
+    const mo = month(state, m);
+    mo.seen = mo.seen || {};
+    mo.seen[phase] = mo.seen[phase] || {};
+    const list = steps(state, m, phase);
+    const got = [];
+    for (const scr of screens || []) {
+      for (const st of list) if (st.screen === scr && mo.seen[phase][st.id] !== true) { mo.seen[phase][st.id] = true; got.push(st.id); }
+      if (scr === "settings") { state.settings.seen = state.settings.seen || {}; state.settings.seen[`settings${m === 1 ? "" : m}`] = true; }
+    }
+    return got;
+  }
+
+  /* ---------- Contrôles avant de valider une phase ---------- */
+  function checks(state, m, phase) {
+    const out = [];
+    const nf = num(state.settings.naturalsFrom) || 3;
+    const last = num(state.settings.months) || 6;
+    const mo = month(state, m);
+    const add = (label, ok, detail) => out.push({ label, ok, detail: detail || "" });
+    const cash = lastCashForecast(state, m + 1);
+    if (phase === 1) {
+      const outR = [], under = [];
+      for (const p of productsFor(state, m)) for (const c of CLIENTS) {
+        const v = effPrice(state, m, c.k, p.k);
+        const [lo, hi] = range(state, c.k, p.k);
+        if (v < lo || v > hi) outR.push(`${c.label} ${p.label} ${v} € (${lo} à ${hi})`);
+        if (p.k === "mixed" && v < mixedCost(state)) under.push(`${c.label} ${v} €`);
+      }
+      add("Tous les prix sont dans les fourchettes du jeu", !outR.length, outR.length ? `Hors fourchette : ${outR.join(", ")}` : "OK");
+      add("Aucun aggloméré vendu sous ton coût", !under.length, under.length ? `Sous ${mixedCost(state)} € : ${under.join(", ")}` : `Coût utilisé : ${mixedCost(state)} € par lot`);
+      if (m >= 2 && m <= nf) {
+        const long = CLIENTS.filter((c) => ["30", "60"].includes(effTerm(state, m, c.k))).map((c) => c.label);
+        add("Délais clients courts avant les gros décaissements", !long.length, long.length ? `${long.join(", ")} à 30 ou 60 jours : l'argent arrivera trop tard` : "OK");
+      }
+      const eff = effMarketing(state, m);
+      const both = (num(eff.adProduct) || 0) > 0 && CLIENTS.some((c) => eff.targeted[c.k] && eff.targeted[c.k] !== "none");
+      add("Pas de pub produit et d'actions ciblées en même temps", !both, both ? "Choisis l'un ou l'autre (conseil Sciado)" : "OK");
+      if (cash !== null) add("Trésorerie prévue positive", cash >= 0, `Prévision la plus basse : ${cash.toLocaleString("fr-FR")} €`);
+      else add("Trésorerie prévue positive", null, m === 1 ? "Pas encore de prévision en janvier" : "Capture Results > Cash pour le vérifier");
+      const est = estimate(state, m, false);
+      add("Résultat estimé du mois", est.result >= 0 ? true : null, `${est.result.toLocaleString("fr-FR")} € (estimation)`);
+    } else if (phase === 2) {
+      const over = [], overStock = [];
+      for (const p of productsFor(state, m)) {
+        let tot = 0;
+        for (const c of CLIENTS) {
+          const d = num(get(mo, ["p2", "demand", c.k, p.k], null));
+          const v = num(get(mo, ["p2", "deliveries", c.k, p.k], null));
+          if (v !== null) tot += v;
+          if (v !== null && d !== null && v > d) over.push(`${c.label} ${p.label}`);
+        }
+        const st = availableStock(state, m, p.k);
+        if (tot > st && st >= 0 && tot > 0) overStock.push(`${p.label} : ${tot.toLocaleString("fr-FR")} pour ${st.toLocaleString("fr-FR")}`);
+      }
+      const hasDem = Object.keys(mo.p2.demand || {}).length > 0;
+      const hasStock = Object.keys(mo.p2.stock || {}).length > 0;
+      if (hasDem && !hasStock) add("Stock lu", false, "Capture le panneau du stock (flèche bleue) : sans lui, les livraisons conseillées restent à 0");
+      add("Livraisons pas plus hautes que les commandes", hasDem ? !over.length : null, !hasDem ? "Capture Decisions > Sales d'abord" : over.length ? over.join(", ") : "OK");
+      add("Livraisons pas plus hautes que le stock", hasDem ? !overStock.length : null, overStock.length ? overStock.join(", ") : hasDem ? "OK" : "");
+      if (isNat(state, m)) {
+        const tot = ["A", "B", "C"].reduce((t, o) => t + (num(get(mo, ["p2", "sort", o], 0)) || 0), 0);
+        const cap = num(state.settings.sortCap) || 20000;
+        const tooMuch = ["A", "B", "C"].filter((o) => (num(get(mo, ["p2", "sort", o], 0)) || 0) > (stockOf(state, m, o) || 0) && stockOf(state, m, o) !== null);
+        add("Tri dans la capacité et dans ton stock", tot <= cap && !tooMuch.length, tot > cap ? `${tot.toLocaleString("fr-FR")} lots pour ${cap.toLocaleString("fr-FR")} de capacité` : tooMuch.length ? `Plus que ton stock en ${tooMuch.join(", ")}` : "OK");
+      }
+      const bought = (state.offers || []).filter((o) => num(o.month) === m && o.type === "buy" && ["accepted", "confirmed"].includes(o.status));
+      if (m < last) add(`Stock acheté pour ${MONTHS[m] || "le mois suivant"}`, bought.length ? true : false, bought.length ? `${bought.reduce((t, o) => t + (num(o.qty) || 0), 0).toLocaleString("fr-FR")} lots acceptés` : "Aucun achat accepté : sans achat, rien à vendre le mois prochain");
+      else add("Rien acheté pour après la fin", !bought.length, bought.length ? "Un achat au dernier mois ne servira à rien" : "OK");
+      const tooHigh = bought.filter((o) => { const j = judgeBuy(state, m, o.product, o.price); return j && j.verdict === "refuse"; });
+      if (bought.length) add("Aucun achat au-dessus de ton plafond", !tooHigh.length, tooHigh.length ? tooHigh.map((o) => `${o.counterpart || "?"} ${o.price} €`).join(", ") : "OK");
+      if (cash !== null) add("Trésorerie prévue positive", cash >= 0, `Prévision la plus basse : ${cash.toLocaleString("fr-FR")} €`);
+    } else {
+      const r = mo.results || {};
+      const v = (k) => num(r[k]);
+      add("Résultat du mois positif", v("monthlyResult") === null ? null : v("monthlyResult") >= 0, v("monthlyResult") === null ? "Capture Results > Income statement" : `${v("monthlyResult").toLocaleString("fr-FR")} € (compte double)`);
+      add("Trésorerie de fin de mois positive", v("cashEnd") === null ? null : v("cashEnd") >= 0, v("cashEnd") === null ? "Capture Results > Cash" : `${v("cashEnd").toLocaleString("fr-FR")} €`);
+      const f = [v("cashM1"), v("cashM2")].filter((x) => x !== null);
+      add("Prévision de trésorerie positive", f.length ? Math.min(...f) >= 0 : null, f.length ? `Plus bas prévu : ${Math.min(...f).toLocaleString("fr-FR")} €` : "Capture Results > Cash");
+      add("Score au-dessus de la moyenne", v("score") === null || v("avgScore") === null ? null : v("score") >= v("avgScore"), v("score") === null ? "Capture Results > Ranking" : `${v("score")} contre ${v("avgScore") === null ? "?" : v("avgScore")} de moyenne`);
+    }
+    return out;
+  }
+
+  /* ---------- Vue des mois : ce qui se passe et ce qu'il faut préparer ---------- */
+  function outlook(state, m) {
+    const nf = num(state.settings.naturalsFrom) || 3;
+    const last = num(state.settings.months) || 6;
+    const cur = state.current || { m: 1, phase: 1 };
+    let event;
+    if (m === 1) event = "Début de partie : stock de départ, 3 offres du fournisseur allemand, premiers prix et pub.";
+    else if (m < nf) event = "Dernier mois avant les naturels : encaisser vite, acheter le minimum, préparer la trésorerie.";
+    else if (m === nf) event = "Les naturels arrivent (Q1 à Q4). Fournisseur allemand liquidé : plus d'offres externes. Tu paies 285 000 € de stock et 30 000 € de trieuse. Salaires 150 000 €.";
+    else if (m === 5) event = "Pic des vignerons (environ 1,5 fois mars) : mets le paquet sur eux.";
+    else if (m === nf + 1) event = "La demande naturels monte (vignerons environ 1,2 fois mars). Délais plus longs possibles si la trésorerie suit.";
+    else if (m === 6) event = "La demande revient au niveau de mars.";
+    else event = "Même mécanique : attractivité, prix, achats pour le mois suivant.";
+    if (m === last) event += " Dernier mois joué : n'achète rien pour la suite.";
+    const sumNeed = (prods) => CLIENTS.reduce((t, c) => t + prods.reduce((u, p) => u + need(state, m, c.k, p), 0), 0);
+    const fixed = fixedCosts(state, m);
+    const exceptional = m === nf ? 315000 : 0;
+    const rt = recoTerms(state, m);
+    const tl = (k) => (TERMS.find((t) => t.k === k) || { label: k }).label;
+    const rm = recoMarketing(state, m);
+    const mk = rm.adProduct ? `Pub produit ${rm.adProduct.toLocaleString("fr-FR")} €` : CLIENTS.filter((c) => rm.targeted[c.k] !== "none").map((c) => `${(MKT.find((x) => x.k === rm.targeted[c.k]) || {}).label} ${c.label.toLowerCase()}`).join(", ") || "Aucune";
+    const plan = purchasePlan(state, m);
+    const buy = [];
+    if (plan.mixed && plan.mixed.buy) buy.push(`Agglo environ ${plan.mixed.buy.toLocaleString("fr-FR")} lots (cible ${plan.mixed.targets.target} €)`);
+    if (plan.natural && plan.natural.buyA) buy.push(`Espagne A environ ${plan.natural.buyA.toLocaleString("fr-FR")} lots (cible ${plan.natural.targets.A.target} €)`);
+    if (!buy.length && plan.notes.length) buy.push(plan.notes[0]);
+    const est = estimate(state, m, true);
+    const r = get(state.months, [m, "results"], {});
+    const status = m < cur.m ? "Passé" : m === cur.m ? "En cours" : "À venir";
+    const ant = anticipate(state, m).filter((x) => !/^Achats/.test(x));
+    return {
+      m, status, event,
+      products: isNat(state, m) ? "Agglomérés + naturels Q1 à Q4" : "Agglomérés",
+      needMixed: sumNeed(["mixed"]), needNat: isNat(state, m) ? sumNeed(["Q1", "Q2", "Q3", "Q4"]) : 0,
+      fixed, exceptional,
+      terms: CLIENTS.map((c) => `${c.label} ${tl(rt[c.k]).toLowerCase()}`).join(", "),
+      marketing: mk,
+      buy: buy.join(" ; ") || "Rien",
+      estResult: est.result,
+      result: num(r.monthlyResult), cash: num(r.cashEnd),
+      watch: ant[0] || ""
+    };
   }
 
   /* Résumé compact de l'état pour le coach IA */
@@ -576,7 +881,8 @@
     defaultState, defaultSettings, emptyMonth, month, num, get, isNat, productsFor, need, range, mixedCost, natCost,
     index, stockOf, sortedOutput, availableStock, delivered, demandTotal, leftover, recoPrice, recoTerms, recoMarketing,
     marketingCost, fixedCosts, expectedRevenue, estimate, allocate, purchasePlan, judgeBuy, judgeSell, lead, checklist,
-    anticipate, alerts, summary, lastCashForecast
+    anticipate, alerts, summary, lastCashForecast,
+    effPrice, effTerm, effMarketing, recoSort, effSort, effDelivered, commitP1, commitP2, steps, stepDone, markSeen, checks, outlook
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = Engine;
