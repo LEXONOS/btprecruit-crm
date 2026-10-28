@@ -1,0 +1,7 @@
+{
+  "name": "vinego-cockpit",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cockpit de stratégie pour le business game ViNego (distributeur)",
+  "engines": { "node": ">=18" }
+}
