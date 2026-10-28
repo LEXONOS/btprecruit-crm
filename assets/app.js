@@ -265,6 +265,9 @@
     R.push([{ v: `Objectif du mois : ${E.lead(state, m)}`, span: 8, cls: "wrap lead" }]);
     R.push([{ v: "" }, { v: "Prochaine action", cls: "b" }, { v: nextAction(m, phase, steps, keys, chk, closed), span: 6, cls: "wrap b mid" }]);
     R.push([]);
+    R.push(sec(`La stratégie de cette étape : ${MN(m)}, ${PHASE_NAME[phase]}`));
+    for (const x of E.strategy(state, m, phase)) R.push([{ v: "" }, { v: x.k, cls: `b ${x.k === "Le piège" ? "bad" : x.k === "Tes chiffres" ? "mid" : ""}` }, { v: x.t, span: 6, cls: "wrap" }]);
+    R.push([]);
 
     // 1. Captures
     R.push(sec(`1. Captures à faire dans le jeu (${PHASE_LONG[phase]})`));
@@ -429,7 +432,7 @@
         R.push([{ v: "" }, { v: `${o.counterpart || "?"} (${o.dir === "out" ? "envoyée" : "reçue"}, ${o.type === "sell" ? "vente" : "achat"})`, cls: "wrap" }, { v: prodLabel(o.product) }, { v: fmt(N(o.qty)), cls: "r" }, { v: eur(N(o.price)), cls: "r" }, { v: termLab(o.term) }, j ? { v: `${j.label}${j.counter ? `. Contre-offre : ${j.counter} €` : ""}`, cls: `wrap ${j.verdict === "ok" ? "good" : j.verdict === "nego" ? "mid" : "bad"}` } : { v: "" }, { v: statusLab(o.status) }]);
       }
     }
-    R.push([{ v: "" }, link("Ouvrir la feuille Négos (mails prêts, toutes les offres)", "sheet", { sheet: "nego" }, { span: 7 })]);
+    R.push([{ v: "" }, link("Préparer la négo : tes limites, tes arguments, les réponses aux objections (feuille Négos)", "sheet", { sheet: "nego" }, { span: 7 })]);
     // Surplus
     let tot = 0;
     for (const c of C) { const s = N(E.get(mo, ["p2", "deliveries", c.k, "mixed"], null)); tot += s !== null ? s : alloc[c.k] ? alloc[c.k].mixed || 0 : 0; }
@@ -634,16 +637,40 @@
     const W = [36, 96, 92, 130, 86, 110, 92, 84, 124, 110, 280, 70];
     const R = [];
     const mOpts = monthOpts();
-    R.push([{ v: "Négociations", span: 3, cls: "title" }, { v: "Chaque offre avec le verdict de l'outil par rapport à tes repères (Paramètres > Repères d'achat). Le plus simple : capture l'écran Negotiations, ou tape l'offre dans la barre du haut.", span: 8, cls: "wrap muted" }]);
+    const m = state.current.m;
+    const nb = E.negoBrief(state, m);
+    R.push([{ v: "Négociations", span: 3, cls: "title" }, { v: `Préparation de ${MN(m)} : tes limites, le rapport de force, tes arguments et quoi répondre. Puis chaque offre avec le verdict de l'outil.`, span: 8, cls: "wrap muted" }]);
     R.push([]);
-    R.push(sec("Ajouter une offre à la main", 12));
+    R.push(sec(`1. Tes limites en ${MN(m)} (à ne jamais franchir)`, 12));
+    R.push(chRow(["", { v: "Ce que tu négocies", span: 2 }, { v: "Quantité", cls: "r" }, { v: "Ouvre à", cls: "r" }, { v: "Vise", cls: "r" }, { v: "Limite", cls: "r" }, "Délai", { v: "Ce que tu peux lâcher", span: 2 }, "Pourquoi cette limite", ""]));
+    for (const l of nb.limits) {
+      R.push([{ v: "" }, { v: l.label, span: 2, cls: "wrap b" }, { v: l.qty === null || l.qty === undefined ? "" : `${fmt(l.qty)} lots`, cls: "r" }, { v: l.anchor === null ? "" : `${l.anchor} €`, cls: "r" }, { v: l.target === null ? "" : `${l.target} €`, cls: l.target === null ? "" : "r good" }, { v: `${l.limitLabel === "plancher" ? "min " : "max "}${l.limit} €`, cls: "r bad b", note: l.limitLabel === "plancher" ? "Plancher : en dessous, tu refuses." : "Plafond : au-dessus, tu refuses ou tu baisses le volume." }, { v: l.term, cls: "wrap" }, { v: l.give, span: 2, cls: "wrap muted" }, { v: l.why, cls: "wrap muted" }, { v: "" }]);
+    }
+    R.push([{ v: "" }, { v: "« Ouvre à » : ton premier chiffre, justifié. « Vise » : là où tu veux finir. « Limite » : au-delà tu dis non, même en fin de phase. Les repères se changent dans Paramètres.", span: 10, cls: "wrap muted" }]);
+    R.push([]);
+    R.push(sec("2. Le rapport de force ce mois-ci", 12));
+    for (const t of nb.power) R.push([{ v: "" }, { v: t, span: 10, cls: "wrap" }]);
+    R.push([]);
+    R.push(sec("3. Tes arguments (à copier dans tes mails ou à dire)", 12));
+    R.push(chRow(["", { v: "Ce que tu dis", span: 6 }, { v: "Quand l'utiliser", span: 3 }, ""]));
+    for (const a of nb.args) R.push([{ v: "" }, { v: a.t, span: 6, cls: "wrap b" }, { v: a.when, span: 3, cls: "wrap muted" }, link("Copier", "copy", { text: a.t.replace(/^« | »$/g, "") }, { cls: "c" })]);
+    R.push([]);
+    R.push(sec("4. Ce qu'ils vont te dire, et quoi répondre", 12));
+    R.push(chRow(["", { v: "Ils disent", span: 4 }, { v: "Tu réponds", span: 6 }]));
+    for (const o of nb.objections) R.push([{ v: "" }, { v: o.they, span: 4, cls: "wrap" }, { v: o.you, span: 6, cls: "wrap b" }]);
+    R.push([]);
+    R.push(sec("5. Les règles d'or", 12));
+    for (const t of nb.rules) R.push([{ v: "" }, { v: t, span: 10, cls: "wrap" }]);
+    R.push([{ v: "" }, { v: `Si ça bloque : ${nb.batna}`, span: 10, cls: "wrap mid" }]);
+    R.push([]);
+    R.push(sec("6. Ajouter une offre à la main", 12));
     R.push(chRow(["", "Mois", "Sens", "Contrepartie", "Type", "Produit", { v: "Quantité", cls: "r" }, { v: "Prix", cls: "r" }, "Délai", "Statut", "", ""]));
     const s = (id, opts, cur) => `<select id="${id}" aria-label="${id}">${opts.map((o) => `<option value="${esc(o.k)}" ${String(o.k) === String(cur) ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>`;
     const t = (id, ph, num) => `<input type="text" id="${id}" placeholder="${esc(ph || "")}" ${num ? 'inputmode="decimal"' : ""} aria-label="${id}">`;
     R.push([{ v: "" }, { html: s("of-month", mOpts, state.current.m), cls: "in" }, { html: s("of-dir", [{ k: "in", label: "Reçue" }, { k: "out", label: "Envoyée" }], "in"), cls: "in" }, { html: t("of-cp", "I1_…"), cls: "in l" }, { html: s("of-type", [{ k: "buy", label: "Achat" }, { k: "sell", label: "Vente" }], "buy"), cls: "in" }, { html: s("of-prod", PRODS_ALL, "mixed"), cls: "in" }, { html: t("of-qty", "", true), cls: "in" }, { html: t("of-price", "", true), cls: "in" }, { html: s("of-term", E.TERMS, "60"), cls: "in" }, { html: s("of-status", STATUS, "pending"), cls: "in" }, btn("Ajouter", "add-offer"), { v: "" }]);
     R.push([]);
     const offers = (state.offers || []).map((o, i) => ({ o, i })).sort((a, b) => (N(b.o.month) || 0) - (N(a.o.month) || 0) || (b.o.t || 0) - (a.o.t || 0));
-    R.push(sec(`Toutes les offres (${offers.length})`, 12));
+    R.push(sec(`7. Toutes les offres (${offers.length})`, 12));
     R.push(chRow(["", "Mois", "Sens", "Contrepartie", "Type", "Produit", { v: "Quantité", cls: "r" }, { v: "Prix", cls: "r" }, "Délai", "Statut", "Verdict de l'outil", ""]));
     if (!offers.length) R.push([{ v: "" }, { v: "Aucune offre pour l'instant.", span: 10, cls: "muted" }]);
     for (const { o, i } of offers) {
@@ -659,12 +686,12 @@
       ["Trois options, à ton fournisseur favori", `Je te propose trois formules au choix pour 3 000 lots d'A : 50 € à 60 jours ; 46 € payés à la livraison ; 44 € si on s'engage aussi sur mai et juin. Dis-moi celle qui t'arrange.`],
       ["Accord écrit (preuve en cas de litige)", `Pour confirmer notre accord : ${myId} achète [quantité] lots de [produit] à [prix] € le lot, paiement [délai], livraison [mois]. Si l'offre n'est pas envoyée dans le simulateur avant la fin de la phase, l'accord tombe. Merci de me confirmer par retour.`]
     ];
-    R.push(sec("Mails prêts à copier", 12));
+    R.push(sec("8. Mails prêts à copier", 12));
     for (const [title, txt] of mails) R.push([{ v: "" }, { v: title, span: 2, cls: "b wrap" }, { v: txt, span: 8, cls: "wrap" }, link("Copier", "copy", { text: txt }, { cls: "c" })]);
     R.push([]);
     const teams = (state.settings.teams || []).filter((x) => /^[ID]/i.test(x));
     const seen = Array.from(new Set(teams.concat((state.offers || []).map((o) => o.counterpart).filter((x) => x && x !== "Externe"))));
-    R.push(sec("Ce que tu sais de chaque équipe", 12));
+    R.push(sec("9. Ce que tu sais de chaque équipe", 12));
     if (!seen.length) R.push([{ v: "" }, { v: "La liste des équipes se remplit avec une capture de l'Email Box (liste des destinataires).", span: 10, cls: "muted" }]);
     for (const tm of seen) R.push([{ v: "" }, { v: tm, span: 2, cls: "b" }, inp(`partners.${tm.replace(/[^\w-]/g, "_")}.note`, { type: "text", left: true, span: 9, ph: "Stock ? trésorerie ? fiable ? prix pratiqués ?", label: `Notes ${tm}` })]);
     return grid({ cols: W, rows: R, minRows: R.length + 6 });
