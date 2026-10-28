@@ -3,28 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ViNego Cockpit</title>
+  <title>Suivi_distribution_2026.xlsx</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/app.css?v=1">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='9' y='4' width='14' height='24' rx='3' fill='%23c9ad7f'/%3E%3Crect x='9' y='4' width='14' height='6' rx='2' fill='%23e0a95a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/assets/app.css?v=2">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='4' fill='%23137a43'/%3E%3Cpath d='M3 12h26M3 20h26M12 3v26M20 3v26' stroke='%23fff' stroke-width='2' opacity='.85'/%3E%3C/svg%3E">
 </head>
 <body>
-  <div class="mobile-bar">
-    <button class="btn small" data-act="toggle-rail">Menu</button>
-    <strong>ViNego Cockpit</strong>
-    <span class="spacer"></span>
-    <button class="btn small" data-act="toggle-coach">Coach</button>
-  </div>
   <div class="app">
-    <aside class="rail" id="rail"></aside>
-    <main class="main" id="main"></main>
-    <aside class="coach" id="coach"></aside>
+    <header class="titlebar">
+      <div class="tb-file">
+        <svg class="tb-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="4" fill="#137a43"/><path d="M3 12h26M3 20h26M12 3v26M20 3v26" stroke="#fff" stroke-width="2" opacity=".85"/></svg>
+        <span id="fname">Suivi_distribution_2026.xlsx</span>
+        <span class="tb-saved" id="saved">Enregistré</span>
+      </div>
+      <button class="tb-btn" data-act="pane" id="pane-btn">Commentaires</button>
+    </header>
+    <nav class="menubar" id="menubar" aria-label="Menu">
+      <button data-act="menu" data-menu="file">Fichier</button>
+      <button data-act="insert">Insertion</button>
+      <button data-act="sheet" data-sheet="data">Données</button>
+      <button data-act="menu" data-menu="view">Affichage</button>
+      <button data-act="help">Aide</button>
+    </nav>
+    <div class="fbar">
+      <div class="namebox" id="namebox">A1</div>
+      <div class="fx-btns">
+        <button data-act="fx-clear" aria-label="Effacer la saisie">&times;</button>
+        <button data-act="fx-send" aria-label="Valider la saisie">&#10003;</button>
+        <span class="fx-label">fx</span>
+      </div>
+      <textarea id="fx" rows="1" spellcheck="false" aria-label="Saisie"></textarea>
+    </div>
+    <div class="work">
+      <div class="sheetwrap" id="sheet"></div>
+      <aside class="pane" id="pane" hidden></aside>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Feuilles"></nav>
+    <footer class="status" id="status"></footer>
   </div>
-  <div id="modal-root"></div>
-  <script src="/assets/engine.js?v=1"></script>
-  <script src="/assets/app.js?v=1"></script>
+  <div id="note" class="note" hidden></div>
+  <div id="menu" class="menu" hidden></div>
+  <div id="dropzone" class="dropzone" hidden><div>Déposer ici pour lire les captures</div></div>
+  <script src="/assets/engine.js?v=2"></script>
+  <script src="/assets/app.js?v=2"></script>
 </body>
 </html>

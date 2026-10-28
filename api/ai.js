@@ -50,6 +50,53 @@ const EXTRACT_SCHEMA = `{
   "notes": "ce qui est important pour la stratégie, en français, 3 phrases max"
 }`;
 
+const SMART_SYSTEM = `${PLAYBOOK}
+
+TON RÔLE ICI
+Tu es l'assistant intégré au tableau de suivi de Louis (il est distributeur). Il t'envoie n'importe quoi : des captures d'écran du simulateur, du texte copié d'une page, un PDF, une info qu'il tape vite (« j'ai 4 000 lots de Q3 », « I2 me propose 48 € à 60 jours »), une consigne (« le formateur a dit qu'on joue 5 mois », « on passe en phase 2 »), ou une question.
+Tu fais toujours deux choses :
+1. DATA : tu ranges toutes les informations dans le JSON pour que l'outil les enregistre au bon endroit. Rien d'inventé : seulement ce qui est visible ou dit.
+2. REPLY : tu réponds à Louis.
+
+Correspondances : Winemakers = winemakers (vignerons), Cellars ou Sellers = cellars (cavistes), Traders ou Key accounts = keyacc (grands comptes). Mixed stoppers = mixed. Spain A / semi-finished Spain A = A (naturels non triés), idem B et C. Q1 à Q4 = Q1 à Q4.
+Écrans : Decisions > Planning (prix, délais, publicité par client) = planning ; Decisions > Sales (Quantity of ordered products by the customers = demand ; Quantity of final products to deliver = deliveries) = sales ; Decisions > Production (trieuse, quantités triées = sort) = production ; Decisions > Negotiations (flèche vers la gauche = reçue (in), vers la droite = envoyée (out) ; Purchase = achat (buy), Sale = vente (sell)) = negotiations ; détail d'une offre = offer_detail ; Stock for sale = stock ; Settings = settings ; Results : Ranking = results_ranking, Income statement = results_income, Cash = results_cash (prévisions des mois suivants = cashM1 et cashM2), Balance sheet = results_balance, Negotiation KPIs = results_kpi ; Email Box = email ; guide utilisateur = guide.
+Délais : At order = order, At delivery = delivery, 30 days = 30, 60 days after delivery = 60.
+
+FORMAT DE SORTIE OBLIGATOIRE, rien d'autre :
+<reply>
+ta réponse à Louis
+</reply>
+<data>
+{ objet JSON }
+</data>
+
+Clés possibles du JSON (toutes optionnelles, omets ce qui n'est pas donné) :
+${EXTRACT_SCHEMA.replace(/\n}$/, "")},
+  "screens": ["planning", "sales", "..."],
+  "current": { "m": 3, "phase": 2 },
+  "remember": "un fait utile à noter dans le journal (règle annoncée par le formateur, info sur un concurrent), ou null"
+}
+Dans "settings" tu peux aussi mettre : "months" (nombre de mois joués), "naturalsFrom", "nDist", "nInd", "startStock", "startStockValue", "mixedCost", "naturalCost" { "A": 55 }, "buyTargets" { "A": { "anchor": 42, "target": 48, "ceiling": 60 } }, "fixed" { "wagesNat": 150000 }, "scoreNotes" (texte du calcul du score s'il est visible).
+"month" : le mois auquel appartiennent les données s'il est visible ou dit (janvier = 1), sinon null. Des résultats (Results) sans mois visible appartiennent au dernier mois terminé.
+"current" : seulement si Louis dit qu'il passe à un autre mois ou une autre phase (phase 3 = résultats).
+Nombres sans espaces ni symboles (12 000 = 12000 ; -48 520,01 € = -48520.01).
+
+RÈGLES POUR REPLY
+- Question posée : réponds-y d'abord, de façon chiffrée, à partir de ses données et de la stratégie. Donne la décision à prendre, pas un cours.
+- Données lues : dis en 1 à 3 lignes ce que tu as lu (les chiffres clés) et ce que ça change pour sa prochaine décision.
+- Capture floue, coupée ou pas du bon écran : dis exactement quoi recapturer.
+- 8 lignes maximum sauf si la question demande plus. Tutoiement, français, direct. Pas de tirets cadratins, pas d'emojis, pas de titres.`;
+
+function splitSmart(text) {
+  const t = text || "";
+  const r = t.match(/<reply>([\s\S]*?)<\/reply>/i);
+  const d = t.match(/<data>([\s\S]*?)(<\/data>|$)/i);
+  let reply = r ? r[1].trim() : "";
+  let data = d ? parseJson(d[1]) : null;
+  if (!r && !d) { data = parseJson(t); reply = data ? "" : t.trim(); }
+  return { reply, data: data || {} };
+}
+
 const EXTRACT_SYSTEM = `Tu lis des captures d'écran, du texte copié ou des PDF du simulateur ViNego (Sciado) côté distributeur, et tu en extrais les données en JSON.
 
 Correspondances : Winemakers = winemakers (vignerons), Cellars ou Sellers = cellars (cavistes), Traders ou Key accounts = keyacc (grands comptes). Mixed stoppers ou bouchons agglomérés = mixed. Stoppers Spain A / semi-finished Spain A = A (naturels non triés), idem B et C. Stoppers Q1 à Q4 = Q1 à Q4.
@@ -151,6 +198,33 @@ module.exports = async (req, res) => {
       const data = parseJson(out.text);
       if (!data) return json(res, 502, { error: "La réponse de l'IA n'était pas du JSON lisible.", raw: out.text.slice(0, 2000) });
       return json(res, 200, { ok: true, data, model: out.model });
+    }
+
+    if (action === "smart") {
+      const content = [];
+      for (const img of (body.images || []).slice(0, 8)) {
+        if (img && img.data) content.push({ type: "image", source: { type: "base64", media_type: img.mediaType || "image/jpeg", data: img.data } });
+      }
+      if (body.pdf && body.pdf.data) content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: body.pdf.data } });
+      const ctx = body.context || {};
+      const text = String(body.text || "").slice(0, 60000);
+      if (!content.length && !text.trim()) return json(res, 400, { error: "Rien à lire : ajoute une capture, un PDF ou du texte." });
+      let instr = `Position actuelle de Louis : mois ${ctx.m || "?"} (${ctx.monthName || ""}), phase ${ctx.phase || "?"} (${ctx.phaseName || ""}).`;
+      if (ctx.steps) instr += `\nCaptures attendues à cette étape : ${ctx.steps}.`;
+      if (content.length) instr += `\nIl t'envoie ${content.length} fichier(s). Lis tout ce qui est visible.`;
+      if (text.trim()) instr += `\n\nCe que Louis écrit ou colle :\n"""\n${text}\n"""`;
+      content.push({ type: "text", text: instr });
+      const history = (body.history || []).slice(-6).map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "").slice(0, 4000) })).filter((m) => m.content);
+      while (history.length && history[0].role !== "user") history.shift();
+      const msgs = [];
+      for (const h of history) { if (msgs.length && msgs[msgs.length - 1].role === h.role) msgs[msgs.length - 1].content += "\n" + h.content; else msgs.push(h); }
+      if (msgs.length && msgs[msgs.length - 1].role === "user") msgs.push({ role: "assistant", content: "(noté)" });
+      msgs.push({ role: "user", content });
+      const system = `${SMART_SYSTEM}\n\nDONNÉES ACTUELLES DE LA PARTIE (JSON) :\n${JSON.stringify(body.state || {}).slice(0, 80000)}`;
+      const imagesOnly = content.length > 1 && !text.trim();
+      const out = await callClaude({ system, messages: msgs, maxTokens: 7000, effort: imagesOnly ? "low" : "medium" });
+      const { reply, data } = splitSmart(out.text);
+      return json(res, 200, { ok: true, reply, data, model: out.model });
     }
 
     if (action === "coach") {
