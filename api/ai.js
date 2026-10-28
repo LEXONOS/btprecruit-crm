@@ -21,6 +21,8 @@ RÈGLES DU JEU (valeurs des vidéos Sciado, à remplacer par celles de la sessio
 - Prix moyens d'achat des naturels : A 55, B 60, C 65 €. Coût industriel estimé : agglo 8-9 € variable, 18-20 € complet ; naturel A environ 18 €.
 
 VALEURS RÉELLES DE LA PARTIE DE LOUIS (notes de départ du 28/10/2026, identifiant D3_47910, interface en français) : elles priment sur les valeurs des vidéos.
+- La partie dure 7 mois (janvier à juillet) : rien à acheter en juillet pour après, le stock restant fin juillet ne rapporte rien. 5 distributeurs (D1 à D5), au moins 4 industriels (I1 à I4).
+- Mail de la Direction en février : Stecker est en difficulté, il enverra moins d'offres ; les distributeurs doivent intensifier leurs démarches auprès des industriels français.
 - Capital de départ 500 000 €. Salaires 40 000 €/mois, frais de structure 20 000 €/mois, stockage 0,33 % de la valeur du stock restant en fin de mois.
 - Stock de départ : 12 000 lots d'agglomérés à 25 € le lot (300 000 €), à payer fin janvier. Coût de référence d'un lot d'aggloméré = 25 € : on ne vend jamais en dessous.
 - Prix d'achat moyen auprès des industriels : environ 21 € le lot.

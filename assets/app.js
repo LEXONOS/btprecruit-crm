@@ -50,6 +50,13 @@
       if (me && N(me.ceiling) === 20) st.buyTargets.mixedEarly = Object.assign({}, me, { ceiling: 21 });
       st.gameParams = 1;
     }
+    // Partie de 7 mois (janvier à juillet), nombre d'équipes connu
+    if ((s.settings.gameParams || 0) < 2) {
+      const st = s.settings;
+      if (N(st.months) === null || N(st.months) === 6) st.months = 7;
+      if (N(st.nDist) === null) st.nDist = 5;
+      st.gameParams = 2;
+    }
     return s;
   }
   let saveT = null;
