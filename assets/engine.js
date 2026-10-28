@@ -854,6 +854,148 @@
     };
   }
 
+  /* ---------- La stratégie de l'étape, expliquée ---------- */
+  function strategy(state, m, phase) {
+    const nf = num(state.settings.naturalsFrom) || 3;
+    const last = num(state.settings.months) || 6;
+    const S = [];
+    const add = (k, t) => S.push({ k, t });
+    const fr = (v) => Math.round(v).toLocaleString("fr-FR");
+    if (phase === 1) {
+      if (m === 1) {
+        add("Le but", "Marge et trésorerie d'abord, le volume ensuite. Le résultat du mois compte double dans le score et chaque mois de trésorerie sous zéro coûte 10 points : on ne court pas après le volume.");
+        add("Les prix", `Agglomérés à 69 € chez les vignerons et 39 € chez les cavistes : juste sous les seuils ronds, ça paraît bien moins cher que 70 et 40 sans perdre de marge. Grands comptes à ton coût (${mixedCost(state)} €) plus quelques euros : c'est le gros volume mais la petite marge. Janvier sert aussi de test : l'attractivité obtenue dira le mois prochain si on monte ou si on baisse.`);
+        add("Les délais", "30 jours chez les vignerons et les cavistes : ça attire, et l'argent rentre fin février, avant le gros choc de mars. Grands comptes à la commande : avec une marge aussi petite, on veut l'argent tout de suite.");
+        add("La pub", "Environ 2,5 % du CA attendu. La pub produit profite à tous les clients, y compris les grands comptes peu rentables : inutile d'en mettre plus.");
+        add("Le piège", "Mettre le prix minimum pour faire du volume : trop de demande, zéro marge, et ce que tu ne peux pas livrer part chez les concurrents.");
+      } else if (m < nf) {
+        add("Le but", `Arriver en ${MONTHS[nf - 1].toLowerCase()} avec assez de cash pour payer 285 000 € de stock de naturels, 30 000 € de trieuse et 150 000 € de salaires sans passer sous zéro.`);
+        add("Les prix", "On ajuste avec l'attractivité du mois dernier : au-dessus de 1,3 avec rupture, on monte d'environ 10 % de la fourchette ; sous 0,7 avec du stock invendu, on baisse d'autant ; sinon on garde. Un seul levier à la fois, pour savoir ce qui a marché.");
+        add("Les délais", "Courts partout (à la livraison ou à la commande) : l'argent doit être sur le compte avant les décaissements du mois suivant.");
+        add("La pub", "Même logique qu'en janvier : environ 2,5 % du CA attendu.");
+        add("Le piège", "Accorder 30 ou 60 jours maintenant : l'argent arriverait après les gros paiements, avec une trésorerie négative et 10 points perdus.");
+      } else if (m === nf) {
+        add("Le but", "C'est le tournant. Tes charges fixes passent à 170 000 € par mois : sans les naturels, impossible d'être à l'équilibre. La marge se fait désormais sur Q1 à Q4.");
+        add("Les prix", "Rareté inversée. Le Q4 est le plus demandé et le tri en sort peu : prix fort partout. Le tri sort trop de Q1 et de Q2 par rapport à la demande : prix agressifs pour tout écouler. Le Q3 se vend bien : haut de fourchette.");
+        add("Les délais", "Courts : c'est le mois le plus dur pour la trésorerie (stock, trieuse et salaires à payer).");
+        add("Le marketing", "Une seule action ciblée, là où la marge est forte (e-mailing vignerons), et pas de pub produit en même temps. Une visite d'usine à 50 000 € doit rapporter plus de 50 000 € de marge dans le mois.");
+        add("Le piège", "Vouloir couvrir 100 % du Q4 : ça demande de trier ou d'acheter deux fois plus de lots, avec des milliers de Q1 et Q2 invendables et du cash bloqué.");
+      } else {
+        add("Le but", m === last ? "Dernier mois : soigner le résultat et la trésorerie, sans rien préparer pour après." : "Tenir l'avance : ajuster les prix à l'attractivité, garder la trésorerie positive, préparer le mois suivant.");
+        add("Les prix", "Même règle chaque mois : au-dessus de 1,3 avec rupture, on monte ; sous 0,7 avec des invendus, on baisse ; sinon on garde. Le Q4 reste au prix fort tant qu'il se vend.");
+        const cash = lastCashForecast(state, m);
+        add("Les délais", cash !== null && cash > 50000 ? `Trésorerie prévue confortable (${fr(cash)} €) : 30 jours chez les vignerons attire sans coûter de marge.` : "Trésorerie à surveiller : délais courts, l'argent d'abord.");
+        add("Le marketing", m === 5 ? "Pic des vignerons : e-mailing vignerons, plus flyers cavistes. C'est le mois où une action ciblée rapporte le plus." : "Une action ciblée sur les vignerons, pas de pub produit en même temps.");
+        add("Le piège", m === last ? "Acheter pour un mois qui n'existera pas : tout ce qui reste en stock à la fin ne rapporte rien." : "Changer tous les prix en même temps : tu ne sauras plus ce qui a marché.");
+      }
+      if (m > 1) {
+        const moves = [];
+        for (const p of productsFor(state, m)) for (const c of CLIENTS) {
+          const r = recoPrice(state, m, c.k, p.k);
+          if (/on monte|on baisse/.test(r.reason)) moves.push(`${c.label} ${p.label} : ${r.reason.charAt(0).toLowerCase()}${r.reason.slice(1)}`);
+        }
+        if (moves.length) add("Tes chiffres", `${moves.slice(0, 4).join(" ; ")}${moves.length > 4 ? " ; …" : ""}.`);
+      }
+    } else if (phase === 2) {
+      add("Le but", "Transformer la demande reçue en marge : servir d'abord les clients qui paient le plus, et racheter dès maintenant ce que tu vendras le mois prochain (30 jours de livraison).");
+      if (isNat(state, m)) add("Le tri", "On trie ce qui se vend ce mois-ci, en visant le Q3 et le Q4. Le tri coûte 2 € par lot ; ce qui reste non trié garde sa souplesse pour le mois prochain.");
+      add("Les ventes", "Chaque produit va d'abord au client qui paie le plus, jamais plus que sa commande. Ce que tu ne livres pas part chez les concurrents : c'est mieux que de vendre à perte.");
+      if (m < last) add("Les achats", `Achète pour ${MONTHS[m].toLowerCase()}, jamais pour ce mois-ci. Deux fournisseurs, 60 jours de délai, et jamais au-dessus de ton plafond : si le prix monte, baisse le volume plutôt que d'accepter.`);
+      else add("Les achats", "Dernier mois : aucun achat, il ne serait jamais vendu.");
+      if (m === 1) add("Les offres externes", "Le fournisseur allemand t'envoie 3 offres non négociables : prends seulement ce qui te manque pour février, à 20 € maximum.");
+      if (m === nf - 1) add("Le timing", "Achète le minimum d'agglomérés : en mars, les industriels perdent leur acheteur allemand et leurs prix vont baisser.");
+      if (m === nf) add("Le timing", "Lance un appel d'offres Espagne A pour avril et propose un accord sur 3 mois à 1 ou 2 industriels : ils n'ont plus que les distributeurs pour vendre.");
+      add("La négo", "Un délai ne se donne jamais, il s'échange contre du prix. Une offre acceptée est définitive : relis quantité, produit, prix et délai. Tes limites et tes arguments sont dans la feuille Négos.");
+      add("Le piège", "Valider la phase avant d'avoir fini tes négos, ou oublier d'acheter : sans achat, rien à vendre le mois prochain.");
+      const tight = [], spare = [];
+      for (const p of productsFor(state, m)) {
+        const dt = demandTotal(state, m, p.k), st = availableStock(state, m, p.k);
+        if (dt === null) continue;
+        if (dt > st) tight.push(`${p.label} (${fr(dt - st)} manquants)`);
+        else if (st > dt * 1.5) spare.push(p.label);
+      }
+      if (tight.length || spare.length) add("Tes chiffres", `${tight.length ? `Rupture en ${tight.join(", ")} : prix en hausse le mois prochain.` : ""}${tight.length && spare.length ? " " : ""}${spare.length ? `Surplus en ${spare.join(", ")} : garde-le ou revends-le à un distributeur à court.` : ""}`);
+    } else {
+      add("Le but", "Comprendre pourquoi le mois s'est fini comme ça, et corriger dès le mois prochain.");
+      add("Comment lire", "Le résultat du mois compte double. La trésorerie sous zéro coûte 10 points par mois. Les prévisions M+1 et M+2 disent si le problème arrive : c'est maintenant qu'on le corrige.");
+      add("Le diagnostic", "Beaucoup vendu mais résultat négatif : prix trop bas ou achats trop chers. Peu vendu : prix trop hauts ou pas assez visible. Trésorerie négative : délais clients trop longs ou achats payés trop tôt.");
+      const r = get(state.months, [m, "results"], {});
+      const res = num(r.monthlyResult), cash = num(r.cashEnd);
+      if (res !== null || cash !== null) add("Tes chiffres", `${res !== null ? `Résultat ${fr(res)} € (${res >= 0 ? "positif" : "négatif, il compte double"}).` : ""} ${cash !== null ? `Trésorerie ${fr(cash)} € (${cash >= 0 ? "positive" : "négative : −10 points"}).` : ""}`.trim());
+      add("La suite", "Lance l'analyse du mois : elle relit toute ta partie et sort le plan chiffré du mois prochain, avec deux plans B.");
+    }
+    return S;
+  }
+
+  /* ---------- Préparation de la négociation du mois ---------- */
+  function negoBrief(state, m) {
+    const nf = num(state.settings.naturalsFrom) || 3;
+    const last = num(state.settings.months) || 6;
+    const s = state.settings;
+    const fr = (v) => Math.round(v).toLocaleString("fr-FR");
+    const out = { power: [], limits: [], args: [], objections: [], rules: [], batna: "" };
+    const nI = num(s.nInd), nD = num(s.nDist);
+    if (nI && nD) {
+      if (nI > nD) out.power.push(`Plus d'industriels (${nI}) que de distributeurs (${nD}) : ils se battent pour te vendre. C'est toi qui as la main sur les prix.`);
+      else if (nI < nD) out.power.push(`Plus de distributeurs (${nD}) que d'industriels (${nI}) : les industriels peuvent tenir leurs prix. Sécurise ton volume tôt, avec un accord sur plusieurs mois.`);
+      else out.power.push(`Autant d'industriels que de distributeurs (${nI}) : un industriel produit plus qu'un distributeur ne vend, l'avantage reste de ton côté.`);
+    } else out.power.push("Nombre d'équipes inconnu : capture la liste des destinataires dans l'Email Box pour connaître le rapport de force.");
+    if (m < nf) out.power.push("Jusqu'en février, les industriels vendent encore au fournisseur allemand autour de 20 € : ils ne bradent pas. Ton stock de départ te couvre, n'achète que le nécessaire.");
+    if (m === nf - 1) out.power.push("En mars, ils perdent cet acheteur : tout ce qu'ils produiront ne se vendra qu'aux distributeurs. Ne t'engage pas sur un prix long maintenant.");
+    if (m >= nf) out.power.push("Depuis mars, les industriels n'ont plus aucun client en dehors des distributeurs. Ils ont payé 175 000 € de planches et portent environ 135 000 € de charges par mois : ils ont besoin de cash. Un paiement rapide vaut une vraie baisse de prix.");
+    out.power.push("Leur coût de revient : environ 18 à 20 € par lot d'aggloméré, environ 18 € par lot de naturel Espagne A. Tout ce que tu paies au-dessus, c'est leur marge : il y a de la place pour négocier.");
+    out.power.push("En fin de phase, un industriel avec du stock invendu baisse ses prix : prends ton volume principal tôt, et garde un complément pour la fin.");
+    // Limites
+    const plan = purchasePlan(state, m);
+    if (m < last && plan.mixed) {
+      const t = plan.mixed.targets;
+      out.limits.push({ label: "Achat d'agglomérés", qty: plan.mixed.buy, anchor: t.anchor, target: t.target, limit: t.ceiling, limitLabel: "plafond", term: "60 jours", give: "Le délai (60 vers 30 jours) contre 1 à 2 € de moins, ou un engagement sur 2 ou 3 mois.", why: m < nf ? "Plafond au prix des offres externes (20 €) : inutile de payer un industriel plus cher que le fournisseur allemand." : "Au-dessus du plafond, l'aggloméré ne laisse plus de marge (grands comptes à 30 € au mieux)." });
+    }
+    if (m < last && plan.natural) {
+      const t = plan.natural.targets;
+      out.limits.push({ label: "Achat d'Espagne A", qty: plan.natural.buyA, anchor: t.A.anchor, target: t.A.target, limit: t.A.ceiling, limitLabel: "plafond", term: "60 jours", give: "Un engagement sur 3 mois, ou un paiement à la livraison contre 3 à 5 € de moins.", why: "L'Espagne A colle le mieux à la demande (beaucoup de Q3 et Q4). Au-delà du plafond, avec le tri (2 €) et un Q4 vendu 89 à 140 €, la marge du lot moyen fond." });
+      out.limits.push({ label: "Achat d'Espagne C (option)", qty: null, anchor: t.C.anchor, target: t.C.target, limit: t.C.ceiling, limitLabel: "plafond", term: "60 jours", give: "Seulement si on te le propose sous la cible.", why: "Le C sort le plus de Q1 (25 %), vendu 160 à 200 € aux vignerons : utile en petite quantité." });
+    }
+    if (m < last && isNat(state, m + 1) && m + 1 === nf) out.power.push("Pas d'achat de naturels pour mars : le stock racheté au fournisseur allemand le couvre.");
+    const cost = mixedCost(state);
+    const leftMixed = demandTotal(state, m, "mixed") !== null ? leftover(state, m, "mixed") : null;
+    out.limits.push({ label: "Vente de ton surplus d'agglomérés à un distributeur", qty: leftMixed, anchor: Math.max(Math.ceil(cost + 10), 28), target: Math.max(Math.ceil(cost + 6), 24), limit: Math.ceil(cost + 4), limitLabel: "plancher", term: "à la commande", give: "Le délai (à la livraison) si le prix tient.", why: `Ton coût est de ${cost} € par lot : sous ${Math.ceil(cost + 4)} €, garde ton stock (il ne coûte que 0,33 % par mois).` });
+    if (isNat(state, m)) {
+      const nc = natCost(state, "A");
+      out.limits.push({ label: "Vente de Q1, Q2 ou Q3 en surplus à un distributeur", qty: null, anchor: null, target: null, limit: Math.ceil(nc + 4), limitLabel: "plancher", term: "à la commande", give: "Un lot de Q4 en plus seulement si tu en as trop.", why: `Ton coût d'un lot trié est d'environ ${fr(nc)} € : vise un peu sous la fourchette des grands comptes, jamais sous ${Math.ceil(nc + 4)} €.` });
+    }
+    // Arguments
+    const tA = s.buyTargets.A, tM = m < nf ? s.buyTargets.mixedEarly : s.buyTargets.mixedLate;
+    const refT = m >= nf - 1 && plan.natural ? tA.target : tM.target;
+    out.args.push({ t: "« Je consulte plusieurs fournisseurs et je retiens les deux meilleures offres avant la fin de la phase. »", when: "Seulement si tu as vraiment écrit à plusieurs industriels : le formateur lit les mails." });
+    if (m < nf) out.args.push({ t: "« L'offre du fournisseur allemand est à 20 € : je ne paierai pas plus cher pour la même marchandise. »", when: "Janvier et février." });
+    if (m >= nf) out.args.push({ t: "« Tu n'as plus d'acheteur en dehors des distributeurs, et chaque lot qui reste te coûte du stockage tous les mois. Je te le prends maintenant. »", when: "À partir de mars." });
+    out.args.push({ t: "« Ton coût tourne autour de 18 à 20 € le lot : à ce prix, tu gardes une belle marge. »", when: "Quand il dit qu'il ne peut pas descendre." });
+    if (m >= nf - 1 && m < last) out.args.push({ t: "« Je peux m'engager sur les trois prochains mois si le prix tient. »", when: "Avec 1 ou 2 industriels fiables : volume garanti contre prix stable." });
+    out.args.push({ t: `« Trois options au choix : ${refT} € à 60 jours, ${refT - 2} € payés à la livraison, ${refT - 3} € si on s'engage sur plusieurs mois. »`, when: "Il choisit, mais les trois te conviennent. Ça évite le non sec." });
+    out.args.push({ t: `« ${m >= nf ? "3 000" : "4 000"} lots à ${refT} €, plus 1 000 lots à ${refT - 4} €. »`, when: "Une offre à deux lignes : volume principal plus ligne bonus moins chère." });
+    out.args.push({ t: "« Combien de lots te reste-t-il, et comment va ta trésorerie ? »", when: "Pose les questions avant de donner un chiffre : un industriel à court de cash baisse vite." });
+    // Objections
+    out.objections.push({ they: "Un autre distributeur me paie plus cher.", you: "Il ne s'engage pas sur plusieurs mois. Moi, je te garantis ce volume chaque mois à ce prix." });
+    out.objections.push({ they: "Je ne descends pas sous ce prix.", you: "Alors je ne prends que la moitié maintenant, et on en reparle en fin de phase. (Si c'est au-dessus de ton plafond, tu t'arrêtes là.)" });
+    out.objections.push({ they: "Il faut payer à la commande.", you: "À la livraison, d'accord, contre 2 € de moins. À la commande, c'est 4 € de moins." });
+    out.objections.push({ they: "C'est ma dernière offre, la phase se termine.", you: "Je préfère laisser passer que dépasser mon budget : j'ai de quoi tenir le début du mois." });
+    out.objections.push({ they: "Tu n'as pas d'autre fournisseur.", you: "J'ai d'autres contacts, et entre distributeurs la livraison est immédiate. (Seulement si c'est vrai.)" });
+    out.objections.push({ they: "(Vente de surplus) C'est trop cher pour du dépannage.", you: "Livraison immédiate, et c'est le seul stock disponible tout de suite : c'est son prix." });
+    // Règles d'or
+    out.rules = [
+      "Ne dépasse jamais ton plafond. Si on te pousse, baisse le volume plutôt que de monter.",
+      "Un délai ne se donne jamais : il s'échange contre du prix.",
+      "Une offre acceptée est définitive : relis quantité, produit, prix et délai avant d'accepter.",
+      "Toujours deux fournisseurs, jamais un seul.",
+      "Confirme chaque accord par mail (modèle « Accord écrit » plus bas) : c'est ta preuve en cas de litige.",
+      "Aucun mensonge vérifiable : le formateur lit les mails et la posture est notée.",
+      "Pose les questions avant de donner un chiffre."
+    ];
+    out.batna = "Si personne n'accepte tes prix : tu gardes ton stock restant (il ne coûte que 0,33 % par mois), tu rachètes en urgence à un distributeur en fin de phase (livraison immédiate), et tu montes tes prix le mois prochain pour vendre moins mais mieux.";
+    return out;
+  }
+
   /* Résumé compact de l'état pour le coach IA */
   function summary(state) {
     const s = state.settings;
@@ -882,7 +1024,7 @@
     index, stockOf, sortedOutput, availableStock, delivered, demandTotal, leftover, recoPrice, recoTerms, recoMarketing,
     marketingCost, fixedCosts, expectedRevenue, estimate, allocate, purchasePlan, judgeBuy, judgeSell, lead, checklist,
     anticipate, alerts, summary, lastCashForecast,
-    effPrice, effTerm, effMarketing, recoSort, effSort, effDelivered, commitP1, commitP2, steps, stepDone, markSeen, checks, outlook
+    strategy, negoBrief, effPrice, effTerm, effMarketing, recoSort, effSort, effDelivered, commitP1, commitP2, steps, stepDone, markSeen, checks, outlook
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = Engine;
