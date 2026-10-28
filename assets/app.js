@@ -36,6 +36,20 @@
     if (!s.partners) s.partners = {};
     if (!s.ui || typeof s.ui !== "object") s.ui = {};
     if (!s.ui.sheet || s.ui.view) { s.ui.sheet = "todo"; delete s.ui.view; }
+    // Paramètres réels de la partie (28/10/2026, distributeur D3_47910) : posés une fois, sans écraser une saisie
+    if ((s.settings.gameParams || 0) < 1) {
+      const st = s.settings;
+      if (!st.myId) st.myId = "D3_47910";
+      if (N(st.startCash) === null) st.startCash = 500000;
+      if (N(st.startStockValue) === null) st.startStockValue = 300000;
+      if (N(st.mixedCost) === null || N(st.mixedCost) === 20) st.mixedCost = 25;
+      if (N(st.avgBuyPrice) === null) st.avgBuyPrice = 21;
+      const cq4 = st.ranges.cellars && st.ranges.cellars.Q4;
+      if (cq4 && N(cq4[0]) === 85 && N(cq4[1]) === 100) st.ranges.cellars = Object.assign({}, st.ranges.cellars, { Q4: [85, 110] });
+      const me = st.buyTargets.mixedEarly;
+      if (me && N(me.ceiling) === 20) st.buyTargets.mixedEarly = Object.assign({}, me, { ceiling: 21 });
+      st.gameParams = 1;
+    }
     return s;
   }
   let saveT = null;
@@ -219,7 +233,7 @@
     return [];
   }
 
-  const DEC_LABEL = { terms: "les délais de paiement", mkt: "le marketing", sort: "le tri (Decisions > Production)", del: "les quantités à livrer (Sales)", buy: "tes achats pour le mois suivant (Negotiations)" };
+  const DEC_LABEL = { terms: "les délais de paiement", mkt: "le marketing", sort: "le tri (Décisions > Production)", del: "les quantités à livrer (Ventes)", buy: "tes achats pour le mois suivant (Négociations)" };
   function nextAction(m, phase, steps, keys, chk, closed) {
     const st = steps.find((s) => !s.optional && !E.stepDone(state, m, phase, s));
     if (st) return `Capture dans le jeu : ${st.where}, puis Ctrl+V ici.`;
@@ -227,7 +241,7 @@
     if (k) return `Saisis dans le jeu ${k.startsWith("price_") ? `les prix ${prodLabel(k.slice(6)) === "Agglomérés" ? "des agglomérés" : prodLabel(k.slice(6))}` : DEC_LABEL[k]} (section 2), puis coche « ${phase === 2 && k === "buy" ? "Fait" : "Saisi"} ».`;
     const bad = E.checks(state, m, phase).find((c) => c.ok === false);
     if (bad) return `À revoir avant de valider : ${bad.label.toLowerCase()} (section 3).`;
-    if (!closed) return phase === 3 ? "Lance l'analyse du mois, lis le plan, puis coche la case de la section 3." : "Coche ta partie dans le jeu, clique sur Finish the phase, puis coche la case de la section 3.";
+    if (!closed) return phase === 3 ? "Lance l'analyse du mois, lis le plan, puis coche la case de la section 3." : "Active Validation dans le jeu, puis Terminer la phase, puis coche la case de la section 3.";
     return phase < 3 || m < lastMonth() ? "Tout est fait : clique sur Étape suivante (section 3)." : "Partie terminée.";
   }
 
@@ -236,7 +250,7 @@
     const m = N(o.month);
     const j = o.type === "sell" ? E.judgeSell(state, m, o.product, o.price) : E.judgeBuy(state, m, o.product, o.price);
     if (!j) return null;
-    if (/extern|german|allemand|partner|partenaire/i.test(o.counterpart || "") && o.type !== "sell") {
+    if (/extern|german|allemand|stecker|partner|partenaire/i.test(o.counterpart || "") && o.type !== "sell") {
       if (j.verdict === "ok") return { verdict: "ok", label: "Bon prix : accepte la quantité dont tu as besoin (pas négociable)", counter: null };
       if (j.verdict === "nego") return { verdict: "nego", label: "Pas négociable : accepte seulement si tu manques de stock, sinon refuse", counter: null };
       return { verdict: "refuse", label: "Trop cher : refuse", counter: null };
@@ -291,7 +305,7 @@
     R.push(chRow(["", "Contrôle", { v: "Résultat", cls: "c" }, { v: "Détail", span: 4 }, ""]));
     for (const c of E.checks(state, m, phase)) R.push([{ v: "" }, { v: c.label, cls: "wrap" }, okCell(c.ok), { v: c.detail, span: 4, cls: "wrap muted" }, { v: "" }]);
     const donePath = phase === 3 ? `months.${m}.closed` : `months.${m}.${PH_KEY[phase]}.done`;
-    R.push([{ v: "" }, { v: phase === 3 ? "Résultats relus, plan du mois suivant compris" : "Phase cochée et validée dans le jeu (Finish the phase)", cls: "wrap b" }, inp(donePath, { check: true, label: "Phase terminée" }), { v: phase === 3 ? "" : "Une fois validée, l'écran du jeu passe en gris : plus rien ne se modifie.", span: 4, cls: "wrap muted" }, { v: "" }]);
+    R.push([{ v: "" }, { v: phase === 3 ? "Résultats relus, plan du mois suivant compris" : "Phase validée dans le jeu (Validation puis Terminer la phase)", cls: "wrap b" }, inp(donePath, { check: true, label: "Phase terminée" }), { v: phase === 3 ? "" : "Une fois validée, l'écran du jeu passe en gris : plus rien ne se modifie.", span: 4, cls: "wrap muted" }, { v: "" }]);
     const prev = phase > 1 ? `${MN(m)}, ${PHASE_NAME[phase - 1]}` : m > 1 ? `${MN(m - 1)}, résultats` : null;
     const next = phase < 3 ? `${MN(m)}, ${PHASE_NAME[phase + 1]}` : m < last ? `${MN(m + 1)}, planification` : null;
     R.push([{ v: "" }, prev ? link(`Étape précédente : ${prev}`, "prev") : { v: "" }, { v: "", span: 3 }, next ? btn(`Étape suivante : ${next}`, "next", {}, { span: 2 }) : { v: "Fin de la partie", span: 2, cls: "muted" }, { v: "" }]);
@@ -310,7 +324,7 @@
 
   function todoP1(R, m) {
     const nat = E.isNat(state, m);
-    R.push(sec("2. À saisir dans le jeu : Decisions > Planning"));
+    R.push(sec("2. À saisir dans le jeu : Décisions > Planification"));
     R.push(chRow(["", "Ce que tu règles", { v: "Vignerons", cls: "r" }, { v: "Cavistes", cls: "r" }, { v: "Grands comptes", cls: "r" }, { v: "Pourquoi", span: 2 }, { v: "Saisi", cls: "c" }]));
     for (const p of E.productsFor(state, m)) {
       const cells = C.map((c) => {
@@ -361,7 +375,7 @@
       const dt = E.demandTotal(state, m, p.k);
       const st = E.availableStock(state, m, p.k);
       let lec = "";
-      if (dt === null) lec = "Capture Decisions > Sales";
+      if (dt === null) lec = "Capture Décisions > Ventes";
       else if (dt > st) lec = `Rupture : ${fmt(dt - st)} lots non servis. Les clients les plus chers d'abord ; prix en hausse le mois prochain.`;
       else if (st && dt < st * 0.5) lec = p.k.startsWith("Q") ? "Le tri en sort plus que la demande : le surplus reste en stock pour le mois prochain, ou se revend aux distributeurs à court." : "Peu de demande pour ton stock : garde le surplus, achète peu, propose-le aux distributeurs à court.";
       else lec = "Demande couverte par ton stock.";
@@ -373,7 +387,7 @@
       // Tri
       const rs = E.recoSort(state, m);
       const y = state.settings.yields;
-      R.push([{ v: "" }, { v: "b. Tri : Decisions > Production", span: 7, cls: "b" }]);
+      R.push([{ v: "" }, { v: "b. Tri : Décisions > Production", span: 7, cls: "b" }]);
       R.push(chRow(["", "Origine", { v: "À trier", cls: "r" }, { v: "En stock", cls: "r" }, { v: "Sortie Q1 / Q2 / Q3 / Q4", span: 2 }, "Pourquoi", { v: "Saisi", cls: "c" }]));
       ["A", "B", "C"].forEach((o, i) => {
         const eff = N(E.get(mo, ["p2", "sort", o], null));
@@ -424,7 +438,7 @@
     const offers = (state.offers || []).map((o, i) => ({ o, i })).filter(({ o }) => N(o.month) === m);
     R.push([{ v: "" }, { v: "Offres de ce mois (verdict de l'outil)", span: 7, cls: "b" }]);
     if (!offers.length) {
-      R.push([{ v: "" }, { v: "Aucune offre enregistrée. Capture Decisions > Negotiations, ou tape-la dans la barre du haut (ex. « I2 me propose 3 000 A à 49 € à 60 jours »).", span: 7, cls: "wrap muted" }]);
+      R.push([{ v: "" }, { v: "Aucune offre enregistrée. Capture Décisions > Négociations, ou tape-la dans la barre du haut (ex. « I2 me propose 3 000 A à 49 € à 60 jours »).", span: 7, cls: "wrap muted" }]);
     } else {
       R.push(chRow(["", "Contrepartie", "Produit", { v: "Quantité", cls: "r" }, { v: "Prix", cls: "r" }, "Délai", "Verdict", "Statut"]));
       for (const { o } of offers.slice(-12)) {
@@ -692,7 +706,7 @@
     const teams = (state.settings.teams || []).filter((x) => /^[ID]/i.test(x));
     const seen = Array.from(new Set(teams.concat((state.offers || []).map((o) => o.counterpart).filter((x) => x && x !== "Externe"))));
     R.push(sec("9. Ce que tu sais de chaque équipe", 12));
-    if (!seen.length) R.push([{ v: "" }, { v: "La liste des équipes se remplit avec une capture de l'Email Box (liste des destinataires).", span: 10, cls: "muted" }]);
+    if (!seen.length) R.push([{ v: "" }, { v: "La liste des équipes se remplit avec une capture de la Messagerie (Nouveau message, liste des destinataires).", span: 10, cls: "muted" }]);
     for (const tm of seen) R.push([{ v: "" }, { v: tm, span: 2, cls: "b" }, inp(`partners.${tm.replace(/[^\w-]/g, "_")}.note`, { type: "text", left: true, span: 9, ph: "Stock ? trésorerie ? fiable ? prix pratiqués ?", label: `Notes ${tm}` })]);
     return grid({ cols: W, rows: R, minRows: R.length + 6 });
   }
@@ -718,11 +732,11 @@
     const W = [36, 250, 82, 82, 82, 82, 82, 82, 320];
     const R = [];
     const row = (label, cell, note) => R.push([{ v: "" }, { v: label }, cell, { v: "", span: 5 }, { v: note || "", cls: "wrap muted" }]);
-    R.push([{ v: "Paramètres de la session", span: 3, cls: "title" }, { v: "Valeurs des vidéos Sciado par défaut. Le plus simple : capture les écrans Settings et le guide, ils se remplissent seuls.", span: 6, cls: "wrap muted" }]);
+    R.push([{ v: "Paramètres de la session", span: 3, cls: "title" }, { v: "Valeurs de ta partie (notes de départ du 28/10) et des vidéos Sciado. Le plus simple : capture les écrans Paramètres et le guide, ils se remplissent seuls.", span: 6, cls: "wrap muted" }]);
     R.push([]);
     R.push(sec("Ta session", 9));
-    row("Ton identifiant", inp("settings.myId", { type: "text", left: true, ph: "D2_42140", label: "Identifiant" }), "Affiché dans le jeu en haut à droite.");
-    row("Nombre de distributeurs", inp("settings.nDist", { type: "num", label: "Distributeurs" }), "Rempli par la liste des équipes de l'Email Box.");
+    row("Ton identifiant", inp("settings.myId", { type: "text", left: true, ph: "D3_47910", label: "Identifiant" }), "Affiché dans le jeu en haut à droite.");
+    row("Nombre de distributeurs", inp("settings.nDist", { type: "num", label: "Distributeurs" }), "Rempli par la liste des équipes de la Messagerie.");
     row("Nombre d'industriels", inp("settings.nInd", { type: "num", label: "Industriels" }), "Plus d'industriels que de distributeurs : les prix d'achat baissent.");
     row("Nombre de mois joués", inp("settings.months", { type: "num", label: "Mois joués" }), "Le dernier mois, on n'achète rien.");
     row("Naturels à partir du mois", inp("settings.naturalsFrom", { type: "num", label: "Naturels à partir de" }), "3 = mars dans les vidéos.");
@@ -732,6 +746,8 @@
     row("Stock de départ (lots)", inp("settings.startStock", { type: "num", label: "Stock de départ" }));
     row("Valeur de ce stock (€)", inp("settings.startStockValue", { type: "num", label: "Valeur du stock" }), `Coût par lot utilisé : ${fmt(E.mixedCost(state), 2)} €. On ne vend jamais d'aggloméré en dessous.`);
     row("Coût d'achat agglo par défaut (€)", inp("settings.mixedCost", { type: "num", label: "Coût agglo" }));
+    row("Capital de départ (€)", inp("settings.startCash", { type: "num", label: "Capital de départ" }), "Sert à estimer ta trésorerie de fin janvier (le stock de départ se paie fin janvier).");
+    row("Prix d'achat moyen du marché (€)", inp("settings.avgBuyPrice", { type: "num", label: "Prix d'achat moyen" }), "Donné par les notes de départ : au-dessus, tu achètes plus cher que les autres.");
     row("Prix d'achat Espagne A / B / C (€)", inp("settings.naturalCost.A", { type: "num", label: "Prix A" }));
     R[R.length - 1][3] = inp("settings.naturalCost.B", { type: "num", label: "Prix B" });
     R[R.length - 1].splice(4, 0, inp("settings.naturalCost.C", { type: "num", label: "Prix C" }));
@@ -1041,10 +1057,10 @@
         if (dist) put("settings.nDist", dist, "Nombre de distributeurs");
         if (ind) put("settings.nInd", ind, "Nombre d'industriels");
       }
-      for (const [k, l] of [["nDist", "Nombre de distributeurs"], ["nInd", "Nombre d'industriels"], ["months", "Nombre de mois joués"], ["naturalsFrom", "Naturels à partir du mois"], ["startStock", "Stock de départ"], ["startStockValue", "Valeur du stock de départ"], ["mixedCost", "Coût agglo"], ["sortCost", "Coût du tri"], ["sortCap", "Capacité de la trieuse"]]) {
+      for (const [k, l] of [["nDist", "Nombre de distributeurs"], ["nInd", "Nombre d'industriels"], ["months", "Nombre de mois joués"], ["naturalsFrom", "Naturels à partir du mois"], ["startStock", "Stock de départ"], ["startStockValue", "Valeur du stock de départ"], ["mixedCost", "Coût agglo"], ["startCash", "Capital de départ"], ["avgBuyPrice", "Prix d'achat moyen du marché"], ["sortCost", "Coût du tri"], ["sortCap", "Capacité de la trieuse"]]) {
         const v = N(s[k]);
         if (v === null || v < 0) continue;
-        if (["startStock", "startStockValue"].includes(k) && ctx.m !== 1) continue;
+        if (["startStock", "startStockValue", "startCash"].includes(k) && ctx.m !== 1) continue;
         if (["months", "naturalsFrom"].includes(k) && !(v >= 1 && v <= 10)) continue;
         put(`settings.${k}`, v, l);
       }
