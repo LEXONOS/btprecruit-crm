@@ -66,7 +66,7 @@
       myId: "",
       nDist: null,
       nInd: null,
-      months: 6,
+      months: 7,
       naturalsFrom: 3,
       mixedCost: 25,
       naturalCost: { A: 55, B: 60, C: 65 },
