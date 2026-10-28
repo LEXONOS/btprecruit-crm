@@ -119,7 +119,9 @@
   function num(v) {
     if (v === null || v === undefined || v === "") return null;
     if (typeof v === "number") return isFinite(v) ? v : null;
-    const s = String(v).replace(/[\s  €%]/g, "").replace(",", ".");
+    let s = String(v).replace(/[\s  €%]/g, "");
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, "");
+    s = s.replace(",", ".");
     const n = parseFloat(s);
     return isFinite(n) ? n : null;
   }
@@ -186,6 +188,12 @@
     return num(get(state.months, [m, "p2", "stock", p], null));
   }
 
+  /* Rendement en fraction (0,25), accepte 25 ou 0,25 */
+  function yld(state, o, i) {
+    const v = num(get(state.settings, ["yields", o, i], null));
+    if (v === null || v <= 0) return 0;
+    return v <= 1 ? v : v / 100;
+  }
   function sortedOutput(state, m) {
     const out = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     let sort = get(state.months, [m, "p2", "sort"], {});
@@ -193,8 +201,7 @@
     if (isNat(state, m) && !["A", "B", "C"].some((o) => num(sort[o]) !== null)) sort = recoSort(state, m);
     for (const o of ["A", "B", "C"]) {
       const lots = num(sort[o]) || 0;
-      const y = state.settings.yields[o] || [0, 0, 0, 0];
-      ["Q1", "Q2", "Q3", "Q4"].forEach((q, i) => (out[q] += Math.floor((lots * (num(y[i]) || 0)) / 100)));
+      ["Q1", "Q2", "Q3", "Q4"].forEach((q, i) => (out[q] += Math.floor(lots * yld(state, o, i))));
     }
     return out;
   }
@@ -268,7 +275,7 @@
       const dem = num(get(state.months, [m - 1, "p2", "demand", c, p], null));
       const del = num(get(state.months, [m - 1, "p2", "deliveries", c, p], null));
       const rate = dem ? (del === null ? null : del / dem) : null;
-      const left = leftover(state, m - 1, p);
+      const left = Math.max(0, availableStock(state, m - 1, p) - (demandTotal(state, m - 1, p) || 0));
       const st = step(state, c, p);
       if (idx === null) {
         price = prevP; reason = "Pas de demande relevée le mois dernier : prix inchangé";
@@ -287,9 +294,6 @@
     if (p === "mixed") {
       const floor = Math.ceil(mixedCost(state) + 2);
       if (price < floor) { price = floor; reason += " (plancher : coût + 2 €)"; }
-    }
-    if (p === "Q4" && price < hi - 3) {
-      price = Math.max(price, hi - 3);
     }
     price = clamp(Math.round(price), lo, hi);
     return { price, reason };
@@ -321,7 +325,7 @@
         const price = useReco ? recoPrice(state, m, c.k, p.k).price : effPrice(state, m, c.k, p.k);
         if (price === null) continue;
         const idx = index(state, m - 1, c.k, p.k);
-        ca += need(state, m, c.k, p.k) * (idx ? Math.min(idx, 1.5) : 1) * price;
+        ca += need(state, m, c.k, p.k) * (idx !== null ? Math.min(idx, 1.5) : 1) * price;
       }
     }
     return Math.round(ca);
@@ -365,7 +369,7 @@
         const price = useReco ? recoPrice(state, m, c.k, p.k).price : effPrice(state, m, c.k, p.k);
         if (price === null) continue;
         const idx = index(state, m - 1, c.k, p.k);
-        const q = need(state, m, c.k, p.k) * (idx ? Math.min(idx, 1.5) : 1);
+        const q = need(state, m, c.k, p.k) * (idx !== null ? Math.min(idx, 1.5) : 1);
         ca += q * price;
         cogs += q * (p.k === "mixed" ? mixedCost(state) : natCost(state, "A"));
         lots += q;
@@ -406,11 +410,14 @@
     let exp = 0;
     for (const c of CLIENTS) {
       const idx = index(state, m, c.k, "mixed");
-      exp += need(state, next, c.k, "mixed") * (idx ? Math.min(idx, 1.5) : 1);
+      exp += need(state, next, c.k, "mixed") * (idx !== null ? Math.min(idx, 1.5) : 1);
     }
     const leftMixed = leftover(state, m, "mixed");
     const t = m < (num(state.settings.naturalsFrom) || 3) ? state.settings.buyTargets.mixedEarly : state.settings.buyTargets.mixedLate;
-    plan.mixed = { expected: Math.round(exp), leftover: leftMixed, buy: Math.max(0, Math.round(exp - leftMixed)), targets: t };
+    const accepted = (state.offers || []).filter((o) => num(o.month) === m && o.type === "buy" && ["accepted", "confirmed"].includes(o.status));
+    const boughtMixed = accepted.filter((o) => o.product === "mixed").reduce((a, o) => a + (num(o.qty) || 0), 0);
+    const boughtNat = accepted.filter((o) => ["A", "B", "C"].includes(o.product)).reduce((a, o) => a + (num(o.qty) || 0), 0);
+    plan.mixed = { expected: Math.round(exp), leftover: leftMixed, bought: boughtMixed, buy: Math.max(0, Math.round(exp - leftMixed - boughtMixed)), targets: t };
     // Naturels
     if (isNat(state, next) && next === (num(state.settings.naturalsFrom) || 3)) {
       plan.notes.push("Le stock de naturels racheté au fournisseur allemand couvre déjà mars : n'achète des naturels que pour avril, en mars.");
@@ -420,11 +427,10 @@
         exp[q] = 0;
         for (const c of CLIENTS) {
           const idx = index(state, m, c.k, q);
-          exp[q] += need(state, next, c.k, q) * (idx ? Math.min(idx, 1.5) : 1);
+          exp[q] += need(state, next, c.k, q) * (idx !== null ? Math.min(idx, 1.5) : 1);
         }
       }
-      const yA = state.settings.yields.A || [15, 30, 30, 25];
-      const y3 = (num(yA[2]) || 30) / 100, y4 = (num(yA[3]) || 25) / 100;
+      const y3 = yld(state, "A", 2) || 0.3, y4 = yld(state, "A", 3) || 0.25;
       // Naturels non triés qui restent en fin de mois (en équivalent lots d'A)
       const rawLeft = ["A", "B", "C"].reduce((t, o) => t + Math.max(0, (stockOf(state, m, o) || 0) - effSort(state, m, o)), 0);
       const rawLeftA = Math.max(0, (stockOf(state, m, "A") || 0) - effSort(state, m, "A"));
@@ -437,8 +443,8 @@
       // (le surplus de Q3 servira le mois d'après), sauf si le mois suivant est le dernier.
       let base = forQ3, rule = "q3";
       if (next < last && forQ4 > forQ3) { const v = Math.min(forQ4, usual); if (v > base) { base = v; rule = "q4"; } }
-      const lots = Math.max(0, base - rawLeft);
-      plan.natural = { q3Expected: Math.round(exp.Q3), q4Expected: Math.round(exp.Q4), q3Leftover: q3Left, q4Leftover: q4Left, rawLeftA, rawLeft, buyA: lots, rule, targets: { A: state.settings.buyTargets.A, B: state.settings.buyTargets.B, C: state.settings.buyTargets.C } };
+      const lots = Math.max(0, base - rawLeft - boughtNat);
+      plan.natural = { q3Expected: Math.round(exp.Q3), q4Expected: Math.round(exp.Q4), q3Leftover: q3Left, q4Leftover: q4Left, rawLeftA, rawLeft, bought: boughtNat, buyA: lots, rule, targets: { A: state.settings.buyTargets.A, B: state.settings.buyTargets.B, C: state.settings.buyTargets.C } };
       if (next === last) plan.notes.push(`${MONTHS[next - 1]} est le dernier mois : n'achète que ce qui se vendra, le surplus sera perdu.`);
       if (next === 5) plan.notes.push("Mai = pic des vignerons : vise plutôt le haut du plan.");
     }
@@ -612,7 +618,7 @@
       const target = dem !== null ? dem : CLIENTS.reduce((t, c) => t + need(state, m, c.k, q), 0);
       rem[q] = Math.max(0, target - (stockOf(state, m, q) || 0));
     }
-    const y = (o, i) => (num((s.yields[o] || [])[i]) || 0) / 100;
+    const y = (o, i) => yld(state, o, i);
     const qi = { Q1: 0, Q2: 1, Q3: 2, Q4: 3 };
     for (const o of ["A", "B", "C"]) {
       const stock = stockOf(state, m, o) || 0;
@@ -683,7 +689,7 @@
       add("planning", "planning", "Decisions > Planning (écran vert), une fois tes valeurs saisies", "L'écran rempli, avant de cliquer sur Finish the phase", "Je vérifie que tout est bien saisi : le jeu ramène sans prévenir un prix hors fourchette à la borne.", true);
     } else if (phase === 2) {
       add("sales", "sales", "Decisions > Sales", "La quantité commandée par chaque client (Quantity of ordered products)", "C'est ta vraie demande : elle donne ton attractivité, la répartition à saisir et les prix du mois prochain.");
-      add("stock", "stock", "Panneau du stock (flèche bleue)", isNat(state, m) ? "Ton stock à jour, avec les naturels non triés Espagne A, B, C" : "Ton stock à jour", "Pour répartir les ventes sans dépasser ce que tu as.");
+      add("stock", "stock", "Panneau du stock (flèche bleue)", isNat(state, m) ? "Ton stock à jour, avec les naturels non triés Espagne A, B, C, AVANT de lancer le tri" : "Ton stock à jour", "Pour répartir les ventes sans dépasser ce que tu as.");
       if (isNat(state, m)) add("production", "production", "Decisions > Production", "La trieuse (capacité, quantités à trier)", "Je calcule combien trier pour couvrir la demande Q3 et Q4.");
       add("nego", "negotiations", "Decisions > Negotiations", "La liste des offres, et le détail (loupe) de chaque offre reçue", "Je juge chaque offre : accepter, négocier ou refuser, avec la contre-offre.");
       add("email", "email", "Email Box", "Les mails des industriels ou des distributeurs", "Leurs prix et leurs stocks annoncés aident à négocier.", true);
@@ -776,6 +782,8 @@
         if (tot > st && st >= 0 && tot > 0) overStock.push(`${p.label} : ${tot.toLocaleString("fr-FR")} pour ${st.toLocaleString("fr-FR")}`);
       }
       const hasDem = Object.keys(mo.p2.demand || {}).length > 0;
+      const hasStock = Object.keys(mo.p2.stock || {}).length > 0;
+      if (hasDem && !hasStock) add("Stock lu", false, "Capture le panneau du stock (flèche bleue) : sans lui, les livraisons conseillées restent à 0");
       add("Livraisons pas plus hautes que les commandes", hasDem ? !over.length : null, !hasDem ? "Capture Decisions > Sales d'abord" : over.length ? over.join(", ") : "OK");
       add("Livraisons pas plus hautes que le stock", hasDem ? !overStock.length : null, overStock.length ? overStock.join(", ") : hasDem ? "OK" : "");
       if (isNat(state, m)) {

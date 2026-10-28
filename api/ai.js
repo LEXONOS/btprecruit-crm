@@ -227,7 +227,8 @@ module.exports = async (req, res) => {
       const imagesOnly = content.length > 1 && !text.trim();
       const out = await callClaude({ system, messages: msgs, maxTokens: 7000, effort: imagesOnly ? "low" : "medium" });
       const { reply, data } = splitSmart(out.text);
-      return json(res, 200, { ok: true, reply, data, model: out.model });
+      const cut = out.stop === "max_tokens" ? "\n\nRéponse coupée : renvoie tes captures en plus petits paquets (2 ou 3 à la fois) pour être sûr que tout est rangé." : "";
+      return json(res, 200, { ok: true, reply: (reply || "") + cut, data, model: out.model });
     }
 
     if (action === "coach") {

@@ -408,12 +408,12 @@
       let first = true;
       if (plan.mixed) {
         const t = plan.mixed.targets;
-        R.push([{ v: "" }, { v: "Agglomérés", cls: "b" }, { v: `${fmt(plan.mixed.buy)} lots`, cls: "r b" }, { v: `${t.anchor} €`, cls: "r" }, { v: `${t.target} €`, cls: "r good" }, { v: `${t.ceiling} €`, cls: "r bad" }, { v: `Demande attendue en ${nextM} : ${fmt(plan.mixed.expected)} (guide × ton attractivité), moins ce qu'il te restera (${fmt(plan.mixed.leftover)}). Demande 60 jours de délai : livré dans 30 jours, payé dans 60.`, cls: "wrap muted" }, inp(`months.${m}.p2.check.buy`, { check: true, label: "Fait" })]);
+        R.push([{ v: "" }, { v: "Agglomérés", cls: "b" }, { v: `${fmt(plan.mixed.buy)} lots`, cls: "r b", note: plan.mixed.bought ? `Déjà acheté ce mois-ci : ${fmt(plan.mixed.bought)} lots (déduits)` : "" }, { v: `${t.anchor} €`, cls: "r" }, { v: `${t.target} €`, cls: "r good" }, { v: `${t.ceiling} €`, cls: "r bad" }, { v: `Demande attendue en ${nextM} : ${fmt(plan.mixed.expected)} (guide × ton attractivité), moins ce qu'il te restera (${fmt(plan.mixed.leftover)}). Demande 60 jours de délai : livré dans 30 jours, payé dans 60.`, cls: "wrap muted" }, inp(`months.${m}.p2.check.buy`, { check: true, label: "Fait" })]);
         first = false;
       }
       if (plan.natural) {
         const t = plan.natural.targets.A;
-        R.push([{ v: "" }, { v: "Espagne A", cls: "b" }, { v: `${fmt(plan.natural.buyA)} lots`, cls: "r b" }, { v: `${t.anchor} €`, cls: "r" }, { v: `${t.target} €`, cls: "r good" }, { v: `${t.ceiling} €`, cls: "r bad" }, { v: plan.natural.rule === "q4" ? `Ton surplus de Q3 (${fmt(plan.natural.q3Leftover)}) couvre déjà le Q3 de ${nextM}, mais il te manquera du Q4 (${fmt(plan.natural.q4Expected)} attendus, ${fmt(plan.natural.q4Leftover)} en stock). On garde le volume habituel (demande Q3 ÷ 0,30, moins tes ${fmt(plan.natural.rawLeft)} naturels non triés) : le Q4 se vend, le surplus de Q3 servira le mois d'après.` : `Demande Q3 attendue en ${nextM} : ${fmt(plan.natural.q3Expected)}. Un lot d'A trié donne 30 % de Q3 : on divise par 0,30, moins ton surplus de Q3 (${fmt(plan.natural.q3Leftover)}) et tes naturels non triés (${fmt(plan.natural.rawLeft)}). On ne couvre pas tout le Q4 exprès : ce serait des milliers de Q1 et Q2 invendables. Le Q4 se vend donc au prix fort.`, cls: "wrap muted" }, first ? inp(`months.${m}.p2.check.buy`, { check: true, label: "Fait" }) : { v: "" }]);
+        R.push([{ v: "" }, { v: "Espagne A", cls: "b" }, { v: `${fmt(plan.natural.buyA)} lots`, cls: "r b", note: plan.natural.bought ? `Déjà acheté ce mois-ci : ${fmt(plan.natural.bought)} lots de naturels (déduits)` : "" }, { v: `${t.anchor} €`, cls: "r" }, { v: `${t.target} €`, cls: "r good" }, { v: `${t.ceiling} €`, cls: "r bad" }, { v: plan.natural.rule === "q4" ? `Ton surplus de Q3 (${fmt(plan.natural.q3Leftover)}) couvre déjà le Q3 de ${nextM}, mais il te manquera du Q4 (${fmt(plan.natural.q4Expected)} attendus, ${fmt(plan.natural.q4Leftover)} en stock). On garde le volume habituel (demande Q3 ÷ 0,30, moins tes ${fmt(plan.natural.rawLeft)} naturels non triés) : le Q4 se vend, le surplus de Q3 servira le mois d'après.` : `Demande Q3 attendue en ${nextM} : ${fmt(plan.natural.q3Expected)}. Un lot d'A trié donne 30 % de Q3 : on divise par 0,30, moins ton surplus de Q3 (${fmt(plan.natural.q3Leftover)}) et tes naturels non triés (${fmt(plan.natural.rawLeft)}). On ne couvre pas tout le Q4 exprès : ce serait des milliers de Q1 et Q2 invendables. Le Q4 se vend donc au prix fort.`, cls: "wrap muted" }, first ? inp(`months.${m}.p2.check.buy`, { check: true, label: "Fait" }) : { v: "" }]);
       }
       for (const n of plan.notes) R.push([{ v: "" }, { v: n, span: 7, cls: "wrap muted" }]);
     }
@@ -877,7 +877,6 @@
     if (!ui.pane) ui.unread++;
     renderPane();
     const ctx = Object.assign(ctxNow(), { hasText: !!text });
-    const snapshot = JSON.stringify(state);
     const groups = batches(imgs).map((g) => ({ images: g }));
     for (const p of pdfs) groups.push({ pdf: p });
     if (!groups.length) groups.push({});
@@ -904,7 +903,7 @@
     let undoId = null;
     if (changes.length) {
       undoId = `u${Date.now()}`;
-      ui.undo[undoId] = snapshot;
+      ui.undo[undoId] = changes;
       ui.lastUndo = undoId;
       state.journal.push({ when: now(), m: state.current.m, kind: "Lu", text: `${changes.length} valeur(s) rangée(s) : ${changes.slice(0, 12).map((c) => `${c.label} ${c.show}`).join(" ; ")}${changes.length > 12 ? " ; …" : ""}` });
       flash(changes.map((c) => c.path));
@@ -939,7 +938,8 @@
   }
   function normProd(k) {
     const s = String(k || "").trim();
-    if (/^q[1-4]$/i.test(s)) return s.toUpperCase();
+    const q = s.match(/\bq\s?([1-4])\b/i);
+    if (q) return `Q${q[1]}`;
     if (/^(mixed|agglo)/i.test(s)) return "mixed";
     if (/^[abc]$/i.test(s)) return s.toUpperCase();
     const mm = s.match(/(?:spain|espagne)\s*([abc])\b/i);
@@ -948,10 +948,10 @@
   }
   function normTerm(v) {
     const s = String(v || "").toLowerCase();
-    if (/order|commande/.test(s)) return "order";
-    if (/deliv|livraison/.test(s)) return "delivery";
     if (/60/.test(s)) return "60";
     if (/30/.test(s)) return "30";
+    if (/order|commande/.test(s)) return "order";
+    if (/deliv|livraison/.test(s)) return "delivery";
     return null;
   }
   function normMkt(v) {
@@ -975,19 +975,19 @@
       const old = getP(path);
       if (JSON.stringify(old) === JSON.stringify(val)) return;
       setP(path, val);
-      changes.push({ path, label, show: show !== undefined ? show : typeof val === "number" ? fmt(val, 2) : Array.isArray(val) ? val.join(" à ") : String(val) });
+      changes.push({ path, old: old === undefined ? undefined : JSON.parse(JSON.stringify(old)), label, show: show !== undefined ? show : typeof val === "number" ? fmt(val, 2) : Array.isArray(val) ? val.join(" à ") : String(val) });
     };
     const each = (obj, fn) => { if (obj && typeof obj === "object") for (const [k, v] of Object.entries(obj)) fn(k, v); };
     E.month(state, mD);
     each(d.stock, (k, v) => { const p = normProd(k); if (p) put(`months.${mD}.p2.stock.${p}`, N(v), `${MN(mD)}, stock ${prodLabel(p)}`); });
     let demandChanged = false;
     each(d.demand, (ck, o) => { const c = normClient(ck); if (c) each(o, (pk, v) => { const p = normProd(pk); if (p) { const n0 = changes.length; put(`months.${mD}.p2.demand.${c}.${p}`, N(v), `${MN(mD)}, demande ${clientLabel(c)} ${prodLabel(p)}`); if (changes.length > n0) demandChanged = true; } }); });
-    each(d.deliveries, (ck, o) => { const c = normClient(ck); if (c) each(o, (pk, v) => { const p = normProd(pk); if (p) put(`months.${mD}.p2.deliveries.${c}.${p}`, N(v), `${MN(mD)}, livraison ${clientLabel(c)} ${prodLabel(p)}`); }); });
+    each(d.deliveries, (ck, o) => { const c = normClient(ck); if (c) each(o, (pk, v) => { const p = normProd(pk); if (p && N(v)) put(`months.${mD}.p2.deliveries.${c}.${p}`, N(v), `${MN(mD)}, livraison ${clientLabel(c)} ${prodLabel(p)}`); }); });
     each(d.prices, (ck, o) => { const c = normClient(ck); if (c) each(o, (pk, v) => { const p = normProd(pk); if (p) put(`months.${mD}.p1.prices.${c}.${p}`, N(v), `${MN(mD)}, prix ${clientLabel(c)} ${prodLabel(p)}`, `${fmt(N(v), 2)} €`); }); });
     each(d.terms, (ck, v) => { const c = normClient(ck); const t = normTerm(v); if (c && t) put(`months.${mD}.p1.terms.${c}`, t, `${MN(mD)}, délai ${clientLabel(c)}`, termLab(t)); });
     if (d.adProduct !== undefined && d.adProduct !== null) put(`months.${mD}.p1.adProduct`, N(d.adProduct), `${MN(mD)}, pub produit`, eur(N(d.adProduct)));
     each(d.marketing, (ck, v) => { const c = normClient(ck); const k = normMkt(v); if (c && k) put(`months.${mD}.p1.marketing.${c}`, k, `${MN(mD)}, marketing ${clientLabel(c)}`, mktLab(k)); });
-    each(d.sort, (k, v) => { const p = normProd(k); if (["A", "B", "C"].includes(p)) put(`months.${mD}.p2.sort.${p}`, N(v), `${MN(mD)}, tri ${prodLabel(p)}`); });
+    each(d.sort, (k, v) => { const p = normProd(k); if (["A", "B", "C"].includes(p) && N(v)) put(`months.${mD}.p2.sort.${p}`, N(v), `${MN(mD)}, tri ${prodLabel(p)}`); });
     each(d.results, (k, v) => { const f = RES_FIELDS.find((x) => x[0] === k); if (f || ["wages"].includes(k)) put(`months.${mR}.results.${k}`, N(v), `${MN(mR)}, ${f ? f[1].toLowerCase() : k}`); });
     if (Array.isArray(d.offers)) {
       for (const o of d.offers) {
@@ -995,10 +995,12 @@
         const om = N(o.month) || mD;
         const prod = normProd(o.product) || "mixed";
         const status = o.status === "confirmed" ? "accepted" : ["pending", "accepted", "refused", "cancelled"].includes(o.status) ? o.status : "pending";
+        const type = /^s(ell|ale)|vente/i.test(String(o.type || "")) ? "sell" : "buy";
         const dup = state.offers.find((x) => N(x.month) === om && (x.counterpart || "") === (o.counterpart || "") && x.product === prod && N(x.qty) === N(o.qty) && N(x.price) === N(o.price));
-        if (dup) { if (o.status && dup.status !== status) { dup.status = status; changes.push({ path: "", label: `Offre ${o.counterpart || ""} ${prodLabel(prod)}`, show: statusLab(status) }); } continue; }
-        state.offers.push({ month: om, dir: o.dir === "out" ? "out" : "in", counterpart: o.counterpart || "", type: o.type === "sell" ? "sell" : "buy", product: prod, qty: N(o.qty), price: N(o.price), term: normTerm(o.term) || "60", status, t: Date.now() });
-        changes.push({ path: "", label: `Offre ${o.dir === "out" ? "envoyée à" : "reçue de"} ${o.counterpart || "?"}`, show: `${o.type === "sell" ? "vente" : "achat"} ${prodLabel(prod)} ${fmt(N(o.qty))} lots à ${eur(N(o.price))}, ${statusLab(status)}` });
+        if (dup) { if (o.status && dup.status !== status) { changes.push({ path: "", offerStatus: { ref: dup, old: dup.status }, label: `Offre ${o.counterpart || ""} ${prodLabel(prod)}`, show: statusLab(status) }); dup.status = status; } continue; }
+        const rec = { month: om, dir: o.dir === "out" ? "out" : "in", counterpart: o.counterpart || "", type, product: prod, qty: N(o.qty), price: N(o.price), term: normTerm(o.term) || "60", status, t: Date.now() };
+        state.offers.push(rec);
+        changes.push({ path: "", offerRef: rec, label: `Offre ${rec.dir === "out" ? "envoyée à" : "reçue de"} ${o.counterpart || "?"}`, show: `${type === "sell" ? "vente" : "achat"} ${prodLabel(prod)} ${fmt(N(o.qty))} lots à ${eur(N(o.price))}, ${statusLab(status)}` });
       }
     }
     const s = d.settings;
@@ -1012,12 +1014,18 @@
         if (dist) put("settings.nDist", dist, "Nombre de distributeurs");
         if (ind) put("settings.nInd", ind, "Nombre d'industriels");
       }
-      for (const [k, l] of [["nDist", "Nombre de distributeurs"], ["nInd", "Nombre d'industriels"], ["months", "Nombre de mois joués"], ["naturalsFrom", "Naturels à partir du mois"], ["startStock", "Stock de départ"], ["startStockValue", "Valeur du stock de départ"], ["mixedCost", "Coût agglo"], ["sortCost", "Coût du tri"], ["sortCap", "Capacité de la trieuse"]]) if (N(s[k]) !== null) put(`settings.${k}`, N(s[k]), l);
+      for (const [k, l] of [["nDist", "Nombre de distributeurs"], ["nInd", "Nombre d'industriels"], ["months", "Nombre de mois joués"], ["naturalsFrom", "Naturels à partir du mois"], ["startStock", "Stock de départ"], ["startStockValue", "Valeur du stock de départ"], ["mixedCost", "Coût agglo"], ["sortCost", "Coût du tri"], ["sortCap", "Capacité de la trieuse"]]) {
+        const v = N(s[k]);
+        if (v === null || v < 0) continue;
+        if (["startStock", "startStockValue"].includes(k) && ctx.m !== 1) continue;
+        if (["months", "naturalsFrom"].includes(k) && !(v >= 1 && v <= 10)) continue;
+        put(`settings.${k}`, v, l);
+      }
       each(s.naturalCost, (k, v) => { const p = normProd(k); if (["A", "B", "C"].includes(p)) put(`settings.naturalCost.${p}`, N(v), `Prix d'achat moyen ${prodLabel(p)}`); });
       each(s.fixed, (k, v) => { if (["wages", "wagesNat", "admin", "storagePct"].includes(k)) put(`settings.fixed.${k}`, N(v), `Charge ${k}`); });
       each(s.buyTargets, (k, o) => { if (st.buyTargets[k]) each(o, (f, v) => { if (["anchor", "target", "ceiling"].includes(f)) put(`settings.buyTargets.${k}.${f}`, N(v), `Repère ${k} ${f}`); }); });
-      each(s.ranges, (ck, o) => { const c = normClient(ck); if (c) each(o, (pk, v) => { const p = normProd(pk); if (p && Array.isArray(v) && v.length === 2 && N(v[0]) !== null && N(v[1]) !== null) put(`settings.ranges.${c}.${p}`, [N(v[0]), N(v[1])], `Fourchette ${clientLabel(c)} ${prodLabel(p)}`); }); });
-      each(s.yields, (k, v) => { const p = normProd(k); if (["A", "B", "C"].includes(p) && Array.isArray(v) && v.length === 4) put(`settings.yields.${p}`, v.map((x) => N(x) || 0), `Rendements ${prodLabel(p)}`, v.join(" / ")); });
+      each(s.ranges, (ck, o) => { const c = normClient(ck); if (c) each(o, (pk, v) => { const p = normProd(pk); if (p && Array.isArray(v) && v.length === 2 && N(v[0]) !== null && N(v[1]) !== null && N(v[0]) < N(v[1])) put(`settings.ranges.${c}.${p}`, [N(v[0]), N(v[1])], `Fourchette ${clientLabel(c)} ${prodLabel(p)}`); }); });
+      each(s.yields, (k, v) => { const p = normProd(k); if (["A", "B", "C"].includes(p) && Array.isArray(v) && v.length === 4) { let arr = v.map((x) => N(x) || 0); if (arr.every((x) => x <= 1)) arr = arr.map((x) => Math.round(x * 1000) / 10); put(`settings.yields.${p}`, arr, `Rendements ${prodLabel(p)}`, arr.join(" / ")); } });
       each(s.needs, (mk, o) => { const nm = N(mk); if (nm) each(o, (ck, oo) => { const c = normClient(ck); if (c) each(oo, (pk, v) => { const p = normProd(pk); if (p) put(`settings.needs.${nm}.${c}.${p}`, N(v), `Besoin ${MN(nm)} ${clientLabel(c)} ${prodLabel(p)}`); }); }); });
       if (typeof s.scoreNotes === "string" && s.scoreNotes.trim()) put("settings.scoreNotes", s.scoreNotes.trim(), "Calcul du score", "noté");
       if (s.ranges || s.yields || s.sortCap) { st.seen = st.seen || {}; st.seen[`settings${ctx.m === 1 ? "" : ctx.m}`] = true; }
@@ -1029,15 +1037,11 @@
     const screens = Array.isArray(d.screens) ? d.screens : typeof d.screen === "string" ? d.screen.split(/[,|]/).map((x) => x.trim()) : [];
     const got = E.markSeen(state, ctx.m, ctx.phase, screens.filter(Boolean));
     if (got.length) changes.push({ path: "", label: "Captures cochées", show: got.join(", ") });
-    if (demandChanged && E.isNat(state, mD) && !["A", "B", "C"].some((o) => N(E.get(state.months, [mD, "p2", "sort", o], null)) !== null)) {
-      const r = E.recoSort(state, mD);
-      for (const o of ["A", "B", "C"]) put(`months.${mD}.p2.sort.${o}`, r[o], `${MN(mD)}, tri conseillé ${prodLabel(o)}`);
-    }
     if (d.current && typeof d.current === "object" && ctx.hasText) {
       const cm = N(d.current.m), cp = N(d.current.phase);
       if (cm && cm >= 1 && cm <= last && cp && cp >= 1 && cp <= 3 && (cm !== state.current.m || cp !== state.current.phase)) {
+        changes.push({ path: "", current: Object.assign({}, state.current), label: "Étape", show: `${MN(cm)}, ${PHASE_NAME[cp]}` });
         moveTo(cm, cp);
-        changes.push({ path: "", label: "Étape", show: `${MN(cm)}, ${PHASE_NAME[cp]}` });
       }
     }
     return changes;
@@ -1244,13 +1248,25 @@
     }
   };
 
+  function delP(path) {
+    const ks = path.split(".");
+    const chain = [state];
+    for (let i = 0; i < ks.length - 1; i++) { const o = chain[i][ks[i]]; if (!o || typeof o !== "object") return; chain.push(o); }
+    delete chain[chain.length - 1][ks[ks.length - 1]];
+    // nettoie les objets devenus vides (demande, livraisons…), sans toucher aux blocs du mois
+    if (ks[0] === "months") for (let i = chain.length - 1; i >= 4; i--) if (!Object.keys(chain[i]).length) delete chain[i - 1][ks[i - 1]];
+  }
   function doUndo(id) {
-    const snap = id && ui.undo[id];
-    if (!snap) { toast("Rien à annuler"); return; }
-    const chat = state.chat, journal = state.journal;
-    state = migrate(JSON.parse(snap));
-    state.chat = chat.map((x) => (x.undoId === id ? Object.assign({}, x, { undoId: null, content: `${x.content}\n\n(Modifications annulées)` }) : x));
-    state.journal = journal.concat([{ when: now(), m: state.current.m, kind: "Annulation", text: "Dernière lecture annulée." }]);
+    const list = id && ui.undo[id];
+    if (!list) { toast("Rien à annuler"); return; }
+    for (const c of list.slice().reverse()) {
+      if (c.path) { if (c.old === undefined) delP(c.path); else setP(c.path, c.old); }
+      if (c.offerRef) { const i = state.offers.indexOf(c.offerRef); if (i >= 0) state.offers.splice(i, 1); }
+      if (c.offerStatus) c.offerStatus.ref.status = c.offerStatus.old;
+      if (c.current) state.current = c.current;
+    }
+    state.chat = state.chat.map((x) => (x.undoId === id ? Object.assign({}, x, { undoId: null, content: `${x.content}\n\n(Modifications annulées)` }) : x));
+    state.journal.push({ when: now(), m: state.current.m, kind: "Annulation", text: "Lecture annulée : les valeurs rangées ont été remises comme avant." });
     delete ui.undo[id];
     if (ui.lastUndo === id) ui.lastUndo = null;
     save(); render(); toast("Modifications annulées");
