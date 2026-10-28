@@ -16,6 +16,7 @@ RÈGLES DU JEU (valeurs des vidéos Sciado, à remplacer par celles de la sessio
 - Besoins par distributeur : agglomérés 200 / 1 200 / 6 000. Naturels mars : Q1 130/200/0, Q2 260/200/300, Q3 390/200/600, Q4 520/600/900. Vignerons avril x1,23, mai x1,54 (pic), juin = mars.
 - Charges distributeur : salaires 40 000 €/mois puis 150 000 € dès mars, admin 20 000 €, stockage 0,33 % de la valeur du stock. Pub jan-fév 2,5 à 5 % du CA. Dès mars actions ciblées par client : flyers 10 000, e-mailing 20 000, visite 50 000 € HT. Ne pas cumuler pub produit et actions ciblées.
 - Mars : le fournisseur allemand est en liquidation, plus d'offres externes. Le distributeur rachète un stock de naturels (285 000 € payés en mars) et une trieuse (30 000 € comptant). Les industriels rachètent des planches (175 000 € payés en mars).
+- Phase 2 du distributeur, dans cet ordre : Production (tri des naturels), puis Sales (ventes), puis Negotiations. Les lots triés en Production sont donc vendables dans le même mois (vidéos Sciado Month 3 Phase 2 Production puis Sales).
 - Trieuse : 2 € par lot, 20 000 lots/mois. Rendements Q1/Q2/Q3/Q4 : Espagne A 15/30/30/25 %, B 20/30/30/20 %, C 25/30/25/20 %.
 - Prix moyens d'achat des naturels : A 55, B 60, C 65 €. Coût industriel estimé : agglo 8-9 € variable, 18-20 € complet ; naturel A environ 18 €.
 
