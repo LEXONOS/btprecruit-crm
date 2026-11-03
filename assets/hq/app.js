@@ -90,7 +90,7 @@ async function poll() {
     if (S.first) S.msgs = msgs.slice().reverse(); else S.msgs = nouveaux.slice().reverse().concat(S.msgs).slice(0, 200);
     if (S.world) S.world.update(etatScene());
     nouveaux.forEach((m, k) => setTimeout(() => {
-      if (S.world && m.from_id) S.world.pulse({ from: m.from_id, to: m.to_id || 'systeme', kind: m.kind });
+      if (S.world && m.from_id && !(m.from_id === 'systeme' && !m.to_id)) S.world.pulse({ from: m.from_id, to: m.to_id || 'louis', kind: m.kind });
       if (m.to_id === 'louis' || m.kind === 'evenement') toast((m.to_id === 'louis' ? nom(m.from_id) + ' : ' : '') + (m.subject || ''), 'ok');
     }, k * 350));
     renderAll(nouveaux.map((m) => m.id));
@@ -557,7 +557,7 @@ function bind() {
     }
   });
   $('#panelBody').addEventListener('click', (ev) => { const s = ev.target.closest('#bAuto'); if (s && !s.disabled) s.classList.toggle('on'); });
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { if (!$('#panel').hidden) closePanel(); else if (S.view !== 'tour') setView('tour'); } });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { if (!$('#panel').hidden) { closePanel(); if (S.world) S.world.focus({ type: 'overview' }); } else if (S.view !== 'tour') setView('tour'); } });
 }
 
 init();

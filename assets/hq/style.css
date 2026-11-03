@@ -45,6 +45,7 @@ a.btn { text-decoration: none; }
 
 .scene { position: fixed; inset: 0; z-index: 0; }
 .scene canvas { display: block; }
+@media (min-width: 821px) { body.panel-open .scene { right: 450px; } }
 
 /* ── barre du haut ── */
 .bar { position: fixed; top: 10px; left: 10px; right: 10px; height: var(--bar-h); z-index: 20; display: flex; align-items: center; gap: 12px; padding: 0 10px 0 8px;
