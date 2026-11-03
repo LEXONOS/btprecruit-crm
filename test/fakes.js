@@ -18,38 +18,55 @@ let atelierEssais = 0;
 function ficheSite(faits, mauvaise) {
   const nom = (faits.nom || 'Entreprise').replace(/\s+(sarl|sas)$/i, '');
   return {
-    nom: nom, activite: 'Climatisation et froid', accroches: [mauvaise ? 'Votre confort, notre priorité absolue depuis toujours' : 'Votre clim posée et suivie', 'Le frais chez vous, bien posé', 'Climatisation au Lamentin'],
-    chapo: 'Installation, entretien et dépannage de climatisation pour les maisons, les bureaux et les commerces du centre de la Martinique.',
-    objectif: 'devis', cta: 'Demander un devis', ton: 'franc', titre_services: 'Nos services', intro_services: 'Du choix de l\'appareil au nettoyage régulier, un seul interlocuteur.',
+    nom: nom, activite: 'Climatisation et froid', metier: 'Climatisation',
+    accroche: mauvaise ? 'Votre confort, notre priorité absolue depuis toujours.' : 'Pose, entretien et dépannage de climatiseurs pour les maisons et les commerces.',
+    objectif: 'devis', cta: 'Demander un devis', ton: 'franc', titre_services: '',
     services: [
-      { titre: 'Installation', texte: 'Split mural, gainable ou cassette : on vous conseille l\'appareil adapté et on le pose proprement.', detail: 'Avant la pose, on regarde la pièce, l\'exposition et l\'usage.' },
-      { titre: 'Entretien', texte: 'Filtres, batterie, évacuation : un appareil propre consomme moins et souffle un air plus sain.', detail: 'Nettoyage complet de l\'unité intérieure et extérieure.' },
-      { titre: 'Dépannage', texte: 'Panne, fuite, bruit ou mauvaise odeur : on cherche la cause et on vous explique avant de réparer.', detail: 'Diagnostic clair puis réparation.' }
+      { titre: 'Installation', texte: 'Split, gainable ou cassette : l\'appareil adapté à la pièce, posé proprement.', icone: 'flocon', photo: 'air conditioner installation', detail: 'Avant la pose, on regarde la pièce, l\'exposition et l\'usage, puis on vous conseille l\'appareil juste.' },
+      { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés : un air plus sain, moins de pannes.', icone: 'cle', photo: 'air conditioner filter cleaning' },
+      { titre: 'Dépannage', texte: 'Fuite, bruit, panne : on cherche la cause avant de réparer.', icone: 'outils', photo: 'portrait of smiling technician' }
     ],
-    titre_atouts: 'Pourquoi nous appeler', atouts: [{ titre: 'Un conseil honnête', texte: 'On vous dit si l\'appareil vaut la peine d\'être réparé.' }, { titre: 'Un travail propre', texte: 'La pose est soignée et le chantier laissé net.' }, { titre: 'Basés au Lamentin', texte: 'Au centre de l\'île.' }],
-    etapes: [{ titre: 'Vous nous écrivez', texte: 'Décrivez votre besoin.' }, { titre: 'On passe voir', texte: 'On vous pose les bonnes questions.' }, { titre: 'On pose', texte: 'Au créneau convenu.' }],
-    titre_faq: 'Vos questions', faq: [{ q: 'Quelle puissance pour ma pièce ?', r: 'Elle dépend de la surface et de l\'exposition : écrivez-nous.' }, { q: 'Faut-il entretenir sa clim ?', r: 'Oui, avec l\'air salin un entretien régulier évite les pannes.' }, { q: 'Travaillez-vous pour les pros ?', r: 'Oui, bureaux et commerces.' }],
-    titre_contact: 'Parlons de votre clim',
-    a_propos: mauvaise ? 'Fondée depuis 2010, plus de 500 clients satisfaits.' : 'Une entreprise de climatisation du Lamentin.',
-    zone: 'Basés au Lamentin, en Martinique', mots_photo: ['air conditioner unit wall', 'hvac tools', 'portrait of smiling technician'],
+    atouts: [{ titre: 'Un conseil honnête', texte: 'On vous dit si la réparation vaut le coup.', icone: 'bulle' }, { titre: 'Un travail propre', texte: 'Pose soignée, chantier laissé net.', icone: 'etincelles' }, { titre: 'Basés au Lamentin', texte: 'Au centre de l\'île.', icone: 'pin' }],
+    etapes: [{ titre: 'Vous nous écrivez' }, { titre: 'On passe voir' }, { titre: 'On pose' }],
+    a_propos: mauvaise ? 'Fondée depuis 2010, plus de 500 clients satisfaits.' : 'Une entreprise de climatisation du Lamentin, pour les maisons, les bureaux et les commerces du centre de la Martinique.',
+    faq: [{ q: 'Quelle puissance pour ma pièce ?', r: 'Elle dépend de la surface et de l\'exposition : écrivez-nous.' }, { q: 'Faut-il entretenir sa clim ?', r: 'Oui, avec l\'air salin un entretien régulier évite les pannes.' }],
+    appel: 'Une clim à poser ou à réparer ?',
+    photo_hero: 'modern air conditioner living room', photo_ambiance: 'outdoor ac unit house',
     seo: { titre: 'Climatisation au Lamentin, ' + nom, description: 'Installation, entretien et dépannage de climatisation au Lamentin.' }
   };
 }
 function atelier(body) {
   atelierEssais++;
   const last = body.messages[body.messages.length - 1];
-  const txt = typeof last.content === 'string' ? last.content : JSON.stringify(body.messages[0].content);
-  const faits = (function () { try { return JSON.parse((txt.match(/FAITS SUR L'ENTREPRISE \(vérifiés\) :\n([\s\S]*?)\n\n/) || [])[1] || '{}'); } catch (e) { return {}; } })();
+  const premier = typeof body.messages[0].content === 'string' ? body.messages[0].content : JSON.stringify(body.messages[0].content);
+  const txt = typeof last.content === 'string' ? last.content : premier;
+  const faits = (function () { try { return JSON.parse((premier.match(/FAITS SUR L'ENTREPRISE \(vérifiés\) :\n([\s\S]*?)\n\n/) || [])[1] || '{}'); } catch (e) { return {}; } })();
   const correction = typeof last.content !== 'string' && last.content.some(function (b) { return b.type === 'tool_result'; });
   const modif = /DEMANDE DU CLIENT/.test(txt);
   const f = ficheSite(faits, !correction && !modif && atelierEssais === 1);
-  if (modif) { f.accroches = ['Votre clim posée et entretenue', 'Climatisation au Lamentin', 'Le frais chez vous']; f.faits_client = { horaires: ['Lundi au vendredi : 7 h 30 à 17 h'] }; if (/turquoise/i.test(txt)) f.faits_client.couleur = '#0e9aa7'; if (/autre style|tout changer/i.test(txt)) f.faits_client.nouveau_style = true; if (/mes services|nos services sont/i.test(txt)) f.faits_client.services_donnes = true; }
+  if (modif) { f.accroche = 'Pose et entretien de climatiseurs, pour les maisons et les bureaux du centre.'; f.faits_client = { horaires: ['Lundi au vendredi : 7 h 30 à 17 h'] }; if (/nom officiel|kbis|siret/i.test(txt)) { const so = (txt.match(/SIRET\s*:?\s*([\d ]{9,17})/i) || [])[1]; f.faits_client.raison_sociale = (txt.match(/nom officiel\s*:?\s*([A-Z][A-Z' ]+[A-Z])/) || [])[1]; if (so) f.faits_client.siret = so.replace(/\s/g, ''); } if (/portable/i.test(txt)) { const pt = (txt.match(/(069\d[\d ]{6,9})/) || [])[1]; if (pt) f.faits_client.telephone = pt; } if (/turquoise/i.test(txt)) f.faits_client.couleur = '#0e9aa7'; if (/autre style|tout changer/i.test(txt)) f.faits_client.nouveau_style = true; if (/mes services|nos services sont/i.test(txt)) f.faits_client.services_donnes = true; }
   return rep([tu('ecrire_site', f)], 'tool_use', { output_tokens: 1400 });
 }
 
+// Les vignettes portent leur adresse (voir imageFausse) : le faux regard reconnaît la photo et la juge comme le ferait Léa.
+// photo n°…0 : un visage (recalée) ; n°…4 : un logo lisible (recalée) ; n°…5 : hors sujet ; les autres : justes et nettes
+const VISION = { appels: 0, vues: [] };
+function vision(body) {
+  VISION.appels++;
+  const blocs = body.messages[0].content.filter(function (b) { return b.type === 'image'; });
+  const notes = blocs.map(function (b, k) {
+    const txt = Buffer.from(b.source.data, 'base64').toString('latin1');
+    const id = Number((txt.match(/pexels-photo-(\d+)/) || [])[1] || 0);
+    VISION.vues.push(id);
+    const f = id % 10;
+    return { n: k + 1, pertinence: f === 5 ? 3 : 8, qualite: 8, visage: f === 0, texte: f === 4, hors_lieu: false };
+  });
+  return rep([tu('noter_photos', { notes: notes })], 'tool_use', { input_tokens: 400 + 120 * blocs.length, output_tokens: 300 });
+}
 function claude(body) {
   appelsClaude++;
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
+  if (body.tool_choice && body.tool_choice.name === 'noter_photos') return vision(body);
   const sys = body.system.map(function (b) { return b.text; }).join('\n');
   const qui = (sys.match(/TA FICHE DE POSTE \(([^,]+),/) || [])[1] || '';
   const last = body.messages[body.messages.length - 1];
@@ -94,9 +111,10 @@ function claude(body) {
 const EMMA = { dernier: null, tentatives: 0 };
 
 /* ── une fausse image JPEG (en-tête SOF0 lisible : 1200 x 800) ── */
-function jpeg(l, h, graine) {
+function jpeg(l, h, graine, texte) {
   const b = Buffer.alloc(2400, graine || 7);
   b[0] = 0xff; b[1] = 0xd8; b[2] = 0xff; b[3] = 0xc0; b.writeUInt16BE(17, 4); b[6] = 8; b.writeUInt16BE(h, 7); b.writeUInt16BE(l, 9);
+  if (texte) b.write(String(texte).slice(0, 300), 64, 'latin1');
   return b;
 }
 
@@ -248,7 +266,7 @@ function pexels(url, opts) {
   const photos = [0, 1, 2, 3, 4, 5].map(function (k) { const id = base * 10 + k; return { id: id, width: 6000, height: 4000, url: 'https://www.pexels.com/photo/' + id + '/', photographer: 'Photographe ' + k, photographer_url: 'https://www.pexels.com/@p' + k, alt: k === 0 ? 'Smiling man fixing an air conditioner' : 'Close up of ' + q, src: { original: 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg' } }; });
   return { ok: true, status: 200, json: async function () { return { photos: photos, total_results: 6 }; } };
 }
-function imageFausse(url, l, h) { const b = jpeg(l, h, Array.from(url).reduce(function (t, c) { return (t * 31 + c.charCodeAt(0)) % 251; }, 7)); return { ok: true, status: 200, url: url, headers: { get: function (x) { return /content-type/i.test(x) ? 'image/jpeg' : /content-length/i.test(x) ? String(b.length) : null; } }, arrayBuffer: async function () { return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } }; }
+function imageFausse(url, l, h) { const b = jpeg(l, h, Array.from(url).reduce(function (t, c) { return (t * 31 + c.charCodeAt(0)) % 251; }, 7), url); return { ok: true, status: 200, url: url, headers: { get: function (x) { return /content-type/i.test(x) ? 'image/jpeg' : /content-length/i.test(x) ? String(b.length) : null; } }, arrayBuffer: async function () { return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } }; }
 
 global.fetch = async function (url, opts) {
   url = String(url);
@@ -275,6 +293,11 @@ global.fetch = async function (url, opts) {
     const q = decodeURIComponent((url.match(/q=([^&]+)/) || [])[1] || '');
     const total = url.indexOf('departement=') < 0;
     if (total) return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { total_results: 1, results: [] }; } };
+    const fiche = function (siren, nom, nature, commune, cp, adresse, dir) { return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { results: [{ siren: siren, nom_raison_sociale: nature === '1000' ? null : nom, nom_complet: nom, nature_juridique: nature, activite_principale: '43.22B', etat_administratif: 'A', siege: { departement: '972', code_postal: cp, libelle_commune: commune, siret: siren + '00017', adresse: adresse }, dirigeants: dir ? [dir] : [] }] }; } }; };
+    if (q.trim() === '552100554') return fiche('552100554', 'JEAN-MARC TELL (SERRURERIE DU NORD)', '1000', 'LE LORRAIN', '97214', 'QUARTIER MORNE BOIS 97214 LE LORRAIN', null);
+    if (/^\d{9}$/.test(q.trim())) return fiche(q.trim(), q.trim() === '843217654' ? 'FROID CARAIBES' : 'ENTREPRISE ' + q.trim(), '5499', 'DUCOS', '97224', 'ZONE DE CHAMPIGNY 97224 DUCOS', { type_dirigeant: 'personne physique', nom: 'MARTIN', prenoms: 'Paul', qualite: 'Gérant' });
+    if (/froid caraibes/i.test(q)) return fiche('843217654', 'FROID CARAIBES', '5499', 'DUCOS', '97224', 'ZONE DE CHAMPIGNY 97224 DUCOS', { type_dirigeant: 'personne physique', nom: 'MARTIN', prenoms: 'Paul', qualite: 'Gérant' });
+    if (/serrurerie du nord|jean-marc tell/i.test(q)) return fiche('552100554', 'JEAN-MARC TELL (SERRURERIE DU NORD)', '1000', 'LE LORRAIN', '97214', 'QUARTIER MORNE BOIS 97214 LE LORRAIN', null);
     if (/clim\s*pro/.test(q) && /972/.test(url)) return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { results: [{ siren: '123456789', nom_raison_sociale: 'CLIMPRO MARTINIQUE', nom_complet: 'CLIMPRO MARTINIQUE', nature_juridique: '5710', categorie_entreprise: 'PME', date_creation: '2026-06-01', activite_principale: '43.22B', etat_administratif: 'A', siege: { departement: '972', code_postal: '97232', libelle_commune: 'LE LAMENTIN', siret: '12345678900011', adresse: 'ZONE DE LA LEZARDE 97232 LE LAMENTIN' }, dirigeants: [{ type_dirigeant: 'personne physique', nom: 'DUPONT', prenoms: 'Jean', qualite: 'Président' }] }] }; } };
     return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { results: [] }; } };
   }
@@ -296,4 +319,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { appels: function () { return appelsClaude; }, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
