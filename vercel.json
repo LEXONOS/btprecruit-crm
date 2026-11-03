@@ -1,8 +1,30 @@
 {
+  "regions": [
+    "cdg1"
+  ],
   "functions": {
-    "api/ai.js": { "maxDuration": 60 }
+    "api/tick.js": {
+      "maxDuration": 300
+    },
+    "api/hq.js": {
+      "maxDuration": 60
+    }
   },
+  "crons": [
+    {
+      "path": "/api/tick",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "headers": [
-    { "source": "/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
   ]
 }
