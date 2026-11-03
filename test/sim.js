@@ -226,10 +226,12 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   await runtime.cycle({ db: db, agentId: 'reponses', secondes: 200 });
   site = db.tables.hq_sites.find(function (x) { return x.id === site.id; });
   assert.ok(site.status === 'commande' && site.formule === 'vitrine' && Number(site.montant_eur) === 990 && site.domaine === 'clim-eole.com' && site.domaine_mode === 'achat', 'commande : Vitrine 990 €, domaine libre trouvé : ' + site.domaine);
-  const lienStripe = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+  const lienStripe = fakes.STRIPE.liens.find(function (x) { return x.id === site.stripe.lien; });
+  const lienMois = fakes.STRIPE.liens.find(function (x) { return x.id === site.stripe.lien_mois; });
+  assert.ok(lienMois && lienMois.mensuel && lienMois.montant === 8900 && lienMois.params['subscription_data[metadata][site_id]'] === String(site.id) && !lienMois.params['invoice_creation[enabled]'], 'deux liens : en une fois et au mois (89 €, abonnement)');
   assert.ok(lienStripe.params['line_items[0][price]'] && lienStripe.params['metadata[site_id]'] === String(site.id) && lienStripe.params['restrictions[completed_sessions][limit]'] === '1' && /\/_n\/merci\/$/.test(lienStripe.params['after_completion[redirect][url]']), 'lien Stripe bien formé');
   const rCmd = db.tables.hq_outbox.filter(function (o) { return o.lead_id === lc.id && o.kind === 'reponse'; }).pop();
-  assert.ok(rCmd.body.indexOf(lienStripe.url) >= 0 && rCmd.status === 'pret', 'le lien de paiement part dans la réponse');
+  assert.ok(rCmd.body.indexOf(lienStripe.url) >= 0 && rCmd.body.indexOf(lienMois.url) >= 0 && rCmd.status === 'pret', 'les deux liens de paiement partent dans la réponse');
   // il paie : Lucas encaisse, réserve le domaine, met en ligne, prévient
   fakes.payer(lienStripe.id);
   fakes.FAUX_EN_LIGNE.add('clim-eole.com');
@@ -353,13 +355,13 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const lucas = async function () { dus(['livraison']); await runtime.cycle({ db: db, agentId: 'livraison', secondes: 200 }); };
   // 1. il paie l'ancien lien (Essentiel) juste après qu'Emma a créé celui de la Vitrine : vu, au bon prix ; puis un second paiement est remboursé
   const ga = await nouveauClient('garage-test', 'Garage Test', 'garage@test-mq.fr');
-  const gc1 = await exE().commande({ reponse_id: ga.ib.id, formule: 'essentiel' });
+  const gc1 = await exE().commande({ reponse_id: ga.ib.id, formule: 'essentiel', paiement: 'une_fois' });
   const L1 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
-  const gc2 = await exE().commande({ reponse_id: ga.ib.id, formule: 'vitrine' });
+  const gc2 = await exE().commande({ reponse_id: ga.ib.id, formule: 'vitrine', paiement: 'une_fois' });
   const L2 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
   assert.ok(gc1.lien_paiement && gc2.lien_paiement && L1.id !== L2.id && leSite(ga.s.id).stripe.liens.length === 2 && fakes.STRIPE.desactives.indexOf(L1.id) >= 0, 'changement de formule : nouveau lien, l\'ancien reste suivi');
   fakes.payer(L1.id, { amount_total: 59000, invoice: 'in_g1', customer_details: { email: 'garage@test-mq.fr', name: 'G' } });
-  const gc3 = await exE().commande({ reponse_id: ga.ib.id, formule: 'signature' });
+  const gc3 = await exE().commande({ reponse_id: ga.ib.id, formule: 'signature', paiement: 'une_fois' });
   assert.ok(/déjà payé/.test(gc3.erreur || ''), 'pas de troisième lien quand un paiement existe');
   await lucas();
   assert.ok(['paye', 'livraison', 'en_ligne'].indexOf(leSite(ga.s.id).status) >= 0 && leSite(ga.s.id).formule === 'essentiel' && Number(leSite(ga.s.id).montant_eur) === 590, 'paiement de l\'ancien lien vu, formule réellement payée : ' + leSite(ga.s.id).status + ' ' + leSite(ga.s.id).formule);
@@ -368,19 +370,19 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   assert.ok(fakes.STRIPE.rembourses.indexOf('pi_' + L2.id) >= 0 && db.tables.hq_outbox.some(function (o) { return o.lead_id === ga.l.id && /double remboursé/.test(o.subject); }), 'second paiement remboursé tout seul, client prévenu');
   // 2. paiement de test (clé ou carte de test) : rien n'est acheté, le site redevient un aperçu
   const tt = await nouveauClient('test-carte', 'Test Carte', 'carte@test-mq.fr');
-  await exE().commande({ reponse_id: tt.ib.id, formule: 'essentiel' });
+  await exE().commande({ reponse_id: tt.ib.id, formule: 'essentiel', paiement: 'une_fois' });
   const LT = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
   const achatsAvant = fakes.VERCEL.achats.length;
   fakes.payer(LT.id, { livemode: false, amount_total: 59000 });
   await lucas();
   assert.ok(leSite(tt.s.id).status === 'apercu' && fakes.VERCEL.achats.length === achatsAvant && db.tables.hq_messages.some(function (m) { return /Paiement de test/.test(m.subject || ''); }), 'paiement de test : aucun achat, retour à l\'aperçu');
   process.env.HQ_STRIPE_KEY = 'sk_test_essai';
-  const cT = await exE().commande({ reponse_id: tt.ib.id, formule: 'vitrine' });
+  const cT = await exE().commande({ reponse_id: tt.ib.id, formule: 'vitrine', paiement: 'une_fois' });
   assert.ok(/mode test/.test(cT.erreur || '') && db.tables.hq_config.some(function (c) { return c.key === 'alerte:stripe_test'; }), 'clé de test : pas de lien inutilisable envoyé à un vrai client');
   process.env.HQ_STRIPE_KEY = 'sk_live_simulation';
   // 3. commande de domaine ratée : ce nom est écarté, Louis prévenu une fois, un autre nom est réservé
   const gfl = await nouveauClient('fleurs-test', 'Fleurs Test', 'fleurs@test-mq.fr');
-  await exE().commande({ reponse_id: gfl.ib.id, formule: 'essentiel' });
+  await exE().commande({ reponse_id: gfl.ib.id, formule: 'essentiel', paiement: 'une_fois' });
   const LF = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
   fakes.VERCEL.echecs.add('fleurs-test.com');
   fakes.payer(LF.id, { amount_total: 59000, customer_details: { email: 'fleurs@test-mq.fr', name: 'F' } });
@@ -436,7 +438,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     for (let k = 0; k < 70; k++) ouverts.push({ slug: 'cmd-' + k + '-aaaa', status: 'commande', spec: { nom: 'Cmd ' + k }, stripe: { lien: 'plink_vieux_' + k, liens: [{ id: 'plink_vieux_' + k }], cree_le: new Date(Date.now() - 10 * 86400000).toISOString() } });
     await db.insert('hq_sites', ouverts);
     const gc = await nouveauClient('apres-soixante', 'Apres Soixante', 'apres@test-mq.fr');
-    await exE().commande({ reponse_id: gc.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gc.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const L70 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     fakes.payer(L70.id, { amount_total: 59000, customer_details: { email: 'apres@test-mq.fr', name: 'A' } });
     const parLien0 = fakes.STRIPE.parLien;
@@ -454,7 +456,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     for (let k = 0; k < 35; k++) bloques.push({ slug: 'dns-' + k + '-bbbb', status: 'livraison', domaine: 'client' + k + '.fr', domaine_mode: 'client', spec: { nom: 'Dns ' + k }, paid_at: new Date(Date.now() - 20 * 86400000).toISOString(), data: { live: true, live_publie: new Date().toISOString(), domaine_ajoute: true, dns_demande: new Date(Date.now() - 20 * 86400000).toISOString(), rappels_dns: 4 } });
     await db.insert('hq_sites', bloques);
     const gn = await nouveauClient('apres-dns', 'Apres Dns', 'apresdns@test-mq.fr');
-    await exE().commande({ reponse_id: gn.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gn.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const LN = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     fakes.payer(LN.id, { amount_total: 59000, customer_details: { email: 'apresdns@test-mq.fr', name: 'N' } });
     fakes.FAUX_EN_LIGNE.add(leSite(gn.s.id).domaine);
@@ -466,7 +468,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   {
     const gw = await nouveauClient('garage-wix', 'Garage Wix', 'wix@test-mq.fr');
     await db.update('hq_leads', { domain: 'garage-wix.wixsite.com', website: 'https://garage-wix.wixsite.com/site' }, { eq: { id: gw.l.id } });
-    await exE().commande({ reponse_id: gw.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gw.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const sw = leSite(gw.s.id);
     assert.ok(sw.domaine_mode === 'achat' && /\.com$/.test(sw.domaine) && !/wixsite/.test(sw.domaine), 'sous-domaine Wix : un vrai nom de domaine est réservé : ' + sw.domaine);
   }
@@ -474,10 +476,10 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // n'efface pas la commande du domaine posée pendant l'écriture de la fiche
   {
     const gr = await nouveauClient('course-test', 'Course Test', 'course@test-mq.fr');
-    await exE().commande({ reponse_id: gr.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gr.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const S2 = require('../lib/sites/stripe'), creer = S2.creerLien;
     S2.creerLien = async function (o) { const r = await creer(o); const x = db.tables.hq_sites.find(function (y) { return y.id === gr.s.id; }); x.status = 'paye'; x.updated_at = new Date(Date.now() + 5).toISOString(); return r; };
-    const cr = await exE().commande({ reponse_id: gr.ib.id, formule: 'vitrine' });
+    const cr = await exE().commande({ reponse_id: gr.ib.id, formule: 'vitrine', paiement: 'une_fois' });
     S2.creerLien = creer;
     const Lc = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     assert.ok(/changer d'état/.test(cr.erreur || '') && leSite(gr.s.id).status === 'paye' && fakes.STRIPE.desactives.indexOf(Lc.id) >= 0, 'paiement relevé pendant la commande : rien d\'écrasé, le lien en trop est coupé');
@@ -556,7 +558,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // 17. achat de domaine resté sans réponse : retrouvé dans le compte s'il est passé ; sinon, deux heures plus tard, un autre nom
   {
     const ga2 = await nouveauClient('achat-perdu', 'Achat Perdu', 'perdu@test-mq.fr');
-    await exE().commande({ reponse_id: ga2.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: ga2.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const xs = db.tables.hq_sites.find(function (y) { return y.id === ga2.s.id; });
     Object.assign(xs, { status: 'paye', paid_at: new Date().toISOString(), data: Object.assign({}, xs.data, { achat: { domaine: 'achat-perdu.com', prix: 12.03, le: new Date(Date.now() - 20 * 60000).toISOString() } }) });
     fakes.VERCEL.auCompte.add('achat-perdu.com');
@@ -564,7 +566,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await lucas();
     assert.ok(leSite(ga2.s.id).status !== 'paye' && leSite(ga2.s.id).data.commande && leSite(ga2.s.id).data.commande.recupere && !fakes.VERCEL.achats.slice(achats0).some(function (x) { return /^achat-perdu/.test(x.domaine); }), 'achat sans réponse retrouvé dans le compte : pas de second achat');
     const gb = await nouveauClient('achat-rate', 'Achat Rate', 'rate@test-mq.fr');
-    await exE().commande({ reponse_id: gb.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gb.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const ys = db.tables.hq_sites.find(function (y) { return y.id === gb.s.id; });
     Object.assign(ys, { status: 'paye', paid_at: new Date().toISOString(), data: Object.assign({}, ys.data, { achat: { domaine: 'achat-rate.com', prix: 12.03, le: new Date(Date.now() - 3 * 3600000).toISOString() } }) });
     fakes.VERCEL.pris.add('achat-rate.com');
@@ -603,9 +605,9 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // est gardée, l'autre remboursée
   {
     const gd = await nouveauClient('deux-paiements', 'Deux Paiements', 'deux@test-mq.fr');
-    await exE().commande({ reponse_id: gd.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gd.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const D1 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
-    await exE().commande({ reponse_id: gd.ib.id, formule: 'vitrine' });
+    await exE().commande({ reponse_id: gd.ib.id, formule: 'vitrine', paiement: 'une_fois' });
     const D2 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     fakes.payer(D2.id, { amount_total: 99000, customer_details: { email: 'deux@test-mq.fr', name: 'D' } });
     fakes.payer(D1.id, { amount_total: 59000, customer_details: { email: 'deux@test-mq.fr', name: 'D' } });
@@ -615,7 +617,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // 22. Stripe ne répond plus au relevé global : vérification lien par lien, rien n'est perdu
   {
     const gp2 = await nouveauClient('panne-stripe', 'Panne Stripe', 'panne@test-mq.fr');
-    await exE().commande({ reponse_id: gp2.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: gp2.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const LP = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     fakes.payer(LP.id, { amount_total: 59000, customer_details: { email: 'panne@test-mq.fr', name: 'P' } });
     fakes.STRIPE.listeEnPanne = true;
@@ -627,19 +629,89 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // commande annulée par Louis, le client est remboursé
   {
     const ge = await nouveauClient('paye-expire', 'Paye Expire', 'expire2@test-mq.fr');
-    await exE().commande({ reponse_id: ge.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: ge.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const LE = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     const xe = db.tables.hq_sites.find(function (y) { return y.id === ge.s.id; });
     Object.assign(xe, { status: 'expire', stripe: Object.assign({}, xe.stripe, { lien: null, url: null }) });
     fakes.payer(LE.id, { amount_total: 59000, customer_details: { email: 'expire2@test-mq.fr', name: 'E' } });
     const ga3 = await nouveauClient('paye-annule', 'Paye Annule', 'annule@test-mq.fr');
-    await exE().commande({ reponse_id: ga3.ib.id, formule: 'essentiel' });
+    await exE().commande({ reponse_id: ga3.ib.id, formule: 'essentiel', paiement: 'une_fois' });
     const LA = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
     db.tables.hq_sites.find(function (y) { return y.id === ga3.s.id; }).status = 'annule';
     fakes.payer(LA.id, { amount_total: 59000, customer_details: { email: 'annule@test-mq.fr', name: 'X' } });
     await lucas();
     assert.ok(['paye', 'livraison', 'en_ligne'].indexOf(leSite(ge.s.id).status) >= 0, 'payé juste après l\'expiration : la commande rouvre et s\'encaisse');
     assert.ok(fakes.STRIPE.rembourses.indexOf('pi_' + LA.id) >= 0 && db.tables.hq_outbox.some(function (o) { return o.lead_id === ga3.l.id && /remboursé/.test(o.subject); }), 'payé sur une commande annulée : remboursé, client prévenu');
+  }
+  // 24. L'ABONNEMENT AU MOIS de bout en bout : deux liens, paiement au mois, mise en ligne, facture de chaque mois,
+  // retouche du mois, prélèvement refusé (prévenu, rappel, pause, retour), engagement, fin d'engagement, arrêt demandé
+  {
+    const sansThrottle = function () { db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'stripe:abonnements'; }); };
+    const ilYa = function (j) { return new Date(Date.now() - j * 86400000).toISOString(); };
+    const ab = await nouveauClient('abo-test', 'Abo Test', 'abo@test-mq.fr');
+    const cA = await exE().commande({ reponse_id: ab.ib.id, formule: 'essentiel' });
+    assert.ok(cA.lien_paiement && cA.lien_mensuel && /49 € par mois/.test(cA.au_mois) && /590 €/.test(cA.en_une_fois), 'commande : les deux façons de payer');
+    const sub = 'sub_' + leSite(ab.s.id).stripe.lien_mois;
+    fakes.payer(leSite(ab.s.id).stripe.lien_mois, { customer_details: { email: 'abo@test-mq.fr', name: 'A' } });
+    fakes.FAUX_EN_LIGNE.add(leSite(ab.s.id).domaine);
+    await lucas(); await lucas(); await lucas();
+    let sa = leSite(ab.s.id);
+    assert.ok(sa.status === 'en_ligne' && sa.data.abonnement && sa.data.abonnement.id === sub && Number(sa.montant_eur) === 49 && /293 B/.test(fakes.STRIPE.pieds['cus_' + sa.stripe.lien_mois] || ''), 'abonnement payé : en ligne, mentions légales posées sur ses factures : ' + sa.status);
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /abonnement Essentiel à 49 € par mois/.test(o.body); }), 'client prévenu : abonnement en place');
+    fakes.mois(sub, true);
+    sansThrottle(); await lucas();
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /^Votre facture/.test(o.subject); }) && leSite(ab.s.id).data.abonnement.paye_eur === 98, 'facture du mois envoyée, encaissé suivi');
+    db.tables.hq_inbox.find(function (x) { return x.id === ab.ib.id; }).data.confiance = 'fil';
+    const r1 = await exE().modifier_site({ reponse_id: ab.ib.id, demande: 'Ajouter la promotion du mois' });
+    const r2 = await exE().modifier_site({ reponse_id: ab.ib.id, demande: 'Changer la photo' });
+    assert.ok(/site modifié/.test(r1) && /mois prochain/.test((r2 && r2.erreur) || ''), 'abonné : une retouche chaque mois');
+    fakes.mois(sub, false);
+    sansThrottle(); await lucas();
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /pas passé/.test(o.subject) && /invoice\.stripe\.com/.test(o.body); }), 'prélèvement refusé : client prévenu avec le lien pour régler');
+    leSite(ab.s.id).data.abonnement.impaye_le = ilYa(8); sansThrottle(); await lucas();
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /^Rappel : paiement/.test(o.subject); }) && leSite(ab.s.id).status === 'en_ligne', 'rappel à 7 jours, encore en ligne');
+    leSite(ab.s.id).data.abonnement.impaye_le = ilYa(15); sansThrottle(); await lucas();
+    assert.strictEqual(leSite(ab.s.id).status, 'pause', 'toujours impayé à 14 jours : pause');
+    fakes.STRIPE.abonnements[sub].status = 'active'; sansThrottle(); await lucas();
+    assert.ok(leSite(ab.s.id).status === 'en_ligne' && !leSite(ab.s.id).data.abonnement.impaye_le, 'réglé : le site revient seul');
+    const rr = await exE().resilier_abonnement({ reponse_id: ab.ib.id });
+    assert.ok(rr.arrete === false && rr.mensualites_restantes >= 10 && !fakes.STRIPE.abonnements[sub].cancel_at_period_end, 'arrêt pendant l\'engagement : expliqué, rien d\'arrêté');
+    leSite(ab.s.id).data.abonnement.engagement_jusqu_au = ilYa(1); sansThrottle(); await lucas();
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /fin de l'engagement/.test(o.subject); }), 'fin d\'engagement annoncée, l\'abonnement continue');
+    const rr2 = await exE().resilier_abonnement({ reponse_id: ab.ib.id });
+    assert.ok(rr2.arrete && fakes.STRIPE.abonnements[sub].cancel_at_period_end, 'arrêt demandé après l\'engagement : à la fin du mois payé');
+    fakes.STRIPE.abonnements[sub].status = 'canceled';
+    leSite(ab.s.id).live_at = ilYa(400);
+    sansThrottle(); await lucas();
+    sa = leSite(ab.s.id);
+    assert.ok(sa.status === 'en_ligne' && !sa.data.abonnement && sa.data.renouvellement && sa.data.renouvellement.jusqu_au && sa.data.renouvellement.lien, 'abonnement fini : le site reste à lui, l\'hébergement passe à 25 € par an (lien envoyé)');
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /^Fin de votre abonnement/.test(o.subject); }), 'client prévenu de la fin');
+    // deux paiements pour la même commande (en une fois et au mois) : on garde le paiement en une fois, l'abonnement est arrêté et remboursé
+    const dd = await nouveauClient('deux-modes', 'Deux Modes', 'modes@test-mq.fr');
+    await exE().commande({ reponse_id: dd.ib.id, formule: 'essentiel' });
+    const sd = leSite(dd.s.id).stripe;
+    fakes.payer(sd.lien_mois, { customer_details: { email: 'modes@test-mq.fr', name: 'M' } });
+    fakes.payer(sd.lien, { amount_total: 59000, customer_details: { email: 'modes@test-mq.fr', name: 'M' } });
+    await lucas();
+    assert.ok(!leSite(dd.s.id).data.abonnement && Number(leSite(dd.s.id).montant_eur) === 590 && fakes.STRIPE.annules.indexOf('sub_' + sd.lien_mois) >= 0 && fakes.STRIPE.rembourses.some(function (x) { return /in_sub_/.test(x); }), 'payé deux fois : paiement en une fois gardé, abonnement arrêté et remboursé');
+    // abonnement arrêté par Stripe faute de paiement : pause, lien pour reprendre, payé, le site revient
+    const ar = await nouveauClient('abo-arret', 'Abo Arret', 'arret@test-mq.fr');
+    await exE().commande({ reponse_id: ar.ib.id, formule: 'essentiel', paiement: 'mensuel' });
+    const subA = 'sub_' + leSite(ar.s.id).stripe.lien_mois;
+    assert.ok(!leSite(ar.s.id).stripe.lien, 'au mois seulement : un seul lien');
+    fakes.payer(leSite(ar.s.id).stripe.lien_mois, { customer_details: { email: 'arret@test-mq.fr', name: 'R' } });
+    fakes.FAUX_EN_LIGNE.add(leSite(ar.s.id).domaine);
+    await lucas(); await lucas(); await lucas();
+    assert.strictEqual(leSite(ar.s.id).status, 'en_ligne', 'abonné en ligne');
+    fakes.STRIPE.abonnements[subA].status = 'canceled';
+    sansThrottle(); await lucas();
+    const sr = leSite(ar.s.id);
+    assert.ok(sr.status === 'pause' && sr.data.abonnement.lien_reprise && db.tables.hq_outbox.some(function (o) { return o.lead_id === ar.l.id && o.body.indexOf(sr.data.abonnement.url_reprise) >= 0; }), 'arrêté faute de paiement : pause et lien de reprise envoyé');
+    const lienReprise = sr.data.abonnement.lien_reprise;
+    fakes.payer(lienReprise, { customer_details: { email: 'arret@test-mq.fr', name: 'R' } });
+    await lucas();
+    assert.ok(leSite(ar.s.id).status === 'en_ligne' && leSite(ar.s.id).data.abonnement.id === 'sub_' + lienReprise && leSite(ar.s.id).data.abonnement.statut === 'active', 'reprise payée : nouvel abonnement, site remis en ligne');
+    console.log('Abonnement OK : deux liens, prélèvements, facture mensuelle, retouche du mois, impayé, pause, reprise, engagement, arrêt, double paiement');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }

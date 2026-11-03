@@ -75,7 +75,7 @@ function claude(body) {
     if (!toolResult) return rep([tu('lister_reponses', {})]);
     const res = dernierResultat(last);
     if (res && res.erreur && /REFUS/.test(res.erreur)) return rep([tu('classer_reponse', { reponse_id: EMMA.dernier, intention: 'interesse', note: 'Veut être rappelé, on reste par email.' }), tu('repondre', { reponse_id: EMMA.dernier, corps: 'Bonjour Monsieur Dupont,\n\nMerci pour votre retour. Pour aller plus vite, tout se règle ici par email : je réponds à toutes vos questions. La formule Vitrine est à 990 € en une fois, sans abonnement. Voulez-vous que je vous prépare la commande ?\n\nLouis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Réponse réécrite après le contrôle.' })]);
-    if (res && res.lien_paiement) return rep([tu('repondre', { reponse_id: Number((userText.match(/"reponse_id":(\d+)/) || [])[1]) || EMMA.dernier, corps: 'Bonjour,\n\nParfait, c\'est noté pour la formule Vitrine. Voici le lien de paiement sécurisé : ' + res.lien_paiement + '\n\nLe site sera mis en ligne sur ' + (res.domaine || 'votre nom de domaine') + ' dès le paiement, en général dans l\'heure, et vous recevrez la facture par email.\n\nLouis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Commande envoyée.' })]);
+    if (res && res.lien_paiement) return rep([tu('repondre', { reponse_id: Number((userText.match(/"reponse_id":(\d+)/) || [])[1]) || EMMA.dernier, corps: 'Bonjour,\n\nParfait, c\'est noté pour la formule Vitrine. En une fois (990 €) : ' + res.lien_paiement + (res.lien_mensuel ? '\nOu au mois (89 € par mois, engagement 12 mois) : ' + res.lien_mensuel : '') + '\n\nLe site sera mis en ligne sur ' + (res.domaine || 'votre nom de domaine') + ' dès le paiement, en général dans l\'heure, et vous recevrez la facture par email.\n\nLouis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Commande envoyée.' })]);
     if (typeof res === 'string' && /site modifié/.test(res)) return rep([tu('repondre', { reponse_id: EMMA.dernier, corps: 'Bonjour,\n\nC\'est fait : vos horaires sont ajoutés et la couleur a changé. Vous verrez la nouvelle version sur le même lien d\'ici une demi-heure. Elle vous plaît ainsi ?\n\nLouis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Retouche faite.' })]);
     if (!Array.isArray(res) || !res.length) return rep([tu('terminer', { resume: 'Aucune réponse.' })]);
     const r = res[0];
@@ -137,14 +137,25 @@ function vercel(url, opts) {
 }
 
 /* ── faux Stripe ── */
-const STRIPE = { prix: [], liens: [], payes: {}, desactives: [], rembourses: [], appels: 0, parLien: 0, globales: 0, listeEnPanne: false };
+const STRIPE = { prix: [], liens: [], payes: {}, desactives: [], rembourses: [], abonnements: {}, factures: [], annules: [], pieds: {}, appels: 0, parLien: 0, globales: 0, listeEnPanne: false };
 function stripe(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, json: async function () { return obj; } }; };
   const params = new URLSearchParams(m === 'GET' ? u.search : (opts.body || ''));
-  if (p === '/v1/prices' && m === 'POST') { const x = { id: 'price_' + (STRIPE.prix.length + 1), unit_amount: Number(params.get('unit_amount')) }; STRIPE.prix.push(x); return j(200, x); }
-  if (p === '/v1/payment_links' && m === 'POST') { const x = { id: 'plink_' + (STRIPE.liens.length + 1), url: 'https://buy.stripe.com/test_' + (STRIPE.liens.length + 1), params: Object.fromEntries(params) }; STRIPE.liens.push(x); return j(200, x); }
   let r;
+  if (p === '/v1/prices' && m === 'POST') { const x = { id: 'price_' + (STRIPE.prix.length + 1), unit_amount: Number(params.get('unit_amount')), recurring: params.get('recurring[interval]') || null }; STRIPE.prix.push(x); return j(200, x); }
+  if (p === '/v1/payment_links' && m === 'POST') {
+    const pr = STRIPE.prix.find(function (y) { return y.id === params.get('line_items[0][price]'); }) || {};
+    if (pr.recurring && (params.get('invoice_creation[enabled]') || params.get('customer_creation'))) return j(400, { error: { message: 'invoice_creation et customer_creation : paiement unique seulement' } });
+    if (!pr.recurring && params.get('subscription_data[description]')) return j(400, { error: { message: 'subscription_data exige un prix récurrent' } });
+    const x = { id: 'plink_' + (STRIPE.liens.length + 1), url: 'https://buy.stripe.com/test_' + (STRIPE.liens.length + 1), params: Object.fromEntries(params), mensuel: !!pr.recurring, montant: pr.unit_amount };
+    STRIPE.liens.push(x); return j(200, x);
+  }
+  if (p === '/v1/subscriptions' && m === 'GET') { const tous = Object.values(STRIPE.abonnements); return j(200, { data: tous, has_more: false }); }
+  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'POST') { const a = STRIPE.abonnements[r[1]]; if (!a) return j(404, { error: { message: 'no such subscription' } }); if (params.get('cancel_at_period_end') === 'true') a.cancel_at_period_end = true; return j(200, a); }
+  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'DELETE') { const a = STRIPE.abonnements[r[1]]; if (!a) return j(404, { error: { message: 'no such subscription' } }); a.status = 'canceled'; a.canceled_at = Math.floor(Date.now() / 1000); STRIPE.annules.push(a.id); return j(200, a); }
+  if ((r = p.match(/^\/v1\/customers\/([^/]+)$/)) && m === 'POST') { STRIPE.pieds[r[1]] = params.get('invoice_settings[footer]'); return j(200, { id: r[1] }); }
+  if (p === '/v1/invoices' && m === 'GET') { const gte = Number(params.get('created[gte]') || 0); return j(200, { data: STRIPE.factures.filter(function (f) { return f.status === 'paid' && f.created >= gte; }), has_more: false }); }
   if ((r = p.match(/^\/v1\/payment_links\/([^/]+)$/)) && m === 'POST') { STRIPE.desactives.push(r[1]); return j(200, { id: r[1], active: false }); }
   if (p === '/v1/refunds' && m === 'POST') { STRIPE.rembourses.push(params.get('payment_intent')); return j(200, { id: 're_' + STRIPE.rembourses.length, status: 'succeeded' }); }
   if (p === '/v1/checkout/sessions') {
@@ -160,14 +171,31 @@ function stripe(url, opts) {
     const page = tous.slice(debut, debut + lim);
     return j(200, { data: page, has_more: debut + lim < tous.length });
   }
-  if ((r = p.match(/^\/v1\/invoices\/([^/]+)$/))) return j(200, { id: r[1], number: 'NOVA-0001', hosted_invoice_url: 'https://invoice.stripe.com/i/test_' + r[1], invoice_pdf: 'https://pay.stripe.com/pdf/' + r[1], status: 'paid' });
+  if ((r = p.match(/^\/v1\/invoices\/([^/]+)$/))) { const f = STRIPE.factures.find(function (y) { return y.id === r[1]; }); return j(200, { id: r[1], number: 'NOVA-0001', hosted_invoice_url: 'https://invoice.stripe.com/i/test_' + r[1], invoice_pdf: 'https://pay.stripe.com/pdf/' + r[1], status: f ? f.status : 'paid', payment_intent: f ? 'pi_' + r[1] : null }); }
   return j(404, { error: { message: 'inconnu ' + p } });
 }
 // un paiement abouti sur ce lien : la session porte le lien et ses métadonnées (comme chez Stripe)
 function payer(lien, extra) {
   const lk = STRIPE.liens.find(function (x) { return x.id === lien; });
   const meta = lk ? { site_id: lk.params['metadata[site_id]'], origine: lk.params['metadata[origine]'] } : {};
-  STRIPE.payes[lien] = Object.assign({ id: 'cs_' + lien, livemode: true, payment_link: lien, metadata: meta, payment_intent: 'pi_' + lien, payment_status: 'paid', status: 'complete', amount_total: 99000, customer_details: { email: 'jean@climeole.fr', name: 'Jean Dupont', address: { city: 'Le Lamentin', country: 'MQ' } }, invoice: 'in_1', custom_fields: [], created: Math.floor(Date.now() / 1000) }, extra || {});
+  const base = { id: 'cs_' + lien, livemode: true, payment_link: lien, metadata: meta, payment_intent: 'pi_' + lien, payment_status: 'paid', status: 'complete', mode: 'payment', amount_total: 99000, customer: 'cus_' + lien, customer_details: { email: 'jean@climeole.fr', name: 'Jean Dupont', address: { city: 'Le Lamentin', country: 'MQ' } }, invoice: 'in_1', custom_fields: [], created: Math.floor(Date.now() / 1000) };
+  if (lk && lk.mensuel) {
+    // abonnement : la session crée l'abonnement et sa première facture, payée ; pas d'intention sur la session
+    const sub = 'sub_' + lien, inv = 'in_' + sub + '_1';
+    Object.assign(base, { mode: 'subscription', subscription: sub, payment_intent: null, invoice: inv, amount_total: lk.montant });
+    STRIPE.abonnements[sub] = { id: sub, status: 'active', customer: 'cus_' + lien, latest_invoice: inv, cancel_at_period_end: false, current_period_end: Math.floor((Date.now() + 30 * 86400000) / 1000), metadata: meta, created: base.created };
+    STRIPE.factures.push({ id: inv, subscription: sub, status: 'paid', amount_paid: lk.montant, billing_reason: 'subscription_create', created: base.created, number: 'NOVA-S1', hosted_invoice_url: 'https://invoice.stripe.com/i/' + inv });
+  }
+  STRIPE.payes[lien] = Object.assign(base, extra || {});
+}
+// un mois de plus sur un abonnement : facture payée (ou refusée)
+function mois(sub, ok) {
+  const a = STRIPE.abonnements[sub];
+  const n = STRIPE.factures.filter(function (f) { return f.subscription === sub; }).length + 1;
+  const inv = 'in_' + sub + '_' + n;
+  STRIPE.factures.push({ id: inv, subscription: sub, status: ok === false ? 'open' : 'paid', amount_paid: ok === false ? 0 : (STRIPE.factures.find(function (f) { return f.subscription === sub; }) || {}).amount_paid, billing_reason: 'subscription_cycle', created: Math.floor(Date.now() / 1000), number: 'NOVA-S' + n, hosted_invoice_url: 'https://invoice.stripe.com/i/' + inv });
+  a.latest_invoice = inv; a.status = ok === false ? 'past_due' : 'active'; a.current_period_end = Math.floor((Date.now() + 30 * 86400000) / 1000);
+  return inv;
 }
 
 const PAGE = '<html><head><title>Clim Pro 972</title><meta name="viewport" content="width=device-width"><meta property="og:image" content="/images/atelier.jpg"></head><body>Climatisation au Lamentin : installation, entretien, dépannage. Contact : contact@climpro972.fr <img src="/images/logo.png" alt="logo Clim Pro" class="logo"><img src="/images/chantier1.jpg" alt="Pose d\'une clim"><img src="/images/chantier2.jpg" alt="Entretien"><a href="/contact">Contact</a> © 2018 <style>.b{color:#e30613}.c{color:#e30613}.d{color:#e30613}</style></body></html>';
@@ -213,4 +241,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, VERCEL: VERCEL, STRIPE: STRIPE, payer: payer, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { appels: function () { return appelsClaude; }, VERCEL: VERCEL, STRIPE: STRIPE, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };

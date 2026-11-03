@@ -134,7 +134,7 @@ function renderChips() {
   const pct = b.jour_usd ? Math.min(100, (Number(j.cost_usd || 0) / Number(b.jour_usd)) * 100) : 0;
   $('#chips').innerHTML = [
     '<button class="chip" data-act="budget"><small>Coût IA du jour</small><b>' + usd(j.cost_usd) + ' <span class="muted">/ ' + usd(b.jour_usd) + '</span></b><span class="gauge"><i style="width:' + pct.toFixed(0) + '%;' + (pct > 85 ? 'background:var(--warn)' : '') + '"></i></span></button>',
-    '<button class="chip' + (c.clients ? ' hot' : '') + '" data-view="livrables" data-tab="sites"><small>Ventes Novalemo</small><b>' + eur(c.ca_eur) + ' <span class="muted">· ' + (c.en_ligne || 0) + ' en ligne · ' + (c.apercus || 0) + ' aperçus</span></b></button>',
+    '<button class="chip' + (c.clients ? ' hot' : '') + '" data-view="livrables" data-tab="sites"><small>Ventes Novalemo</small><b>' + eur(c.ca_eur) + ' <span class="muted">· ' + (c.mrr_eur ? eur(c.mrr_eur) + ' par mois · ' : '') + (c.en_ligne || 0) + ' en ligne · ' + (c.apercus || 0) + ' aperçus</span></b></button>',
     (c.reponses ? '<button class="chip hot" data-view="livrables" data-tab="reponses"><small>Réponses en cours</small><b>' + c.reponses + '</b></button>' : '<button class="chip' + (c.brouillons ? ' hot' : '') + '" data-view="livrables" data-tab="emails"><small>' + (S.m.pilote && S.m.pilote.auto ? 'Emails en file' : 'Emails à valider') + '</small><b>' + ((S.m.pilote && S.m.pilote.auto ? c.prets : c.brouillons) || 0) + '</b></button>'),
     '<button class="chip" data-view="livrables" data-tab="prospects"><small>Prospects</small><b>' + (c.prospects || 0) + ' <span class="muted">· ' + (c.a_contacter || 0) + ' à contacter</span></b></button>'
   ].join('');
@@ -497,11 +497,13 @@ function carteSite(r) {
   const liens = [];
   if (r.url_finale) liens.push('<a class="btn sm ok" href="' + esc(r.url_finale) + '" target="_blank" rel="noopener">Voir le site en ligne</a>');
   if (r.url_apercu) liens.push('<a class="btn sm ghost" href="' + esc(r.url_apercu) + '" target="_blank" rel="noopener">' + (r.url_finale ? 'Aperçu' : 'Voir l\'aperçu') + '</a>');
-  if (r.paiement && r.status === 'commande') liens.push('<a class="btn sm ghost" href="' + esc(r.paiement) + '" target="_blank" rel="noopener">Lien de paiement</a>');
+  if (r.paiement && r.status === 'commande') liens.push('<a class="btn sm ghost" href="' + esc(r.paiement) + '" target="_blank" rel="noopener">Paiement en une fois</a>');
+  if (r.paiement_mois && r.status === 'commande') liens.push('<a class="btn sm ghost" href="' + esc(r.paiement_mois) + '" target="_blank" rel="noopener">Paiement au mois</a>');
   if (r.facture) liens.push('<a class="btn sm ghost" href="' + esc(r.facture) + '" target="_blank" rel="noopener">Facture</a>');
   if (['apercu', 'commande', 'brouillon'].indexOf(r.status) >= 0) liens.push('<button class="btn sm danger" data-act="siteAnnuler" data-id="' + r.id + '">Retirer</button>');
   const infos = [r.activite, r.commune].filter(Boolean).join(' · ');
-  const detail = [r.formule ? (FORMULE[r.formule] || r.formule) + (r.montant_eur ? ' ' + eur(r.montant_eur) : '') : '', r.domaine ? r.domaine + (r.domaine_mode === 'client' ? ' (son domaine)' : '') : '', r.revisions ? r.revisions + ' retouche(s)' : '', r.photos ? r.photos + ' photo(s)' + (r.logo ? ' + logo' : '') : (r.logo ? 'logo' : ''), r.ambiance ? 'ambiance ' + r.ambiance : ''].filter(Boolean).join(' · ');
+  const ab = r.abonnement;
+  const detail = [r.formule ? (FORMULE[r.formule] || r.formule) + (ab ? ' ' + eur(ab.mensualite_eur) + ' par mois' + (ab.arret ? ' (arrêt demandé)' : ab.statut !== 'active' ? ' (paiement en retard)' : '') : r.montant_eur ? ' ' + eur(r.montant_eur) : '') : '', r.domaine ? r.domaine + (r.domaine_mode === 'client' ? ' (son domaine)' : '') : '', r.revisions ? r.revisions + ' retouche(s)' : '', r.photos ? r.photos + ' photo(s)' + (r.logo ? ' + logo' : '') : (r.logo ? 'logo' : ''), r.ambiance ? 'ambiance ' + r.ambiance : ''].filter(Boolean).join(' · ');
   const quand = r.live_at ? 'en ligne ' + depuis(r.live_at) : r.paid_at ? 'payé ' + depuis(r.paid_at) : r.published_at ? 'aperçu ' + depuis(r.published_at) : 'créé ' + depuis(r.created_at);
   return '<article class="mail site-c"><header><span><b>' + esc(r.nom || l.name || r.slug) + '</b><div class="muted" style="font-size:12px">' + esc(infos) + (l.email ? ' · ' + esc(l.email) : '') + ' · ' + esc(quand) + '</div></span><span class="pill ' + esc(r.status) + '">' + esc(SITEST[r.status] || r.status) + '</span></header>' +
     (detail ? '<p class="ctx">' + esc(detail) + '</p>' : '') +
@@ -569,7 +571,7 @@ function renderChiffres() {
   const c = S.m.compteurs || {}, j = S.m.jour || {}, hist = S.m.historique || [];
   const total7 = hist.slice(-7).reduce((s, x) => s + Number(x.cost_usd || 0), 0);
   let h = '<h1>Chiffres</h1><p class="lead">Ce que le groupe produit et ce qu\'il coûte, jour par jour.</p>';
-  h += '<div class="grid-k">' + [['Coût aujourd\'hui', usd(j.cost_usd)], ['Coût 7 jours', usd(total7)], ['Passages aujourd\'hui', j.runs || 0], ['Prospects', c.prospects || 0], ['À contacter', c.a_contacter || 0], ['À appeler', c.a_appeler || 0], ['Emails à valider', c.brouillons || 0], ['Emails envoyés', c.envoyes || 0], ['Livrables', c.livrables || 0]].map((k) => '<div class="kpi"><small>' + k[0] + '</small><b>' + k[1] + '</b></div>').join('') + '</div>';
+  h += '<div class="grid-k">' + [['Encaissé (Novalemo)', eur(c.ca_eur)], ['Abonnements', (c.abonnes || 0) + ' · ' + eur(c.mrr_eur || 0) + ' par mois'], ['Sites en ligne', c.en_ligne || 0], ['Coût aujourd\'hui', usd(j.cost_usd)], ['Coût 7 jours', usd(total7)], ['Passages aujourd\'hui', j.runs || 0], ['Prospects', c.prospects || 0], ['À contacter', c.a_contacter || 0], ['À appeler', c.a_appeler || 0], ['Emails à valider', c.brouillons || 0], ['Emails envoyés', c.envoyes || 0], ['Livrables', c.livrables || 0]].map((k) => '<div class="kpi"><small>' + k[0] + '</small><b>' + k[1] + '</b></div>').join('') + '</div>';
   h += '<canvas class="chart" id="chart"></canvas>';
   const top = S.m.agents.filter((a) => a.stats && a.stats.runs).slice().sort((a, b) => (b.stats.cout || 0) - (a.stats.cout || 0)).slice(0, 14);
   h += '<h3 class="muted" style="margin:22px 0 10px;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.08em">Qui coûte et qui produit (depuis le début)</h3>';
