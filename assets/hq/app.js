@@ -1,6 +1,6 @@
 // La Tour : l'interface. Lit le monde toutes les quelques secondes, anime la scène 3D, ouvre les fiches,
 // et porte les décisions de Louis (valider, consigne, pause, budget, emails).
-const S = { world: null, m: null, lastId: 0, view: 'tour', sel: null, etat: null, cycle: false, msgs: [], fails: 0, first: true, tab: 'emails', filtre: '', sous: '' };
+const S = { world: null, m: null, lastId: 0, view: 'tour', sel: null, etat: null, cycle: false, msgs: [], fails: 0, first: true, tab: 'sites', filtre: '', sous: '' };
 const $ = (s, el) => (el || document).querySelector(s);
 const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -10,6 +10,9 @@ const KIND = { rapport: 'Rapport', ordre: 'Ordre', proposition: 'Proposition', a
 const PROPK = { nouvel_agent: 'Nouvel agent', nouvelle_entreprise: 'Nouvelle entreprise', depense: 'Dépense', strategie: 'Stratégie', outil: 'Outil', acces: 'Accès', autre: 'Autre' };
 const LEADS = { nouveau: 'Brut', a_contacter: 'À contacter', a_appeler: 'À appeler', sans_contact: 'Sans contact', brouillon: 'Brouillon prêt', contacte: 'Contacté', relance: 'Relancé', repondu: 'A répondu', interesse: 'Intéressé', client: 'Client', perdu: 'Perdu', stop: 'Désinscrit', ecarte: 'Écarté' };
 const INTENT = { interesse: 'Intéressé', rdv: 'Veut un rendez-vous', question: 'Question', pas_interesse: 'Pas intéressé', plus_tard: 'Plus tard', stop: 'STOP', autre: 'À regarder' };
+const SITEST = { brouillon: 'En fabrication', apercu: 'Aperçu en ligne', commande: 'Lien de paiement envoyé', paye: 'Payé', livraison: 'Mise en ligne en cours', en_ligne: 'En ligne', pause: 'En pause (hébergement)', expire: 'Expiré', annule: 'Annulé' };
+const FORMULE = { essentiel: 'Essentiel', vitrine: 'Vitrine', signature: 'Signature' };
+const eur = (n) => (Number(n) || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' €';
 const ITEMK = { repo: 'Fiches GitHub', veille: 'Veille', idee: 'Idées vidéo', script: 'Scripts', niche: 'Niches', etude: 'Études', reference: 'Références', evaluation: 'Évaluations', fiche: 'Fiches', note: 'Notes' };
 
 /* ── utilitaires ── */
@@ -131,7 +134,8 @@ function renderChips() {
   const pct = b.jour_usd ? Math.min(100, (Number(j.cost_usd || 0) / Number(b.jour_usd)) * 100) : 0;
   $('#chips').innerHTML = [
     '<button class="chip" data-act="budget"><small>Coût IA du jour</small><b>' + usd(j.cost_usd) + ' <span class="muted">/ ' + usd(b.jour_usd) + '</span></b><span class="gauge"><i style="width:' + pct.toFixed(0) + '%;' + (pct > 85 ? 'background:var(--warn)' : '') + '"></i></span></button>',
-    (c.reponses ? '<button class="chip hot" data-view="livrables" data-tab="reponses"><small>Réponses de prospects</small><b>' + c.reponses + ' <span class="muted">· ' + (c.brouillons || 0) + ' à valider</span></b></button>' : '<button class="chip' + (c.brouillons ? ' hot' : '') + '" data-view="livrables" data-tab="emails"><small>Emails à valider</small><b>' + (c.brouillons || 0) + '</b></button>'),
+    '<button class="chip' + (c.clients ? ' hot' : '') + '" data-view="livrables" data-tab="sites"><small>Ventes Novalemo</small><b>' + eur(c.ca_eur) + ' <span class="muted">· ' + (c.en_ligne || 0) + ' en ligne · ' + (c.apercus || 0) + ' aperçus</span></b></button>',
+    (c.reponses ? '<button class="chip hot" data-view="livrables" data-tab="reponses"><small>Réponses en cours</small><b>' + c.reponses + '</b></button>' : '<button class="chip' + (c.brouillons ? ' hot' : '') + '" data-view="livrables" data-tab="emails"><small>' + (S.m.pilote && S.m.pilote.auto ? 'Emails en file' : 'Emails à valider') + '</small><b>' + ((S.m.pilote && S.m.pilote.auto ? c.prets : c.brouillons) || 0) + '</b></button>'),
     '<button class="chip" data-view="livrables" data-tab="prospects"><small>Prospects</small><b>' + (c.prospects || 0) + ' <span class="muted">· ' + (c.a_contacter || 0) + ' à contacter</span></b></button>'
   ].join('');
 }
@@ -329,6 +333,7 @@ function openValidations() {
 }
 
 function openBudget() {
+  if (!S.m) return;
   const b = S.m.budget || {}, j = S.m.jour || {};
   const envoiOk = S.etat && S.etat.envoi;
   let h = '<div class="ph"><div class="avatar" style="--c:var(--accent)">$</div><div><h2>Budget et réglages</h2><p>Le plafond est respecté par tous les agents, au centime près</p></div></div>';
@@ -337,10 +342,12 @@ function openBudget() {
     '<label class="field"><span>Recherches web par jour (1 cent chacune)</span><input class="in" id="bRech" type="number" min="0" max="500" value="' + esc(b.recherches_jour) + '"></label>' +
     '<label class="field"><span>Recherches Google Maps par jour (prospection)</span><input class="in" id="bPlaces" type="number" min="0" max="500" value="' + esc(b.places_jour) + '"></label>' +
     '<label class="field"><span>Emails envoyés par jour maximum</span><input class="in" id="bMails" type="number" min="0" max="200" value="' + esc(b.emails_jour) + '"></label>' +
-    '<div class="row" style="justify-content:space-between;margin:6px 0 4px"><span><b>Envoyer sans ma validation</b><br><span class="muted" style="font-size:12px">' + (envoiOk ? 'Les emails de la rédactrice partent seuls, sans passer par toi. Laisse coupé tant que tu relis.' : 'Possible une fois ta boîte d\'envoi branchée.') + '</span></span><button class="switch' + (b.envoi_auto ? ' on' : '') + '" id="bAuto" ' + (envoiOk ? '' : 'disabled style="opacity:.4"') + ' aria-label="Envoyer sans validation"></button></div>' +
+    '<label class="field"><span>Aperçus de sites fabriqués par jour (environ 3 centimes chacun)</span><input class="in" id="bApercus" type="number" min="0" max="60" value="' + esc(b.apercus_jour) + '"></label>' +
+    '<label class="field"><span>Prix maximum d\'un nom de domaine pour un client (dollars)</span><input class="in" id="bDomaine" type="number" min="5" max="80" value="' + esc(b.domaine_max_usd) + '"></label>' +
+    '<div class="row" style="justify-content:space-between;margin:6px 0 4px"><span><b>Pilote automatique</b><br><span class="muted" style="font-size:12px">Emails, réponses, commandes et mises en ligne partent seuls, après le contrôle qualité. Coupé : tout attend ta validation.</span></span><button class="switch' + (b.envoi_auto ? ' on' : '') + '" id="bAuto" aria-label="Pilote automatique"></button></div>' +
     '<button class="btn primary" data-act="saveBudget" style="margin-top:12px">Enregistrer</button></div>';
   h += '<div class="sec"><h4>Nom du groupe</h4><div class="row"><input class="in" id="gName" value="' + esc(S.m.groupe.name) + '" style="flex:1"><button class="btn sm ghost" data-act="saveGroupe">Renommer</button></div></div>';
-  if (S.etat) h += '<div class="sec"><h4>Branchements</h4><div class="list">' + [['Base Supabase (' + S.etat.projet + ')', S.etat.base && !demo()], ['Clé Anthropic', S.etat.anthropic], ['Clé Google Maps', S.etat.google], ['Boîte d\'envoi' + (S.etat.boite ? ' (' + S.etat.boite + ')' : ''), S.etat.envoi, 'boite']].map((x) => '<' + (x[2] ? 'button data-act="' + x[2] + '" class="item click"' : 'div class="item"') + ' style="display:flex;justify-content:space-between"><span>' + esc(x[0]) + '</span><b style="color:' + (x[1] ? 'var(--ok)' : 'var(--faint)') + '">' + (x[1] ? 'branché' : (x[2] ? 'brancher' : 'non')) + '</b></' + (x[2] ? 'button' : 'div') + '>').join('') + '</div></div>';
+  if (S.etat) h += '<div class="sec"><h4>Branchements</h4><div class="list">' + [['Base Supabase (' + S.etat.projet + ')', S.etat.base && !demo()], ['Clé Anthropic', S.etat.anthropic], ['Clé Google Maps', S.etat.google], ['Boîte d\'envoi' + (S.etat.boite ? ' (' + S.etat.boite + ')' : ''), S.etat.envoi, 'boite'], ['Hébergement des sites (Vercel)', S.etat.vercel, 'setup'], ['Paiement (Stripe' + (S.etat.stripe_test ? ', test' : '') + ')', S.etat.stripe, 'setup'], ['Identité de vente', S.m.pilote && S.m.pilote.identite, 'identite']].map((x) => '<' + (x[2] ? 'button data-act="' + x[2] + '" class="item click"' : 'div class="item"') + ' style="display:flex;justify-content:space-between"><span>' + esc(x[0]) + '</span><b style="color:' + (x[1] ? 'var(--ok)' : 'var(--faint)') + '">' + (x[1] ? 'branché' : (x[2] ? 'brancher' : 'non')) + '</b></' + (x[2] ? 'button' : 'div') + '>').join('') + '</div></div>';
   panel(h, { type: 'budget' });
 }
 
@@ -349,12 +356,15 @@ function openSetup() {
   const raison = S.m && S.m.raison;
   const etape1 = e.base && raison !== 'cle_refusee';
   const etape2 = !demo();
-  let h = '<div class="ph"><div class="avatar" style="--c:var(--warn)">!</div><div><h2>Brancher la base</h2><p>Deux gestes, une seule fois</p></div></div>';
+  let h = '<div class="ph"><div class="avatar" style="--c:var(--warn)">!</div><div><h2>Les branchements</h2><p>Une seule fois, ensuite tout tourne seul</p></div></div>';
   h += '<ol class="steps">';
   h += '<li class="' + (raison === 'tables' || etape2 ? 'done' : '') + '"><b>Créer les tables</b>Le plus simple : dis « go base » à Claude dans la conversation et accepte la question du connecteur Supabase. Sinon : ouvre <a href="https://supabase.com/dashboard/project/fbmzlfrwxrzflfkazvmn/sql/new" target="_blank" rel="noopener">l\'éditeur SQL du projet Novalemo</a>, colle le script et clique Run.<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="copySql">Copier le script SQL</button></div></li>';
   h += '<li class="' + (etape1 ? 'done' : '') + '"><b>Donner la clé à Vercel</b>Supabase, projet Novalemo, Project Settings, API Keys, onglet « Legacy API keys » : copie la clé <code>service_role</code>. Puis Vercel, projet btprecruit-crm, Settings, Environment Variables : ajoute <code>HQ_SUPABASE_KEY</code> avec cette valeur, coche les 3 environnements, Save, puis redéploie.</li>';
-  h += '<li class="' + (etape2 ? 'done' : '') + '"><b>C\'est parti</b>Recharge cette page : la fondation se pose toute seule (43 agents), les premiers passages démarrent au prochain cycle (15 min max) ou tout de suite avec « Lancer un cycle ».</li>';
-  h += '<li class="' + (e.envoi ? 'done' : '') + '"><b>Brancher ta boîte d\'envoi</b>Quand tu veux : dans Vercel, ajoute <code>HQ_MAIL_USER</code> (l\'adresse, ex. contact@studionovalem.fr) et <code>HQ_MAIL_PASS</code> (son mot de passe), puis redéploie. Les emails validés partiront seuls et les réponses arriveront dans la tour.<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="boite">Voir la boîte</button></div></li>';
+  h += '<li class="' + (etape2 ? 'done' : '') + '"><b>C\'est parti</b>Recharge cette page : la fondation se pose toute seule (44 agents), les premiers passages démarrent au prochain cycle (15 min max) ou tout de suite avec « Lancer un cycle ».</li>';
+  h += '<li class="' + (e.envoi ? 'done' : '') + '"><b>Brancher ta boîte d\'envoi</b>Dans Vercel, ajoute <code>HQ_MAIL_USER</code> (l\'adresse d\'envoi) et <code>HQ_MAIL_PASS</code> (son mot de passe), puis redéploie. Les emails partent seuls et les réponses arrivent dans la tour.<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="boite">Voir la boîte</button></div></li>';
+  h += '<li class="' + (e.vercel ? 'done' : '') + '"><b>Brancher l\'hébergement des sites</b>Vercel, ton avatar, Account Settings, Tokens : crée un jeton (portée : ton équipe, sans expiration). Puis Settings du projet btprecruit-crm, Environment Variables : <code>HQ_VERCEL_TOKEN</code> = ce jeton. Les aperçus et les sites des clients vivent dans le projet public novalemo-martinique, la tour reste privée.</li>';
+  h += '<li class="' + (e.stripe ? 'done' : '') + '"><b>Brancher le paiement</b>Stripe, Développeurs, Clés API : copie la clé secrète. Vercel : <code>HQ_STRIPE_KEY</code> = cette clé. Les clients paient par carte, l\'argent arrive sur ton compte Stripe, la facture part seule.' + (e.stripe_test ? ' <b>(Clé de test : aucun lien n\'est envoyé aux clients tant que ce n\'est pas la clé live.)</b>' : '') + '</li>';
+  h += '<li class="' + (S.m && S.m.pilote && S.m.pilote.identite ? 'done' : '') + '"><b>Remplir ton identité de vente</b>Le vendeur sur les factures et les conditions de vente, et le titulaire des noms de domaine réservés pour les clients.<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="identite">Remplir</button></div></li>';
   h += '</ol>';
   panel(h, { type: 'setup' });
 }
@@ -390,7 +400,7 @@ async function openBoite() {
 /* ── pages ── */
 function setView(v, tab) {
   S.view = v;
-  if (tab) S.tab = tab;
+  if (tab && tab !== S.tab) { S.tab = tab; S.filtre = ''; }
   $$('#views button, .mobile-views button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
   if (v === 'tour') { $('#page').hidden = true; return; }
   $('#page').hidden = false;
@@ -411,6 +421,7 @@ async function renderPage(silencieux) {
       if ((S.tab === 'emails' || S.tab === 'reponses') && S.m.boite && S.m.boite.branchee) pageData.boite = await api('boite').catch(() => null);
       if (S.tab === 'prospects') pageData.leads = (await api('leads', { limite: 200, statut: S.filtre || '' })).rows;
       if (S.tab === 'fiches') pageData.items = (await api('livrables', { limite: 100, type: S.sous || '' })).rows;
+      if (S.tab === 'sites') pageData.sites = (await api('sites', { limite: 120, statut: S.filtre || '' })).rows;
     } catch (e) { if (!silencieux) toast(e.message, 'err'); }
     renderLivrables();
   }
@@ -437,9 +448,18 @@ function carte(a) {
 function renderLivrables() {
   const c = S.m.compteurs || {};
   const bo = S.m.boite && S.m.boite.branchee;
-  let h = '<h1>Livrables</h1><p class="lead">' + (bo ? 'Ce que les agents ont produit. Les emails que tu valides partent de ta boîte, au rythme de la chauffe (jours ouvrés, 8 h à 17 h 30). Quand un prospect répond, Emma prépare la réponse : tu relis et tu envoies. Chaque retour que tu donnes devient une leçon pour la rédactrice.' : 'Ce que les agents ont produit. Tant que ta boîte d\'envoi n\'est pas branchée, les emails se copient à la main : relis, corrige, puis copie. Chaque retour que tu donnes devient une leçon pour la rédactrice.') + '</p>';
-  h += '<div class="tabs">' + [['reponses', 'Réponses', c.reponses], ['emails', 'Emails à valider', c.brouillons], ['prospects', 'Prospects', c.prospects], ['fiches', 'Veille et fiches', c.livrables]].map((t) => '<button data-tab="' + t[0] + '" class="' + (S.tab === t[0] ? 'on' : '') + '">' + t[1] + (t[2] ? '<b>' + t[2] + '</b>' : '') + '</button>').join('') + '</div>';
+  const auto = S.m.pilote && S.m.pilote.auto;
+  let h = '<h1>Livrables</h1><p class="lead">' + (auto ? 'Novalemo tourne en pilote automatique en Martinique : aperçus fabriqués d\'avance, emails et réponses vérifiés par le contrôle qualité puis envoyés de ta boîte, paiement, nom de domaine et mise en ligne. Tu regardes, tu n\'as rien à faire.' : 'Pilote automatique coupé : chaque email et chaque réponse attend ta validation ici. Rallume-le dans « La boîte » ou les réglages.') + '</p>';
+  h += '<div class="tabs">' + [['sites', 'Sites et ventes', c.clients || c.apercus], ['reponses', 'Réponses', c.reponses], ['emails', auto ? 'Emails' : 'Emails à valider', auto ? c.prets : c.brouillons], ['prospects', 'Prospects', c.prospects], ['fiches', 'Veille et fiches', c.livrables]].map((t) => '<button data-tab="' + t[0] + '" class="' + (S.tab === t[0] ? 'on' : '') + '">' + t[1] + (t[2] ? '<b>' + t[2] + '</b>' : '') + '</button>').join('') + '</div>';
+  if (S.tab === 'sites') h += barrePilote();
   if (S.tab === 'emails' || S.tab === 'reponses') h += barreBoite();
+  if (S.tab === 'sites') {
+    const rows = pageData.sites || [];
+    const st = ['', 'apercu', 'commande', 'paye', 'livraison', 'en_ligne', 'expire'];
+    h += '<div class="grid-k" style="margin:4px 0 16px"><div class="kpi"><small>Chiffre d\'affaires</small><b>' + eur(c.ca_eur) + '</b></div><div class="kpi"><small>Sites en ligne</small><b>' + (c.en_ligne || 0) + '</b></div><div class="kpi"><small>Commandes en cours</small><b>' + (c.commandes || 0) + '</b></div><div class="kpi"><small>Aperçus en ligne</small><b>' + (c.apercus || 0) + '</b></div></div>';
+    h += '<div class="tabs">' + st.map((x) => '<button data-filtre="' + x + '" class="' + (S.filtre === x ? 'on' : '') + '">' + (x ? SITEST[x] : 'Tous') + '</button>').join('') + '</div>';
+    h += rows.length ? '<div class="sites">' + rows.map(carteSite).join('') + '</div>' : '<div class="empty">' + (S.m.pilote && S.m.pilote.vercel ? 'Aucun site' + (S.filtre ? ' dans ce statut' : '') + ' pour l\'instant. Noé fabrique les aperçus des meilleurs prospects dès qu\'ils ont un email.' : 'L\'hébergement des sites n\'est pas encore branché : regarde le bandeau ci-dessus.') + '</div>';
+  }
   if (S.tab === 'reponses') {
     const rows = pageData.inbox || [];
     const ouvertes = rows.filter((r) => r.status === 'nouveau' || r.status === 'brouillon'), faites = rows.filter((r) => !(r.status === 'nouveau' || r.status === 'brouillon')).slice(0, 25);
@@ -466,6 +486,42 @@ function renderLivrables() {
   }
   $('#page').innerHTML = h;
 }
+function barrePilote() {
+  const p = S.m.pilote || {};
+  const manque = [!S.m.boite || !S.m.boite.branchee ? 'la boîte d\'envoi' : '', !p.vercel ? 'l\'hébergement des sites' : '', !p.stripe ? 'le paiement' : '', !p.identite ? 'ton identité de vente' : ''].filter(Boolean);
+  if (manque.length) return '<div class="boitebar off"><span><b>Pilote automatique : il manque ' + esc(manque.join(', ')) + '</b><small>Chaque branchement se fait une seule fois. Ce qui est déjà branché tourne déjà.</small></span><button class="btn sm primary" data-act="setup">Brancher</button></div>';
+  return '<div class="boitebar' + (p.auto ? '' : ' pause') + '"><span><b>' + (p.auto ? 'Pilote automatique en marche' : 'Pilote automatique coupé') + (p.stripe_test ? ' · paiement en mode test' : '') + '</b><small>Martinique uniquement · aperçus sur ' + esc(p.hote || 'l\'hébergement Novalemo') + ' · paiement Stripe · domaines et mise en ligne automatiques</small></span><button class="switch' + (p.auto ? ' on' : '') + '" data-act="boiteAuto" data-v="' + (p.auto ? '0' : '1') + '" aria-label="Pilote automatique"></button></div>';
+}
+function carteSite(r) {
+  const l = r.lead || {};
+  const liens = [];
+  if (r.url_finale) liens.push('<a class="btn sm ok" href="' + esc(r.url_finale) + '" target="_blank" rel="noopener">Voir le site en ligne</a>');
+  if (r.url_apercu) liens.push('<a class="btn sm ghost" href="' + esc(r.url_apercu) + '" target="_blank" rel="noopener">' + (r.url_finale ? 'Aperçu' : 'Voir l\'aperçu') + '</a>');
+  if (r.paiement && r.status === 'commande') liens.push('<a class="btn sm ghost" href="' + esc(r.paiement) + '" target="_blank" rel="noopener">Lien de paiement</a>');
+  if (r.facture) liens.push('<a class="btn sm ghost" href="' + esc(r.facture) + '" target="_blank" rel="noopener">Facture</a>');
+  if (['apercu', 'commande', 'brouillon'].indexOf(r.status) >= 0) liens.push('<button class="btn sm danger" data-act="siteAnnuler" data-id="' + r.id + '">Retirer</button>');
+  const infos = [r.activite, r.commune].filter(Boolean).join(' · ');
+  const detail = [r.formule ? (FORMULE[r.formule] || r.formule) + (r.montant_eur ? ' ' + eur(r.montant_eur) : '') : '', r.domaine ? r.domaine + (r.domaine_mode === 'client' ? ' (son domaine)' : '') : '', r.revisions ? r.revisions + ' retouche(s)' : '', r.photos ? r.photos + ' photo(s)' + (r.logo ? ' + logo' : '') : (r.logo ? 'logo' : ''), r.ambiance ? 'ambiance ' + r.ambiance : ''].filter(Boolean).join(' · ');
+  const quand = r.live_at ? 'en ligne ' + depuis(r.live_at) : r.paid_at ? 'payé ' + depuis(r.paid_at) : r.published_at ? 'aperçu ' + depuis(r.published_at) : 'créé ' + depuis(r.created_at);
+  return '<article class="mail site-c"><header><span><b>' + esc(r.nom || l.name || r.slug) + '</b><div class="muted" style="font-size:12px">' + esc(infos) + (l.email ? ' · ' + esc(l.email) : '') + ' · ' + esc(quand) + '</div></span><span class="pill ' + esc(r.status) + '">' + esc(SITEST[r.status] || r.status) + '</span></header>' +
+    (detail ? '<p class="ctx">' + esc(detail) + '</p>' : '') +
+    (r.problemes && r.problemes.length ? '<p class="ctx muted">Contrôle qualité : ' + r.problemes.length + ' phrase(s) retirée(s) des textes.</p>' : '') +
+    (liens.length ? '<div class="row" style="margin-top:10px">' + liens.join('') + '</div>' : '') + '</article>';
+}
+async function openIdentite() {
+  let id = {};
+  try { id = (await api('identite')).identite || {}; } catch (e) { /* pas encore de base */ }
+  const f = (k, label, ph, type) => '<label class="field"><span>' + label + '</span><input class="in" id="id_' + k + '" type="' + (type || 'text') + '" value="' + esc(id[k] || '') + '" placeholder="' + esc(ph || '') + '"></label>';
+  let h = '<div class="ph"><div class="avatar" style="--c:var(--gold)">€</div><div><h2>Identité de vente</h2><p>Une seule fois : le vendeur des sites Novalemo</p></div></div>';
+  h += '<div class="sec"><p class="muted" style="margin-top:0;font-size:12.5px">Sert aux conditions de vente, aux factures (ta micro-entreprise) et à la réservation des noms de domaine des clients. Gardé dans ta base, jamais affiché ailleurs.</p>' +
+    f('entreprise', 'Nom de l\'entreprise (tel que sur l\'INSEE)', 'NOVALEM') + f('forme', 'Forme', 'Entrepreneur individuel') + f('siret', 'SIRET (14 chiffres)', '') + f('marque', 'Marque ou nom commercial', 'Studio Novalem') +
+    f('prenom', 'Prénom', '') + f('nom', 'Nom', '') + f('email', 'Email de contact', '', 'email') + f('telephone', 'Téléphone', '+590 691 00 00 00', 'tel') +
+    f('adresse', 'Adresse', '') + f('cp', 'Code postal', '') + f('ville', 'Ville', '') + f('region', 'Région ou département', '') + f('pays', 'Pays (code à 2 lettres)', 'FR') +
+    f('mentions_facture', 'Mention en pied de facture', 'TVA non applicable, art. 293 B du CGI.') +
+    '<button class="btn primary" data-act="saveIdentite" style="margin-top:12px">Enregistrer</button></div>';
+  panel(h, { type: 'identite' });
+}
+
 function barreBoite() {
   if (!S.m.boite || !S.m.boite.branchee) return '<div class="boitebar off"><span><b>Boîte d\'envoi non branchée</b><small>Branche ta boîte : les emails validés partiront seuls, au bon rythme, et les réponses arriveront ici.</small></span><button class="btn sm primary" data-act="boite">Brancher ma boîte</button></div>';
   const b = pageData.boite;
@@ -576,7 +632,7 @@ function bind() {
     if (t.tagName === 'A' && t.dataset.act !== 'mailOpen') ev.preventDefault();
     const d = t.dataset;
     if (d.view) return setView(d.view, d.tab);
-    if (d.tab && S.view === 'livrables') { S.tab = d.tab; return renderPage(false); }
+    if (d.tab && S.view === 'livrables') { if (S.tab !== d.tab) S.filtre = ''; S.tab = d.tab; return renderPage(false); }
     if (d.filtre != null && d.filtre !== undefined && S.view === 'livrables') { S.filtre = d.filtre; return renderPage(false); }
     if (d.sous != null && S.view === 'livrables') { S.sous = d.sous; return renderPage(false); }
     if (d.agent) { if (S.view !== 'tour' && window.innerWidth < 820) setView('tour'); return openAgent(d.agent); }
@@ -608,13 +664,21 @@ function bind() {
         await poll(); openValidations();
       }); break;
       case 'saveBudget': if (garde()) action(t, async () => {
-        await post({ op: 'budget', jour_usd: $('#bJour').value, recherches_jour: $('#bRech').value, places_jour: $('#bPlaces').value, emails_jour: $('#bMails').value, envoi_auto: $('#bAuto').classList.contains('on') });
+        await post({ op: 'budget', jour_usd: $('#bJour').value, recherches_jour: $('#bRech').value, places_jour: $('#bPlaces').value, emails_jour: $('#bMails').value, apercus_jour: $('#bApercus').value, domaine_max_usd: $('#bDomaine').value, envoi_auto: $('#bAuto').classList.contains('on') });
         toast('Réglages enregistrés.', 'ok'); await poll();
       }); break;
       case 'saveGroupe': if (garde()) action(t, async () => { await post({ op: 'groupe', name: $('#gName').value }); toast('Renommé.', 'ok'); await poll(); }); break;
       case 'copySql': action(t, async () => { const r = await fetch('/supabase/hq-schema.sql'); const s = await r.text(); await navigator.clipboard.writeText(s); toast('Script copié : colle-le dans l\'éditeur SQL de Supabase puis Run.', 'ok'); }); break;
       case 'mail': if (garde()) action(t, async () => { await post({ op: 'email', id: Number(d.id), statut: d.s }); toast({ pret: 'Validé : il part de ta boîte au prochain créneau (jours ouvrés, 8 h à 17 h 30).', a_valider: 'Retiré de la file.', envoye: 'Marqué envoyé.', annule: 'Annulé.' }[d.s] || 'Fait.', 'ok'); await renderPage(true); poll(); }); break;
       case 'boite': openBoite(); break;
+      case 'identite': if (garde()) openIdentite(); break;
+      case 'saveIdentite': if (garde()) action(t, async () => {
+        const v = {}; ['entreprise', 'forme', 'siret', 'marque', 'prenom', 'nom', 'email', 'telephone', 'adresse', 'cp', 'ville', 'region', 'pays', 'mentions_facture'].forEach((k) => { const el = $('#id_' + k); if (el) v[k] = el.value; });
+        const r = await post(Object.assign({ op: 'identite' }, v));
+        toast(r.complete ? 'Identité enregistrée : les noms de domaine peuvent être réservés.' : 'Enregistré. Il manque encore des champs pour réserver les noms de domaine.', r.complete ? 'ok' : 'err');
+        await poll(); openSetup();
+      }); break;
+      case 'siteAnnuler': if (garde() && confirm('Retirer cet aperçu (il ne sera plus visible) ?')) action(t, async () => { await post({ op: 'site_annuler', id: Number(d.id) }); toast('Retiré : il disparaît à la prochaine publication.', 'ok'); await renderPage(false); }); break;
       case 'repSend': if (garde()) action(t, async () => {
         const ta = $('#rb' + d.id);
         const r = await post({ op: 'reponse_envoyer', id: Number(d.id), body: ta ? ta.value : undefined });
@@ -632,7 +696,7 @@ function bind() {
       case 'boiteDns': action(t, async () => { await post({ op: 'boite_dns' }); toast('DNS revérifié.', 'ok'); openBoite(); }); break;
       case 'boiteReleve': action(t, async () => { const r = await post({ op: 'boite_releve' }); toast(r.resume || 'Relève faite.', r.erreur ? 'err' : 'ok'); await poll(); if (S.view === 'livrables') renderPage(false); openBoite(); }); break;
       case 'boitePause': action(t, async () => { await post({ op: 'boite_pause', pause: d.p === '1' }); toast(d.p === '1' ? 'Envoi en pause.' : 'Envoi repris.', 'ok'); openBoite(); }); break;
-      case 'boiteAuto': if (garde()) action(t, async () => { await post({ op: 'budget', envoi_auto: d.v === '1' }); toast(d.v === '1' ? 'Les emails de la rédactrice partiront sans ta validation.' : 'Chaque email repasse par ta validation.', 'ok'); await poll(); openBoite(); }); break;
+      case 'boiteAuto': if (garde()) action(t, async () => { await post({ op: 'budget', envoi_auto: d.v === '1' }); toast(d.v === '1' ? 'Pilote automatique en marche : tout part seul après le contrôle qualité.' : 'Pilote coupé : emails et réponses attendent ta validation.', 'ok'); await poll(); if (S.sel && S.sel.type === 'boite') openBoite(); if (S.view === 'livrables') renderPage(false); }); break;
       case 'mailCopy': { const r = (pageData.emails || []).find((x) => String(x.id) === d.id); if (r) navigator.clipboard.writeText('Objet : ' + r.subject + '\n\n' + r.body).then(() => toast('Copié. Pense à « Marquer envoyé » après.', 'ok')); break; }
       case 'mailOpen': setTimeout(() => toast('Une fois envoyé, clique « Marquer envoyé ».'), 400); break;
       case 'mailEdit': {

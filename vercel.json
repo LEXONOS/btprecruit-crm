@@ -4,10 +4,12 @@
   ],
   "functions": {
     "api/tick.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "lib/sites/polices/**"
     },
     "api/hq.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "lib/sites/polices/**"
     }
   },
   "crons": [

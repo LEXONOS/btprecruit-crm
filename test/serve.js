@@ -81,6 +81,32 @@ http.createServer(function (req, res) {
     }
     console.log('Boîte simulée :', db.tables.hq_outbox.length, 'emails,', (db.tables.hq_inbox || []).length, 'réponse(s)');
   }
+  if (process.argv.indexOf('--ventes') >= 0) {
+    // pilote automatique simulé : aperçus, une commande, un paiement, un site en ligne
+    process.env.HQ_MAIL_USER = process.env.HQ_MAIL_USER || 'louis@novalemo-mq.fr'; process.env.HQ_MAIL_PASS = 'local';
+    process.env.HQ_VERCEL_TOKEN = 'local'; process.env.HQ_STRIPE_KEY = 'sk_live_local';
+    const fakes = require('./fakes'), { agir } = require('../lib/actions');
+    require('../lib/mail').forcer({ mx: ['mx1.mail.ovh.net'], envoyer: async function () {}, relever: async function () { return { etat: { uidValidity: '1', dernier: 1 }, messages: [] }; }, tester: async function () { return { smtp: { ok: true }, imap: { ok: true } }; }, dns: async function () { return null; } });
+    await agir('identite', { entreprise: 'NOVALEM', forme: 'Entrepreneur individuel', siret: '10340524700018', marque: 'Studio Novalem', prenom: 'Louis', nom: 'Renault', email: 'louis@novalemo-mq.fr', telephone: '+590691253449', adresse: '1 rue Exemple', cp: '97170', ville: 'Petit-Bourg', region: 'Guadeloupe', pays: 'GP' });
+    const noms = [['Clim Éole', 'climatisation', 'Le Lamentin', 'https://climpro972.fr'], ['Net Éclat Services', 'nettoyage professionnel', 'Ducos', null], ['Sentinelle Sécurité', 'entreprise de sécurité', 'Fort-de-France', null], ['Jardins de la Caravelle', 'paysagiste', 'La Trinité', null]];
+    for (let k = 0; k < noms.length; k++) await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'local:' + k, source: 'maps', name: noms[k][0], sector: noms[k][1], island: 'MQ', commune: noms[k][2], website: noms[k][3], site_state: noms[k][3] ? 'douteux' : 'aucun', email: 'contact@exemple' + k + '-mq.fr', email_source: 'site', phone: '+596696' + String(100000 + k * 1111), score: 90 - k, status: 'a_contacter', data: { google: { place_id: 'l' + k, note: 4.7, avis: 20 + k, adresse: noms[k][2] + ', Martinique' } } });
+    const runtime2 = require('../lib/runtime');
+    db.tables.hq_agents.forEach(function (a) { if (a.id === 'demo') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
+    await runtime2.cycle({ db: db, agentId: 'demo', secondes: 200 });
+    db.tables.hq_agents.forEach(function (a) { if (a.id === 'demo') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
+    await runtime2.cycle({ db: db, agentId: 'demo', secondes: 200 });
+    const tools = require('../lib/tools'), env = await runtime2.charger(db);
+    const emma = env.agents.find(function (a) { return a.id === 'reponses'; });
+    const ex = tools.executeurs({ db: db, agent: emma, agents: env.agents, budget: env.budget, compteurs: { items: 0, leads: 0, emails: 0, messages: 0, places: 0 } });
+    const l0 = db.tables.hq_leads.find(function (l) { return l.dedupe === 'local:0'; }), l1 = db.tables.hq_leads.find(function (l) { return l.dedupe === 'local:1'; });
+    const msg = async function (l) { return (await db.insert('hq_inbox', { message_id: '<local' + l.id + '@client.mq>', lead_id: l.id, from_email: l.email, subject: 'Re: votre site', body: 'On y va.', kind: 'reponse', status: 'traite', data: { confiance: 'adresse' } }))[0].id; };
+    await ex.commande({ reponse_id: await msg(l0), formule: 'vitrine' });
+    await ex.commande({ reponse_id: await msg(l1), formule: 'essentiel' });
+    const s0 = db.tables.hq_sites.find(function (x) { return x.lead_id === l0.id; });
+    fakes.payer(s0.stripe.lien); fakes.FAUX_EN_LIGNE.add(s0.domaine);
+    for (let k = 0; k < 3; k++) { db.tables.hq_agents.forEach(function (a) { if (a.id === 'livraison') a.next_run_at = new Date(Date.now() - 60000).toISOString(); }); await runtime2.cycle({ db: db, agentId: 'livraison', secondes: 200 }); }
+    console.log('Ventes simulées :', db.tables.hq_sites.map(function (x) { return x.slug + ' ' + x.status; }).join(', '));
+  }
   // activité factice pour voir la scène vivre
   const ids = db.tables.hq_agents.filter(function (a) { return a.kind !== 'attente'; }).map(function (a) { return a; });
   setInterval(function () {

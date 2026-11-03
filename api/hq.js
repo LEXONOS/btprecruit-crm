@@ -27,9 +27,10 @@ module.exports = async function (req, res) {
       if (op === 'world') return json(res, 200, await monde(q.since ? Number(q.since) : null));
       if (op === 'agent') { const f = await ficheAgent(String(q.id || '')); return f ? json(res, 200, f) : json(res, 404, { error: 'Agent introuvable' }); }
       if (op === 'company') { const f = await ficheEntreprise(String(q.id || '')); return f ? json(res, 200, f) : json(res, 404, { error: 'Entreprise introuvable' }); }
-      if (['leads', 'outbox', 'livrables', 'runs', 'inbox'].indexOf(op) >= 0) return json(res, 200, await liste(op, q));
+      if (['leads', 'outbox', 'livrables', 'runs', 'inbox', 'sites'].indexOf(op) >= 0) return json(res, 200, await liste(op, q));
+      if (op === 'identite') return json(res, 200, await agir('identite_lire', {}));
       if (op === 'boite') return json(res, 200, await agir('boite_etat', {}));
-      if (op === 'etat') return json(res, 200, { base: !!SUPABASE_KEY, projet: SUPABASE_URL.replace(/^https:\/\//, '').split('.')[0], anthropic: !!process.env.ANTHROPIC_API_KEY, google: !!process.env.GOOGLE_MAPS_API_KEY, envoi: mail.branchee(), boite: mail.identite().adresse || null });
+      if (op === 'etat') return json(res, 200, { base: !!SUPABASE_KEY, projet: SUPABASE_URL.replace(/^https:\/\//, '').split('.')[0], anthropic: !!process.env.ANTHROPIC_API_KEY, google: !!process.env.GOOGLE_MAPS_API_KEY, envoi: mail.branchee(), boite: mail.identite().adresse || null, vercel: require('../lib/sites/vercel').branche(), stripe: require('../lib/sites/stripe').branche(), stripe_test: require('../lib/sites/stripe').modeTest() });
       return json(res, 400, { error: 'Opération inconnue' });
     }
     if (req.method === 'POST') {

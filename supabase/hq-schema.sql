@@ -153,9 +153,16 @@ create table if not exists public.hq_leads (
   data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  contacted_at timestamptz
+  contacted_at timestamptz,
+  apercu_etat text,                               -- demande | en_cours | pret | publie | echec (aperçu de site fabriqué d'avance)
+  apercu_url text,
+  site_id bigint
 );
+alter table public.hq_leads add column if not exists apercu_etat text;
+alter table public.hq_leads add column if not exists apercu_url text;
+alter table public.hq_leads add column if not exists site_id bigint;
 create index if not exists hq_leads_status on public.hq_leads (company_id, status, score desc);
+create index if not exists hq_leads_apercu on public.hq_leads (status, apercu_etat);
 
 create table if not exists public.hq_outbox (
   id bigserial primary key,
@@ -167,10 +174,11 @@ create table if not exists public.hq_outbox (
   step int not null default 1,
   angle text,
   status text not null default 'a_valider',       -- a_valider | pret | envoye | erreur | annule
-  kind text not null default 'prospection',       -- prospection | relance | reponse
+  kind text not null default 'prospection',       -- prospection | relance | reponse | service (emails de vente et de livraison)
   message_id text,                                -- Message-ID posé à l'envoi (fil de discussion)
   in_reply_to text,                               -- pour une relance ou une réponse : le message auquel on répond
   inbox_id bigint,                                -- réponse à un message reçu
+  essais int not null default 0,
   error text,
   sent_at timestamptz,
   created_at timestamptz not null default now(),
@@ -181,8 +189,10 @@ alter table public.hq_outbox add column if not exists kind text not null default
 alter table public.hq_outbox add column if not exists message_id text;
 alter table public.hq_outbox add column if not exists in_reply_to text;
 alter table public.hq_outbox add column if not exists inbox_id bigint;
+alter table public.hq_outbox add column if not exists essais int not null default 0;   -- envois ratés réessayés (15 min, 1 h, 4 h, 12 h, 24 h)
 create index if not exists hq_outbox_status on public.hq_outbox (status, created_at desc);
 create index if not exists hq_outbox_msgid on public.hq_outbox (message_id);
+create index if not exists hq_outbox_to on public.hq_outbox (to_email, status);
 
 -- Boîte de réception : réponses des prospects, STOP, rebonds, absences (lues en IMAP)
 create table if not exists public.hq_inbox (
@@ -202,6 +212,51 @@ create table if not exists public.hq_inbox (
   created_at timestamptz not null default now()
 );
 create index if not exists hq_inbox_status on public.hq_inbox (status, received_at desc);
+
+-- Les sites de Novalemo : aperçu fabriqué d'avance, puis commande, paiement, domaine, mise en ligne
+create table if not exists public.hq_sites (
+  id bigserial primary key,
+  lead_id bigint references public.hq_leads(id) on delete set null,
+  slug text not null unique,
+  status text not null default 'brouillon',       -- brouillon | apercu | commande | paye | livraison | en_ligne | pause | expire | annule
+  formule text,                                   -- essentiel | vitrine | signature
+  montant_eur numeric(10,2),
+  spec jsonb not null default '{}'::jsonb,        -- la fiche du site (textes écrits par l'IA, faits posés par le code)
+  version int not null default 1,
+  revisions int not null default 0,
+  url_apercu text,
+  domaine text,
+  domaine_mode text,                              -- achat | client
+  url_finale text,
+  stripe jsonb not null default '{}'::jsonb,      -- prix, lien de paiement, session, facture
+  data jsonb not null default '{}'::jsonb,
+  published_at timestamptz,
+  paid_at timestamptz,
+  live_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists hq_sites_status on public.hq_sites (status, updated_at desc);
+create index if not exists hq_sites_lead on public.hq_sites (lead_id);
+
+-- Fichiers envoyés par les clients (logo, photos) : gardés en base, ce sont les leurs
+create table if not exists public.hq_fichiers (
+  id bigserial primary key,
+  site_id bigint references public.hq_sites(id) on delete cascade,
+  lead_id bigint references public.hq_leads(id) on delete set null,
+  inbox_id bigint,
+  nom text,
+  mime text,
+  taille int,
+  largeur int,
+  hauteur int,
+  sha text,
+  role text,                                      -- logo | photo
+  utilise boolean not null default false,
+  contenu text,                                   -- octets en base64
+  created_at timestamptz not null default now()
+);
+create index if not exists hq_fichiers_lead on public.hq_fichiers (lead_id, utilise);
 
 create table if not exists public.hq_suppression (
   email text primary key,
@@ -250,6 +305,8 @@ alter table public.hq_suppression enable row level security;
 alter table public.hq_items enable row level security;
 alter table public.hq_daily enable row level security;
 alter table public.hq_inbox enable row level security;
+alter table public.hq_sites enable row level security;
+alter table public.hq_fichiers enable row level security;
 
 -- Compteurs du jour : une seule ligne par jour, mise à jour atomique
 create or replace function public.hq_bump(
