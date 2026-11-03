@@ -21,7 +21,7 @@ module.exports = async function (req, res) {
       let b = req.body;
       if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
       b = b || {};
-      return json(res, 200, await cycle({ agentId: b.agent ? String(b.agent) : null, secondes: b.agent ? 200 : 250 }));
+      return json(res, 200, await cycle({ agentId: b.agent ? String(b.agent) : null, manuel: !b.agent, secondes: b.agent ? 200 : 250 }));
     }
     return json(res, 405, { error: 'Méthode non autorisée' });
   } catch (e) {
