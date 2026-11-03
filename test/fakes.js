@@ -50,9 +50,10 @@ function atelier(body) {
 
 // Les vignettes portent leur adresse (voir imageFausse) : le faux regard reconnaît la photo et la juge comme le ferait Léa.
 // photo n°…0 : un visage (recalée) ; n°…4 : un logo lisible (recalée) ; n°…5 : hors sujet ; les autres : justes et nettes
-const VISION = { appels: 0, vues: [] };
+const VISION = { appels: 0, vues: [], panne: false };
 function vision(body) {
   VISION.appels++;
+  if (VISION.panne) return { ok: false, status: 400, json: async function () { return { error: { message: 'requête refusée' } }; } };
   const blocs = body.messages[0].content.filter(function (b) { return b.type === 'image'; });
   const notes = blocs.map(function (b, k) {
     const txt = Buffer.from(b.source.data, 'base64').toString('latin1');
@@ -255,12 +256,13 @@ function kapso(url, opts) {
 function recuWhatsApp(de, texte, nom, ilYaMin, extra) { const t = Math.floor((Date.now() - (ilYaMin || 0) * 60000) / 1000); const m = { id: 'wamid.in' + (KAPSO.recus.length + 1), from: de ? String(de).replace(/[^\d]/g, '') : undefined, timestamp: String(t), type: 'text', text: { body: texte }, kapso: { direction: 'inbound', contact_name: nom || null } }; KAPSO.recus.push(Object.assign(m, extra || {})); return m; }
 
 /* ── faux Pexels (photos d'illustration) et fausse banque Picsum ── */
-const PEXELS = { recherches: [], refus: false };
+const PEXELS = { recherches: [], refus: false, quotaApres: null };
 function pexels(url, opts) {
   const u = new URL(url);
   if (!opts || !opts.headers || !opts.headers.Authorization) return { ok: false, status: 401, json: async function () { return { error: 'unauthorized' }; } };
   if (PEXELS.refus || opts.headers.Authorization === 'mauvaise') return { ok: false, status: 401, json: async function () { return {}; } };
   const q = u.searchParams.get('query') || '';
+  if (PEXELS.quotaApres !== null && PEXELS.recherches.length >= PEXELS.quotaApres) return { ok: false, status: 429, json: async function () { return {}; } };
   PEXELS.recherches.push(q);
   const base = Array.from(q).reduce(function (t, c) { return (t * 31 + c.charCodeAt(0)) % 90000; }, 7) + 10000;
   const photos = [0, 1, 2, 3, 4, 5].map(function (k) { const id = base * 10 + k; return { id: id, width: 6000, height: 4000, url: 'https://www.pexels.com/photo/' + id + '/', photographer: 'Photographe ' + k, photographer_url: 'https://www.pexels.com/@p' + k, alt: k === 0 ? 'Smiling man fixing an air conditioner' : 'Close up of ' + q, src: { original: 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg' } }; });
@@ -294,6 +296,9 @@ global.fetch = async function (url, opts) {
     const total = url.indexOf('departement=') < 0;
     if (total) return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { total_results: 1, results: [] }; } };
     const fiche = function (siren, nom, nature, commune, cp, adresse, dir) { return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { results: [{ siren: siren, nom_raison_sociale: nature === '1000' ? null : nom, nom_complet: nom, nature_juridique: nature, activite_principale: '43.22B', etat_administratif: 'A', siege: { departement: '972', code_postal: cp, libelle_commune: commune, siret: siren + '00017', adresse: adresse }, dirigeants: dir ? [dir] : [] }] }; } }; };
+    if (q.trim() === 'AB') return { ok: false, status: 400, headers: { get: function () { return null; } }, json: async function () { return {}; } };
+    if (/clim nord gwada/i.test(q)) return { ok: true, status: 200, headers: { get: function () { return null; } }, json: async function () { return { results: [{ siren: '732829320', nom_raison_sociale: 'CLIM NORD GWADA', nom_complet: 'CLIM NORD GWADA', nature_juridique: '5710', activite_principale: '43.22B', etat_administratif: 'A', siege: { departement: '971', code_postal: '97122', libelle_commune: 'BAIE-MAHAULT', siret: '73282932000017', adresse: 'ZI DE JARRY 97122 BAIE-MAHAULT' }, matching_etablissements: [{ commune: '97213', code_postal: '97232', libelle_commune: 'LE LAMENTIN', siret: '73282932000025', adresse: 'ZONE DE LA LEZARDE 97232 LE LAMENTIN' }], dirigeants: [{ type_dirigeant: 'personne physique', nom: 'LAMBERT', prenoms: 'Marie', qualite: 'Président de SAS' }] }] }; } };
+    if (q.trim() === '912345675') return fiche('912345675', 'CLIM EOLE', '5499', 'LE LAMENTIN', '97232', 'ZONE DE LA LEZARDE 97232 LE LAMENTIN', { type_dirigeant: 'personne physique', nom: 'DUPONT', prenoms: 'Jean', qualite: 'Gérant' });
     if (q.trim() === '552100554') return fiche('552100554', 'JEAN-MARC TELL (SERRURERIE DU NORD)', '1000', 'LE LORRAIN', '97214', 'QUARTIER MORNE BOIS 97214 LE LORRAIN', null);
     if (/^\d{9}$/.test(q.trim())) return fiche(q.trim(), q.trim() === '843217654' ? 'FROID CARAIBES' : 'ENTREPRISE ' + q.trim(), '5499', 'DUCOS', '97224', 'ZONE DE CHAMPIGNY 97224 DUCOS', { type_dirigeant: 'personne physique', nom: 'MARTIN', prenoms: 'Paul', qualite: 'Gérant' });
     if (/froid caraibes/i.test(q)) return fiche('843217654', 'FROID CARAIBES', '5499', 'DUCOS', '97224', 'ZONE DE CHAMPIGNY 97224 DUCOS', { type_dirigeant: 'personne physique', nom: 'MARTIN', prenoms: 'Paul', qualite: 'Gérant' });

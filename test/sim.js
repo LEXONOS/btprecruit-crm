@@ -263,9 +263,16 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const R = require('../lib/sites/rendu'), P = require('../lib/sites/publication');
   const vj = JSON.parse(P.vercelJson([{ slug: site.slug, domaine: 'clim-eole.com' }]).toString());
   assert.ok(vj.rewrites[0].has[0].value === 'clim-eole.com' && vj.rewrites[0].destination === '/s/' + site.slug + '/index.html' && vj.rewrites[2].destination === '/s/' + site.slug + '/:chemin/index.html' && !vj.trailingSlash, 'réécritures par domaine vers des fichiers (comportement vérifié sur Vercel)');
-  const live = R.rendre(site, { mode: 'live', url: 'https://clim-eole.com/', identite: idv.identite });
+  const JU = require('../lib/sites/juridique');
+  const live0 = R.rendre(site, { mode: 'live', url: 'https://clim-eole.com/', identite: idv.identite });
+  const ml0 = live0.files.find(function (f) { return /mentions-legales/.test(f.file); }).data;
+  assert.ok(!/RCS|SIREN|Directeur de la publication/.test(ml0) && /<strong>Clim Éole<\/strong>/.test(ml0) && /Téléphone : 0696 12 34 56/.test(ml0) && !JU.complet(site.spec), 'une piste de prospection n\'est jamais affichée comme identité légale tant que le client ne l\'a pas confirmée');
+  // le client donne son SIRET : Margot retrouve l'entreprise et son siège dans le registre
+  const conf = await JU.completer(JU.donneParClient(site.spec, { siret: '912 345 675 00017' }), lc);
+  const siteConf = Object.assign({}, site, { spec: conf.spec });
+  const live = R.rendre(siteConf, { mode: 'live', url: 'https://clim-eole.com/', identite: idv.identite });
   const ml = live.files.find(function (f) { return /mentions-legales/.test(f.file); }).data;
-  assert.ok(/RCS Fort-de-France 912 345 678/.test(ml) && /SIRET 912 345 678 00017/.test(ml) && /Directeur de la publication : Jean DUPONT/.test(ml) && /Vercel Inc\.<br>340 S Lemon Ave #4133, Walnut, CA 91789/.test(ml) && /NOVALEM/.test(ml) && !/class="apercu"/.test(live.files[0].data) && !/noindex/.test(live.files[0].data), 'mentions légales du client, site public');
+  assert.ok(conf.trouve && conf.spec.legal.confirme && /CLIM EOLE<\/strong>, SARL/.test(ml) && /RCS Fort-de-France 912 345 675/.test(ml) && /Siège social : Zone de la Lezarde, 97232 Le Lamentin/.test(ml) && /Directeur de la publication : Jean DUPONT \(gérant\)/.test(ml) && /Vercel Inc\.<br>440 N Barranca Avenue #4133, Covina, CA 91723/.test(ml) && /NOVALEM/.test(ml) && !/class="apercu"/.test(live.files[0].data) && !/noindex/.test(live.files[0].data), 'mentions légales du client, site public');
   const ap = R.rendre(site, { mode: 'apercu', contactNovalemo: 'louis@novalemo-mq.fr' }).files[0].data;
   assert.ok(/noindex/.test(ap) && /class="apercu"/.test(ap) && /Je veux ce site/.test(ap), 'aperçu privé avec bandeau');
   // « Je veux ce site » depuis une autre adresse : rattaché au bon prospect
@@ -1189,6 +1196,71 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(okP.ok && okP.enregistre.indexOf('HQ_PEXELS_KEY') >= 0, 'clé Pexels essayée puis enregistrée : ' + JSON.stringify(okP));
     delete process.env.HQ_PEXELS_KEY;
     console.log('Moteur des sites OK : huit modèles de métier, voisins toujours différents, contrastes, titre clair et phrase concrète, WhatsApp d\'abord et fixe gardé, Léa et ses photos regardées une à une (visages, logos et hors-sujet recalés), banque de secours, Margot et le registre (SARL, EI, capital, alerte), fiche du client, ses photos à la place, retouches sans effet de bord, Iris, publication robuste, clé Pexels');
+  }
+  // 29 bis. LA RELECTURE DU MOTEUR v3 : chaque défaut trouvé est rejoué ici
+  {
+    const IM = require('../lib/sites/images'), J = require('../lib/sites/juridique'), R = require('../lib/sites/rendu'), DN = require('../lib/sites/donne'), A = require('../lib/sites/atelier'), DEMO = require('../lib/jobs/demo');
+    const sv = [{ titre: 'Installation', texte: 'Split, gainable ou cassette : l\'appareil posé proprement.', icone: 'flocon', photo: 'air conditioner installation' }, { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés, moins de pannes.', icone: 'cle', photo: 'air conditioner filter cleaning' }, { titre: 'Dépannage', texte: 'On cherche la cause avant de réparer.', icone: 'outils', photo: 'air conditioner repair tools' }];
+    const clim = { v: 3, nom: 'Clim Relue', activite: 'Climatisation', metier: 'Climatisation', secteur: 'climatisation', commune: 'Ducos', objectif: 'devis', accroche: 'Pose, entretien et dépannage de climatiseurs pour les maisons.', photo_hero: 'modern air conditioner living room', services: sv, contact: { tel: '+596696123499', email: 'clim@relue.fr' } };
+    process.env.HQ_PEXELS_KEY = 'pexels-test';
+    // 1. un quota Pexels au milieu des recherches : pas de plantage, rien de posé à moitié, nouvel essai dans l'heure
+    fakes.PEXELS.recherches.length = 0; fakes.PEXELS.quotaApres = 1;
+    const rq = await IM.choisir(clim, {});
+    fakes.PEXELS.quotaApres = null;
+    assert.ok(!rq.photos.length && /quota/.test(rq.erreur) && rq.reessai === 65, 'quota en cours de route : ' + JSON.stringify({ erreur: rq.erreur, reessai: rq.reessai }));
+    // 4. sans le regard de Claude (budget du jour, panne), aucune photo de banque d'images n'est posée
+    const rb = await IM.choisir(clim, { peutDepenser: function () { return false; } });
+    fakes.VISION.panne = true;
+    const rp = await IM.choisir(clim, {});
+    fakes.VISION.panne = false;
+    assert.ok(!rb.photos.length && rb.reessai === 720 && !rp.photos.length && rp.reessai === 120 && /regard indisponible/.test(rp.erreur), 'sans regard, aucune photo : ' + [rb.erreur, rp.erreur].join(' | '));
+    // 5. un aperçu fabriqué sans clé (ou pendant un quota) est repris par Léa dès que possible
+    delete process.env.HQ_PEXELS_KEY;
+    const lk = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:sans-cle', source: 'maps', name: 'Froid du Sud', sector: 'climatisation', island: 'MQ', commune: 'Le Marin', email: 'sanscle@test-mq.fr', email_source: 'site', phone: '+596 696 12 98 76', score: 80, status: 'a_contacter' }))[0];
+    const fk = await DEMO.fabriquer(db, lk, {});
+    assert.ok(fk.site.data.photos.reessai && Date.parse(fk.site.data.photos.reessai) <= Date.now() + 1000 && /pas de clé/.test(fk.site.data.photos.erreur), 'sans clé : Léa reprendra l\'aperçu dès que la clé est branchée : ' + JSON.stringify(fk.site.data.photos));
+    process.env.HQ_PEXELS_KEY = 'pexels-test';
+    // 7. la photo d'un service suit son titre : un service retiré ou déplacé ne prend pas la photo d'un autre
+    const ph = [{ fichier: 'i1.jpg', credit: { id: 'px1' }, role: 'service', pour: 0, pour_titre: 'installation' }, { fichier: 'i2.jpg', credit: { id: 'px2' }, role: 'service', pour: 1, pour_titre: 'entretien' }, { fichier: 'i3.jpg', credit: { id: 'px3' }, role: 'service', pour: 2, pour_titre: 'depannage' }];
+    const al = R.repartir({ services: [sv[1], sv[2], { titre: 'Contrat annuel', texte: 'Deux visites par an.' }], photos: ph });
+    assert.ok(al.services[0].fichier === 'i2.jpg' && al.services[1].fichier === 'i3.jpg' && !al.services[2], 'photos rangées par titre après une retouche : ' + JSON.stringify(Object.keys(al.services).map(function (k) { return k + '=' + al.services[k].fichier; })));
+    // 8, 9, 21. le grand titre jamais minuscule ; liens du menu valables sur les mentions ; une page par service même pour deux titres proches ; étoiles exactes ; icônes justes
+    const sp8 = Object.assign({}, clim, { services: [sv[0], Object.assign({}, sv[0], { titre: 'Installation.' }), sv[2]], google: { note: 4.5, avis: 12 } });
+    sp8.da = DN.donner(sp8, {});
+    const r8 = R.rendre({ slug: 'releve-1a2b', spec: sp8, formule: 'signature' }, { mode: 'live', url: 'https://releve.com/' });
+    const r8a = R.rendre({ slug: 'releve-1a2b', spec: sp8 }, { mode: 'apercu' });
+    const pagesServ = r8.files.map(function (f) { return f.file; }).filter(function (f) { return /services\/.+\/index/.test(f); });
+    assert.ok(/\.h1\{font-size:max\(1\.75rem,/.test(r8.files[0].data) && /href="\/a\/releve-1a2b\/#services"/.test(r8a.files.find(function (f) { return /mentions-legales/.test(f.file); }).data) && new Set(pagesServ).size === pagesServ.length && pagesServ.some(function (f) { return /installation-2\//.test(f); }) && /--n:90%/.test(r8a.files[0].data), 'titre lisible, liens vers l\'accueil, pages de service distinctes, 4,5 étoiles : ' + pagesServ.join(' '));
+    assert.ok(R.iconePour('Prêt-à-porter', 'x') === 'x' && R.iconePour('Commerce', 'x') === 'x' && R.iconePour('Mercerie', 'x') === 'x' && R.iconePour('Entreprise', 'x') === 'x' && R.iconePour('Bureau', 'x') === 'x' && R.iconePour('Pêche en mer', 'x') === 'bateau' && R.iconePour('Gros œuvre', 'x') === 'maison', 'icônes : un mot pris au début d\'un mot seulement');
+    assert.strictEqual(require('../lib/chasse/nd-mots').FORMES_JURIDIQUES['6533'], 'GAEC', 'code 6533 : GAEC');
+    // 10. ce que le client dit l'emporte sur ce qu'on avait trouvé seul
+    const s10 = { nom: 'Serrurerie', commune: 'Le Lorrain', contact: { tel: '+596696000001', email: 'a@b.fr' }, legal: { raison_sociale: 'FROID CARAIBES', siren: '843217654', source: 'registre', verifie_le: new Date().toISOString() } };
+    const c10 = await J.completer(J.donneParClient(s10, { nom_officiel: 'JEAN-MARC TELL' }), { name: 'Serrurerie du Nord' });
+    assert.ok(c10.trouve && c10.spec.legal.siren === '552100554' && c10.spec.legal.confirme && !c10.spec.legal.nom_donne, 'le nom officiel donné par le client remplace l\'ancienne trouvaille : ' + c10.resume);
+    // 11. le siège, jamais un établissement : une SAS de Baie-Mahault avec un établissement au Lamentin
+    const c11 = await J.completer(J.donneParClient({ nom: 'Clim Nord', commune: 'Le Lamentin', contact: { tel: '+596696000002', email: 'c@d.fr' } }, { nom_officiel: 'CLIM NORD GWADA' }), {});
+    const m11 = J.mentionsHtml(c11.spec, {});
+    assert.ok(c11.trouve && c11.spec.legal.dep === '971' && /Siège social : Zi de Jarry, 97122 Baie-Mahault/.test(m11) && !/Fort-de-France/.test(m11) && J.questions(c11.spec).some(function (q) { return q.cle === 'rcs'; }), 'siège lu dans le registre, greffe demandé hors Martinique : ' + m11.slice(m11.indexOf('<p>'), m11.indexOf('<p>') + 220));
+    // 15. le greffe donné par le client
+    const s15 = J.donneParClient(c11.spec, { greffe: 'RCS Pointe-à-Pitre', capital: '10 000 €' });
+    assert.ok(/RCS Pointe-à-Pitre 732 829 320/.test(J.mentionsHtml(s15, {})) && J.complet(s15), 'greffe donné par le client, mentions complètes');
+    // 12. le téléphone et l'email sont exigés ; 13. l'hébergeur à son adresse actuelle
+    const ei = { nom: 'Tell', contact: { email: 'tell@exemple.fr' }, legal: { raison_sociale: 'JEAN-MARC TELL', nature: '1000', siren: '552100554', adresse: 'Morne Bois, 97214 Le Lorrain', dirigeant: 'JEAN-MARC TELL', source: 'registre', confirme: true } };
+    assert.ok(!J.complet(ei) && J.manquants(ei).some(function (e) { return e.cle === 'telephone'; }) && J.complet(Object.assign({}, ei, { contact: { email: 'tell@exemple.fr', tel: '+596596112244' } })) && /440 N Barranca Avenue #4133, Covina, CA 91723/.test(J.HEBERGEUR_TEXTE), 'téléphone exigé ; Vercel à Covina');
+    // 16. une recherche refusée par l'annuaire ne bloque pas les autres sites
+    const lA = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:jur-a', source: 'maps', name: 'AB', sector: 'nettoyage', island: 'MQ', commune: 'Ducos', status: 'client' }))[0];
+    const lB = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:jur-b', source: 'maps', name: 'Froid Caraïbes Bis', sector: 'climatisation', island: 'MQ', commune: 'Ducos', status: 'client' }))[0];
+    const sA = (await db.insert('hq_sites', { lead_id: lA.id, slug: 'jur-a-1a2b', status: 'commande', version: 1, spec: { v: 3, nom: 'AB', contact: { tel: '+596696000003' }, legal: { a_verifier: true, nom_donne: 'AB' } }, data: {} }))[0];
+    const sB = (await db.insert('hq_sites', { lead_id: lB.id, slug: 'jur-b-1a2b', status: 'commande', version: 1, spec: { v: 3, nom: 'Froid Caraïbes Bis', contact: { tel: '+596696000004' }, legal: { a_verifier: true, nom_donne: 'FROID CARAIBES' } }, data: {} }))[0];
+    dus(['juridique']);
+    await runtime.cycle({ db: db, agentId: 'juridique', secondes: 120 });
+    assert.ok(leSite(sB.id).spec.legal.siren === '843217654' && leSite(sB.id).spec.legal.confirme && leSite(sA.id).spec.legal.introuvable && !leSite(sA.id).spec.legal.a_verifier, 'la recherche refusée est notée, les autres sites passent');
+    sA.status = 'annule'; sB.status = 'annule';
+    // 17. un fixe donné quand on n'avait que son portable : le portable reste pour WhatsApp
+    const s17 = A.appliquerFaitsClient({ contact: { tel: '+596696112233' } }, { telephone: '0596 70 00 00' }, {});
+    assert.ok(s17.contact.tel === '+596596700000' && s17.contact.mobile === '+596696112233', 'fixe ajouté, portable gardé : ' + JSON.stringify(s17.contact));
+    delete process.env.HQ_PEXELS_KEY;
+    console.log('Relecture v3 OK : quota sans plantage, aucune photo sans regard, reprise de Léa, photos rangées par titre, titres lisibles, liens des mentions, pages de service distinctes, étoiles et icônes justes, correction du client prioritaire, siège et greffe, téléphone exigé, Vercel à Covina, annuaire qui refuse une recherche, fixe et portable');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
