@@ -101,7 +101,7 @@ function jpeg(l, h, graine) {
 }
 
 /* ── faux Vercel ── */
-const VERCEL = { projets: {}, fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, echecs: new Set(), manquantUneFois: true };
+const VERCEL = { projets: {}, fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
 function vercel(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, text: async function () { return JSON.stringify(obj); }, json: async function () { return obj; } }; };
@@ -120,18 +120,24 @@ function vercel(url, opts) {
     VERCEL.deploiements.push(d); return j(200, d);
   }
   if ((r = p.match(/^\/v13\/deployments\/([^/]+)$/))) { const d = VERCEL.deploiements.find(function (x) { return x.id === r[1]; }); return j(200, { readyState: d ? d.readyState : 'ERROR', url: d && d.url, alias: [] }); }
-  if ((r = p.match(/^\/v10\/projects\/([^/]+)\/domains$/)) && m === 'POST') { VERCEL.domaines[corps.name] = corps; return j(200, { name: corps.name, verified: true }); }
+  if ((r = p.match(/^\/v10\/projects\/([^/]+)\/domains$/)) && m === 'POST') {
+    if (VERCEL.ailleurs.has(corps.name)) return j(409, { error: { code: 'domain_already_in_use', message: 'Domain is already in use by another project' } });
+    if (VERCEL.domaines[corps.name]) return j(400, { error: { code: 'domain_already_in_use', message: 'Domain already exists on this project' } });
+    VERCEL.domaines[corps.name] = corps; return j(200, { name: corps.name, verified: true });
+  }
+  if ((r = p.match(/^\/v9\/projects\/([^/]+)\/domains\/([^/]+)$/)) && m === 'GET') { const d = decodeURIComponent(r[2]); return VERCEL.domaines[d] ? j(200, { name: d, apexName: d.replace(/^www\./, ''), projectId: r[1], verified: true }) : j(404, { error: { code: 'not_found', message: 'Domain not found' } }); }
+  if ((r = p.match(/^\/v5\/domains\/([^/]+)$/)) && m === 'GET') { const d = decodeURIComponent(r[1]); const ok = VERCEL.auCompte.has(d) || Object.values(VERCEL.commandes).some(function (c) { return c.status === 'completed' && c.domains[0].domainName === d; }); return ok ? j(200, { domain: { name: d, boughtAt: Date.now(), serviceType: 'zeit.world', renew: true } }) : j(404, { error: { code: 'not_found', message: 'Domain not found' } }); }
   if ((r = p.match(/^\/v6\/domains\/([^/]+)\/config$/))) return j(200, { misconfigured: !VERCEL.domaines[decodeURIComponent(r[1])] });
-  if ((r = p.match(/^\/v1\/registrar\/domains\/([^/]+)\/availability$/))) { const d = decodeURIComponent(r[1]); return j(200, { available: !/^clim-eole-martinique\.com$/.test(d) && !/pris/.test(d) }); }
+  if ((r = p.match(/^\/v1\/registrar\/domains\/([^/]+)\/availability$/))) { const d = decodeURIComponent(r[1]); return j(200, { available: !/^clim-eole-martinique\.com$/.test(d) && !/pris/.test(d) && !VERCEL.pris.has(d) && !VERCEL.auCompte.has(d) }); }
   if ((r = p.match(/^\/v1\/registrar\/domains\/([^/]+)\/price$/))) { const d = decodeURIComponent(r[1]); if (/\.fr$/.test(d)) return j(400, { error: { code: 'tld_not_supported' } }); return j(200, { years: 1, purchasePrice: 12.03, renewalPrice: 12.03, transferPrice: 12.03 }); }
   if ((r = p.match(/^\/v1\/registrar\/domains\/([^/]+)\/buy$/)) && m === 'POST') { const d = decodeURIComponent(r[1]); VERCEL.achats.push({ domaine: d, corps: corps }); const id = 'ord_' + VERCEL.achats.length; VERCEL.commandes[id] = { orderId: id, status: VERCEL.echecs.has(d) ? 'failed' : 'completed', domains: [{ domainName: d }] }; return j(200, { orderId: id, _links: {} }); }
   if ((r = p.match(/^\/v1\/registrar\/orders\/([^/]+)$/))) return j(200, VERCEL.commandes[r[1]] || { status: 'failed' });
-  if ((r = p.match(/^\/v1\/registrar\/domains\/([^/]+)\/auto-renew$/)) && m === 'PATCH') { VERCEL.autoRenew[decodeURIComponent(r[1])] = !!corps.autoRenew; return j(200, {}); }
+  if ((r = p.match(/^\/v1\/registrar\/domains\/([^/]+)\/auto-renew$/)) && m === 'PATCH') { if (VERCEL.autoRenewEchecs > 0) { VERCEL.autoRenewEchecs--; return j(500, { error: { code: 'internal', message: 'Temporary error' } }); } VERCEL.autoRenew[decodeURIComponent(r[1])] = !!corps.autoRenew; return j(200, {}); }
   return j(404, { error: { code: 'not_found', message: 'inconnu ' + m + ' ' + p } });
 }
 
 /* ── faux Stripe ── */
-const STRIPE = { prix: [], liens: [], payes: {}, desactives: [], rembourses: [] };
+const STRIPE = { prix: [], liens: [], payes: {}, desactives: [], rembourses: [], appels: 0, parLien: 0, globales: 0, listeEnPanne: false };
 function stripe(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, json: async function () { return obj; } }; };
@@ -141,11 +147,28 @@ function stripe(url, opts) {
   let r;
   if ((r = p.match(/^\/v1\/payment_links\/([^/]+)$/)) && m === 'POST') { STRIPE.desactives.push(r[1]); return j(200, { id: r[1], active: false }); }
   if (p === '/v1/refunds' && m === 'POST') { STRIPE.rembourses.push(params.get('payment_intent')); return j(200, { id: 're_' + STRIPE.rembourses.length, status: 'succeeded' }); }
-  if (p === '/v1/checkout/sessions') { const l = params.get('payment_link'); const s = STRIPE.payes[l]; return j(200, { data: s ? [s] : [] }); }
+  if (p === '/v1/checkout/sessions') {
+    STRIPE.appels++;
+    const l = params.get('payment_link');
+    if (l) { STRIPE.parLien++; const s = STRIPE.payes[l]; return j(200, { data: s ? [s] : [], has_more: false }); }
+    if (STRIPE.listeEnPanne) return j(500, { error: { message: 'Stripe indisponible' } });
+    STRIPE.globales++;
+    const gte = Number(params.get('created[gte]') || 0);
+    const tous = Object.values(STRIPE.payes).filter(function (x) { return (x.created || 0) >= gte; }).sort(function (a, b) { return b.created - a.created; });
+    const apres = params.get('starting_after'), lim = Number(params.get('limit') || 10);
+    const debut = apres ? tous.findIndex(function (x) { return x.id === apres; }) + 1 : 0;
+    const page = tous.slice(debut, debut + lim);
+    return j(200, { data: page, has_more: debut + lim < tous.length });
+  }
   if ((r = p.match(/^\/v1\/invoices\/([^/]+)$/))) return j(200, { id: r[1], number: 'NOVA-0001', hosted_invoice_url: 'https://invoice.stripe.com/i/test_' + r[1], invoice_pdf: 'https://pay.stripe.com/pdf/' + r[1], status: 'paid' });
   return j(404, { error: { message: 'inconnu ' + p } });
 }
-function payer(lien, extra) { STRIPE.payes[lien] = Object.assign({ id: 'cs_' + lien, livemode: true, payment_intent: 'pi_' + lien, payment_status: 'paid', status: 'complete', amount_total: 99000, customer_details: { email: 'jean@climeole.fr', name: 'Jean Dupont', address: { city: 'Le Lamentin', country: 'MQ' } }, invoice: 'in_1', custom_fields: [], created: Math.floor(Date.now() / 1000) }, extra || {}); }
+// un paiement abouti sur ce lien : la session porte le lien et ses métadonnées (comme chez Stripe)
+function payer(lien, extra) {
+  const lk = STRIPE.liens.find(function (x) { return x.id === lien; });
+  const meta = lk ? { site_id: lk.params['metadata[site_id]'], origine: lk.params['metadata[origine]'] } : {};
+  STRIPE.payes[lien] = Object.assign({ id: 'cs_' + lien, livemode: true, payment_link: lien, metadata: meta, payment_intent: 'pi_' + lien, payment_status: 'paid', status: 'complete', amount_total: 99000, customer_details: { email: 'jean@climeole.fr', name: 'Jean Dupont', address: { city: 'Le Lamentin', country: 'MQ' } }, invoice: 'in_1', custom_fields: [], created: Math.floor(Date.now() / 1000) }, extra || {});
+}
 
 const PAGE = '<html><head><title>Clim Pro 972</title><meta name="viewport" content="width=device-width"><meta property="og:image" content="/images/atelier.jpg"></head><body>Climatisation au Lamentin : installation, entretien, dépannage. Contact : contact@climpro972.fr <img src="/images/logo.png" alt="logo Clim Pro" class="logo"><img src="/images/chantier1.jpg" alt="Pose d\'une clim"><img src="/images/chantier2.jpg" alt="Entretien"><a href="/contact">Contact</a> © 2018 <style>.b{color:#e30613}.c{color:#e30613}.d{color:#e30613}</style></body></html>';
 global.fetch = async function (url, opts) {

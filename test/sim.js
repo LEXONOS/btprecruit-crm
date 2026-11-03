@@ -65,7 +65,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   assert.ok(/REFUSÉ/.test(refus) && /490/.test(refus) && /appel/.test(refus), 'prix hors grille, mot creux, remise et appel refusés : ' + refus);
   const gp = (await db.insert('hq_leads', { dedupe: 'test:gp', source: 'web', name: 'Garage Gwada', island: 'GP', email: 'a@gwada.fr', status: 'a_contacter', score: 70 }))[0];
   assert.ok(/hors zone/.test(await exC.rediger_emails({ emails: [{ lead_id: gp.id, objet: 'x', corps: 'y' }] })), 'Guadeloupe refusée à la rédaction');
-  const ajout = await tools.executeurs({ db: db, agent: env.agents.find(function (a) { return a.id === 'partenaires'; }), agents: env.agents, budget: env.budget, compteurs: C0() }).ajouter_leads({ leads: [{ nom: 'Cabinet X', commune: 'Pointe-à-Pitre', source_url: 'https://x.fr' }, { nom: 'Cabinet Y', commune: 'Le Lamentin', email: 'contact@cabinety.fr', source_url: 'https://y.fr' }] });
+  const ajout = await tools.executeurs({ db: db, agent: env.agents.find(function (a) { return a.id === 'partenaires'; }), agents: env.agents, budget: env.budget, compteurs: C0() }).ajouter_leads({ leads: [{ nom: 'Cabinet X', commune: 'Pointe-à-Pitre', source_url: 'https://x.fr' }, { nom: 'Cabinet Y', commune: 'Schœlcher', email: 'contact@cabinety.fr', source_url: 'https://y.fr' }] });
   assert.ok(/1 prospect\(s\) ajouté\(s\)/.test(ajout) && /hors Martinique/.test(ajout), 'les prescripteurs hors Martinique sont refusés : ' + ajout);
   // mode manuel : Louis coupe le pilote, les emails attendent sa validation
   await agir('budget', { envoi_auto: false });
@@ -273,6 +273,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // un aperçu oublié expire au bout de 30 jours
   db.tables.hq_sites.filter(function (x) { return x.lead_id === autre.id; }).forEach(function (x) { x.published_at = new Date(Date.now() - 40 * 86400000).toISOString(); });
   db.tables.hq_leads.find(function (l) { return l.id === autre.id; }).status = 'contacte';
+  db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'expiration'; });   // la passe d'expiration tourne toutes les 3 h
   dus(['livraison']);
   const cX = await runtime.cycle({ db: db, agentId: 'livraison', secondes: 200 });
   assert.strictEqual(db.tables.hq_sites.find(function (x) { return x.id === autreSite.id; }).status, 'expire', 'aperçu expiré');
@@ -284,22 +285,42 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // un an plus tard : l'hébergement de l'année suivante se facture seul (lien, rappel, paiement, ou pause)
   const LIV = require('../lib/jobs/livraison');
   const vivant = function () { return db.tables.hq_sites.find(function (x) { return x.id === site.id; }); };
+  const ren = function () { return (vivant().data && vivant().data.renouvellement) || {}; };
+  const recule = function (champ, jours) { const r = ren(); r[champ] = new Date(new Date(r[champ]).getTime() - jours * 86400000).toISOString(); };
   vivant().live_at = new Date(Date.now() - 340 * 86400000).toISOString();
   let rn = await LIV.renouvellements(db);
   const lienRen = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
-  assert.ok(rn.liens === 1 && vivant().data.renouvellement.lien === lienRen.id && !lienRen.params['custom_fields[0][key]'] && lienRen.params['after_completion[type]'] === 'hosted_confirmation', 'lien de renouvellement sans champ domaine');
+  assert.ok(rn.liens === 1 && ren().lien === lienRen.id && !lienRen.params['custom_fields[0][key]'] && lienRen.params['after_completion[type]'] === 'hosted_confirmation', 'lien de renouvellement sans champ domaine');
   assert.strictEqual(fakes.STRIPE.prix[fakes.STRIPE.prix.length - 1].unit_amount, 2500, 'renouvellement à 25 €');
   assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === lc.id && o.kind === 'service' && /hébergement/.test(o.subject) && o.body.indexOf(lienRen.url) >= 0; }), 'le client reçoit le lien de l\'année');
   rn = await LIV.renouvellements(db);
   assert.strictEqual(rn.liens + rn.payes + rn.pauses, 0, 'rien de plus tant que l\'échéance est loin');
+  const finAn1 = new Date(vivant().live_at).getTime() + 365 * 86400000;
   fakes.payer(lienRen.id, { amount_total: 2500, invoice: 'in_2' });
   rn = await LIV.renouvellements(db);
-  assert.ok(rn.payes === 1 && vivant().data.renouvellement.annees === 2 && !vivant().data.renouvellement.lien && fakes.STRIPE.desactives.indexOf(lienRen.id) >= 0, 'renouvellement payé : un an de plus');
+  assert.ok(rn.payes === 1 && ren().annees === 2 && !ren().lien && fakes.STRIPE.desactives.indexOf(lienRen.id) >= 0 && Math.abs(new Date(ren().jusqu_au).getTime() - (finAn1 + 365 * 86400000)) < 5000, 'renouvellement payé : un an de plus à partir de l\'échéance');
   assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === lc.id && /renouvelé/.test(o.subject) && /jusqu'au/.test(o.body); }), 'client remercié avec la nouvelle échéance');
-  // l'année d'après, il ne paie pas : rappels, puis pause (page neutre), puis retour au paiement
-  vivant().live_at = new Date(Date.now() - (2 * 365 + 31) * 86400000).toISOString();
+  // l'année d'après, il ne paie pas : lien, rappel, avertissement, pause, chaque étape espacée (jamais tout d'un coup)
+  ren().jusqu_au = new Date(Date.now() + 20 * 86400000).toISOString();
+  rn = await LIV.renouvellements(db);
+  assert.ok(rn.liens === 1 && ren().lien, 'lien de l\'année suivante');
+  ren().jusqu_au = new Date(Date.now() - 10 * 86400000).toISOString();
   for (let k = 0; k < 4; k++) rn = await LIV.renouvellements(db);
-  assert.ok(vivant().status === 'pause' && vivant().data.renouvellement.rappels === 2 && fakes.VERCEL.autoRenew['clim-eole.com'] === false, 'impayé : deux rappels, pause, renouvellement du domaine coupé');
+  assert.ok(vivant().status === 'en_ligne' && !(ren().rappels), 'échéance déjà passée : pas de rappel moins de 5 jours après le lien, jamais de pause d\'un coup');
+  recule('cree_le', 6); rn = await LIV.renouvellements(db);
+  assert.strictEqual(ren().rappels, 1, 'rappel 5 jours après le lien');
+  rn = await LIV.renouvellements(db);
+  assert.strictEqual(ren().rappels, 1, 'avertissement pas avant 7 jours après le rappel');
+  recule('rappel1_le', 8); rn = await LIV.renouvellements(db);
+  assert.ok(ren().rappels === 2 && new Date(ren().pause_prevue).getTime() > Date.now() + 13 * 86400000, 'avertissement : pause annoncée au moins 14 jours plus tard');
+  rn = await LIV.renouvellements(db);
+  assert.strictEqual(vivant().status, 'en_ligne', 'pas de pause avant la date annoncée');
+  ren().pause_prevue = new Date(Date.now() - 60000).toISOString();
+  fakes.VERCEL.autoRenewEchecs = 1;
+  rn = await LIV.renouvellements(db);
+  assert.ok(vivant().status === 'pause' && ren().auto_a_couper && fakes.VERCEL.autoRenew['clim-eole.com'] !== false, 'pause ; Vercel a refusé de couper le renouvellement du domaine, à refaire');
+  rn = await LIV.renouvellements(db);
+  assert.ok(fakes.VERCEL.autoRenew['clim-eole.com'] === false && ren().auto_coupe && !ren().auto_a_couper, 'renouvellement du domaine coupé au passage suivant');
   assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === lc.id && /en pause/.test(o.subject); }), 'client prévenu de la pause');
   const svP = await P.suivre(db, {});
   if (!(svP.suite && svP.suite.publie)) { const pubP = await P.publier(db, { raison: 'test pause' }); assert.ok(pubP.publie, 'publication de la pause : ' + pubP.resume); }
@@ -309,10 +330,13 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const emmaA = db.tables.hq_agents.find(function (a) { return a.id === 'reponses'; });
   const cmdPause = await tools.executeurs({ db: db, agent: emmaA, agents: db.tables.hq_agents, budget: env.budget, compteurs: C0() }).commande({ reponse_id: db.tables.hq_inbox.filter(function (x) { return x.lead_id === lc.id && x.kind === 'reponse'; }).pop().id, formule: 'vitrine' });
   assert.ok(/en pause/.test(JSON.stringify(cmdPause)), 'Emma ne revend pas un site en pause : ' + JSON.stringify(cmdPause).slice(0, 120));
-  const lienPause = vivant().data.renouvellement.lien;
+  const lienPause = ren().lien;
   fakes.payer(lienPause, { amount_total: 2500, invoice: 'in_3' });
+  fakes.VERCEL.autoRenewEchecs = 1;
   rn = await LIV.renouvellements(db);
-  assert.ok(vivant().status === 'en_ligne' && vivant().data.renouvellement.annees === 3 && fakes.VERCEL.autoRenew['clim-eole.com'] === true, 'payé : site remis en ligne, domaine renouvelé');
+  assert.ok(vivant().status === 'en_ligne' && ren().annees === 3 && ren().auto_coupe && new Date(ren().jusqu_au).getTime() > Date.now() + 364 * 86400000, 'payé en retard : remis en ligne, un an à partir du paiement');
+  rn = await LIV.renouvellements(db);
+  assert.ok(fakes.VERCEL.autoRenew['clim-eole.com'] === true && !ren().auto_coupe, 'renouvellement du domaine remis au passage suivant (Vercel avait refusé une fois)');
   console.log('Renouvellements OK : lien, paiement, rappels, pause, reprise');
 
   // les garde-fous de la revue : argent, STOP, usurpation, envois ratés, aperçus expirés, zone, liens nus
@@ -406,7 +430,218 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   await db.insert('hq_suppression', gros);
   assert.ok((await db.select('hq_suppression', { limit: 5000 })).length >= 1300, 'pagination au-delà de 1 000 lignes');
   db.tables.hq_suppression = db.tables.hq_suppression.filter(function (x) { return x.reason !== 'test'; });
-  console.log('Garde-fous OK : ancien lien payé, double paiement remboursé, paiement de test, domaine raté, STOP, usurpation, réessais, aperçu expiré, zone, liens nus, pagination');
+  // 10. relevé des paiements : plus de 60 commandes ouvertes, le paiement d'une nouvelle est vu, en une requête Stripe
+  {
+    const ouverts = [];
+    for (let k = 0; k < 70; k++) ouverts.push({ slug: 'cmd-' + k + '-aaaa', status: 'commande', spec: { nom: 'Cmd ' + k }, stripe: { lien: 'plink_vieux_' + k, liens: [{ id: 'plink_vieux_' + k }], cree_le: new Date(Date.now() - 10 * 86400000).toISOString() } });
+    await db.insert('hq_sites', ouverts);
+    const gc = await nouveauClient('apres-soixante', 'Apres Soixante', 'apres@test-mq.fr');
+    await exE().commande({ reponse_id: gc.ib.id, formule: 'essentiel' });
+    const L70 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    fakes.payer(L70.id, { amount_total: 59000, customer_details: { email: 'apres@test-mq.fr', name: 'A' } });
+    const parLien0 = fakes.STRIPE.parLien;
+    await lucas();
+    assert.ok(['paye', 'livraison', 'en_ligne'].indexOf(leSite(gc.s.id).status) >= 0, 'au-delà de 60 commandes ouvertes, le paiement est vu');
+    assert.ok(fakes.STRIPE.parLien - parLien0 < 5 && fakes.STRIPE.globales > 0, 'un relevé global, pas une requête par lien : ' + (fakes.STRIPE.parLien - parLien0));
+    // une commande jamais payée expire 45 jours après son lien, même si un déploiement vient de dater le site
+    db.tables.hq_sites.filter(function (x) { return /^cmd-/.test(x.slug); }).forEach(function (x) { x.stripe.cree_le = new Date(Date.now() - 50 * 86400000).toISOString(); x.updated_at = new Date().toISOString(); });
+    await LIV.expirer(db, { force: true });
+    assert.ok(db.tables.hq_sites.filter(function (x) { return /^cmd-/.test(x.slug); }).every(function (x) { return x.status === 'expire'; }), 'commandes de plus de 45 jours expirées, sans plafond');
+  }
+  // 11. 35 clients qui ne font jamais leur réglage DNS ne bloquent pas un nouveau site payé
+  {
+    const bloques = [];
+    for (let k = 0; k < 35; k++) bloques.push({ slug: 'dns-' + k + '-bbbb', status: 'livraison', domaine: 'client' + k + '.fr', domaine_mode: 'client', spec: { nom: 'Dns ' + k }, paid_at: new Date(Date.now() - 20 * 86400000).toISOString(), data: { live: true, live_publie: new Date().toISOString(), domaine_ajoute: true, dns_demande: new Date(Date.now() - 20 * 86400000).toISOString(), rappels_dns: 4 } });
+    await db.insert('hq_sites', bloques);
+    const gn = await nouveauClient('apres-dns', 'Apres Dns', 'apresdns@test-mq.fr');
+    await exE().commande({ reponse_id: gn.ib.id, formule: 'essentiel' });
+    const LN = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    fakes.payer(LN.id, { amount_total: 59000, customer_details: { email: 'apresdns@test-mq.fr', name: 'N' } });
+    fakes.FAUX_EN_LIGNE.add(leSite(gn.s.id).domaine);
+    await lucas(); await lucas(); await lucas();
+    assert.strictEqual(leSite(gn.s.id).status, 'en_ligne', 'le nouveau site passe malgré 35 sites en attente de DNS');
+    assert.ok(db.tables.hq_sites.filter(function (x) { return /^dns-/.test(x.slug); }).every(function (x) { return x.data.dns_verifie_le; }), 'les sites en attente sont vérifiés, puis espacés');
+  }
+  // 12. un sous-domaine de constructeur (Wix) n'est jamais pris pour le domaine du client
+  {
+    const gw = await nouveauClient('garage-wix', 'Garage Wix', 'wix@test-mq.fr');
+    await db.update('hq_leads', { domain: 'garage-wix.wixsite.com', website: 'https://garage-wix.wixsite.com/site' }, { eq: { id: gw.l.id } });
+    await exE().commande({ reponse_id: gw.ib.id, formule: 'essentiel' });
+    const sw = leSite(gw.s.id);
+    assert.ok(sw.domaine_mode === 'achat' && /\.com$/.test(sw.domaine) && !/wixsite/.test(sw.domaine), 'sous-domaine Wix : un vrai nom de domaine est réservé : ' + sw.domaine);
+  }
+  // 13. Emma et Lucas en même temps : un paiement relevé pendant la commande n'est pas écrasé ; une retouche
+  // n'efface pas la commande du domaine posée pendant l'écriture de la fiche
+  {
+    const gr = await nouveauClient('course-test', 'Course Test', 'course@test-mq.fr');
+    await exE().commande({ reponse_id: gr.ib.id, formule: 'essentiel' });
+    const S2 = require('../lib/sites/stripe'), creer = S2.creerLien;
+    S2.creerLien = async function (o) { const r = await creer(o); const x = db.tables.hq_sites.find(function (y) { return y.id === gr.s.id; }); x.status = 'paye'; x.updated_at = new Date(Date.now() + 5).toISOString(); return r; };
+    const cr = await exE().commande({ reponse_id: gr.ib.id, formule: 'vitrine' });
+    S2.creerLien = creer;
+    const Lc = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    assert.ok(/changer d'état/.test(cr.erreur || '') && leSite(gr.s.id).status === 'paye' && fakes.STRIPE.desactives.indexOf(Lc.id) >= 0, 'paiement relevé pendant la commande : rien d\'écrasé, le lien en trop est coupé');
+    db.tables.hq_sites.find(function (y) { return y.id === gr.s.id; }).status = 'annule';
+    const A = require('../lib/sites/atelier'), ecrireA = A.ecrire;
+    const gm = await nouveauClient('retouche-course', 'Retouche Course', 'rc@test-mq.fr');
+    db.tables.hq_inbox.find(function (x) { return x.id === gm.ib.id; }).data.confiance = 'fil';
+    Object.assign(db.tables.hq_sites.find(function (y) { return y.id === gm.s.id; }), { status: 'livraison', domaine: 'retouche-course.com', domaine_mode: 'achat', paid_at: new Date().toISOString() });
+    A.ecrire = async function (l, o) { const r = await ecrireA(l, o); const y = db.tables.hq_sites.find(function (z) { return z.id === gm.s.id; }); y.data = Object.assign({}, y.data, { commande: { id: 'ord_x', domaine: 'retouche-course.com' } }); y.updated_at = new Date(Date.now() + 5).toISOString(); return r; };
+    const rm = await exE().modifier_site({ reponse_id: gm.ib.id, demande: 'Passer en turquoise' });
+    A.ecrire = ecrireA;
+    assert.ok(/site modifié/.test(rm) && leSite(gm.s.id).data.commande && leSite(gm.s.id).data.commande.id === 'ord_x' && leSite(gm.s.id).version === 2, 'retouche : la commande du domaine posée pendant ce temps est gardée : ' + rm);
+    db.tables.hq_sites.find(function (y) { return y.id === gm.s.id; }).status = 'annule';
+  }
+  // 14. retouches : celles d'avant le paiement ne mangent pas les deux promises après la mise en ligne
+  {
+    const gt = await nouveauClient('retouches-test', 'Retouches Test', 'rt@test-mq.fr');
+    db.tables.hq_inbox.find(function (x) { return x.id === gt.ib.id; }).data.confiance = 'fil';
+    Object.assign(db.tables.hq_sites.find(function (y) { return y.id === gt.s.id; }), { status: 'en_ligne', revisions: 3, live_at: new Date().toISOString(), domaine: 'retouches-test.com', domaine_mode: 'achat', data: { revisions_au_paiement: 3 } });
+    const r1 = await exE().modifier_site({ reponse_id: gt.ib.id, demande: 'Ajouter le samedi aux horaires' });
+    assert.ok(/site modifié/.test(r1) && /1 retouche/.test(r1), 'après la mise en ligne, ses deux retouches sont là : ' + r1);
+    db.tables.hq_sites.find(function (y) { return y.id === gt.s.id; }).status = 'annule';
+  }
+  // 15. usurpation par l'adresse : sans authentification de son serveur (en-tête replié compris), pas vérifié ;
+  // authentifié, vérifié ; et un STOP dans l'objet (lien de désinscription) vaut STOP
+  {
+    const gu = await nouveauClient('usurpe-test', 'Usurpe Test', 'patron@usurpe-mq.fr');
+    await db.insert('hq_outbox', { lead_id: gu.l.id, to_email: 'patron@usurpe-mq.fr', subject: 'Le site de Usurpe Test', body: 'x', status: 'envoye', kind: 'prospection', step: 1, sent_at: new Date().toISOString(), message_id: '<hq.999.abcdef12@novalemo-mq.fr>' });
+    uid++;
+    aRelever.push({ uid: uid, messageId: '<faux' + uid + '@x.fr>', from: 'patron@usurpe-mq.fr', subject: 'Nouveau numéro', headers: '', source: Buffer.from('Authentication-Results: mx1.mail.ovh.net;\r\n spf=fail smtp.mailfrom=patron@usurpe-mq.fr;\r\n dkim=pass header.d=pirate.com;\r\n dmarc=fail header.from=usurpe-mq.fr\r\nFrom: patron@usurpe-mq.fr\r\nSubject: Nouveau numéro\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nMettez le 0696 00 00 00 sur le site.\r\n') });
+    uid++;
+    aRelever.push({ uid: uid, messageId: '<vrai' + uid + '@x.fr>', from: 'patron@usurpe-mq.fr', subject: 'Nos horaires', headers: '', source: Buffer.from('Authentication-Results: mx1.mail.ovh.net; spf=pass smtp.mailfrom=patron@usurpe-mq.fr; dkim=pass header.d=usurpe-mq.fr; dmarc=pass header.from=usurpe-mq.fr\r\nFrom: patron@usurpe-mq.fr\r\nSubject: Nos horaires\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nNous ouvrons le samedi.\r\n') });
+    await BOITE.releve({ db: db });
+    const faux = db.tables.hq_inbox.find(function (x) { return x.subject === 'Nouveau numéro'; }), vrai = db.tables.hq_inbox.find(function (x) { return x.subject === 'Nos horaires'; });
+    assert.ok(faux && faux.data.confiance === 'douteux' && vrai && vrai.data.confiance === 'adresse', 'faux expéditeur repéré, vrai reconnu');
+    uid++;
+    aRelever.push({ uid: uid, messageId: '<desabo' + uid + '@x.fr>', from: 'patron@usurpe-mq.fr', subject: 'STOP', headers: 'Auto-Submitted: auto-generated\r\n', source: Buffer.from('Subject: STOP\r\nAuto-Submitted: auto-generated\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n') });
+    await BOITE.releve({ db: db });
+    assert.ok(db.tables.hq_suppression.some(function (x) { return x.email === 'patron@usurpe-mq.fr'; }), 'STOP dans l\'objet (lien de désinscription) : appliqué');
+  }
+  // 16. envois : une erreur passagère n'est jamais définitive ; un refus d'authentification vient de notre domaine
+  // (prospect gardé, pas de fausse alerte de mot de passe) ; un email annulé pendant l'attente ne part pas ; un client
+  // payé qui a dit STOP reçoit quand même la réponse à sa question ; un verrou n'est effacé que par son détenteur
+  {
+    const ol = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:smtp', source: 'maps', name: 'Smtp Test', island: 'MQ', email: 'smtp@test-mq.fr', status: 'brouillon', score: 60 }))[0];
+    const o1 = (await db.insert('hq_outbox', { lead_id: ol.id, to_email: 'smtp@test-mq.fr', subject: 'x', body: 'y', status: 'pret', kind: 'prospection', step: 1 }))[0];
+    await ENVOI.echec(db, o1, Object.assign(new Error('450 4.2.1 Mailbox unavailable, try again later'), { responseCode: 450 }));
+    assert.ok(db.tables.hq_outbox.find(function (o) { return o.id === o1.id; }).status === 'pret' && !db.tables.hq_suppression.some(function (x) { return x.email === 'smtp@test-mq.fr'; }), '4xx « mailbox unavailable » : réessayé, adresse gardée');
+    const alertes0 = db.tables.hq_messages.filter(function (m) { return /connexion refusée/.test(m.subject || ''); }).length;
+    await ENVOI.echec(db, db.tables.hq_outbox.find(function (o) { return o.id === o1.id; }), Object.assign(new Error('550 5.7.26 This message does not pass authentication checks (SPF and DKIM both do not pass)'), { responseCode: 550 }));
+    const o1b = db.tables.hq_outbox.find(function (o) { return o.id === o1.id; });
+    assert.ok(o1b.status === 'erreur' && /^politique/.test(o1b.error) && db.tables.hq_leads.find(function (l) { return l.id === ol.id; }).status === 'a_contacter' && db.tables.hq_messages.filter(function (m) { return /connexion refusée/.test(m.subject || ''); }).length === alertes0 && db.tables.hq_messages.some(function (m) { return /authentification du domaine/.test(m.subject || ''); }), 'refus d\'authentification : notre domaine, prospect gardé, bonne alerte');
+    const o2 = (await db.insert('hq_outbox', { lead_id: ol.id, to_email: 'smtp@test-mq.fr', subject: 'x2', body: 'y', status: 'pret', kind: 'service', step: 1 }))[0];
+    const copie = Object.assign({}, o2);
+    db.tables.hq_outbox.find(function (o) { return o.id === o2.id; }).status = 'annule';
+    partis.length = 0;
+    const rA = await ENVOI.envoyerUn(db, copie);
+    assert.ok(!rA.ok && !partis.length, 'annulé pendant l\'attente entre deux envois : rien ne part');
+    const gs = await nouveauClient('stop-client', 'Stop Client', 'stopclient@test-mq.fr');
+    db.tables.hq_sites.find(function (y) { return y.id === gs.s.id; }).status = 'en_ligne';
+    await db.upsert('hq_suppression', { email: 'stopclient@test-mq.fr', reason: 'STOP reçu' }, { onConflict: 'email' });
+    const rS = await exE().repondre({ reponse_id: gs.ib.id, corps: 'Bonjour,\n\nMerci pour votre message. Les horaires du samedi sont bien ajoutés à votre site.\n\nLouis\nNovalemo, sites internet en Martinique' });
+    const oS = db.tables.hq_outbox.filter(function (o) { return o.lead_id === gs.l.id && o.kind === 'reponse'; }).pop();
+    partis.length = 0;
+    const rS2 = oS ? await ENVOI.envoyerUn(db, oS) : { ok: false };
+    assert.ok(!(rS && rS.erreur) && rS2.ok && partis.length === 1, 'client payé qui a dit STOP : la réponse à sa question part : ' + JSON.stringify(rS));
+    db.tables.hq_sites.find(function (y) { return y.id === gs.s.id; }).status = 'annule';
+    const RT = require('../lib/runtime');
+    assert.ok(await RT.verrouiller(db, 'essai', 60, 'A'), 'verrou pris');
+    await RT.deverrouiller(db, 'essai', 'B');
+    assert.ok(!(await RT.verrouiller(db, 'essai', 60, 'C')), 'le verrou d\'un autre n\'est pas effacé');
+    await RT.deverrouiller(db, 'essai', 'A');
+    assert.ok(await RT.verrouiller(db, 'essai', 60, 'D'), 'libéré par son détenteur');
+    await RT.deverrouiller(db, 'essai', 'D');
+  }
+  // 17. achat de domaine resté sans réponse : retrouvé dans le compte s'il est passé ; sinon, deux heures plus tard, un autre nom
+  {
+    const ga2 = await nouveauClient('achat-perdu', 'Achat Perdu', 'perdu@test-mq.fr');
+    await exE().commande({ reponse_id: ga2.ib.id, formule: 'essentiel' });
+    const xs = db.tables.hq_sites.find(function (y) { return y.id === ga2.s.id; });
+    Object.assign(xs, { status: 'paye', paid_at: new Date().toISOString(), data: Object.assign({}, xs.data, { achat: { domaine: 'achat-perdu.com', prix: 12.03, le: new Date(Date.now() - 20 * 60000).toISOString() } }) });
+    fakes.VERCEL.auCompte.add('achat-perdu.com');
+    const achats0 = fakes.VERCEL.achats.length;
+    await lucas();
+    assert.ok(leSite(ga2.s.id).status !== 'paye' && leSite(ga2.s.id).data.commande && leSite(ga2.s.id).data.commande.recupere && !fakes.VERCEL.achats.slice(achats0).some(function (x) { return /^achat-perdu/.test(x.domaine); }), 'achat sans réponse retrouvé dans le compte : pas de second achat');
+    const gb = await nouveauClient('achat-rate', 'Achat Rate', 'rate@test-mq.fr');
+    await exE().commande({ reponse_id: gb.ib.id, formule: 'essentiel' });
+    const ys = db.tables.hq_sites.find(function (y) { return y.id === gb.s.id; });
+    Object.assign(ys, { status: 'paye', paid_at: new Date().toISOString(), data: Object.assign({}, ys.data, { achat: { domaine: 'achat-rate.com', prix: 12.03, le: new Date(Date.now() - 3 * 3600000).toISOString() } }) });
+    fakes.VERCEL.pris.add('achat-rate.com');
+    await lucas(); await lucas();
+    const yd = leSite(gb.s.id);
+    assert.ok((yd.data.commande_ratee || []).indexOf('achat-rate.com') >= 0 && yd.domaine && yd.domaine !== 'achat-rate.com', 'achat jamais confirmé ni dans le compte : un autre nom : ' + yd.domaine);
+  }
+  // 18. domaine déjà sur notre projet : branché ; sur un autre projet : refusé ; les chemins de Vercel jamais réécrits
+  {
+    const V2 = require('../lib/sites/vercel');
+    const pj = (await P.lireEtat(db)).projet;
+    fakes.VERCEL.domaines['deja-chez-nous.fr'] = { name: 'deja-chez-nous.fr' };
+    const okD = await V2.ajouterDomaine(pj.id, 'deja-chez-nous.fr');
+    fakes.VERCEL.ailleurs.add('chez-un-autre.fr');
+    const koD = await V2.ajouterDomaine(pj.id, 'chez-un-autre.fr').then(function () { return 'branché'; }).catch(function (e) { return e.statut; });
+    assert.ok(okD.deja && okD.name === 'deja-chez-nous.fr' && koD === 409, 'domaine déjà sur notre projet : branché ; sur un autre projet : refusé');
+    const vj2 = JSON.parse(P.vercelJson([{ slug: 'x-1a2b', domaine: 'x.com' }]).toString());
+    assert.ok(vj2.rewrites.some(function (r) { return r.source.indexOf('(?!_vercel/)') >= 0; }), 'les chemins de Vercel (/_vercel/image) ne sont jamais réécrits');
+  }
+  // 19. clé de test : aucun lien de renouvellement inutilisable envoyé à un vrai client
+  {
+    process.env.HQ_STRIPE_KEY = 'sk_test_essai';
+    const liens0 = fakes.STRIPE.liens.length;
+    ren().jusqu_au = new Date(Date.now() + 10 * 86400000).toISOString();
+    const rt = await LIV.renouvellements(db);
+    process.env.HQ_STRIPE_KEY = 'sk_live_simulation';
+    assert.ok(fakes.STRIPE.liens.length === liens0 && rt.liens === 0, 'clé de test : pas de lien de renouvellement');
+    ren().jusqu_au = new Date(Date.now() + 365 * 86400000).toISOString();
+  }
+  // 20. zone : Lamentin et Sainte-Anne seuls ne prouvent rien (ces noms existent aussi en Guadeloupe)
+  {
+    const zr = await tools.executeurs({ db: db, agent: db.tables.hq_agents.find(function (a) { return a.id === 'partenaires'; }), agents: db.tables.hq_agents, budget: env.budget, compteurs: C0() }).ajouter_leads({ leads: [{ nom: 'Cabinet Lamentin', commune: 'Lamentin', email: 'a@lamentin-x.fr', source_url: 'https://l.fr' }, { nom: 'Cabinet Anne', commune: 'Sainte-Anne', email: 'b@anne-x.fr', source_url: 'https://a.fr' }, { nom: 'Cabinet Schoelcher', commune: 'Schœlcher', email: 'c@schoelcher-x.fr', source_url: 'https://s.fr' }, { nom: 'Cabinet Anne MQ', commune: '97227 Sainte-Anne', email: 'd@anne-mq.fr', source_url: 'https://d.fr' }] });
+    assert.ok(/2 prospect\(s\) ajouté/.test(zr) && /2 refusé/.test(zr), 'communes partagées : preuve exigée : ' + zr);
+  }
+  // 21. deux paiements dans le même quart d'heure (ancien onglet Essentiel, puis Vitrine) : la dernière formule demandée
+  // est gardée, l'autre remboursée
+  {
+    const gd = await nouveauClient('deux-paiements', 'Deux Paiements', 'deux@test-mq.fr');
+    await exE().commande({ reponse_id: gd.ib.id, formule: 'essentiel' });
+    const D1 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    await exE().commande({ reponse_id: gd.ib.id, formule: 'vitrine' });
+    const D2 = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    fakes.payer(D2.id, { amount_total: 99000, customer_details: { email: 'deux@test-mq.fr', name: 'D' } });
+    fakes.payer(D1.id, { amount_total: 59000, customer_details: { email: 'deux@test-mq.fr', name: 'D' } });
+    await lucas();
+    assert.ok(leSite(gd.s.id).formule === 'vitrine' && Number(leSite(gd.s.id).montant_eur) === 990 && fakes.STRIPE.rembourses.indexOf('pi_' + D1.id) >= 0, 'deux paiements : la Vitrine demandée en dernier est gardée, l\'Essentiel remboursé');
+  }
+  // 22. Stripe ne répond plus au relevé global : vérification lien par lien, rien n'est perdu
+  {
+    const gp2 = await nouveauClient('panne-stripe', 'Panne Stripe', 'panne@test-mq.fr');
+    await exE().commande({ reponse_id: gp2.ib.id, formule: 'essentiel' });
+    const LP = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    fakes.payer(LP.id, { amount_total: 59000, customer_details: { email: 'panne@test-mq.fr', name: 'P' } });
+    fakes.STRIPE.listeEnPanne = true;
+    await lucas();
+    fakes.STRIPE.listeEnPanne = false;
+    assert.ok(['paye', 'livraison', 'en_ligne'].indexOf(leSite(gp2.s.id).status) >= 0, 'relevé global en panne : le paiement est vu quand même');
+  }
+  // 23. paiement arrivé sur une commande close : aperçu expiré entre-temps, la commande rouvre et s'encaisse ;
+  // commande annulée par Louis, le client est remboursé
+  {
+    const ge = await nouveauClient('paye-expire', 'Paye Expire', 'expire2@test-mq.fr');
+    await exE().commande({ reponse_id: ge.ib.id, formule: 'essentiel' });
+    const LE = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    const xe = db.tables.hq_sites.find(function (y) { return y.id === ge.s.id; });
+    Object.assign(xe, { status: 'expire', stripe: Object.assign({}, xe.stripe, { lien: null, url: null }) });
+    fakes.payer(LE.id, { amount_total: 59000, customer_details: { email: 'expire2@test-mq.fr', name: 'E' } });
+    const ga3 = await nouveauClient('paye-annule', 'Paye Annule', 'annule@test-mq.fr');
+    await exE().commande({ reponse_id: ga3.ib.id, formule: 'essentiel' });
+    const LA = fakes.STRIPE.liens[fakes.STRIPE.liens.length - 1];
+    db.tables.hq_sites.find(function (y) { return y.id === ga3.s.id; }).status = 'annule';
+    fakes.payer(LA.id, { amount_total: 59000, customer_details: { email: 'annule@test-mq.fr', name: 'X' } });
+    await lucas();
+    assert.ok(['paye', 'livraison', 'en_ligne'].indexOf(leSite(ge.s.id).status) >= 0, 'payé juste après l\'expiration : la commande rouvre et s\'encaisse');
+    assert.ok(fakes.STRIPE.rembourses.indexOf('pi_' + LA.id) >= 0 && db.tables.hq_outbox.some(function (o) { return o.lead_id === ga3.l.id && /remboursé/.test(o.subject); }), 'payé sur une commande annulée : remboursé, client prévenu');
+  }
+  console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
   console.log('Pilote automatique OK :', fakes.VERCEL.deploiements.length, 'déploiements,', fakes.STRIPE.liens.length, 'lien(s) de paiement, domaine', site.domaine, ', CA', w.compteurs.ca_eur, '€');
   mail.forcer(null); delete process.env.HQ_MAIL_USER; delete process.env.HQ_MAIL_PASS; delete process.env.HQ_VERCEL_TOKEN; delete process.env.HQ_STRIPE_KEY;

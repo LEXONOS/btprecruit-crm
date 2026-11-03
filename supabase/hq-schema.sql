@@ -173,7 +173,7 @@ create table if not exists public.hq_outbox (
   body text not null,
   step int not null default 1,
   angle text,
-  status text not null default 'a_valider',       -- a_valider | pret | envoye | erreur | annule
+  status text not null default 'a_valider',       -- a_valider | pret | envoi (en cours d'envoi) | envoye | erreur | annule
   kind text not null default 'prospection',       -- prospection | relance | reponse | service (emails de vente et de livraison)
   message_id text,                                -- Message-ID posé à l'envoi (fil de discussion)
   in_reply_to text,                               -- pour une relance ou une réponse : le message auquel on répond
@@ -326,23 +326,28 @@ language sql security definer set search_path = public as $$
     items = public.hq_daily.items + excluded.items;
 $$;
 
--- Verrou de cycle : un seul passage à la fois (cron + bouton)
-create or replace function public.hq_lock(p_name text, p_seconds int)
+-- Verrous : un seul passage (ou une seule publication) à la fois (cron + bouton). Chaque verrou porte le jeton de son
+-- détenteur : un passage en retard n'efface jamais le verrou d'un autre. La durée dépasse la limite d'une fonction
+-- Vercel (300 s) : un passage arrêté net libère le verrou en expirant, jamais pendant qu'il tourne encore.
+drop function if exists public.hq_lock(text, int);
+drop function if exists public.hq_unlock(text);
+create or replace function public.hq_lock(p_name text, p_seconds int, p_owner text default null)
 returns boolean
 language plpgsql security definer set search_path = public as $$
 begin
   insert into public.hq_config (key, value, updated_at)
-  values ('lock:' || p_name, jsonb_build_object('until', now() + make_interval(secs => p_seconds)), now())
+  values ('lock:' || p_name, jsonb_build_object('until', now() + make_interval(secs => p_seconds), 'owner', p_owner), now())
   on conflict (key) do update set value = excluded.value, updated_at = now()
   where (public.hq_config.value->>'until')::timestamptz < now();
   return found;
 end;
 $$;
 
-create or replace function public.hq_unlock(p_name text)
+create or replace function public.hq_unlock(p_name text, p_owner text default null)
 returns void
 language sql security definer set search_path = public as $$
-  delete from public.hq_config where key = 'lock:' || p_name;
+  delete from public.hq_config
+  where key = 'lock:' || p_name and (p_owner is null or value->>'owner' is null or value->>'owner' = p_owner);
 $$;
 
 -- Ménage : garde les tables légères (lancé par le Contrôleur de gestion)
@@ -366,10 +371,10 @@ end;
 $$;
 
 revoke all on function public.hq_bump(date, numeric, int, int, int, int, int, int) from public, anon, authenticated;
-revoke all on function public.hq_lock(text, int) from public, anon, authenticated;
-revoke all on function public.hq_unlock(text) from public, anon, authenticated;
+revoke all on function public.hq_lock(text, int, text) from public, anon, authenticated;
+revoke all on function public.hq_unlock(text, text) from public, anon, authenticated;
 revoke all on function public.hq_menage() from public, anon, authenticated;
 grant execute on function public.hq_bump(date, numeric, int, int, int, int, int, int) to service_role;
-grant execute on function public.hq_lock(text, int) to service_role;
-grant execute on function public.hq_unlock(text) to service_role;
+grant execute on function public.hq_lock(text, int, text) to service_role;
+grant execute on function public.hq_unlock(text, text) to service_role;
 grant execute on function public.hq_menage() to service_role;
