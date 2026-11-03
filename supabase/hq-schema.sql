@@ -1,6 +1,6 @@
 -- LA TOUR (groupe LEXONOS) : base des agents.
 -- Projet Supabase : Novalemo (fbmzlfrwxrzflfkazvmn), tables préfixées hq_ pour ne rien mélanger.
--- Déjà appliqué par Claude via le connecteur Supabase : ce fichier est une trace, rien à exécuter.
+-- À exécuter une fois : éditeur SQL du projet Novalemo, coller, Run (ou Claude via le connecteur Supabase). Réexécutable sans risque.
 -- Sécurité : RLS activée sans politique sur toutes les tables, seul le serveur (clé secrète) lit et écrit.
 -- Écritures sobres : pas de ligne par domaine scanné, seulement les prospects retenus ; compteurs du jour en une ligne.
 
@@ -153,9 +153,16 @@ create table if not exists public.hq_leads (
   data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  contacted_at timestamptz
+  contacted_at timestamptz,
+  apercu_etat text,                               -- demande | en_cours | pret | publie | echec (aperçu de site fabriqué d'avance)
+  apercu_url text,
+  site_id bigint
 );
+alter table public.hq_leads add column if not exists apercu_etat text;
+alter table public.hq_leads add column if not exists apercu_url text;
+alter table public.hq_leads add column if not exists site_id bigint;
 create index if not exists hq_leads_status on public.hq_leads (company_id, status, score desc);
+create index if not exists hq_leads_apercu on public.hq_leads (status, apercu_etat);
 
 create table if not exists public.hq_outbox (
   id bigserial primary key,
@@ -166,13 +173,90 @@ create table if not exists public.hq_outbox (
   body text not null,
   step int not null default 1,
   angle text,
-  status text not null default 'a_valider',       -- a_valider | pret | envoye | erreur | annule
+  status text not null default 'a_valider',       -- a_valider | pret | envoi (en cours d'envoi) | envoye | erreur | annule
+  kind text not null default 'prospection',       -- prospection | relance | reponse | service (emails de vente et de livraison)
+  message_id text,                                -- Message-ID posé à l'envoi (fil de discussion)
+  in_reply_to text,                               -- pour une relance ou une réponse : le message auquel on répond
+  inbox_id bigint,                                -- réponse à un message reçu
+  essais int not null default 0,
   error text,
   sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- base créée avant la boîte d'envoi : on ajoute les colonnes manquantes
+alter table public.hq_outbox add column if not exists kind text not null default 'prospection';
+alter table public.hq_outbox add column if not exists message_id text;
+alter table public.hq_outbox add column if not exists in_reply_to text;
+alter table public.hq_outbox add column if not exists inbox_id bigint;
+alter table public.hq_outbox add column if not exists essais int not null default 0;   -- envois ratés réessayés (15 min, 1 h, 4 h, 12 h, 24 h)
 create index if not exists hq_outbox_status on public.hq_outbox (status, created_at desc);
+create index if not exists hq_outbox_msgid on public.hq_outbox (message_id);
+create index if not exists hq_outbox_to on public.hq_outbox (to_email, status);
+
+-- Boîte de réception : réponses des prospects, STOP, rebonds, absences (lues en IMAP)
+create table if not exists public.hq_inbox (
+  id bigserial primary key,
+  message_id text unique,
+  lead_id bigint references public.hq_leads(id) on delete set null,
+  outbox_id bigint references public.hq_outbox(id) on delete set null,
+  from_email text,
+  from_name text,
+  subject text,
+  body text,
+  kind text not null default 'reponse',           -- reponse | stop | rebond | absence | autre
+  intent text,                                    -- interesse | rdv | question | pas_interesse | plus_tard | stop
+  status text not null default 'nouveau',         -- nouveau | traite | archive
+  data jsonb not null default '{}'::jsonb,
+  received_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists hq_inbox_status on public.hq_inbox (status, received_at desc);
+
+-- Les sites de Novalemo : aperçu fabriqué d'avance, puis commande, paiement, domaine, mise en ligne
+create table if not exists public.hq_sites (
+  id bigserial primary key,
+  lead_id bigint references public.hq_leads(id) on delete set null,
+  slug text not null unique,
+  status text not null default 'brouillon',       -- brouillon | apercu | commande | paye | livraison | en_ligne | pause | expire | annule
+  formule text,                                   -- essentiel | vitrine | signature
+  montant_eur numeric(10,2),
+  spec jsonb not null default '{}'::jsonb,        -- la fiche du site (textes écrits par l'IA, faits posés par le code)
+  version int not null default 1,
+  revisions int not null default 0,
+  url_apercu text,
+  domaine text,
+  domaine_mode text,                              -- achat | client
+  url_finale text,
+  stripe jsonb not null default '{}'::jsonb,      -- prix, lien de paiement, session, facture
+  data jsonb not null default '{}'::jsonb,
+  published_at timestamptz,
+  paid_at timestamptz,
+  live_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists hq_sites_status on public.hq_sites (status, updated_at desc);
+create index if not exists hq_sites_lead on public.hq_sites (lead_id);
+
+-- Fichiers envoyés par les clients (logo, photos) : gardés en base, ce sont les leurs
+create table if not exists public.hq_fichiers (
+  id bigserial primary key,
+  site_id bigint references public.hq_sites(id) on delete cascade,
+  lead_id bigint references public.hq_leads(id) on delete set null,
+  inbox_id bigint,
+  nom text,
+  mime text,
+  taille int,
+  largeur int,
+  hauteur int,
+  sha text,
+  role text,                                      -- logo | photo
+  utilise boolean not null default false,
+  contenu text,                                   -- octets en base64
+  created_at timestamptz not null default now()
+);
+create index if not exists hq_fichiers_lead on public.hq_fichiers (lead_id, utilise);
 
 create table if not exists public.hq_suppression (
   email text primary key,
@@ -220,6 +304,9 @@ alter table public.hq_outbox enable row level security;
 alter table public.hq_suppression enable row level security;
 alter table public.hq_items enable row level security;
 alter table public.hq_daily enable row level security;
+alter table public.hq_inbox enable row level security;
+alter table public.hq_sites enable row level security;
+alter table public.hq_fichiers enable row level security;
 
 -- Compteurs du jour : une seule ligne par jour, mise à jour atomique
 create or replace function public.hq_bump(
@@ -239,23 +326,28 @@ language sql security definer set search_path = public as $$
     items = public.hq_daily.items + excluded.items;
 $$;
 
--- Verrou de cycle : un seul passage à la fois (cron + bouton)
-create or replace function public.hq_lock(p_name text, p_seconds int)
+-- Verrous : un seul passage (ou une seule publication) à la fois (cron + bouton). Chaque verrou porte le jeton de son
+-- détenteur : un passage en retard n'efface jamais le verrou d'un autre. La durée dépasse la limite d'une fonction
+-- Vercel (300 s) : un passage arrêté net libère le verrou en expirant, jamais pendant qu'il tourne encore.
+drop function if exists public.hq_lock(text, int);
+drop function if exists public.hq_unlock(text);
+create or replace function public.hq_lock(p_name text, p_seconds int, p_owner text default null)
 returns boolean
 language plpgsql security definer set search_path = public as $$
 begin
   insert into public.hq_config (key, value, updated_at)
-  values ('lock:' || p_name, jsonb_build_object('until', now() + make_interval(secs => p_seconds)), now())
+  values ('lock:' || p_name, jsonb_build_object('until', now() + make_interval(secs => p_seconds), 'owner', p_owner), now())
   on conflict (key) do update set value = excluded.value, updated_at = now()
   where (public.hq_config.value->>'until')::timestamptz < now();
   return found;
 end;
 $$;
 
-create or replace function public.hq_unlock(p_name text)
+create or replace function public.hq_unlock(p_name text, p_owner text default null)
 returns void
 language sql security definer set search_path = public as $$
-  delete from public.hq_config where key = 'lock:' || p_name;
+  delete from public.hq_config
+  where key = 'lock:' || p_name and (p_owner is null or value->>'owner' is null or value->>'owner' = p_owner);
 $$;
 
 -- Ménage : garde les tables légères (lancé par le Contrôleur de gestion)
@@ -279,10 +371,10 @@ end;
 $$;
 
 revoke all on function public.hq_bump(date, numeric, int, int, int, int, int, int) from public, anon, authenticated;
-revoke all on function public.hq_lock(text, int) from public, anon, authenticated;
-revoke all on function public.hq_unlock(text) from public, anon, authenticated;
+revoke all on function public.hq_lock(text, int, text) from public, anon, authenticated;
+revoke all on function public.hq_unlock(text, text) from public, anon, authenticated;
 revoke all on function public.hq_menage() from public, anon, authenticated;
 grant execute on function public.hq_bump(date, numeric, int, int, int, int, int, int) to service_role;
-grant execute on function public.hq_lock(text, int) to service_role;
-grant execute on function public.hq_unlock(text) to service_role;
+grant execute on function public.hq_lock(text, int, text) to service_role;
+grant execute on function public.hq_unlock(text, text) to service_role;
 grant execute on function public.hq_menage() to service_role;

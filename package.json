@@ -3,11 +3,17 @@
   "private": true,
   "version": "1.0.0",
   "description": "La Tour : le QG du groupe LEXONOS, une entreprise d'agents IA hiérarchisés (Novalemo Sites, Studio 3D, E-commerce Lab, Labo Avengers)",
-  "engines": { "node": ">=20" },
-  "scripts": { "test": "node test/sim.js" },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/sim.js"
+  },
   "dependencies": {
     "an-array-of-english-words": "^2.0.0",
     "an-array-of-french-words": "^2.0.0",
+    "imapflow": "^1.7.8",
+    "mailparser": "^3.9.39",
     "nodemailer": "^6.10.1"
   }
 }
