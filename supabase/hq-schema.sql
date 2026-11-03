@@ -1,6 +1,6 @@
 -- LA TOUR (groupe LEXONOS) : base des agents.
 -- Projet Supabase : Novalemo (fbmzlfrwxrzflfkazvmn), tables préfixées hq_ pour ne rien mélanger.
--- Déjà appliqué par Claude via le connecteur Supabase : ce fichier est une trace, rien à exécuter.
+-- À exécuter une fois : éditeur SQL du projet Novalemo, coller, Run (ou Claude via le connecteur Supabase). Réexécutable sans risque.
 -- Sécurité : RLS activée sans politique sur toutes les tables, seul le serveur (clé secrète) lit et écrit.
 -- Écritures sobres : pas de ligne par domaine scanné, seulement les prospects retenus ; compteurs du jour en une ligne.
 
@@ -167,12 +167,41 @@ create table if not exists public.hq_outbox (
   step int not null default 1,
   angle text,
   status text not null default 'a_valider',       -- a_valider | pret | envoye | erreur | annule
+  kind text not null default 'prospection',       -- prospection | relance | reponse
+  message_id text,                                -- Message-ID posé à l'envoi (fil de discussion)
+  in_reply_to text,                               -- pour une relance ou une réponse : le message auquel on répond
+  inbox_id bigint,                                -- réponse à un message reçu
   error text,
   sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- base créée avant la boîte d'envoi : on ajoute les colonnes manquantes
+alter table public.hq_outbox add column if not exists kind text not null default 'prospection';
+alter table public.hq_outbox add column if not exists message_id text;
+alter table public.hq_outbox add column if not exists in_reply_to text;
+alter table public.hq_outbox add column if not exists inbox_id bigint;
 create index if not exists hq_outbox_status on public.hq_outbox (status, created_at desc);
+create index if not exists hq_outbox_msgid on public.hq_outbox (message_id);
+
+-- Boîte de réception : réponses des prospects, STOP, rebonds, absences (lues en IMAP)
+create table if not exists public.hq_inbox (
+  id bigserial primary key,
+  message_id text unique,
+  lead_id bigint references public.hq_leads(id) on delete set null,
+  outbox_id bigint references public.hq_outbox(id) on delete set null,
+  from_email text,
+  from_name text,
+  subject text,
+  body text,
+  kind text not null default 'reponse',           -- reponse | stop | rebond | absence | autre
+  intent text,                                    -- interesse | rdv | question | pas_interesse | plus_tard | stop
+  status text not null default 'nouveau',         -- nouveau | traite | archive
+  data jsonb not null default '{}'::jsonb,
+  received_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists hq_inbox_status on public.hq_inbox (status, received_at desc);
 
 create table if not exists public.hq_suppression (
   email text primary key,
@@ -220,6 +249,7 @@ alter table public.hq_outbox enable row level security;
 alter table public.hq_suppression enable row level security;
 alter table public.hq_items enable row level security;
 alter table public.hq_daily enable row level security;
+alter table public.hq_inbox enable row level security;
 
 -- Compteurs du jour : une seule ligne par jour, mise à jour atomique
 create or replace function public.hq_bump(

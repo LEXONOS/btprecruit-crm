@@ -3,7 +3,7 @@
 'use strict';
 const { monde, ficheAgent, ficheEntreprise, liste } = require('../lib/world');
 const { agir } = require('../lib/actions');
-const { configure } = require('../lib/jobs/envoi');
+const mail = require('../lib/mail');
 const { SUPABASE_URL, SUPABASE_KEY } = require('../lib/config');
 
 function json(res, code, obj) {
@@ -27,8 +27,9 @@ module.exports = async function (req, res) {
       if (op === 'world') return json(res, 200, await monde(q.since ? Number(q.since) : null));
       if (op === 'agent') { const f = await ficheAgent(String(q.id || '')); return f ? json(res, 200, f) : json(res, 404, { error: 'Agent introuvable' }); }
       if (op === 'company') { const f = await ficheEntreprise(String(q.id || '')); return f ? json(res, 200, f) : json(res, 404, { error: 'Entreprise introuvable' }); }
-      if (['leads', 'outbox', 'livrables', 'runs'].indexOf(op) >= 0) return json(res, 200, await liste(op, q));
-      if (op === 'etat') return json(res, 200, { base: !!SUPABASE_KEY, projet: SUPABASE_URL.replace(/^https:\/\//, '').split('.')[0], anthropic: !!process.env.ANTHROPIC_API_KEY, google: !!process.env.GOOGLE_MAPS_API_KEY, envoi: configure() });
+      if (['leads', 'outbox', 'livrables', 'runs', 'inbox'].indexOf(op) >= 0) return json(res, 200, await liste(op, q));
+      if (op === 'boite') return json(res, 200, await agir('boite_etat', {}));
+      if (op === 'etat') return json(res, 200, { base: !!SUPABASE_KEY, projet: SUPABASE_URL.replace(/^https:\/\//, '').split('.')[0], anthropic: !!process.env.ANTHROPIC_API_KEY, google: !!process.env.GOOGLE_MAPS_API_KEY, envoi: mail.branchee(), boite: mail.identite().adresse || null });
       return json(res, 400, { error: 'Opération inconnue' });
     }
     if (req.method === 'POST') {

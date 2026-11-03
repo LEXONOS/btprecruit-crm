@@ -9,6 +9,7 @@ const STATUT = { idle: 'Disponible', working: 'Au travail', waiting: 'Attend une
 const KIND = { rapport: 'Rapport', ordre: 'Ordre', proposition: 'Proposition', alerte: 'Alerte', decision: 'Décision', evaluation: 'Évaluation', evenement: 'Événement', note: 'Note' };
 const PROPK = { nouvel_agent: 'Nouvel agent', nouvelle_entreprise: 'Nouvelle entreprise', depense: 'Dépense', strategie: 'Stratégie', outil: 'Outil', acces: 'Accès', autre: 'Autre' };
 const LEADS = { nouveau: 'Brut', a_contacter: 'À contacter', a_appeler: 'À appeler', sans_contact: 'Sans contact', brouillon: 'Brouillon prêt', contacte: 'Contacté', relance: 'Relancé', repondu: 'A répondu', interesse: 'Intéressé', client: 'Client', perdu: 'Perdu', stop: 'Désinscrit', ecarte: 'Écarté' };
+const INTENT = { interesse: 'Intéressé', rdv: 'Veut un rendez-vous', question: 'Question', pas_interesse: 'Pas intéressé', plus_tard: 'Plus tard', stop: 'STOP', autre: 'À regarder' };
 const ITEMK = { repo: 'Fiches GitHub', veille: 'Veille', idee: 'Idées vidéo', script: 'Scripts', niche: 'Niches', etude: 'Études', reference: 'Références', evaluation: 'Évaluations', fiche: 'Fiches', note: 'Notes' };
 
 /* ── utilitaires ── */
@@ -130,7 +131,7 @@ function renderChips() {
   const pct = b.jour_usd ? Math.min(100, (Number(j.cost_usd || 0) / Number(b.jour_usd)) * 100) : 0;
   $('#chips').innerHTML = [
     '<button class="chip" data-act="budget"><small>Coût IA du jour</small><b>' + usd(j.cost_usd) + ' <span class="muted">/ ' + usd(b.jour_usd) + '</span></b><span class="gauge"><i style="width:' + pct.toFixed(0) + '%;' + (pct > 85 ? 'background:var(--warn)' : '') + '"></i></span></button>',
-    '<button class="chip' + (c.brouillons ? ' hot' : '') + '" data-view="livrables" data-tab="emails"><small>Emails à valider</small><b>' + (c.brouillons || 0) + '</b></button>',
+    (c.reponses ? '<button class="chip hot" data-view="livrables" data-tab="reponses"><small>Réponses de prospects</small><b>' + c.reponses + ' <span class="muted">· ' + (c.brouillons || 0) + ' à valider</span></b></button>' : '<button class="chip' + (c.brouillons ? ' hot' : '') + '" data-view="livrables" data-tab="emails"><small>Emails à valider</small><b>' + (c.brouillons || 0) + '</b></button>'),
     '<button class="chip" data-view="livrables" data-tab="prospects"><small>Prospects</small><b>' + (c.prospects || 0) + ' <span class="muted">· ' + (c.a_contacter || 0) + ' à contacter</span></b></button>'
   ].join('');
 }
@@ -336,10 +337,10 @@ function openBudget() {
     '<label class="field"><span>Recherches web par jour (1 cent chacune)</span><input class="in" id="bRech" type="number" min="0" max="500" value="' + esc(b.recherches_jour) + '"></label>' +
     '<label class="field"><span>Recherches Google Maps par jour (prospection)</span><input class="in" id="bPlaces" type="number" min="0" max="500" value="' + esc(b.places_jour) + '"></label>' +
     '<label class="field"><span>Emails envoyés par jour maximum</span><input class="in" id="bMails" type="number" min="0" max="200" value="' + esc(b.emails_jour) + '"></label>' +
-    '<div class="row" style="justify-content:space-between;margin:6px 0 4px"><span><b>Envoi automatique des emails</b><br><span class="muted" style="font-size:12px">' + (envoiOk ? 'Les brouillons validés partent seuls (jours ouvrés, 8 h à 17 h).' : 'Pas encore possible : il faut une boîte d\'envoi dédiée (prochaine mission).') + '</span></span><button class="switch' + (b.envoi_auto ? ' on' : '') + '" id="bAuto" ' + (envoiOk ? '' : 'disabled style="opacity:.4"') + ' aria-label="Envoi automatique"></button></div>' +
+    '<div class="row" style="justify-content:space-between;margin:6px 0 4px"><span><b>Envoyer sans ma validation</b><br><span class="muted" style="font-size:12px">' + (envoiOk ? 'Les emails de la rédactrice partent seuls, sans passer par toi. Laisse coupé tant que tu relis.' : 'Possible une fois ta boîte d\'envoi branchée.') + '</span></span><button class="switch' + (b.envoi_auto ? ' on' : '') + '" id="bAuto" ' + (envoiOk ? '' : 'disabled style="opacity:.4"') + ' aria-label="Envoyer sans validation"></button></div>' +
     '<button class="btn primary" data-act="saveBudget" style="margin-top:12px">Enregistrer</button></div>';
   h += '<div class="sec"><h4>Nom du groupe</h4><div class="row"><input class="in" id="gName" value="' + esc(S.m.groupe.name) + '" style="flex:1"><button class="btn sm ghost" data-act="saveGroupe">Renommer</button></div></div>';
-  if (S.etat) h += '<div class="sec"><h4>Branchements</h4><div class="list">' + [['Base Supabase (' + S.etat.projet + ')', S.etat.base && !demo()], ['Clé Anthropic', S.etat.anthropic], ['Clé Google Maps', S.etat.google], ['Boîte d\'envoi', S.etat.envoi]].map((x) => '<div class="item" style="display:flex;justify-content:space-between"><span>' + esc(x[0]) + '</span><b style="color:' + (x[1] ? 'var(--ok)' : 'var(--faint)') + '">' + (x[1] ? 'branché' : 'non') + '</b></div>').join('') + '</div></div>';
+  if (S.etat) h += '<div class="sec"><h4>Branchements</h4><div class="list">' + [['Base Supabase (' + S.etat.projet + ')', S.etat.base && !demo()], ['Clé Anthropic', S.etat.anthropic], ['Clé Google Maps', S.etat.google], ['Boîte d\'envoi' + (S.etat.boite ? ' (' + S.etat.boite + ')' : ''), S.etat.envoi, 'boite']].map((x) => '<' + (x[2] ? 'button data-act="' + x[2] + '" class="item click"' : 'div class="item"') + ' style="display:flex;justify-content:space-between"><span>' + esc(x[0]) + '</span><b style="color:' + (x[1] ? 'var(--ok)' : 'var(--faint)') + '">' + (x[1] ? 'branché' : (x[2] ? 'brancher' : 'non')) + '</b></' + (x[2] ? 'button' : 'div') + '>').join('') + '</div></div>';
   panel(h, { type: 'budget' });
 }
 
@@ -352,9 +353,38 @@ function openSetup() {
   h += '<ol class="steps">';
   h += '<li class="' + (raison === 'tables' || etape2 ? 'done' : '') + '"><b>Créer les tables</b>Le plus simple : dis « go base » à Claude dans la conversation et accepte la question du connecteur Supabase. Sinon : ouvre <a href="https://supabase.com/dashboard/project/fbmzlfrwxrzflfkazvmn/sql/new" target="_blank" rel="noopener">l\'éditeur SQL du projet Novalemo</a>, colle le script et clique Run.<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="copySql">Copier le script SQL</button></div></li>';
   h += '<li class="' + (etape1 ? 'done' : '') + '"><b>Donner la clé à Vercel</b>Supabase, projet Novalemo, Project Settings, API Keys, onglet « Legacy API keys » : copie la clé <code>service_role</code>. Puis Vercel, projet btprecruit-crm, Settings, Environment Variables : ajoute <code>HQ_SUPABASE_KEY</code> avec cette valeur, coche les 3 environnements, Save, puis redéploie.</li>';
-  h += '<li class="' + (etape2 ? 'done' : '') + '"><b>C\'est parti</b>Recharge cette page : la fondation se pose toute seule (42 agents), les premiers passages démarrent au prochain cycle (15 min max) ou tout de suite avec « Lancer un cycle ».</li>';
+  h += '<li class="' + (etape2 ? 'done' : '') + '"><b>C\'est parti</b>Recharge cette page : la fondation se pose toute seule (43 agents), les premiers passages démarrent au prochain cycle (15 min max) ou tout de suite avec « Lancer un cycle ».</li>';
+  h += '<li class="' + (e.envoi ? 'done' : '') + '"><b>Brancher ta boîte d\'envoi</b>Quand tu veux : dans Vercel, ajoute <code>HQ_MAIL_USER</code> (l\'adresse, ex. contact@studionovalem.fr) et <code>HQ_MAIL_PASS</code> (son mot de passe), puis redéploie. Les emails validés partiront seuls et les réponses arriveront dans la tour.<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="boite">Voir la boîte</button></div></li>';
   h += '</ol>';
   panel(h, { type: 'setup' });
+}
+
+async function openBoite() {
+  const tete = (sous) => '<div class="ph"><div class="avatar" style="--c:var(--accent)">@</div><div><h2>La boîte d\'envoi</h2><p>' + sous + '</p></div></div>';
+  if (!S.etat || !S.etat.envoi) {
+    panel(tete('Pas encore branchée') + '<div class="sec"><p style="margin-top:0">La boîte mail qui envoie les emails des agents et reçoit les réponses des prospects. Deux variables dans Vercel, une seule fois :</p><ol class="steps"><li><b>HQ_MAIL_USER</b>L\'adresse d\'envoi, par exemple <code>contact@studionovalem.fr</code>.</li><li><b>HQ_MAIL_PASS</b>Le mot de passe de cette boîte (celui de ton webmail ; chez Google, un mot de passe d\'application).</li><li><b>Redéploie</b>Vercel, Deployments, les trois points du dernier déploiement, Redeploy. Le serveur (OVH, Google, Zoho, IONOS...) est reconnu tout seul.</li></ol></div><div class="sec"><h4>Ce qui se passe ensuite</h4><p class="muted" style="font-size:12.5px;margin:0">Les emails que tu valides partent de ta boîte (copie dans tes « Envoyés »), 5 par jour au début puis de plus en plus. Les réponses, STOP et adresses invalides sont lus toutes les 15 minutes, uniquement ceux liés à nos envois : le reste de ta boîte n\'est jamais lu.</p></div>', { type: 'boite' });
+    return;
+  }
+  panel(tete('Chargement…'), { type: 'boite' });
+  let b;
+  try { b = await api('boite'); } catch (e) { b = { erreur: e.message }; }
+  if (!S.sel || S.sel.type !== 'boite') return;
+  if (!b || b.erreur) return panel(tete('Erreur') + '<div class="sec"><p class="err">' + esc((b && b.erreur) || 'Erreur') + '</p></div>', { type: 'boite' });
+  let h = tete(esc(b.adresse) + (b.fournisseur ? ' · ' + esc(b.fournisseur) : ''));
+  h += '<div class="kpis"><div class="kpi"><small>Aujourd\'hui</small><b>' + b.envoyes_jour + ' / ' + b.quota + '</b></div><div class="kpi"><small>En file</small><b>' + b.prets + '</b></div><div class="kpi"><small>Réponses 14 j</small><b>' + b.stats14.reponses + ' <span class="muted" style="font-size:12px">' + b.stats14.taux_reponse + ' %</span></b></div></div>';
+  if (b.pause) h += '<div class="sec"><div class="wait">En pause : ' + esc(b.raison || '') + '</div><div class="row" style="margin-top:8px"><button class="btn sm ok" data-act="boitePause" data-p="0">Reprendre l\'envoi</button></div></div>';
+  h += '<div class="sec"><h4>Le rythme</h4><p style="margin:0;font-size:13px;color:#cfd8e8">Les emails validés partent ' + esc(b.fenetre) + ', deux par passage, espacés. Chauffe de la boîte : 5 par jour la première semaine, puis 8, 12, 16, jusqu\'à 20 (jamais plus que ton plafond de ' + b.plafond + '). Les réponses que tu valides partent tout de suite. Trop d\'adresses invalides : pause automatique.</p>' +
+    '<div class="row" style="justify-content:space-between;align-items:center;flex-wrap:nowrap;gap:14px;margin:12px 0 0"><span><b>Envoyer sans ma validation</b><br><span class="muted" style="font-size:12px">Les emails de la rédactrice partent seuls. Seulement quand tu lui fais confiance.</span></span><button class="switch' + (b.envoi_auto ? ' on' : '') + '" data-act="boiteAuto" data-v="' + (b.envoi_auto ? '0' : '1') + '" aria-label="Envoyer sans validation"></button></div></div>';
+  const s = b.stats14;
+  h += '<div class="sec"><h4>14 derniers jours</h4><div class="list">' + [['Envoyés', s.envoyes], ['Réponses', s.reponses], ['STOP', s.stop], ['Adresses invalides (rebonds)', s.rebonds], ['Absences (réponses automatiques)', s.absences]].map((x) => '<div class="item" style="display:flex;justify-content:space-between"><span>' + x[0] + '</span><b class="mono">' + x[1] + '</b></div>').join('') + '</div></div>';
+  if (b.dns) {
+    const d = b.dns;
+    h += '<div class="sec"><h4>Délivrabilité du domaine ' + esc(d.domaine) + '</h4><div class="list">' + [['SPF', d.spf], ['DKIM', d.dkim], ['DMARC', d.dmarc]].map((x) => '<div class="item"><div class="meta"><b style="color:' + (x[1].ok ? 'var(--ok)' : 'var(--warn)') + '">' + x[0] + ' : ' + (x[1].ok ? 'OK' : 'à régler') + '</b></div>' + (x[1].conseil ? '<p>' + esc(x[1].conseil) + '</p>' : '') + '</div>').join('') + '</div><div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="boiteDns">Revérifier</button></div></div>';
+  }
+  h += '<div class="sec"><h4>Réception</h4><p style="margin:0 0 8px;font-size:12.5px" class="muted">Dernière relève : ' + (b.releve_at ? depuis(b.releve_at) : 'jamais') + (b.erreur_releve ? ' · <span style="color:var(--err)">' + esc(b.erreur_releve) + '</span>' : '') + '. Seuls les messages liés à nos envois sont lus, rien n\'est marqué comme lu.</p>' +
+    '<div class="row"><button class="btn sm ghost" data-act="boiteReleve">Relever maintenant</button><button class="btn sm ghost" data-act="boiteTest">Tester la connexion</button><button class="btn sm ghost" data-act="boiteEssai">M\'envoyer un email test</button>' + (b.pause ? '' : '<button class="btn sm danger" data-act="boitePause" data-p="1">Mettre en pause</button>') + '</div>' +
+    (b.aide_mot_de_passe ? '<p class="muted" style="font-size:12px;margin:8px 0 0">Chez ' + esc(b.fournisseur) + ', HQ_MAIL_PASS doit être un ' + esc(b.aide_mot_de_passe) + '.</p>' : '') + '</div>';
+  panel(h, { type: 'boite' });
 }
 
 /* ── pages ── */
@@ -377,6 +407,8 @@ async function renderPage(silencieux) {
     if (!silencieux) page.innerHTML = '<h1>Livrables</h1><p class="lead">Chargement…</p>';
     try {
       if (S.tab === 'emails') pageData.emails = (await api('outbox', { limite: 80 })).rows;
+      if (S.tab === 'reponses') pageData.inbox = (await api('inbox', { limite: 60 })).rows;
+      if ((S.tab === 'emails' || S.tab === 'reponses') && S.m.boite && S.m.boite.branchee) pageData.boite = await api('boite').catch(() => null);
       if (S.tab === 'prospects') pageData.leads = (await api('leads', { limite: 200, statut: S.filtre || '' })).rows;
       if (S.tab === 'fiches') pageData.items = (await api('livrables', { limite: 100, type: S.sous || '' })).rows;
     } catch (e) { if (!silencieux) toast(e.message, 'err'); }
@@ -404,13 +436,21 @@ function carte(a) {
 
 function renderLivrables() {
   const c = S.m.compteurs || {};
-  let h = '<h1>Livrables</h1><p class="lead">Ce que les agents ont produit. Les emails attendent ta validation tant que l\'envoi automatique n\'est pas branché : relis, corrige, puis copie ou valide. Chaque retour que tu donnes devient une leçon pour la rédactrice.</p>';
-  h += '<div class="tabs">' + [['emails', 'Emails à valider', c.brouillons], ['prospects', 'Prospects', c.prospects], ['fiches', 'Veille et fiches', c.livrables]].map((t) => '<button data-tab="' + t[0] + '" class="' + (S.tab === t[0] ? 'on' : '') + '">' + t[1] + (t[2] ? '<b>' + t[2] + '</b>' : '') + '</button>').join('') + '</div>';
+  const bo = S.m.boite && S.m.boite.branchee;
+  let h = '<h1>Livrables</h1><p class="lead">' + (bo ? 'Ce que les agents ont produit. Les emails que tu valides partent de ta boîte, au rythme de la chauffe (jours ouvrés, 8 h à 17 h 30). Quand un prospect répond, Emma prépare la réponse : tu relis et tu envoies. Chaque retour que tu donnes devient une leçon pour la rédactrice.' : 'Ce que les agents ont produit. Tant que ta boîte d\'envoi n\'est pas branchée, les emails se copient à la main : relis, corrige, puis copie. Chaque retour que tu donnes devient une leçon pour la rédactrice.') + '</p>';
+  h += '<div class="tabs">' + [['reponses', 'Réponses', c.reponses], ['emails', 'Emails à valider', c.brouillons], ['prospects', 'Prospects', c.prospects], ['fiches', 'Veille et fiches', c.livrables]].map((t) => '<button data-tab="' + t[0] + '" class="' + (S.tab === t[0] ? 'on' : '') + '">' + t[1] + (t[2] ? '<b>' + t[2] + '</b>' : '') + '</button>').join('') + '</div>';
+  if (S.tab === 'emails' || S.tab === 'reponses') h += barreBoite();
+  if (S.tab === 'reponses') {
+    const rows = pageData.inbox || [];
+    const ouvertes = rows.filter((r) => r.status === 'nouveau' || r.status === 'brouillon'), faites = rows.filter((r) => !(r.status === 'nouveau' || r.status === 'brouillon')).slice(0, 25);
+    h += ouvertes.length ? ouvertes.map(carteReponse).join('') : '<div class="empty">' + (bo ? 'Aucune réponse en attente. Dès qu\'un prospect répond, elle arrive ici avec une réponse préparée par Emma (relève toutes les 15 minutes).' : 'Les réponses des prospects arriveront ici quand ta boîte sera branchée.') + '</div>';
+    if (faites.length) h += '<h3 class="muted" style="margin:22px 0 10px;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.08em">Déjà traitées</h3>' + faites.map(carteReponse).join('');
+  }
   if (S.tab === 'emails') {
-    const rows = (pageData.emails || []).filter((r) => ['a_valider', 'pret', 'erreur'].indexOf(r.status) >= 0);
+    const rows = (pageData.emails || []).filter((r) => r.kind !== 'reponse' && ['a_valider', 'pret', 'erreur'].indexOf(r.status) >= 0);
     const autres = (pageData.emails || []).filter((r) => ['envoye', 'annule'].indexOf(r.status) >= 0).slice(0, 20);
     h += rows.length ? rows.map(carteMail).join('') : '<div class="empty">Aucun email en attente. La rédactrice écrit dès que le Fournisseur de contacts a des prospects avec email.</div>';
-    if (autres.length) h += '<h3 class="muted" style="margin:22px 0 10px;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.08em">Déjà traités</h3><table class="t"><tr><th>À</th><th>Objet</th><th>Statut</th><th>Le</th></tr>' + autres.map((r) => '<tr><td>' + esc(r.to_email) + '</td><td>' + esc(r.subject) + '</td><td><span class="pill ' + esc(r.status) + '">' + esc(r.status === 'envoye' ? 'envoyé' : 'annulé') + '</span></td><td class="muted">' + date(r.sent_at || r.updated_at) + '</td></tr>').join('') + '</table>';
+    if (autres.length) h += '<h3 class="muted" style="margin:22px 0 10px;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.08em">Déjà traités</h3><table class="t"><tr><th>À</th><th>Objet</th><th>Statut</th><th>Le</th></tr>' + autres.map((r) => '<tr><td>' + esc(r.to_email) + '</td><td>' + esc(r.subject) + (r.kind === 'reponse' ? ' <span class="muted">(réponse)</span>' : r.kind === 'relance' ? ' <span class="muted">(relance)</span>' : '') + '</td><td><span class="pill ' + esc(r.status) + '">' + esc(r.status === 'envoye' ? 'envoyé' : 'annulé') + '</span>' + (r.error ? '<div class="muted" style="font-size:11px">' + esc(r.error) + '</div>' : '') + '</td><td class="muted">' + date(r.sent_at || r.updated_at) + '</td></tr>').join('') + '</table>';
   }
   if (S.tab === 'prospects') {
     const rows = pageData.leads || [];
@@ -426,15 +466,46 @@ function renderLivrables() {
   }
   $('#page').innerHTML = h;
 }
+function barreBoite() {
+  if (!S.m.boite || !S.m.boite.branchee) return '<div class="boitebar off"><span><b>Boîte d\'envoi non branchée</b><small>Branche ta boîte : les emails validés partiront seuls, au bon rythme, et les réponses arriveront ici.</small></span><button class="btn sm primary" data-act="boite">Brancher ma boîte</button></div>';
+  const b = pageData.boite;
+  if (!b) return '<div class="boitebar"><span><b>Boîte branchée</b></span><button class="btn sm ghost" data-act="boite">La boîte</button></div>';
+  return '<div class="boitebar' + (b.pause ? ' pause' : '') + '"><span><b>' + esc(b.adresse) + '</b><small>' + (b.pause ? 'En pause : ' + esc(b.raison || '') : 'Aujourd\'hui ' + b.envoyes_jour + ' sur ' + b.quota + ' (palier de chauffe) · ' + b.prets + ' en file · ' + b.stats14.reponses + ' réponse(s) en 14 jours') + '</small></span><button class="btn sm ghost" data-act="boite">La boîte</button></div>';
+}
+function carteReponse(r) {
+  const l = r.lead || {}, o = r.origine, rep = r.reponse;
+  const ouverte = r.status === 'nouveau' || r.status === 'brouillon';
+  let h = '<article class="mail reply' + (ouverte ? ' open' : '') + '"><header><span><b>' + esc(r.from_name || r.from_email) + '</b>' + (l.name && l.name !== r.from_name ? ' <span class="muted">· ' + esc(l.name) + '</span>' : '') + '<div class="muted" style="font-size:12px">' + esc(r.from_email) + ' · ' + date(r.received_at) + (l.sector ? ' · ' + esc(l.sector) : '') + (l.commune ? ', ' + esc(l.commune) : '') + '</div></span><span class="pill ' + esc(r.intent || r.status) + '">' + esc(INTENT[r.intent] || { nouveau: 'nouvelle', brouillon: 'réponse prête', traite: 'traitée', archive: 'archivée' }[r.status] || r.status) + '</span></header>';
+  h += '<div class="body theirs">' + esc(r.body || '(message vide)') + '</div>';
+  if (r.data && r.data.pieces && r.data.pieces.length) h += '<p class="ctx">Pièce(s) jointe(s) : ' + esc(r.data.pieces.map((p) => p.nom).filter(Boolean).join(', ')) + ' (ouvre-les dans ta messagerie)</p>';
+  if (r.data && r.data.note) h += '<p class="ctx">Emma : ' + esc(r.data.note) + '</p>';
+  if (o) h += '<details class="orig"><summary>Notre email : ' + esc(o.subject) + '</summary><div class="body">' + esc(o.body) + '</div></details>';
+  let btns = '';
+  if (rep && rep.status !== 'envoye') {
+    h += '<div class="draft"><small>Réponse préparée par ' + esc(nom(rep.agent_id)) + ', modifie-la si besoin</small><textarea class="in" id="rb' + rep.id + '">' + esc(rep.body) + '</textarea>' + (rep.status === 'erreur' && rep.error ? '<p class="err">Envoi raté : ' + esc(rep.error) + '</p>' : '') + '</div>';
+    btns += '<button class="btn sm ok" data-act="repSend" data-id="' + rep.id + '">' + (rep.status === 'pret' ? 'Envoyer maintenant' : 'Envoyer la réponse') + '</button>';
+  } else if (rep && rep.status === 'envoye') {
+    h += '<p class="ctx">Réponse envoyée ' + date(rep.sent_at) + '.</p>';
+  } else if (r.status === 'nouveau') {
+    h += '<p class="ctx">Emma prépare une réponse au prochain passage.</p>';
+    btns += '<button class="btn sm ghost" data-act="lancer" data-id="reponses">Lancer Emma maintenant</button>';
+  }
+  if (l.phone) btns += '<a class="btn sm ghost" href="tel:' + esc(String(l.phone).replace(/\s/g, '')) + '">Appeler ' + esc(l.phone) + '</a>';
+  if (ouverte && r.intent !== 'interesse' && r.intent !== 'rdv') btns += '<button class="btn sm ghost" data-act="repInteresse" data-id="' + r.id + '">Il est intéressé</button>';
+  if (ouverte) btns += '<button class="btn sm ghost" data-act="repTraite" data-id="' + r.id + '">Marquer traitée</button>';
+  if (l.id && l.status !== 'stop' && ouverte) btns += '<button class="btn sm danger" data-act="leadStop" data-id="' + l.id + '">STOP</button>';
+  return h + (btns ? '<div class="row" style="margin-top:10px">' + btns + '</div>' : '') + '</article>';
+}
 function carteMail(r) {
   const l = r.lead || {};
-  const auto = S.m.budget && S.m.budget.envoi_auto;
+  const bo = S.m.boite && S.m.boite.branchee;
   const mailto = 'mailto:' + encodeURIComponent(r.to_email) + '?subject=' + encodeURIComponent(r.subject) + '&body=' + encodeURIComponent(r.body);
-  return '<article class="mail" data-mail="' + r.id + '"><header><span><b>' + esc(r.subject) + '</b><div class="muted" style="font-size:12px">à ' + esc(r.to_email) + ' · ' + esc(l.name || '') + (l.sector ? ' · ' + esc(l.sector) : '') + (l.commune ? ', ' + esc(l.commune) : '') + (r.angle ? ' · angle ' + esc(r.angle) : '') + (r.step > 1 ? ' · relance ' + (r.step - 1) : '') + '</div></span><span class="pill ' + esc(r.status) + '">' + esc({ a_valider: 'à valider', pret: 'part bientôt', erreur: 'erreur d\'envoi' }[r.status] || r.status) + '</span></header>' +
+  return '<article class="mail" data-mail="' + r.id + '"><header><span><b>' + esc(r.subject) + '</b><div class="muted" style="font-size:12px">à ' + esc(r.to_email) + ' · ' + esc(l.name || '') + (l.sector ? ' · ' + esc(l.sector) : '') + (l.commune ? ', ' + esc(l.commune) : '') + (r.angle ? ' · angle ' + esc(r.angle) : '') + (r.step > 1 ? ' · relance ' + (r.step - 1) + ' (même fil)' : '') + '</div></span><span class="pill ' + esc(r.status) + '">' + esc({ a_valider: 'à valider', pret: 'en file d\'envoi', erreur: 'erreur d\'envoi' }[r.status] || r.status) + '</span></header>' +
     (l.website ? '<p class="ctx">Site : <a href="' + esc(/^https?:/.test(l.website) ? l.website : 'https://' + l.website) + '" target="_blank" rel="noopener">' + esc(l.website) + '</a> (' + esc(l.site_state || '') + ')</p>' : '') +
+    (r.status === 'erreur' && r.error ? '<p class="err">Envoi raté : ' + esc(r.error) + '</p>' : '') +
     '<div class="body" data-edit="' + r.id + '">' + esc(r.body) + '</div>' +
     '<div class="row" style="margin-top:10px">' +
-    (auto ? '<button class="btn sm ok" data-act="mail" data-id="' + r.id + '" data-s="pret">Valider l\'envoi</button>' : '<a class="btn sm ok" href="' + mailto + '" data-act="mailOpen" data-id="' + r.id + '">Ouvrir dans ma messagerie</a><button class="btn sm ghost" data-act="mailCopy" data-id="' + r.id + '">Copier</button><button class="btn sm ghost" data-act="mail" data-id="' + r.id + '" data-s="envoye">Marquer envoyé</button>') +
+    (bo ? (r.status === 'pret' ? '<button class="btn sm ghost" data-act="mail" data-id="' + r.id + '" data-s="a_valider">Retirer de la file</button>' : '<button class="btn sm ok" data-act="mail" data-id="' + r.id + '" data-s="pret">' + (r.status === 'erreur' ? 'Réessayer' : 'Valider l\'envoi') + '</button>') : '<a class="btn sm ok" href="' + mailto + '" data-act="mailOpen" data-id="' + r.id + '">Ouvrir dans ma messagerie</a><button class="btn sm ghost" data-act="mailCopy" data-id="' + r.id + '">Copier</button><button class="btn sm ghost" data-act="mail" data-id="' + r.id + '" data-s="envoye">Marquer envoyé</button>') +
     '<button class="btn sm ghost" data-act="mailEdit" data-id="' + r.id + '">Modifier</button><button class="btn sm ghost" data-act="mailRetour" data-id="' + r.id + '">Retour à la rédactrice</button><button class="btn sm danger" data-act="mail" data-id="' + r.id + '" data-s="annule">Annuler</button></div></article>';
 }
 
@@ -542,7 +613,26 @@ function bind() {
       }); break;
       case 'saveGroupe': if (garde()) action(t, async () => { await post({ op: 'groupe', name: $('#gName').value }); toast('Renommé.', 'ok'); await poll(); }); break;
       case 'copySql': action(t, async () => { const r = await fetch('/supabase/hq-schema.sql'); const s = await r.text(); await navigator.clipboard.writeText(s); toast('Script copié : colle-le dans l\'éditeur SQL de Supabase puis Run.', 'ok'); }); break;
-      case 'mail': if (garde()) action(t, async () => { await post({ op: 'email', id: Number(d.id), statut: d.s }); toast({ pret: 'Validé : il part au prochain créneau d\'envoi.', envoye: 'Marqué envoyé.', annule: 'Annulé.' }[d.s] || 'Fait.', 'ok'); await renderPage(true); poll(); }); break;
+      case 'mail': if (garde()) action(t, async () => { await post({ op: 'email', id: Number(d.id), statut: d.s }); toast({ pret: 'Validé : il part de ta boîte au prochain créneau (jours ouvrés, 8 h à 17 h 30).', a_valider: 'Retiré de la file.', envoye: 'Marqué envoyé.', annule: 'Annulé.' }[d.s] || 'Fait.', 'ok'); await renderPage(true); poll(); }); break;
+      case 'boite': openBoite(); break;
+      case 'repSend': if (garde()) action(t, async () => {
+        const ta = $('#rb' + d.id);
+        const r = await post({ op: 'reponse_envoyer', id: Number(d.id), body: ta ? ta.value : undefined });
+        toast(r.envoye ? 'Réponse envoyée, dans le même fil.' : 'Pas encore partie : ' + (r.erreur || '') + '. ' + (r.note || ''), r.envoye ? 'ok' : 'err');
+        await renderPage(false); poll();
+      }); break;
+      case 'repInteresse': if (garde()) action(t, async () => { await post({ op: 'reponse_maj', id: Number(d.id), intent: 'interesse' }); toast('Noté : prospect intéressé.', 'ok'); await renderPage(false); poll(); }); break;
+      case 'repTraite': if (garde()) action(t, async () => { await post({ op: 'reponse_maj', id: Number(d.id), statut: 'traite' }); toast('Marquée traitée.', 'ok'); await renderPage(false); poll(); }); break;
+      case 'boiteTest': action(t, async () => {
+        const r = await post({ op: 'boite_test' });
+        const pb = [r.smtp && !r.smtp.ok ? 'envoi : ' + r.smtp.erreur : '', r.imap && !r.imap.ok ? 'réception : ' + r.imap.erreur : ''].filter(Boolean).join(' ; ');
+        toast(r.ok ? 'Connexion OK : envoi et réception (' + (r.fournisseur || '') + ').' : 'Problème ' + pb, r.ok ? 'ok' : 'err');
+      }); break;
+      case 'boiteEssai': action(t, async () => { const r = await post({ op: 'boite_test_envoi' }); toast('Email de test envoyé à ' + r.a + ' : regarde s\'il arrive en boîte de réception.', 'ok'); }); break;
+      case 'boiteDns': action(t, async () => { await post({ op: 'boite_dns' }); toast('DNS revérifié.', 'ok'); openBoite(); }); break;
+      case 'boiteReleve': action(t, async () => { const r = await post({ op: 'boite_releve' }); toast(r.resume || 'Relève faite.', r.erreur ? 'err' : 'ok'); await poll(); if (S.view === 'livrables') renderPage(false); openBoite(); }); break;
+      case 'boitePause': action(t, async () => { await post({ op: 'boite_pause', pause: d.p === '1' }); toast(d.p === '1' ? 'Envoi en pause.' : 'Envoi repris.', 'ok'); openBoite(); }); break;
+      case 'boiteAuto': if (garde()) action(t, async () => { await post({ op: 'budget', envoi_auto: d.v === '1' }); toast(d.v === '1' ? 'Les emails de la rédactrice partiront sans ta validation.' : 'Chaque email repasse par ta validation.', 'ok'); await poll(); openBoite(); }); break;
       case 'mailCopy': { const r = (pageData.emails || []).find((x) => String(x.id) === d.id); if (r) navigator.clipboard.writeText('Objet : ' + r.subject + '\n\n' + r.body).then(() => toast('Copié. Pense à « Marquer envoyé » après.', 'ok')); break; }
       case 'mailOpen': setTimeout(() => toast('Une fois envoyé, clique « Marquer envoyé ».'), 400); break;
       case 'mailEdit': {

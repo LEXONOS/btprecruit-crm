@@ -32,6 +32,14 @@ function claude(body) {
     const leads = JSON.parse(tr.content);
     return rep(leads.map(function (l) { return null; }).filter(Boolean).concat([tu('rediger_emails', { emails: leads.slice(0, 3).map(function (l) { return { lead_id: l.id, objet: 'Le site de ' + l.nom, corps: 'Bonjour,\nVotre site n\'a pas de mentions légales.\nLouis', angle: 'conformite' }; }) }), tu('terminer', { resume: Math.min(3, leads.length) + ' brouillons.' })]));
   }
+  if (qui === 'Emma') {
+    if (!toolResult) return rep([tu('lister_reponses', {})]);
+    const tr = last.content.find(function (b) { return b.type === 'tool_result'; });
+    let rows; try { rows = JSON.parse(tr.content); } catch (e) { rows = []; }
+    if (!Array.isArray(rows) || !rows.length) return rep([tu('terminer', { resume: 'Aucune réponse.' })]);
+    const r = rows[0];
+    return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'interesse', note: 'Veut être appelé demain.' }), tu('repondre', { reponse_id: r.id, corps: 'Bonjour Monsieur Dupont,\nAvec plaisir. Je vous appelle demain en fin de matinée ou jeudi après-midi ?\nLouis\nNovalemo (Studio Novalem), Guadeloupe\n+590 691 25 34 49' }), tu('terminer', { resume: 'Réponse préparée pour ' + r.de })]);
+  }
   if (qui === 'Alan' || qui === 'Malik' || qui === 'Lucie' || qui === 'Adam') return rep([tu('livrer', { type: qui === 'Malik' ? 'idee' : qui === 'Adam' ? 'niche' : 'veille', titre: 'Livrable de ' + qui, contenu: 'Contenu.', score: 70 }), tu('terminer', { resume: 'Un livrable.' })], 'tool_use', { server_tool_use: { web_search_requests: 2 } });
   if (qui === 'Clara') return rep([tu('livrer', { type: 'script', titre: 'Comment marche une serrure', contenu: 'Script.' }), tu('terminer', { resume: 'Un script.' })]);
   return rep([tu('apprendre', { lecon: 'Leçon de ' + qui, poids: 5 }), tu('terminer', { resume: 'Passage de ' + qui })]);

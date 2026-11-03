@@ -59,6 +59,28 @@ http.createServer(function (req, res) {
   db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
   const r = await runtime.cycle({ db: db, secondes: 250 });
   console.log('Premier cycle simulé :', r.passages.length, 'passages');
+  if (process.argv.indexOf('--boite') >= 0) {
+    // boîte d'envoi simulée : envois, une réponse de prospect, la réponse préparée par Emma
+    process.env.HQ_MAIL_USER = 'contact@studionovalem.fr'; process.env.HQ_MAIL_PASS = 'local';
+    const mail = require('../lib/mail'), ENVOI = require('../lib/jobs/envoi'), BOITE = require('../lib/jobs/boite'), { agir } = require('../lib/actions');
+    const file = [];
+    mail.forcer({ mx: ['mx1.mail.ovh.net'], envoyer: async function () {}, tester: async function () { return { smtp: { ok: true }, imap: { ok: true } }; },
+      relever: async function (etat, garder) { const out = []; for (const m of file.splice(0)) if (await garder(m)) out.push(m); return { etat: { uidValidity: '1', dernier: 50 }, messages: out }; },
+      dns: async function (d) { return { domaine: d, fournisseur: 'OVH', mx: ['mx1.mail.ovh.net'], spf: { ok: true, valeur: 'v=spf1 include:mx.ovh.com ~all' }, dkim: { ok: false, conseil: 'Espace client OVH > Web Cloud > Emails > ton domaine > onglet DKIM : activer.' }, dmarc: { ok: false, conseil: 'Ajoute un enregistrement TXT sur _dmarc.' + d + ' : v=DMARC1; p=none; rua=mailto:contact@' + d }, verifie_le: new Date().toISOString() }; } });
+    db.tables.hq_agents.forEach(function (a) { if (a.id === 'redacteur' || a.id === 'contacts') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
+    await runtime.cycle({ db: db, secondes: 250 });
+    for (const o of db.tables.hq_outbox.filter(function (x) { return x.status === 'a_valider'; }).slice(0, 1)) await agir('email', { id: o.id, statut: 'pret' });
+    await ENVOI.run({ db: db, budget: (await runtime.charger(db)).budget, limite: Date.now() + 60000, toujours: true, espacement: 0 });
+    const o1 = db.tables.hq_outbox.find(function (x) { return x.status === 'envoye'; });
+    const l1 = o1 && db.tables.hq_leads.find(function (l) { return l.id === o1.lead_id; });
+    if (o1) {
+      file.push({ uid: 11, messageId: '<r1@climpro971.fr>', inReplyTo: o1.message_id, from: l1.email, fromName: 'Jean Dupont', subject: 'Re: ' + o1.subject, headers: '', date: new Date(),
+        source: Buffer.from('Subject: Re\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nBonjour,\r\nOui ça m\'intéresse, on a justement un problème avec notre site actuel. Vous pouvez m\'appeler demain matin ? Combien ça coûterait pour 3 pages ?\r\n\r\nJean Dupont\r\nClim Pro 971\r\n\r\nLe lun. 2 nov. 2026, Louis a écrit :\r\n> Bonjour\r\n') });
+      await BOITE.releve({ db: db });
+      await runtime.cycle({ db: db, agentId: 'reponses', secondes: 200 });
+    }
+    console.log('Boîte simulée :', db.tables.hq_outbox.length, 'emails,', (db.tables.hq_inbox || []).length, 'réponse(s)');
+  }
   // activité factice pour voir la scène vivre
   const ids = db.tables.hq_agents.filter(function (a) { return a.kind !== 'attente'; }).map(function (a) { return a; });
   setInterval(function () {
