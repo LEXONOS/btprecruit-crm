@@ -2,49 +2,73 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Suivi_distribution_2026.xlsx</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>La Tour · LEXONOS</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="/assets/app.css?v=4">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='4' fill='%23137a43'/%3E%3Cpath d='M3 12h26M3 20h26M12 3v26M20 3v26' stroke='%23fff' stroke-width='2' opacity='.85'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#05080F">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305080F'/%3E%3Crect x='11' y='5' width='10' height='22' rx='1.5' fill='none' stroke='%23E8C872' stroke-width='2'/%3E%3Cpath d='M11 11h10M11 16h10M11 21h10' stroke='%232EE3AF' stroke-width='1.6'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/hq/style.css?v=1">
+  <script type="importmap">
+  { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  } }
+  </script>
 </head>
 <body>
-  <div class="app">
-    <header class="titlebar">
-      <div class="tb-file">
-        <svg class="tb-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="4" fill="#137a43"/><path d="M3 12h26M3 20h26M12 3v26M20 3v26" stroke="#fff" stroke-width="2" opacity=".85"/></svg>
-        <span id="fname">Suivi_distribution_2026.xlsx</span>
-        <span class="tb-saved" id="saved">Enregistré</span>
-      </div>
-      <button class="tb-btn" data-act="pane" id="pane-btn">Commentaires</button>
-    </header>
-    <nav class="menubar" id="menubar" aria-label="Menu">
-      <button data-act="menu" data-menu="file">Fichier</button>
-      <button data-act="insert">Insertion</button>
-      <button data-act="sheet" data-sheet="data">Données</button>
-      <button data-act="menu" data-menu="view">Affichage</button>
-      <button data-act="help">Aide</button>
+  <div id="scene" class="scene" aria-label="La tour du groupe en 3D"></div>
+
+  <header class="bar">
+    <button class="brand" data-act="overview" title="Vue d'ensemble">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="4" width="10" height="24" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 10h10M11 15h10M11 20h10" stroke="var(--novalemo)" stroke-width="1.6"/></svg>
+      <span class="brand-name" id="groupName">LEXONOS</span>
+      <span class="brand-sub">La Tour</span>
+    </button>
+    <div class="live" id="live"><i></i><span>connexion…</span></div>
+    <div class="chips" id="chips"></div>
+    <nav class="views" id="views" aria-label="Vues">
+      <button data-view="tour" class="on">Tour</button>
+      <button data-view="org">Organigramme</button>
+      <button data-view="livrables">Livrables</button>
+      <button data-view="chiffres">Chiffres</button>
     </nav>
-    <div class="fbar">
-      <div class="namebox" id="namebox">A1</div>
-      <div class="fx-btns">
-        <button data-act="fx-clear" aria-label="Effacer la saisie">&times;</button>
-        <button data-act="fx-send" aria-label="Valider la saisie">&#10003;</button>
-        <span class="fx-label">fx</span>
-      </div>
-      <textarea id="fx" rows="1" spellcheck="false" aria-label="Saisie"></textarea>
+    <div class="bar-actions">
+      <button class="btn ghost" data-act="cycle" id="cycleBtn" title="Fait passer maintenant tous les agents dont c'est l'heure">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg><span>Lancer un cycle</span>
+      </button>
+      <button class="btn gold" data-act="validations" id="valBtn">
+        <span>Validations</span><b id="valCount">0</b>
+      </button>
+      <button class="btn icon" data-act="budget" title="Budget et réglages">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
     </div>
-    <div class="work">
-      <div class="sheetwrap" id="sheet"></div>
-      <aside class="pane" id="pane" hidden></aside>
-    </div>
-    <nav class="tabs" id="tabs" aria-label="Feuilles"></nav>
-    <footer class="status" id="status"></footer>
-  </div>
-  <div id="note" class="note" hidden></div>
-  <div id="menu" class="menu" hidden></div>
-  <div id="dropzone" class="dropzone" hidden><div>Déposer ici pour lire les captures</div></div>
-  <script src="/assets/engine.js?v=4"></script>
-  <script src="/assets/app.js?v=4"></script>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <aside class="rail" id="rail" aria-label="Étages et chantiers"></aside>
+  <button class="rail-toggle" data-act="rail" aria-label="Étages">Étages</button>
+
+  <section class="page" id="page" hidden></section>
+
+  <aside class="panel" id="panel" aria-live="polite" hidden>
+    <button class="panel-close" data-act="close" aria-label="Fermer">×</button>
+    <div class="panel-body" id="panelBody"></div>
+  </aside>
+
+  <section class="feed" id="feed">
+    <button class="feed-head" data-act="feed"><b>Le fil</b><span id="feedLast">en attente des premiers échanges</span></button>
+    <div class="feed-list" id="feedList"></div>
+  </section>
+
+  <div class="tip" id="tip" hidden></div>
+  <div class="toasts" id="toasts"></div>
+
+  <noscript><p class="noscript">La tour a besoin de JavaScript.</p></noscript>
+  <script type="module" src="/assets/hq/app.js?v=1"></script>
 </body>
 </html>
