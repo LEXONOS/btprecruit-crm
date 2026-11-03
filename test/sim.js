@@ -922,14 +922,109 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(/adresse vercel\.app/.test(perso.erreur || '') && vapp.ok && /pas protégée/.test(nue.erreur || ''), 'codes acceptés seulement derrière la protection Vercel : ' + JSON.stringify([perso, vapp, nue]));
     const jwt = function (role) { return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + Buffer.from(JSON.stringify({ iss: 'supabase', ref: 'fbmzlfrwxrzflfkazvmn', role: role })).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_') + '.signature'; };
     assert.ok(/clé publique \(anon\)/.test((await M.enregistrer({ HQ_SUPABASE_KEY: jwt('anon') })).erreur || '') && M.roleJwt(jwt('service_role')) === 'service_role', 'ancienne clé publique (anon) refusée');
+    // une étape à moitié acceptée par Vercel est défaite : jamais une adresse neuve avec l'ancien mot de passe
+    fakes.VERCEL.env.HQ_MAIL_USER = { type: 'sensitive', target: ['production'], projet: 'prj_tour', longueur: process.env.HQ_MAIL_USER.length, id: 'env_HQ_MAIL_USER' };
     fakes.VERCEL.envEchec.add('HQ_MAIL_PASS');
-    const avantEcr = fakes.VERCEL.ecrituresEnv;
-    const rate = await M.enregistrer({ HQ_MAIL_USER: 'louis@novalemo-mq.fr', HQ_MAIL_PASS: 'autre-mot-de-passe' });
+    const rate = await M.enregistrer({ HQ_MAIL_USER: 'nouvelle.adresse@novalemo-mq.fr', HQ_MAIL_PASS: 'autre-mot-de-passe' });
     fakes.VERCEL.envEchec.clear();
-    assert.ok(/refusé/.test(rate.erreur || '') && fakes.VERCEL.ecrituresEnv === avantEcr + 1, 'adresse et mot de passe écrits en une seule requête ; un refus est signalé');
+    assert.ok(/refusé/.test(rate.erreur || '') && /rien n'a changé/.test(rate.erreur || '') && fakes.VERCEL.env.HQ_MAIL_USER.longueur === process.env.HQ_MAIL_USER.length, 'étape à moitié refusée : l\'adresse reprend sa valeur d\'avant : ' + JSON.stringify(rate));
+    fakes.VERCEL.envEchec.add('HQ_WHATSAPP_NUMERO');
+    const rateW = await M.enregistrer({ HQ_WHATSAPP_KEY: 'kapso_cle_essai', HQ_WHATSAPP_NUMERO: '1234567890' });
+    fakes.VERCEL.envEchec.clear();
+    assert.ok(/refusé/.test(rateW.erreur || '') && !fakes.VERCEL.env.HQ_WHATSAPP_KEY, 'variable neuve d\'une étape refusée : retirée');
     assert.ok(db.tables.hq_messages.some(function (m) { return /^Réglage enregistré : HQ_SITES_DOMAINE/.test(m.subject || ''); }), 'chaque code enregistré : Louis prévenu (le nom, jamais la valeur)');
     assert.ok(!JSON.stringify(db.tables.hq_messages).includes('autre-mot-de-passe') && !JSON.stringify(db.tables.hq_messages).includes('sk_live_autre_compte_123'), 'aucune valeur de code dans les messages');
     console.log('Relecture OK : doublon d\'abonnement, facture réglée en retard, pause en livraison, fin voulue depuis Stripe, factures ouvertes annulées, remboursement après arrêt, abonnement introuvable, STOP, client prioritaire, photo WhatsApp, nom d\'utilisateur, verrous, Missions protégées');
+  }
+  // 28. VÉRIFICATION DES CORRECTIONS : arrêt demandé puis impayé, Emma express sans boucle, images choisies, remboursement
+  // réessayé jusqu'au bout, mentions des anciens abonnés, identifiant WhatsApp appris, fin d'abonnement avant un an
+  {
+    const WAJ = require('../lib/jobs/whatsapp');
+    const sansThrottle = function () { db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'stripe:abonnements'; }); };
+    const dans = function (j) { return new Date(Date.now() + j * 86400000).toISOString(); };
+    const abonne = async function (cle, email) {
+      const c = await nouveauClient(cle, 'Vf ' + cle, email);
+      await exE().commande({ reponse_id: c.ib.id, formule: 'essentiel', paiement: 'mensuel' });
+      const lm = leSite(c.s.id).stripe.lien_mois;
+      fakes.payer(lm, { customer_details: { email: email, name: 'X' } });
+      fakes.FAUX_EN_LIGNE.add(leSite(c.s.id).domaine);
+      await lucas(); await lucas(); await lucas();
+      db.tables.hq_inbox.find(function (x) { return x.id === c.ib.id; }).data.confiance = 'fil';
+      return Object.assign(c, { sub: 'sub_' + lm, lm: lm });
+    };
+    // N1. arrêt demandé pendant l'engagement, puis la carte ne passe plus et Stripe arrête l'abonnement : c'est un impayé
+    const n1 = await abonne('vf-arret-impaye', 'vfai@test-mq.fr');
+    leSite(n1.s.id).data.abonnement.engagement_jusqu_au = dans(200);
+    const r1 = await exE().resilier_abonnement({ reponse_id: n1.ib.id });
+    assert.ok(r1.arret_programme && fakes.STRIPE.abonnements[n1.sub].cancel_at, 'arrêt programmé à la fin de l\'engagement');
+    const invN1 = fakes.mois(n1.sub, false);
+    Object.assign(fakes.STRIPE.abonnements[n1.sub], { status: 'canceled', canceled_at: Math.floor(Date.now() / 1000) - 60, cancellation_details: { reason: 'payment_failed' } });
+    sansThrottle(); await lucas();
+    const sN1 = leSite(n1.s.id);
+    assert.ok(sN1.status === 'pause' && sN1.data.abonnement && sN1.data.abonnement.lien_reprise && fakes.STRIPE.facturesAnnulees.indexOf(invN1) >= 0 && !db.tables.hq_outbox.some(function (o) { return o.lead_id === n1.l.id && /^Fin de votre abonnement/.test(o.subject); }), 'arrêt demandé puis impayé : pause et lien de reprise, jamais « fin voulue »');
+    // N2. le passage express de WhatsApp ne relance pas Emma sur un message qu'elle a déjà vu
+    process.env.HQ_WHATSAPP_KEY = 'kapso_test'; process.env.HQ_WHATSAPP_NUMERO = '1234567890'; process.env.HQ_WHATSAPP_TEL = '+596 696 99 88 77';
+    const H1 = require('../api/whatsapp.js');
+    const express = async function () { let out = null; const res = { statusCode: 0, setHeader: function () {}, end: function (x) { out = JSON.parse(x); } }; await H1({ method: 'GET', headers: {} }, res); return out; };
+    const passagesEmma = function () { return db.tables.hq_runs ? db.tables.hq_runs.filter(function (r) { return r.agent_id === 'reponses'; }).length : 0; };
+    fakes.recuWhatsApp('+596696778899', 'Bonjour, je regarde et je reviens vers vous', 'Hésitant');
+    const e1 = await express();
+    const apres1 = passagesEmma();
+    const e2 = await express(); const e3 = await express();
+    assert.ok(e1 && e1.ok && e1.emma && e2.ok && !e2.emma && !e3.emma && passagesEmma() === apres1, 'express : Emma passe pour un message neuf, jamais deux fois pour le même : ' + JSON.stringify([e1, e2]));
+    // N3. un autocollant n'est rien ; une photo reçue ne va sur le site que si Emma le dit
+    const c3 = await abonne('vf-images', 'vfimg@test-mq.fr');
+    await db.update('hq_leads', { phone: '0696 21 21 21', status: 'client' }, { eq: { id: c3.l.id } });
+    fakes.recuWhatsApp('+596696212121', '', 'Patron', 0, { type: 'sticker', text: undefined, sticker: { mime_type: 'image/webp' }, kapso: { direction: 'inbound', has_media: true, media_url: 'https://api.kapso.ai/storage/media/sticker1.webp', media_data: { content_type: 'image/webp', byte_size: 9000 } } });
+    fakes.recuWhatsApp('+596696212121', 'Voilà une capture de mon écran, le site ne s\'affiche pas bien', 'Patron', 0, { type: 'image', text: undefined, image: { caption: 'Voilà une capture de mon écran, le site ne s\'affiche pas bien', mime_type: 'image/jpeg' }, kapso: { direction: 'inbound', has_media: true, media_url: 'https://api.kapso.ai/storage/media/capture.jpg', media_data: { content_type: 'image/jpeg', byte_size: 2400 } } });
+    await WAJ.releve({ db: db });
+    const im3 = db.tables.hq_fichiers.filter(function (x) { return x.lead_id === c3.l.id; });
+    assert.ok(im3.length === 1 && !db.tables.hq_inbox.some(function (x) { return x.lead_id === c3.l.id && /sticker/.test(x.body || ''); }), 'autocollant ignoré, la capture est gardée');
+    const ib3 = db.tables.hq_inbox.filter(function (x) { return x.lead_id === c3.l.id && x.data && x.data.canal === 'whatsapp'; }).pop();
+    const photosAvant = (leSite(c3.s.id).spec.photos || []).length;
+    const m3 = await exE().modifier_site({ reponse_id: ib3.id, demande: 'Mettre les horaires du samedi : 8 h à 12 h', images: 'aucune' });
+    assert.ok(/site modifié/.test(m3) && /laissée\(s\) de côté/.test(m3) && (leSite(c3.s.id).spec.photos || []).length === photosAvant && db.tables.hq_fichiers.find(function (x) { return x.id === im3[0].id; }).utilise === false, 'capture d\'écran : jamais publiée d\'office');
+    leSite(c3.s.id).data.retouches_mois = {};
+    const m4 = await exE().modifier_site({ reponse_id: ib3.id, demande: 'Mettre ce nouveau logo', images: 'logo' });
+    assert.ok(/site modifié/.test(m4) && /^logo-/.test(leSite(c3.s.id).spec.logo.fichier || ''), 'image choisie comme logo : devient le logo');
+    // P18. un client qui écrit avec son numéro, puis sous son nom d'utilisateur (numéro masqué) : toujours reconnu
+    fakes.recuWhatsApp('+596696212121', 'Merci !', 'Patron', 0, { from_user_id: 'FR.9988776655' });
+    await WAJ.releve({ db: db });
+    fakes.recuWhatsApp(null, 'Je voudrais aussi changer le texte d\'accueil', 'Patron', 0, { from_user_id: 'FR.9988776655' });
+    await WAJ.releve({ db: db });
+    const ibU = db.tables.hq_inbox.filter(function (x) { return x.from_email === 'wa:FR.9988776655'; }).pop();
+    assert.ok(ibU && ibU.lead_id === c3.l.id, 'numéro masqué ensuite : son message va toujours à sa fiche de client');
+    fakes.recuWhatsApp('+596696556677', 'Stop 🙏', 'Prospect');
+    fakes.recuWhatsApp('+596696556688', 'Stop, je voulais juste savoir le prix', 'Prospect');
+    await WAJ.releve({ db: db });
+    assert.ok(db.tables.hq_inbox.filter(function (x) { return x.from_email === 'wa:+596696556677'; }).pop().kind === 'stop' && db.tables.hq_inbox.filter(function (x) { return x.from_email === 'wa:+596696556688'; }).pop().kind === 'reponse', 'STOP avec un émoji : STOP ; une vraie phrase : à Emma');
+    delete process.env.HQ_WHATSAPP_KEY; delete process.env.HQ_WHATSAPP_NUMERO; delete process.env.HQ_WHATSAPP_TEL;
+    // P3. commande annulée payée au mois, arrêt refusé trois fois : Louis prévenu, et réessayé jusqu'au bout, même après le relevé
+    const p3 = await nouveauClient('vf-annule', 'Vf Annule', 'vfannule@test-mq.fr');
+    await exE().commande({ reponse_id: p3.ib.id, formule: 'essentiel' });
+    const stP3 = Object.assign({}, leSite(p3.s.id).stripe);
+    leSite(p3.s.id).status = 'annule';
+    fakes.payer(stP3.lien_mois, { customer_details: { email: 'vfannule@test-mq.fr', name: 'A' } });
+    fakes.STRIPE.annulerEchecs = 3;
+    await lucas(); await lucas(); await lucas();
+    const subP3 = 'sub_' + stP3.lien_mois;
+    assert.ok(fakes.STRIPE.abonnements[subP3].status === 'active' && db.tables.hq_messages.filter(function (m) { return /^Paiement à rembourser/.test(m.subject || '') && /Vf Annule/.test(m.body || ''); }).length === 1, 'trois refus : rien d\'abandonné, Louis prévenu une fois');
+    fakes.STRIPE.payes[stP3.lien_mois].created = Math.floor((Date.now() - 30 * 3600000) / 1000);
+    await lucas();
+    assert.ok(fakes.STRIPE.abonnements[subP3].status === 'canceled' && fakes.STRIPE.rembourses.some(function (x) { return String(x).indexOf(subP3) >= 0; }) && db.tables.hq_outbox.some(function (o) { return o.lead_id === p3.l.id && /^Paiement remboursé/.test(o.subject); }), 'réessayé hors du relevé des 25 h : arrêté, remboursé, client prévenu');
+    // P17. un abonné d'avant garde-t-il l'ancien pied de facture ? non : les mentions mensuelles sont reposées une fois
+    const p17 = await abonne('vf-pied', 'vfpied@test-mq.fr');
+    fakes.STRIPE.pieds['cus_' + p17.lm] = 'Facture acquittée par carte à la commande.';
+    delete leSite(p17.s.id).data.abonnement.pied;
+    sansThrottle(); await lucas();
+    assert.ok(/prélevé à chaque échéance/.test(fakes.STRIPE.pieds['cus_' + p17.lm] || '') && leSite(p17.s.id).data.abonnement.pied === 2, 'anciens abonnés : mentions des factures mensuelles mises à jour');
+    // fin voulue avant un an en ligne : l'hébergement court jusqu'à la fin du dernier mois payé, le lien à 25 € suit
+    const pe = await abonne('vf-tot', 'vftot@test-mq.fr');
+    Object.assign(fakes.STRIPE.abonnements[pe.sub], { status: 'canceled', cancel_at_period_end: true, cancellation_details: { reason: 'cancellation_requested' } });
+    sansThrottle(); await lucas(); await lucas();
+    const sPe = leSite(pe.s.id);
+    assert.ok(sPe.status === 'en_ligne' && !sPe.data.abonnement && sPe.data.renouvellement && sPe.data.renouvellement.lien, 'abonnement arrêté tôt : le site reste, le lien d\'hébergement à 25 € part à temps');
+    console.log('Vérification OK : arrêt demandé puis impayé, Emma express sans boucle, autocollant ignoré, images choisies par Emma, remboursement réessayé jusqu\'au bout, mentions des anciens abonnés, identifiant WhatsApp appris, fin avant un an');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }

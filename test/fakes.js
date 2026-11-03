@@ -83,7 +83,7 @@ function claude(body) {
     const msg = r.leur_message || '';
     const lid = r.entreprise && r.entreprise.lead_id;
     if (/je prends|on y va|ok pour/i.test(msg)) return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'interesse', note: 'Prend la Vitrine.' }), tu('commande', { reponse_id: r.id, formule: 'vitrine', domaine: (msg.match(/[a-z0-9-]+\.(com|fr)/i) || [])[0] })]);
-    if (/changer|ajouter|couleur|horaires/i.test(msg)) return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'question', note: 'Veut des retouches.' }), tu('modifier_site', { reponse_id: r.id, demande: 'Ajouter les horaires (lundi au vendredi, 7 h 30 à 17 h) et passer sur une couleur turquoise.' })]);
+    if (/changer|ajouter|couleur|horaires/i.test(msg)) return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'question', note: 'Veut des retouches.' }), tu('modifier_site', { reponse_id: r.id, images: /logo/i.test(msg) ? 'logo' : 'aucune', demande: 'Ajouter les horaires (lundi au vendredi, 7 h 30 à 17 h) et passer sur une couleur turquoise.' })]);
     if (/appel|appeler|téléphone/i.test(msg) && EMMA.tentatives++ === 0) return rep([tu('repondre', { reponse_id: r.id, corps: 'Bonjour Monsieur Dupont,\nAvec plaisir. Je vous appelle demain en fin de matinée ou jeudi après-midi ?\nLouis\n+590 691 25 34 49' })]);
     return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'interesse', note: 'Demande le prix.' }), tu('repondre', { reponse_id: r.id, corps: 'Bonjour Monsieur Dupont,\n\nMerci pour votre retour. La formule Vitrine est à 990 € en une fois, sans abonnement : le site de plusieurs pages, sa mise en ligne et l\'hébergement la première année. Tout se règle ici par email pour aller plus vite. Je vous prépare la commande ?\n\nLouis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Réponse envoyée à ' + r.de })]);
   }
@@ -119,8 +119,11 @@ function vercel(url, opts) {
     const lot = Array.isArray(corps) ? corps : [corps], crees = [], rates = [];
     lot.forEach(function (c) { if (VERCEL.envEchec.has(c.key)) { rates.push({ error: { key: c.key, message: 'refusé' } }); return; } VERCEL.env[c.key] = { type: c.type, target: c.target, projet: r[1], longueur: String(c.value || '').length }; crees.push({ key: c.key }); });
     VERCEL.ecrituresEnv = (VERCEL.ecrituresEnv || 0) + 1;
+    crees.forEach(function (c) { VERCEL.env[c.key].id = 'env_' + c.key; });
     return j(200, Array.isArray(corps) ? { created: crees, failed: rates } : { created: crees[0] });
   }
+  if ((r = p.match(/^\/v9\/projects\/([^/]+)\/env$/)) && m === 'GET') return j(200, { envs: Object.keys(VERCEL.env).map(function (k) { return { id: VERCEL.env[k].id || 'env_' + k, key: k, target: VERCEL.env[k].target, type: VERCEL.env[k].type }; }) });
+  if ((r = p.match(/^\/v9\/projects\/([^/]+)\/env\/([^/]+)$/)) && m === 'DELETE') { const k = Object.keys(VERCEL.env).find(function (x) { return (VERCEL.env[x].id || 'env_' + x) === decodeURIComponent(r[2]); }); if (k) delete VERCEL.env[k]; return j(200, {}); }
   if (p === '/v6/deployments' && m === 'GET') return j(200, { deployments: [{ uid: 'dpl_tour_prod', name: 'btprecruit-crm', state: 'READY' }] });
   if (p === '/v2/user') return j(200, { user: { id: 'u1' } });
   if (p === '/v13/deployments' && m === 'POST') {
