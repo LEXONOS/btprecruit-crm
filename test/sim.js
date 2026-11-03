@@ -171,7 +171,8 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   assert.ok(site, 'un site pour le prospect');
   assert.strictEqual(site.status, 'apercu', 'aperçu publié');
   assert.ok(site.spec.photos.length === 3 && site.spec.logo && site.spec.accent === '#e30613', 'photos, logo et couleur repris de son site');
-  assert.strictEqual(site.spec.composition, 'photo', 'avec ses photos : composition photo');
+  assert.ok(site.spec.da && site.spec.da.direction !== 'affiche' && site.spec.photos.every(function (p) { return !p.credit; }), 'avec ses photos : une mise en scène qui les montre, aucune photo de banque : ' + JSON.stringify(site.spec.da));
+  assert.ok(site.spec.accroche === 'Le frais chez vous, bien posé' || site.spec.accroche === 'Votre clim posée et suivie', 'titre choisi parmi les propositions qui passent la relecture : ' + site.spec.accroche);
   assert.ok(!/\d/.test(site.spec.a_propos) && !/500 clients/.test(JSON.stringify(site.spec)), 'chiffres inventés refusés par le contrôle (deuxième essai de l\'atelier)');
   assert.ok(site.spec.legal && site.spec.legal.siren === '912345678' && site.spec.google.note === 4.8 && site.spec.contact.tel === '+596696123456', 'faits posés par le code');
   const l3 = db.tables.hq_leads.find(function (l) { return l.id === lc.id; });
@@ -212,7 +213,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   dus(['reponses']);
   await runtime.cycle({ db: db, agentId: 'reponses', secondes: 200 });
   site = db.tables.hq_sites.find(function (x) { return x.id === site.id; });
-  assert.ok(site.revisions === 1 && site.version === 2 && site.spec.ambiance === 'lagon' && /logo-/.test(site.spec.logo.fichier) && site.spec.contact.horaires[0] === 'Lundi au vendredi : 7 h 30 à 17 h', 'retouche faite : couleur, horaires, logo du client');
+  assert.ok(site.revisions === 1 && site.version === 2 && site.spec.accent === '#0e9aa7' && /logo-/.test(site.spec.logo.fichier) && site.spec.contact.horaires[0] === 'Lundi au vendredi : 7 h 30 à 17 h', 'retouche faite : couleur, horaires, logo du client');
   assert.ok((await require('../lib/sites/publication').lireEtat(db)).a_publier, 'nouvelle version à publier');
   // Lucas publie la retouche
   dus(['livraison']);
@@ -762,7 +763,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const M = require('../lib/missions');
     const e0 = await M.etat(db);
     const br = e0.missions.find(function (m) { return m.id === 'brancher'; });
-    assert.ok(br && br.etapes.length === 8 && br.etapes.find(function (x) { return x.id === 'vercel'; }).fait && br.etapes.find(function (x) { return x.id === 'base'; }).fait && e0.missions.some(function (m) { return m.id === 'whatsapp'; }), 'missions : étapes et états détectés');
+    assert.ok(br && br.etapes.length === 9 && br.etapes.some(function (x) { return x.id === 'photos' && !x.fait; }) && br.etapes.find(function (x) { return x.id === 'vercel'; }).fait && br.etapes.find(function (x) { return x.id === 'base'; }).fait && e0.missions.some(function (m) { return m.id === 'whatsapp'; }), 'missions : étapes et états détectés');
     assert.ok(!JSON.stringify(e0).includes('sk_live_simulation') && !JSON.stringify(e0).includes('secret-de-test'), 'aucun code ne revient à l\'écran');
     assert.ok(/clé de TEST/.test((await M.enregistrer({ HQ_STRIPE_KEY: 'sk_test_abc' })).erreur || ''), 'clé Stripe de test refusée avec la raison');
     assert.ok(/clé publique/.test((await M.enregistrer({ HQ_SUPABASE_KEY: 'sb_publishable_abc' })).erreur || ''), 'clé publique Supabase refusée');
@@ -1025,6 +1026,98 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const sPe = leSite(pe.s.id);
     assert.ok(sPe.status === 'en_ligne' && !sPe.data.abonnement && sPe.data.renouvellement && sPe.data.renouvellement.lien, 'abonnement arrêté tôt : le site reste, le lien d\'hébergement à 25 € part à temps');
     console.log('Vérification OK : arrêt demandé puis impayé, Emma express sans boucle, autocollant ignoré, images choisies par Emma, remboursement réessayé jusqu\'au bout, mentions des anciens abonnés, identifiant WhatsApp appris, fin avant un an');
+  }
+  // 29. LE MOTEUR DES SITES : une direction artistique par site, titre court, WhatsApp d'abord, photos d'illustration
+  // créditées, fiche du client, ses photos à la place, relecture d'Iris, clé Pexels essayée
+  {
+    const DN = require('../lib/sites/donne'), DR = require('../lib/sites/direction'), T = require('../lib/sites/theme'), F = require('../lib/sites/fiche'), R = require('../lib/sites/rendu');
+    const DEMO = require('../lib/jobs/demo');
+    const prospect = async function (cle, nom, secteur, commune, extra) { return (await db.insert('hq_leads', Object.assign({ company_id: 'novalemo', dedupe: 'test:' + cle, source: 'maps', name: nom, sector: secteur, island: 'MQ', commune: commune, email: cle + '@test-mq.fr', email_source: 'site', score: 85, status: 'a_contacter' }, extra || {})))[0]; };
+    const message = async function (l, corps) { return (await db.insert('hq_inbox', { message_id: '<m-' + l.id + '-' + Math.random().toString(36).slice(2) + '@client.mq>', lead_id: l.id, from_email: l.email, subject: 'Re: votre site', body: corps || 'Oui', kind: 'reponse', status: 'nouveau', data: { confiance: 'adresse' } }))[0]; };
+    // a. six entreprises de clim au Lamentin : six sites différents (jamais la même palette avec la même voix)
+    const recents = [];
+    for (let k = 0; k < 6; k++) { const sp = { nom: 'Clim ' + k, commune: 'Le Lamentin', secteur: 'climatisation', accroche: 'Votre clim posée et suivie', chapo: 'Installation et entretien de climatisation pour les maisons et les commerces du centre.', services: [{ titre: 'Pose', texte: 'On pose l\'appareil adapté à la pièce, proprement.' }, { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés, pour un air plus sain.' }, { titre: 'Dépannage', texte: 'On cherche la cause de la panne avant de réparer.' }], contact: { tel: '+59669611220' + k } }; sp.da = DN.donner(sp, { recents: recents }); recents.push(DR.revoir(sp, { recents: recents }).spec.da); }
+    const paires = recents.map(function (d) { return d.palette + '/' + d.type; });
+    assert.ok(paires.every(function (p, k) { return paires.indexOf(p) === k; }) && new Set(recents.map(function (d) { return d.palette; })).size >= 5, 'voisins du même métier : jamais le même site : ' + paires.join(' '));
+    // b. toutes les palettes, avec ou sans couleur de marque : contrastes lisibles partout
+    const malLus = [];
+    T.PALETTES.forEach(function (p) { ['', '#e30613', '#f6e016', '#0e9aa7', '#111111', '#ffffff', '#7fdbff'].forEach(function (m) { const c = DR.contrastes({ da: { direction: 'monument', palette: p.id, type: 'schibsted' }, accent: m || undefined }); if (c.length) malLus.push(p.id + (m ? ' + ' + m : '') + ' : ' + c.join(', ')); }); });
+    assert.deepStrictEqual(malLus, [], 'contrastes lisibles avec toutes les palettes et toutes les couleurs de marque');
+    // c. le titre : formules vides, questions et titres trop longs refusés ; repli factuel
+    assert.ok(!DR.accrocheOk('Votre confort, notre priorité', {}).ok && !DR.accrocheOk('Bienvenue chez Clim Éole', { nom: 'Clim Éole' }).ok && !DR.accrocheOk('Besoin d\'un plombier ?', {}).ok && !DR.accrocheOk('Des installations de climatisation posées proprement partout', {}).ok && DR.accrocheOk('Votre clim posée et suivie', {}).ok, 'titres jugés');
+    assert.strictEqual(DR.choisirAccroche(['L\'excellence à votre service'], { activite: 'Climatisation', commune: 'Le Lamentin' }), 'Climatisation au Lamentin', 'repli factuel, en bon français');
+    // d. le bouton du haut : WhatsApp avec un portable, l'appel avec un fixe, l'email sinon ; aucun des anciens défauts
+    const base = { nom: 'Test Rendu', activite: 'Plomberie', commune: 'Ducos', secteur: 'plomberie', accroche: 'Plomberie et dépannage à Ducos', chapo: 'Fuites, chauffe-eau et salles de bain pour les maisons et les commerces du centre de la Martinique.', services: [{ titre: 'Fuites', texte: 'On trouve la fuite avant de casser quoi que ce soit, puis on répare.' }, { titre: 'Chauffe-eau', texte: 'Pose, remplacement et entretien des chauffe-eau électriques et solaires.' }, { titre: 'Salle de bain', texte: 'Douche, lavabo et WC refaits proprement, pièce rendue nette.' }], etapes: [{ titre: 'Vous appelez', texte: 'On vous dit tout de suite si c\'est urgent.' }, { titre: 'On vient voir', texte: 'Prix annoncé avant de commencer.' }, { titre: 'On répare', texte: 'Travail testé devant vous.' }] };
+    const rendu = function (contact, extra) { const sp = Object.assign({}, base, { contact: contact }, extra || {}); sp.da = sp.da || DN.donner(sp, {}); return R.rendre({ slug: 'test-rendu', spec: sp }, { mode: 'apercu', contactNovalemo: 'louis@novalemo-mq.fr' }).files[0].data; };
+    const hWa = rendu({ tel: '+596696112233', email: 'a@b.fr' }), hFixe = rendu({ tel: '+596596112233' }), hMail = rendu({ email: 'a@b.fr' });
+    const premier = function (h) { const m = h.match(/<section class="h [^"]*"[\s\S]*?<a class="btn b1" href="([^"]+)"/); return m ? m[1].replace(/&amp;/g, '&') : ''; };
+    assert.ok(/^https:\/\/wa\.me\/596696112233\?text=/.test(premier(hWa)) && /^tel:\+596596112233$/.test(premier(hFixe)) && /^mailto:a@b\.fr/.test(premier(hMail)), 'bouton du haut : WhatsApp, sinon appel, sinon email : ' + [premier(hWa), premier(hFixe), premier(hMail)].join(' | '));
+    assert.ok(!/\*\*|class="k"|<em>|text-stroke|backdrop-filter|IntersectionObserver/.test(hWa) && (hWa.match(/<script/g) || []).length === 1 && /prefers-reduced-motion/.test(hWa) && /::selection/.test(hWa) && /accent-color/.test(hWa) && /0696 11 22 33/.test(hWa), 'aucun des anciens défauts (mot coloré, sur-titre, texte détouré, flou, apparitions en JavaScript), mouvement respectueux, numéro visible');
+    assert.ok(/D&#39;abord, vous appelez\. Ensuite, on vient voir\. Enfin, on répare\./.test(hWa), 'les étapes se lisent comme une phrase');
+    const ancien = R.rendre({ slug: 'ancien', spec: Object.assign({}, base, { accroche: 'Le frais chez vous, posé et **entretenu** comme il faut', titre_services: 'Ce que nous **faisons**', ambiance: 'lagon', composition: 'photo', contact: { tel: '+596696112233' } }) }, { mode: 'apercu' }).files[0].data;
+    assert.ok(!/\*\*/.test(ancien) && /Ce que nous faisons/.test(ancien) && /<h1/.test(ancien), 'une fiche de l\'ancien moteur se rend proprement');
+    // e. photos d'illustration Pexels : tirées du métier, sans visage, créditées ; le bandeau le dit honnêtement
+    process.env.HQ_PEXELS_KEY = 'pexels-test';
+    const lp = await prospect('pexels', 'Froid Caraïbes', 'climatisation', 'Ducos', { phone: '+596 696 44 33 22' });
+    const fp = await DEMO.fabriquer(db, lp, {});
+    const sp = fp.site.spec;
+    assert.ok(sp.photos.length === 4 && sp.photos.every(function (p) { return p.credit && p.credit.source === 'Pexels' && p.credit.auteur && p.sha; }) && sp.provenance.photos === 'banque', 'quatre photos d\'illustration Pexels, créditées : ' + sp.photos.length);
+    assert.ok(fakes.PEXELS.recherches.indexOf('air conditioner unit wall') >= 0 && fakes.PEXELS.recherches.every(function (q) { return !/portrait|smiling/.test(q); }) && !sp.photos.some(function (p) { return /0$/.test(p.credit.id); }), 'recherches tirées du métier, aucune personne : ' + fakes.PEXELS.recherches.join(', '));
+    const ap = R.rendre(fp.site, { mode: 'apercu', contactNovalemo: 'louis@novalemo-mq.fr' });
+    const ml = ap.files.find(function (f) { return /mentions-legales/.test(f.file); }).data;
+    assert.ok(/Photo de <a[^>]+>Photographe \d<\/a> sur <a[^>]+>Pexels<\/a>/.test(ml) && /Photos d'illustration/.test(ap.files[0].data) && /<img src="[^"]+i1\.jpg"[^>]* alt=""/.test(ap.files[0].data), 'crédits dans les mentions légales, bandeau honnête, aucune fausse description');
+    assert.ok(fp.site.data.revue && fp.site.data.revue.relu && DN.DIRECTIONS[sp.da.direction] && /Mes%20horaires/.test(ap.files[0].data) && !/Mon%20portable/.test(ap.files[0].data), 'relu par la directrice artistique ; « Je veux ce site » prépare la fiche de ce qui manque');
+    // f. un voisin du même métier, même commune : d'autres photos, un autre site
+    const lp2 = await prospect('pexels2', 'Clim Ducos Services', 'climatisation', 'Ducos', { phone: '+596 696 55 33 22' });
+    const fp2 = await DEMO.fabriquer(db, lp2, {});
+    const ids1 = sp.photos.map(function (p) { return p.credit.id; }), ids2 = fp2.site.spec.photos.map(function (p) { return p.credit.id; });
+    assert.ok(ids2.length === 4 && ids2.every(function (id) { return ids1.indexOf(id) < 0; }) && !(fp2.site.spec.da.palette === sp.da.palette && fp2.site.spec.da.type === sp.da.type), 'voisin : autres photos, autre site');
+    // g. sans clé Pexels : la petite banque pour les métiers où elle a du sens, une mise en scène typographique sinon
+    delete process.env.HQ_PEXELS_KEY;
+    const lr = await prospect('table', 'Chez Ginette', 'restaurant', 'Le Diamant', { phone: '+596 696 77 88 99' });
+    const fr = await DEMO.fabriquer(db, lr, {});
+    assert.ok(fr.site.spec.photos.length >= 3 && fr.site.spec.photos.every(function (p) { return p.credit && p.credit.source === 'Unsplash' && /unsplash\.com\/photos\//.test(p.credit.page); }), 'banque de secours pour un restaurant');
+    const lg = await prospect('serrure', 'Serrurerie du Nord', 'serrurier', 'Le Lorrain', { phone: '+596 596 11 22 33' });
+    const fg = await DEMO.fabriquer(db, lg, {});
+    assert.ok(!fg.site.spec.photos.length && !DN.DIRECTIONS[fg.site.spec.da.direction].photo, 'sans photo : une mise en scène typographique (' + fg.site.spec.da.direction + ')');
+    // h. la fiche : seulement ce qui manque ; Emma la colle une fois
+    const manque = F.manque(fg.site.spec).map(function (x) { return x.cle; });
+    assert.ok(['portable', 'horaires', 'logo', 'photos', 'services'].every(function (k) { return manque.indexOf(k) >= 0; }), 'fiche : ' + manque.join(', '));
+    assert.deepStrictEqual(F.manque({ objectif: 'devis', zone: 'Le Robert et Le François', contact: { tel: '+596696112233', horaires: ['lundi : 8 h à 17 h'] }, logo: { fichier: 'logo.png' }, provenance: { services: 'client', photos: 'client', objectif: 'client' } }), [], 'rien ne manque : pas de fiche');
+    assert.ok(/un maximum de photos/i.test(F.texte(fg.site.spec)) && /photos d'illustration/.test(F.texte(fg.site.spec)), 'la fiche demande un maximum de photos, sinon des photos d\'illustration');
+    const ibF = await message(lg, 'Ça me plaît, combien ?');
+    const rf = await exE().fiche_client({ reponse_id: ibF.id });
+    assert.ok(rf.a_coller_tel_quel && /portable/.test(rf.a_coller_tel_quel) && db.tables.hq_leads.find(function (l) { return l.id === lg.id; }).data.fiche, 'Emma reçoit la fiche à coller : ' + JSON.stringify(rf).slice(0, 120));
+    db.tables.hq_inbox.filter(function (x) { return x.status === 'test-fiche'; }).forEach(function (x) { x.status = 'traite'; });
+    db.tables.hq_inbox.find(function (x) { return x.id === ibF.id; }).status = 'test-fiche';
+    const vues = await exE().lister_reponses({ statut: 'test-fiche', limite: 10 });
+    const vue = (Array.isArray(vues) ? vues : []).find(function (x) { return x.id === ibF.id; });
+    assert.ok(vue && /envoyée le/.test(vue.son_site_novalemo.fiche), 'Emma voit que la fiche est partie');
+    // i. ses photos à lui remplacent les photos d'illustration ; les couleurs et les lettres restent
+    const jp = fakes.jpeg(1600, 1067, 21);
+    await db.insert('hq_fichiers', [21, 22].map(function (g) { const b = fakes.jpeg(1600, 1067, g); return { lead_id: lp.id, role: 'photo', mime: 'image/jpeg', largeur: 1600, hauteur: 1067, taille: b.length, contenu: b.toString('base64'), utilise: false }; }));
+    const ibP = await message(lp, 'Voici nos photos de chantier pour le site');
+    const daAvant = leSite(fp.site.id).spec.da;
+    const mp = await exE().modifier_site({ reponse_id: ibP.id, demande: 'Mettre nos photos de chantier sur le site', images: 'photos' });
+    const spP = leSite(fp.site.id).spec;
+    assert.ok(/site modifié/.test(mp) && spP.photos.length === 2 && spP.photos.every(function (p) { return !p.credit && p.fichier_id; }) && spP.provenance.photos === 'client' && spP.da.palette === daAvant.palette && spP.da.type === daAvant.type && jp.length, 'ses photos à la place des illustrations, mêmes couleurs, mêmes lettres : ' + mp);
+    // j. Iris relit les aperçus pas encore partis, jamais le visage de ceux déjà vus
+    const lI = await prospect('iris', 'Élec François', 'électricité', 'Le François');
+    const lV = await prospect('iris-vu', 'Élec Vu', 'électricité', 'Le Vauclin', { status: 'contacte' });
+    const specIris = function (nom, commune) { return { nom: nom, activite: 'Électricité', secteur: 'électricité', commune: commune, accroche: 'Votre partenaire électricité de confiance !', accroches: ['Votre partenaire électricité de confiance !', 'Votre électricité refaite proprement'], chapo: 'Installation, mise en sécurité et dépannage électrique pour les maisons et les commerces.', services: base.services, contact: { tel: '+596696998877' } }; };
+    const sI = (await db.insert('hq_sites', { lead_id: lI.id, slug: 'iris-1a2b', status: 'brouillon', version: 1, spec: specIris('Élec François', 'Le François') }))[0];
+    const sV = (await db.insert('hq_sites', { lead_id: lV.id, slug: 'iris-vu-1a2b', status: 'apercu', version: 1, spec: specIris('Élec Vu', 'Le Vauclin'), url_apercu: 'https://x/a/iris-vu-1a2b/', published_at: new Date().toISOString() }))[0];
+    dus(['da']);
+    const cI = await runtime.cycle({ db: db, agentId: 'da', secondes: 120 });
+    const sI2 = leSite(sI.id), sV2 = leSite(sV.id);
+    assert.ok(sI2.spec.accroche === 'Votre électricité refaite proprement' && sI2.spec.da && sI2.data.revue.relu && sI2.version === 2, 'Iris corrige un aperçu pas encore parti : ' + JSON.stringify(cI.passages.map(function (p) { return p.resume; })));
+    assert.ok(sV2.spec.accroche === 'Votre partenaire électricité de confiance !' && !sV2.spec.da && sV2.data.revue.relu && sV2.data.revue.restants.length && sV2.version === 1, 'un aperçu déjà vu ne change pas de visage');
+    // k. Missions : la clé Pexels est essayée avant d'être enregistrée
+    const M = require('../lib/missions');
+    assert.ok(/clé Pexels refusée/.test((await M.enregistrer({ HQ_PEXELS_KEY: 'mauvaise' })).erreur || ''), 'clé Pexels refusée avec la raison');
+    const okP = await M.enregistrer({ HQ_PEXELS_KEY: 'bonne-cle-pexels' });
+    assert.ok(okP.ok && okP.enregistre.indexOf('HQ_PEXELS_KEY') >= 0, 'clé Pexels essayée puis enregistrée : ' + JSON.stringify(okP));
+    console.log('Moteur des sites OK : directions toujours différentes entre voisins, contrastes, titres courts, WhatsApp d\'abord, photos d\'illustration créditées et sans visage, banque de secours, fiche du client, ses photos à la place, relecture d\'Iris, clé Pexels');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }

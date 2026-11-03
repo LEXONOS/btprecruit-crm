@@ -18,21 +18,21 @@ let atelierEssais = 0;
 function ficheSite(faits, mauvaise) {
   const nom = (faits.nom || 'Entreprise').replace(/\s+(sarl|sas)$/i, '');
   return {
-    nom: nom, activite: 'Climatisation et froid', accroche: 'Le frais chez vous, posé et **entretenu** comme il faut',
+    nom: nom, activite: 'Climatisation et froid', accroches: [mauvaise ? 'Votre confort, notre priorité absolue depuis toujours' : 'Votre clim posée et suivie', 'Le frais chez vous, bien posé', 'Climatisation au Lamentin'],
     chapo: 'Installation, entretien et dépannage de climatisation pour les maisons, les bureaux et les commerces du centre de la Martinique.',
-    objectif: 'devis', cta: 'Demander un devis', titre_services: 'Ce que nous **faisons**', intro_services: 'Du choix de l\'appareil au nettoyage régulier, un seul interlocuteur.',
+    objectif: 'devis', cta: 'Demander un devis', ton: 'franc', titre_services: 'Nos services', intro_services: 'Du choix de l\'appareil au nettoyage régulier, un seul interlocuteur.',
     services: [
-      { titre: 'Installation', texte: 'Split mural, gainable ou cassette : on vous conseille l\'appareil adapté et on le pose proprement.', detail: 'Avant la pose, on regarde la pièce, l\'exposition et l\'usage.', icone: 'flocon' },
-      { titre: 'Entretien', texte: 'Filtres, batterie, évacuation : un appareil propre consomme moins et souffle un air plus sain.', detail: 'Nettoyage complet de l\'unité intérieure et extérieure.', icone: 'etincelles' },
-      { titre: 'Dépannage', texte: 'Panne, fuite, bruit ou mauvaise odeur : on cherche la cause et on vous explique avant de réparer.', detail: 'Diagnostic clair puis réparation.', icone: 'cle' }
+      { titre: 'Installation', texte: 'Split mural, gainable ou cassette : on vous conseille l\'appareil adapté et on le pose proprement.', detail: 'Avant la pose, on regarde la pièce, l\'exposition et l\'usage.' },
+      { titre: 'Entretien', texte: 'Filtres, batterie, évacuation : un appareil propre consomme moins et souffle un air plus sain.', detail: 'Nettoyage complet de l\'unité intérieure et extérieure.' },
+      { titre: 'Dépannage', texte: 'Panne, fuite, bruit ou mauvaise odeur : on cherche la cause et on vous explique avant de réparer.', detail: 'Diagnostic clair puis réparation.' }
     ],
-    titre_atouts: 'Pourquoi nous **appeler**', atouts: [{ titre: 'Un conseil honnête', texte: 'On vous dit si l\'appareil vaut la peine d\'être réparé.' }, { titre: 'Un travail propre', texte: 'La pose est soignée et le chantier laissé net.' }, { titre: 'Basés au Lamentin', texte: 'Au centre de l\'île.' }],
-    titre_etapes: 'Comment ça **se passe**', etapes: [{ titre: 'Vous nous écrivez', texte: 'Décrivez votre besoin.' }, { titre: 'On regarde', texte: 'On vous pose les bonnes questions.' }, { titre: 'On intervient', texte: 'Au créneau convenu.' }],
-    titre_faq: 'Vos **questions**', faq: [{ q: 'Quelle puissance pour ma pièce ?', r: 'Elle dépend de la surface et de l\'exposition : écrivez-nous.' }, { q: 'Faut-il entretenir sa clim ?', r: 'Oui, avec l\'air salin un entretien régulier évite les pannes.' }, { q: 'Travaillez-vous pour les pros ?', r: 'Oui, bureaux et commerces.' }],
-    titre_appel: 'Trop chaud ? **Parlons-en.**', titre_contact: 'Écrivez-nous, on vous **répond**',
+    titre_atouts: 'Pourquoi nous appeler', atouts: [{ titre: 'Un conseil honnête', texte: 'On vous dit si l\'appareil vaut la peine d\'être réparé.' }, { titre: 'Un travail propre', texte: 'La pose est soignée et le chantier laissé net.' }, { titre: 'Basés au Lamentin', texte: 'Au centre de l\'île.' }],
+    etapes: [{ titre: 'Vous nous écrivez', texte: 'Décrivez votre besoin.' }, { titre: 'On passe voir', texte: 'On vous pose les bonnes questions.' }, { titre: 'On pose', texte: 'Au créneau convenu.' }],
+    titre_faq: 'Vos questions', faq: [{ q: 'Quelle puissance pour ma pièce ?', r: 'Elle dépend de la surface et de l\'exposition : écrivez-nous.' }, { q: 'Faut-il entretenir sa clim ?', r: 'Oui, avec l\'air salin un entretien régulier évite les pannes.' }, { q: 'Travaillez-vous pour les pros ?', r: 'Oui, bureaux et commerces.' }],
+    titre_contact: 'Parlons de votre clim',
     a_propos: mauvaise ? 'Fondée depuis 2010, plus de 500 clients satisfaits.' : 'Une entreprise de climatisation du Lamentin.',
-    zone: 'Basés au Lamentin, en Martinique', defile: ['Le Lamentin', 'Fort-de-France', 'Ducos', 'Schœlcher'], ambiance: 'ocean', composition: 'affiche',
-    seo: { titre: 'Climatisation au Lamentin · ' + nom, description: 'Installation, entretien et dépannage de climatisation au Lamentin.' }
+    zone: 'Basés au Lamentin, en Martinique', mots_photo: ['air conditioner unit wall', 'hvac tools', 'portrait of smiling technician'],
+    seo: { titre: 'Climatisation au Lamentin, ' + nom, description: 'Installation, entretien et dépannage de climatisation au Lamentin.' }
   };
 }
 function atelier(body) {
@@ -43,7 +43,7 @@ function atelier(body) {
   const correction = typeof last.content !== 'string' && last.content.some(function (b) { return b.type === 'tool_result'; });
   const modif = /DEMANDE DU CLIENT/.test(txt);
   const f = ficheSite(faits, !correction && !modif && atelierEssais === 1);
-  if (modif) { f.accroche = 'Votre clim posée et **entretenue**, au Lamentin'; f.ambiance = 'lagon'; f.faits_client = { horaires: ['Lundi au vendredi : 7 h 30 à 17 h'] }; }
+  if (modif) { f.accroches = ['Votre clim posée et entretenue', 'Climatisation au Lamentin', 'Le frais chez vous']; f.faits_client = { horaires: ['Lundi au vendredi : 7 h 30 à 17 h'] }; if (/turquoise/i.test(txt)) f.faits_client.couleur = '#0e9aa7'; if (/autre style|tout changer/i.test(txt)) f.faits_client.nouveau_style = true; if (/mes services|nos services sont/i.test(txt)) f.faits_client.services_donnes = true; }
   return rep([tu('ecrire_site', f)], 'tool_use', { output_tokens: 1400 });
 }
 
@@ -236,8 +236,25 @@ function kapso(url, opts) {
 }
 function recuWhatsApp(de, texte, nom, ilYaMin, extra) { const t = Math.floor((Date.now() - (ilYaMin || 0) * 60000) / 1000); const m = { id: 'wamid.in' + (KAPSO.recus.length + 1), from: de ? String(de).replace(/[^\d]/g, '') : undefined, timestamp: String(t), type: 'text', text: { body: texte }, kapso: { direction: 'inbound', contact_name: nom || null } }; KAPSO.recus.push(Object.assign(m, extra || {})); return m; }
 
+/* ── faux Pexels (photos d'illustration) et fausse banque Picsum ── */
+const PEXELS = { recherches: [], refus: false };
+function pexels(url, opts) {
+  const u = new URL(url);
+  if (!opts || !opts.headers || !opts.headers.Authorization) return { ok: false, status: 401, json: async function () { return { error: 'unauthorized' }; } };
+  if (PEXELS.refus || opts.headers.Authorization === 'mauvaise') return { ok: false, status: 401, json: async function () { return {}; } };
+  const q = u.searchParams.get('query') || '';
+  PEXELS.recherches.push(q);
+  const base = Array.from(q).reduce(function (t, c) { return (t * 31 + c.charCodeAt(0)) % 90000; }, 7) + 10000;
+  const photos = [0, 1, 2, 3, 4, 5].map(function (k) { const id = base * 10 + k; return { id: id, width: 6000, height: 4000, url: 'https://www.pexels.com/photo/' + id + '/', photographer: 'Photographe ' + k, photographer_url: 'https://www.pexels.com/@p' + k, alt: k === 0 ? 'Smiling man fixing an air conditioner' : 'Close up of ' + q, src: { original: 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg' } }; });
+  return { ok: true, status: 200, json: async function () { return { photos: photos, total_results: 6 }; } };
+}
+function imageFausse(url, l, h) { const b = jpeg(l, h, Array.from(url).reduce(function (t, c) { return (t * 31 + c.charCodeAt(0)) % 251; }, 7)); return { ok: true, status: 200, url: url, headers: { get: function (x) { return /content-type/i.test(x) ? 'image/jpeg' : /content-length/i.test(x) ? String(b.length) : null; } }, arrayBuffer: async function () { return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } }; }
+
 global.fetch = async function (url, opts) {
   url = String(url);
+  if (url.indexOf('api.pexels.com') >= 0) return pexels(url, opts);
+  if (url.indexOf('images.pexels.com') >= 0) return imageFausse(url, 1920, 1280);
+  if (url.indexOf('picsum.photos') >= 0) return imageFausse(url, 1920, 1280);
   if (url.indexOf('api.kapso.ai') >= 0) return kapso(url, opts);
   if (url.indexOf('api.anthropic.com') >= 0) return claude(JSON.parse(opts.body));
   if (url.indexOf('api.vercel.com') >= 0) return vercel(url, opts);
@@ -279,4 +296,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { appels: function () { return appelsClaude; }, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
