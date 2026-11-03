@@ -10,12 +10,19 @@
     "api/hq.js": {
       "maxDuration": 60,
       "includeFiles": "lib/sites/polices/**"
+    },
+    "api/whatsapp.js": {
+      "maxDuration": 240
     }
   },
   "crons": [
     {
       "path": "/api/tick",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/whatsapp",
+      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [

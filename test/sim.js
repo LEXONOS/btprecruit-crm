@@ -713,6 +713,40 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(leSite(ar.s.id).status === 'en_ligne' && leSite(ar.s.id).data.abonnement.id === 'sub_' + lienReprise && leSite(ar.s.id).data.abonnement.statut === 'active', 'reprise payée : nouvel abonnement, site remis en ligne');
     console.log('Abonnement OK : deux liens, prélèvements, facture mensuelle, retouche du mois, impayé, pause, reprise, engagement, arrêt, double paiement');
   }
+  // 25. WhatsApp : la demande mesurée tant qu'il n'est pas branché ; puis branché, le client écrit, il est reconnu par son
+  // numéro, Emma répond sur WhatsApp ; plus de 24 h après son message, la réponse part par email ; STOP respecté
+  {
+    const WAJ = require('../lib/jobs/whatsapp');
+    assert.ok(WAJ.demandeDe('Vous avez WhatsApp ? Ce serait plus simple') === 'whatsapp' && WAJ.demandeDe('Appelez-moi demain') === 'appel' && !WAJ.demandeDe('Combien ça coûte ?'), 'demande de WhatsApp ou d\'appel reconnue dans un email');
+    for (let k = 0; k < 3; k++) { const c = await nouveauClient('wa-dem-' + k, 'Wa Dem ' + k, 'wadem' + k + '@test-mq.fr'); const ibw = db.tables.hq_inbox.find(function (x) { return x.id === c.ib.id; }); ibw.data.demande = 'whatsapp'; ibw.received_at = new Date().toISOString(); }
+    await WAJ.surveillerDemande(db);
+    assert.ok(db.tables.hq_messages.some(function (m) { return m.to_id === 'louis' && /WhatsApp : la demande est là/.test(m.subject || ''); }), 'seuil atteint : Louis prévenu, la mission WhatsApp l\'attend');
+    process.env.HQ_WHATSAPP_KEY = 'kapso_test'; process.env.HQ_WHATSAPP_NUMERO = '1234567890'; process.env.HQ_WHATSAPP_TEL = '+596 696 99 88 77';
+    const cw = await nouveauClient('wa-client', 'Wa Client', 'waclient@test-mq.fr');
+    await db.update('hq_leads', { phone: '0696 55 44 33' }, { eq: { id: cw.l.id } });
+    fakes.recuWhatsApp('+596696554433', 'Bonjour, je préfère WhatsApp. Vous pouvez mettre mes horaires du samedi ?', 'Patron Wa');
+    fakes.recuWhatsApp('+596696000111', 'Bonjour, vous faites des sites ?', 'Inconnu');
+    const rw = await WAJ.releve({ db: db });
+    const iw = db.tables.hq_inbox.find(function (x) { return x.from_email === 'wa:+596696554433'; });
+    const inc = db.tables.hq_leads.find(function (l) { return l.dedupe === 'wa:+596696000111'; });
+    assert.ok(rw.nouveaux === 2 && iw && iw.lead_id === cw.l.id && iw.data.confiance === 'whatsapp' && inc && inc.island === 'MQ' && inc.source === 'whatsapp', 'WhatsApp relevé : client reconnu par son numéro, inconnu devenu prospect');
+    const rep = await exE().repondre({ reponse_id: iw.id, corps: 'Bonjour, c\'est noté, j\'ajoute vos horaires du samedi aujourd\'hui. Louis, Novalemo' });
+    const ow = db.tables.hq_outbox.filter(function (o) { return o.inbox_id === iw.id; }).pop();
+    assert.ok(!(rep && rep.erreur) && ow && ow.to_email === 'wa:+596696554433' && !ow.in_reply_to, 'Emma répond sur WhatsApp : ' + JSON.stringify(rep));
+    const envW = await ENVOI.envoyerUn(db, ow);
+    assert.ok(envW.ok && fakes.KAPSO.envoyes.some(function (c) { return c.to === '596696554433' && /samedi/.test(c.text.body); }), 'réponse partie sur WhatsApp');
+    // plus de 24 h après son dernier message : la réponse part par email
+    iw.received_at = new Date(Date.now() - 25 * 3600000).toISOString();
+    db.tables.hq_inbox.filter(function (x) { return x.from_email === 'wa:+596696554433'; }).forEach(function (x) { x.received_at = iw.received_at; });
+    const ow2 = (await db.insert('hq_outbox', { lead_id: cw.l.id, agent_id: 'reponses', to_email: 'wa:+596696554433', subject: 'WhatsApp', body: 'Bonjour, c\'est en ligne, dites-moi si tout vous va. Louis, Novalemo', step: 1, status: 'pret', kind: 'reponse', inbox_id: iw.id }))[0];
+    const r24 = ow2 ? await ENVOI.envoyerUn(db, ow2) : null;
+    assert.ok(r24 && !r24.ok && db.tables.hq_outbox.find(function (o) { return o.id === ow2.id; }).to_email === 'waclient@test-mq.fr', 'fenêtre de 24 h fermée : la réponse repart par email');
+    fakes.recuWhatsApp('+596696000111', 'STOP', 'Inconnu');
+    await WAJ.releve({ db: db });
+    assert.strictEqual(db.tables.hq_leads.find(function (l) { return l.dedupe === 'wa:+596696000111'; }).status, 'stop', 'STOP sur WhatsApp respecté');
+    delete process.env.HQ_WHATSAPP_KEY; delete process.env.HQ_WHATSAPP_NUMERO; delete process.env.HQ_WHATSAPP_TEL;
+    console.log('WhatsApp OK : demande mesurée, alerte, relève, numéro reconnu, réponse WhatsApp, repli email après 24 h, STOP');
+  }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
   console.log('Pilote automatique OK :', fakes.VERCEL.deploiements.length, 'déploiements,', fakes.STRIPE.liens.length, 'lien(s) de paiement, domaine', site.domaine, ', CA', w.compteurs.ca_eur, '€');

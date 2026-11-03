@@ -199,8 +199,28 @@ function mois(sub, ok) {
 }
 
 const PAGE = '<html><head><title>Clim Pro 972</title><meta name="viewport" content="width=device-width"><meta property="og:image" content="/images/atelier.jpg"></head><body>Climatisation au Lamentin : installation, entretien, dépannage. Contact : contact@climpro972.fr <img src="/images/logo.png" alt="logo Clim Pro" class="logo"><img src="/images/chantier1.jpg" alt="Pose d\'une clim"><img src="/images/chantier2.jpg" alt="Entretien"><a href="/contact">Contact</a> © 2018 <style>.b{color:#e30613}.c{color:#e30613}.d{color:#e30613}</style></body></html>';
+/* ── faux Kapso (WhatsApp) ── */
+const KAPSO = { recus: [], envoyes: [], fenetreFermee: new Set() };
+function kapso(url, opts) {
+  const u = new URL(url), m = (opts && opts.method) || 'GET';
+  const j = function (code, obj) { return { ok: code < 300, status: code, json: async function () { return obj; } }; };
+  if (!opts || !opts.headers || !opts.headers['X-API-Key']) return j(401, { error: { message: 'missing key' } });
+  if (/\/messages$/.test(u.pathname) && m === 'GET') {
+    const depuis = u.searchParams.get('since');
+    return j(200, { data: KAPSO.recus.filter(function (x) { return !depuis || new Date(Number(x.timestamp) * 1000).toISOString() >= depuis; }), paging: { cursors: {} } });
+  }
+  if (/\/messages$/.test(u.pathname) && m === 'POST') {
+    const c = JSON.parse(opts.body);
+    if (KAPSO.fenetreFermee.has(c.to)) return j(422, { error: { message: 'Re-engagement message', code: 131047 } });
+    KAPSO.envoyes.push(c); return j(200, { messaging_product: 'whatsapp', contacts: [{ wa_id: c.to }], messages: [{ id: 'wamid.' + KAPSO.envoyes.length }] });
+  }
+  return j(404, { error: { message: 'inconnu' } });
+}
+function recuWhatsApp(de, texte, nom, ilYaMin) { const t = Math.floor((Date.now() - (ilYaMin || 0) * 60000) / 1000); KAPSO.recus.push({ id: 'wamid.in' + (KAPSO.recus.length + 1), from: String(de).replace(/[^\d]/g, ''), timestamp: String(t), type: 'text', text: { body: texte }, kapso: { direction: 'inbound', contact_name: nom || null } }); }
+
 global.fetch = async function (url, opts) {
   url = String(url);
+  if (url.indexOf('api.kapso.ai') >= 0) return kapso(url, opts);
   if (url.indexOf('api.anthropic.com') >= 0) return claude(JSON.parse(opts.body));
   if (url.indexOf('api.vercel.com') >= 0) return vercel(url, opts);
   if (url.indexOf('api.stripe.com') >= 0) return stripe(url, opts);
@@ -241,4 +261,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, VERCEL: VERCEL, STRIPE: STRIPE, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { appels: function () { return appelsClaude; }, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
