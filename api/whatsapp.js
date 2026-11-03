@@ -20,7 +20,9 @@ module.exports = async function (req, res) {
     if (!db) return json(res, 200, { ok: true, demo: true });
     const r = await require('../lib/jobs/whatsapp').releve({ db: db });
     let emma = null;
-    if (r.nouveaux) emma = await require('../lib/runtime').cycle({ db: db, agentId: 'reponses', secondes: 150 });
+    // Emma passe s'il y a du nouveau, ou des messages WhatsApp restés en attente (Emma occupée ailleurs au passage d'avant)
+    const attente = r.nouveaux || await db.count('hq_inbox', { eq: { status: 'nouveau', kind: 'reponse', subject: 'WhatsApp' } }).catch(function () { return 0; });
+    if (attente) emma = await require('../lib/runtime').cycle({ db: db, agentId: 'reponses', secondes: 150, verrou: 'cycle:whatsapp' });
     const envoi = await require('../lib/jobs/envoi').run({ db: db, budget: {}, limite: Date.now() + 50000, conversation: true });
     return json(res, 200, { ok: true, releve: r.resume, emma: emma && emma.passages ? emma.passages.map(function (p) { return p.resume; }) : null, envoi: envoi.resume });
   } catch (e) {

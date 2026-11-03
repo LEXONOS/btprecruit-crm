@@ -674,13 +674,23 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.strictEqual(leSite(ab.s.id).status, 'pause', 'toujours impayé à 14 jours : pause');
     fakes.STRIPE.abonnements[sub].status = 'active'; sansThrottle(); await lucas();
     assert.ok(leSite(ab.s.id).status === 'en_ligne' && !leSite(ab.s.id).data.abonnement.impaye_le, 'réglé : le site revient seul');
+    // l'engagement se compte depuis le vrai début de l'abonnement chez Stripe
+    const LV = require('../lib/jobs/livraison');
+    const ancre = fakes.STRIPE.abonnements[sub].billing_cycle_anchor * 1000;
+    assert.ok(Math.abs(Date.parse(leSite(ab.s.id).data.abonnement.engagement_jusqu_au) - LV.plusMois(ancre, 12)) < 1000, 'engagement : 12 mois depuis le début réel de l\'abonnement');
+    assert.ok(new Date(LV.plusMois(Date.UTC(2027, 0, 31), 1)).getUTCDate() === 28 && new Date(LV.plusMois(Date.UTC(2028, 1, 29), 12)).getUTCDate() === 28, 'mois comptés comme Stripe : un 31 janvier donne le 28 février');
+    // un mois avant la fin : annoncée, rien ne change
+    const dans = function (j) { return new Date(Date.now() + j * 86400000).toISOString(); };
+    leSite(ab.s.id).data.abonnement.engagement_jusqu_au = dans(20); sansThrottle(); await lucas();
+    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /fin de l'engagement le/.test(o.subject) && /répondez simplement/.test(o.body); }) && fakes.STRIPE.abonnements[sub].status === 'active', 'fin d\'engagement annoncée un mois avant, l\'abonnement continue');
+    // arrêt demandé pendant l'engagement : enregistré, programmé chez Stripe à la fin du mois payé qui couvre la fin de l'engagement
     const rr = await exE().resilier_abonnement({ reponse_id: ab.ib.id });
-    assert.ok(rr.arrete === false && rr.mensualites_restantes >= 10 && !fakes.STRIPE.abonnements[sub].cancel_at_period_end, 'arrêt pendant l\'engagement : expliqué, rien d\'arrêté');
-    leSite(ab.s.id).data.abonnement.engagement_jusqu_au = ilYa(1); sansThrottle(); await lucas();
-    assert.ok(db.tables.hq_outbox.some(function (o) { return o.lead_id === ab.l.id && /fin de l'engagement/.test(o.subject); }), 'fin d\'engagement annoncée, l\'abonnement continue');
-    const rr2 = await exE().resilier_abonnement({ reponse_id: ab.ib.id });
-    assert.ok(rr2.arrete && fakes.STRIPE.abonnements[sub].cancel_at_period_end, 'arrêt demandé après l\'engagement : à la fin du mois payé');
-    fakes.STRIPE.abonnements[sub].status = 'canceled';
+    const ca = fakes.STRIPE.abonnements[sub].cancel_at;
+    assert.ok(rr.arret_programme && /engagement/.test(rr.consigne || '') && ca && Math.abs(ca * 1000 - (LV.plusMois(ancre, 1) - 3600000)) < 2000 && fakes.STRIPE.abonnements[sub].proration_behavior === 'none' && !fakes.STRIPE.abonnements[sub].cancel_at_period_end && leSite(ab.s.id).data.abonnement.resiliation_demandee, 'arrêt pendant l\'engagement : programmé à la fin de l\'engagement, aucune mensualité de plus : ' + JSON.stringify(rr));
+    assert.ok(/déjà demandé/.test(await exE().resilier_abonnement({ reponse_id: ab.ib.id })), 'demande répétée : rien de plus');
+    assert.ok(LV.momentArret({ engagement_jusqu_au: ilYa(3) }, null).fin_periode && LV.momentArret({ engagement_jusqu_au: dans(200) }, null) === null, 'après l\'engagement : fin du mois en cours ; début inconnu : on attend de le lire chez Stripe');
+    // l'arrêt arrive : le site reste à lui, l'hébergement passe à 25 € par an
+    fakes.STRIPE.abonnements[sub].status = 'canceled'; fakes.STRIPE.abonnements[sub].ended_at = ca;
     leSite(ab.s.id).live_at = ilYa(400);
     sansThrottle(); await lucas();
     sa = leSite(ab.s.id);
@@ -765,6 +775,161 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const e1 = await M.etat(db);
     assert.ok(e1.missions.find(function (m) { return m.id === 'brancher'; }).etapes.find(function (x) { return x.id === 'activite'; }).fait, 'étape cochée');
     console.log('Missions OK : états, codes essayés avant enregistrement, écriture dans Vercel, redémarrage, cases à cocher');
+  }
+  // 27. TROISIÈME RELECTURE : l'argent des abonnements, STOP, WhatsApp, verrous, Missions
+  {
+    const WAJ = require('../lib/jobs/whatsapp'), M = require('../lib/missions'), RT = require('../lib/runtime');
+    const sansThrottle = function () { db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'stripe:abonnements'; }); };
+    const ilYa = function (j) { return new Date(Date.now() - j * 86400000).toISOString(); };
+    const abonne = async function (cle, email, extra) {
+      const c = await nouveauClient(cle, 'Rv ' + cle, email);
+      await exE().commande(Object.assign({ reponse_id: c.ib.id, formule: 'essentiel', paiement: 'mensuel' }, extra || {}));
+      const lm = leSite(c.s.id).stripe.lien_mois;
+      fakes.payer(lm, { customer_details: { email: email, name: 'X' } });
+      if (!extra) fakes.FAUX_EN_LIGNE.add(leSite(c.s.id).domaine);
+      await lucas(); await lucas(); await lucas();
+      return Object.assign(c, { sub: 'sub_' + lm, lm: lm });
+    };
+    // A. abonnement payé en double, arrêt refusé une fois par Stripe : ni remboursé ni oublié, réglé au passage suivant
+    const dd = await nouveauClient('rv-deux', 'Rv Deux', 'rvdeux@test-mq.fr');
+    await exE().commande({ reponse_id: dd.ib.id, formule: 'essentiel' });
+    const sd = Object.assign({}, leSite(dd.s.id).stripe);
+    fakes.payer(sd.lien, { amount_total: 59000, customer_details: { email: 'rvdeux@test-mq.fr', name: 'D' } });
+    await lucas();
+    fakes.payer(sd.lien_mois, { customer_details: { email: 'rvdeux@test-mq.fr', name: 'D' } });
+    const subD = 'sub_' + sd.lien_mois;
+    fakes.STRIPE.annulerEchecs = 1;
+    await lucas();
+    assert.ok(fakes.STRIPE.abonnements[subD].status === 'active' && !fakes.STRIPE.rembourses.some(function (x) { return String(x).indexOf(subD) >= 0; }) && (leSite(dd.s.id).stripe.rembourses || []).indexOf(sd.lien_mois) < 0 && !db.tables.hq_outbox.some(function (o) { return o.lead_id === dd.l.id && /double/.test(o.subject); }), 'abonnement en double, arrêt refusé : rien remboursé, rien noté, rien dit au client');
+    await lucas();
+    assert.ok(fakes.STRIPE.abonnements[subD].status === 'canceled' && fakes.STRIPE.rembourses.some(function (x) { return String(x).indexOf(subD) >= 0; }) && (leSite(dd.s.id).stripe.rembourses || []).indexOf(sd.lien_mois) >= 0 && db.tables.hq_outbox.filter(function (o) { return o.lead_id === dd.l.id && /double/.test(o.subject); }).length === 1, 'passage suivant : abonnement en trop arrêté, remboursé, client prévenu une fois');
+    // B. mensualité refusée puis réglée trois jours plus tard : la facture part quand même, l'encaissé suit
+    const b = await abonne('rv-late', 'rvlate@test-mq.fr');
+    const invB = fakes.mois(b.sub, false);
+    const fb = fakes.STRIPE.factures.find(function (x) { return x.id === invB; });
+    fb.created = Math.floor((Date.now() - 3 * 86400000) / 1000);
+    sansThrottle(); await lucas();
+    assert.ok(leSite(b.s.id).data.abonnement.impaye_le && /invoice\.stripe\.com/.test(leSite(b.s.id).data.abonnement.url_impaye || ''), 'impayé vu, lien pour régler gardé (pour Emma aussi)');
+    fb.status = 'paid'; fb.amount_paid = 4900; fb.paye_le = Math.floor(Date.now() / 1000); fakes.STRIPE.abonnements[b.sub].status = 'active';
+    sansThrottle(); await lucas();
+    const abB = leSite(b.s.id).data.abonnement;
+    assert.ok(abB.factures.indexOf(invB) >= 0 && abB.paye_eur === 98 && abB.statut === 'active' && !abB.url_impaye && db.tables.hq_outbox.some(function (o) { return o.lead_id === b.l.id && /^Votre facture/.test(o.subject); }), 'réglée en retard : facture envoyée, encaissé à jour');
+    // C. abonné dont le domaine attend son réglage DNS : pause puis paiement le ramènent en livraison, jamais « en ligne » à tort
+    const c = await abonne('rv-dns', 'rvdns@test-mq.fr', { domaine: 'rv-dns-client.fr' });
+    assert.strictEqual(leSite(c.s.id).status, 'livraison', 'son domaine : en attente de son réglage DNS');
+    fakes.mois(c.sub, false); sansThrottle(); await lucas();
+    leSite(c.s.id).data.abonnement.impaye_le = ilYa(15); sansThrottle(); await lucas(); sansThrottle(); await lucas();
+    assert.ok(leSite(c.s.id).status === 'pause' && leSite(c.s.id).data.statut_avant_pause === 'livraison' && db.tables.hq_outbox.some(function (o) { return o.lead_id === c.l.id && /mise en ligne suspendue/.test(o.subject); }), 'impayé à 14 jours, site pas encore en ligne : mise en ligne suspendue');
+    fakes.STRIPE.abonnements[c.sub].status = 'active'; sansThrottle(); await lucas();
+    const sc = leSite(c.s.id);
+    assert.ok(sc.status === 'livraison' && !sc.live_at && db.tables.hq_outbox.some(function (o) { return o.lead_id === c.l.id && /la mise en ligne reprend/.test(o.subject); }), 'réglé : retour en livraison, rien d\'annoncé à tort : ' + sc.status);
+    // D. arrêt voulu connu de Stripe seulement (tableau de bord) : fin voulue, ni pause ni lien de reprise
+    const d = await abonne('rv-cancel', 'rvcancel@test-mq.fr');
+    Object.assign(fakes.STRIPE.abonnements[d.sub], { cancel_at_period_end: true, status: 'canceled', cancellation_details: { reason: 'cancellation_requested' } });
+    sansThrottle(); await lucas();
+    const sdd = leSite(d.s.id);
+    assert.ok(sdd.status === 'en_ligne' && !sdd.data.abonnement && sdd.data.renouvellement && db.tables.hq_outbox.some(function (o) { return o.lead_id === d.l.id && /^Fin de votre abonnement/.test(o.subject); }), 'arrêt voulu (depuis Stripe) : le site reste à lui');
+    // H. arrêté par Stripe faute de paiement : facture ouverte annulée ; un mois réglé après l'arrêt est remboursé, lien de reprise redonné
+    const h = await abonne('rv-impaye', 'rvimpaye@test-mq.fr');
+    const invH = fakes.mois(h.sub, false);
+    Object.assign(fakes.STRIPE.abonnements[h.sub], { status: 'canceled', canceled_at: Math.floor(Date.now() / 1000) - 60, cancellation_details: { reason: 'payment_failed' } });
+    sansThrottle(); await lucas();
+    const sh = leSite(h.s.id);
+    assert.ok(sh.status === 'pause' && sh.data.abonnement.lien_reprise && fakes.STRIPE.facturesAnnulees.indexOf(invH) >= 0, 'arrêté faute de paiement : pause, lien de reprise, facture ouverte annulée');
+    const liensReprise = fakes.STRIPE.liens.filter(function (l) { return l.id === sh.data.abonnement.lien_reprise; });
+    assert.ok(liensReprise.length && /Reprise de votre abonnement/.test(liensReprise[0].params['custom_text[submit][message]'] || ''), 'lien de reprise : aux mêmes conditions, sans nouvel engagement');
+    fakes.STRIPE.factures.push({ id: 'in_tard_h', subscription: h.sub, status: 'paid', amount_paid: 4900, billing_reason: 'subscription_cycle', created: Math.floor(Date.now() / 1000) - 3600, paye_le: Math.floor(Date.now() / 1000), number: 'NOVA-T', hosted_invoice_url: 'https://invoice.stripe.com/i/in_tard_h' });
+    sansThrottle(); await lucas();
+    assert.ok(fakes.STRIPE.rembourses.indexOf('pi_in_tard_h') >= 0 && db.tables.hq_outbox.some(function (o) { return o.lead_id === h.l.id && /^Paiement remboursé/.test(o.subject) && o.body.indexOf(leSite(h.s.id).data.abonnement.url_reprise) >= 0; }), 'réglé après l\'arrêt : remboursé, lien de reprise redonné');
+    const vueEmma = await exE().lister_reponses({ statut: 'nouveau' });
+    const cmdH = await exE().commande({ reponse_id: h.ib.id, formule: 'essentiel' });
+    assert.ok(/abonnement/.test((cmdH && cmdH.erreur) || '') && (cmdH.erreur || '').indexOf(leSite(h.s.id).data.abonnement.url_reprise) >= 0, 'Emma, pour un abonné en pause : le bon lien (reprise), pas celui de l\'hébergement annuel');
+    assert.ok(Array.isArray(vueEmma) || typeof vueEmma === 'string', 'vue d\'Emma lisible');
+    // I. abonnement introuvable chez Stripe (clé d'un autre compte) : Louis prévenu
+    const i1 = await abonne('rv-perdu', 'rvperdu@test-mq.fr');
+    const sauve = fakes.STRIPE.abonnements[i1.sub]; delete fakes.STRIPE.abonnements[i1.sub];
+    sansThrottle(); await lucas();
+    fakes.STRIPE.abonnements[i1.sub] = sauve;
+    assert.ok(db.tables.hq_messages.some(function (m) { return /introuvable\(s\) chez Stripe/.test(m.subject || ''); }), 'abonnement introuvable : Louis prévenu');
+    // E. STOP seulement sur le mot seul ; le message d'un client va toujours à Emma
+    process.env.HQ_WHATSAPP_KEY = 'kapso_test'; process.env.HQ_WHATSAPP_NUMERO = '1234567890'; process.env.HQ_WHATSAPP_TEL = '+596 696 99 88 77';
+    const e1 = await abonne('rv-wa', 'rvwa@test-mq.fr');
+    await db.update('hq_leads', { phone: '0696 11 22 33', status: 'client' }, { eq: { id: e1.l.id } });
+    fakes.recuWhatsApp('+596696112233', 'Arrêtez mon abonnement svp', 'Patron');
+    fakes.recuWhatsApp('+596696223344', 'Arrêt de travail jusqu\'à lundi, je reviens vers vous', 'Prospect');
+    fakes.recuWhatsApp('+596696334455', 'Stop merci', 'Autre');
+    await WAJ.releve({ db: db });
+    const ligne = function (de) { return db.tables.hq_inbox.filter(function (x) { return x.from_email === 'wa:' + de; }).pop(); };
+    assert.ok(ligne('+596696112233').kind === 'reponse' && ligne('+596696112233').status === 'nouveau' && ligne('+596696112233').lead_id === e1.l.id && ligne('+596696223344').kind === 'reponse' && ligne('+596696334455').kind === 'stop', 'WhatsApp : STOP sur le mot seul, le message d\'un client va à Emma');
+    const cl = await abonne('rv-desabo', 'rvdesabo@test-mq.fr');
+    await db.insert('hq_outbox', { lead_id: cl.l.id, to_email: 'rvdesabo@test-mq.fr', subject: 'Votre facture', body: 'x', status: 'envoye', kind: 'service', step: 1, sent_at: new Date().toISOString(), message_id: '<hq.998.abcdef99@novalemo-mq.fr>' });
+    uid++;
+    aRelever.push({ uid: uid, messageId: '<desabo-client' + uid + '@x.fr>', inReplyTo: '<hq.998.abcdef99@novalemo-mq.fr>', from: 'rvdesabo@test-mq.fr', subject: 'Désabonnement', headers: 'In-Reply-To: <hq.998.abcdef99@novalemo-mq.fr>\r\n', source: Buffer.from('From: rvdesabo@test-mq.fr\r\nSubject: Désabonnement\r\nIn-Reply-To: <hq.998.abcdef99@novalemo-mq.fr>\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nJe souhaite arrêter mon abonnement.\r\n') });
+    await BOITE.releve({ db: db });
+    const rowD = db.tables.hq_inbox.filter(function (x) { return x.lead_id === cl.l.id && x.subject === 'Désabonnement'; }).pop();
+    assert.ok(rowD && rowD.kind === 'reponse' && rowD.status === 'nouveau' && !db.tables.hq_suppression.some(function (x) { return x.email === 'rvdesabo@test-mq.fr'; }), 'email d\'un client « Désabonnement » : à Emma, pas désinscrit d\'office');
+    // F. même numéro sur deux fiches (le client, et un doublon trouvé par un chasseur) : le message va au client
+    const f1 = await abonne('rv-old', 'rvold@test-mq.fr');
+    await db.update('hq_leads', { phone: '0696 44 55 66', status: 'client' }, { eq: { id: f1.l.id } });
+    await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'maps:rv-old-dup', source: 'maps', name: 'Rv Old (fiche Maps)', island: 'MQ', phone: '+596 696 44 55 66', status: 'a_appeler', score: 60 });
+    fakes.recuWhatsApp('+596696445566', 'Bonjour, une question sur ma facture', 'Patron');
+    await WAJ.releve({ db: db });
+    assert.strictEqual(ligne('+596696445566').lead_id, f1.l.id, 'même numéro sur deux fiches : le message va au client');
+    // K. photo envoyée sur WhatsApp : gardée comme une pièce jointe, utilisable par la retouche
+    fakes.recuWhatsApp('+596696112233', '', 'Patron', 0, { type: 'image', text: undefined, image: { caption: 'Voici mon nouveau logo', mime_type: 'image/jpeg' }, kapso: { direction: 'inbound', contact_name: 'Patron', has_media: true, media_url: 'https://api.kapso.ai/storage/media/logo123.jpg', media_data: { url: 'https://api.kapso.ai/storage/media/logo123.jpg', filename: 'logo.jpg', content_type: 'image/jpeg', byte_size: 5000 } } });
+    await WAJ.releve({ db: db });
+    const fich = db.tables.hq_fichiers.filter(function (x) { return x.lead_id === e1.l.id; });
+    const rowK = ligne('+596696112233');
+    assert.ok(fich.length && fich[fich.length - 1].contenu && /logo/.test(fich[fich.length - 1].nom) && /nouveau logo/.test(rowK.body) && (rowK.data.pieces || []).length === 1, 'photo reçue sur WhatsApp : gardée pour son site, Emma la voit');
+    // L. client qui écrit sous un nom d'utilisateur, sans numéro visible : gardé, et la réponse lui parvient
+    fakes.recuWhatsApp(null, 'Bonjour, vous faites les sites vitrines ?', 'Sans Numéro', 0, { from_user_id: 'US.13491208655302741918', username: 'boulangerie972' });
+    await WAJ.releve({ db: db });
+    const ibU = ligne('US.13491208655302741918');
+    const lU = db.tables.hq_leads.find(function (l) { return l.dedupe === 'wa:US.13491208655302741918'; });
+    assert.ok(ibU && lU && !lU.phone && ibU.lead_id === lU.id, 'nom d\'utilisateur sans numéro : message gardé, rattaché à son identifiant');
+    const repU = await exE().repondre({ reponse_id: ibU.id, corps: 'Bonjour, oui, je vous prépare un aperçu gratuit de votre site dès aujourd\'hui. Louis, Novalemo' });
+    const oU = db.tables.hq_outbox.filter(function (o) { return o.inbox_id === ibU.id; }).pop();
+    const envU = await ENVOI.envoyerUn(db, oU);
+    assert.ok(!(repU && repU.erreur) && envU.ok && fakes.KAPSO.envoyes.some(function (x) { return x.recipient === 'US.13491208655302741918' && !x.to; }), 'réponse partie à son identifiant WhatsApp');
+    delete process.env.HQ_WHATSAPP_KEY; delete process.env.HQ_WHATSAPP_NUMERO; delete process.env.HQ_WHATSAPP_TEL;
+    // M. verrous : le passage WhatsApp tourne pendant un cycle des 15 minutes ; Emma ne tourne jamais deux fois à la fois
+    await RT.verrouiller(db, 'cycle', 300, 'tick-en-cours');
+    const occ = await RT.cycle({ db: db, agentId: 'livraison', secondes: 60 });
+    const libre = await RT.cycle({ db: db, agentId: 'livraison', secondes: 60, verrou: 'cycle:whatsapp' });
+    await RT.deverrouiller(db, 'cycle', 'tick-en-cours');
+    assert.ok(occ.occupe && !libre.occupe, 'passage WhatsApp : son propre verrou');
+    await RT.verrouiller(db, 'agent:reponses', 300, 'emma-ailleurs');
+    dus(['reponses']);
+    const sansEmma = await RT.cycle({ db: db, agentId: 'reponses', secondes: 120, verrou: 'cycle:whatsapp' });
+    await RT.deverrouiller(db, 'agent:reponses', 'emma-ailleurs');
+    assert.ok(!sansEmma.occupe && !(sansEmma.passages || []).length, 'Emma déjà au travail : jamais deux passages en même temps');
+    // G. Missions : origine exigée, protection Vercel vérifiée, ancienne clé publique et autre compte Stripe refusés, écriture d'un bloc
+    const H0 = require('../api/hq.js');
+    const appelHq = async function (headers, corps) { let out = null; const res = { statusCode: 0, setHeader: function () {}, end: function (x) { out = { code: this.statusCode, corps: JSON.parse(x) }; } }; await H0({ method: 'POST', headers: headers, body: corps, url: '/api/hq' }, res); return out; };
+    const ecr0 = fakes.VERCEL.ecrituresEnv;
+    const sansOrigine = await appelHq({ host: 'btprecruit-crm.vercel.app' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    const autreOrigine = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://pirate.example' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    assert.ok(sansOrigine.code === 403 && autreOrigine.code === 403 && fakes.VERCEL.ecrituresEnv === ecr0, 'un code ne s\'enregistre que depuis la page de la tour');
+    const depuisTour = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://btprecruit-crm.vercel.app' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    assert.ok(depuisTour.code === 200 && /autre compte Stripe/.test(depuisTour.corps.erreur || ''), 'clé d\'un autre compte Stripe refusée tant que la clé branchée marche');
+    process.env.VERCEL = '1';
+    const perso = await M.enregistrer({ HQ_SITES_DOMAINE: 'apercu.novalemo.fr' }, { hote: 'tour.novalemo.fr' });
+    const vapp = await M.enregistrer({ HQ_SITES_DOMAINE: 'apercu.novalemo.fr' }, { hote: 'btprecruit-crm.vercel.app' });
+    fakes.VERCEL.projets.prj_tour.ssoProtection = null;
+    const nue = await M.enregistrer({ HQ_SITES_DOMAINE: 'apercu.novalemo.fr' }, { hote: 'btprecruit-crm.vercel.app' });
+    fakes.VERCEL.projets.prj_tour.ssoProtection = { deploymentType: 'all_except_custom_domains' };
+    delete process.env.VERCEL;
+    assert.ok(/adresse vercel\.app/.test(perso.erreur || '') && vapp.ok && /pas protégée/.test(nue.erreur || ''), 'codes acceptés seulement derrière la protection Vercel : ' + JSON.stringify([perso, vapp, nue]));
+    const jwt = function (role) { return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + Buffer.from(JSON.stringify({ iss: 'supabase', ref: 'fbmzlfrwxrzflfkazvmn', role: role })).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_') + '.signature'; };
+    assert.ok(/clé publique \(anon\)/.test((await M.enregistrer({ HQ_SUPABASE_KEY: jwt('anon') })).erreur || '') && M.roleJwt(jwt('service_role')) === 'service_role', 'ancienne clé publique (anon) refusée');
+    fakes.VERCEL.envEchec.add('HQ_MAIL_PASS');
+    const avantEcr = fakes.VERCEL.ecrituresEnv;
+    const rate = await M.enregistrer({ HQ_MAIL_USER: 'louis@novalemo-mq.fr', HQ_MAIL_PASS: 'autre-mot-de-passe' });
+    fakes.VERCEL.envEchec.clear();
+    assert.ok(/refusé/.test(rate.erreur || '') && fakes.VERCEL.ecrituresEnv === avantEcr + 1, 'adresse et mot de passe écrits en une seule requête ; un refus est signalé');
+    assert.ok(db.tables.hq_messages.some(function (m) { return /^Réglage enregistré : HQ_SITES_DOMAINE/.test(m.subject || ''); }), 'chaque code enregistré : Louis prévenu (le nom, jamais la valeur)');
+    assert.ok(!JSON.stringify(db.tables.hq_messages).includes('autre-mot-de-passe') && !JSON.stringify(db.tables.hq_messages).includes('sk_live_autre_compte_123'), 'aucune valeur de code dans les messages');
+    console.log('Relecture OK : doublon d\'abonnement, facture réglée en retard, pause en livraison, fin voulue depuis Stripe, factures ouvertes annulées, remboursement après arrêt, abonnement introuvable, STOP, client prioritaire, photo WhatsApp, nom d\'utilisateur, verrous, Missions protégées');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }

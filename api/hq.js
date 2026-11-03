@@ -40,7 +40,11 @@ module.exports = async function (req, res) {
       if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
       b = b || {};
       // la mise en route marche avant même que la base soit branchée
-      if (b.op === 'mission_enregistrer') return json(res, 200, await require('../lib/missions').enregistrer(b.valeurs || {}));
+      // un code ne s'enregistre que depuis la page de la tour elle-même (le navigateur envoie toujours l'origine d'un POST)
+      if (b.op === 'mission_enregistrer') {
+        if (!req.headers.origin || !memeOrigine(req)) return json(res, 403, { erreur: 'à faire depuis la page de la tour' });
+        return json(res, 200, await require('../lib/missions').enregistrer(b.valeurs || {}, { hote: req.headers['x-forwarded-host'] || req.headers.host }));
+      }
       if (b.op === 'mission_cocher') { const db = require('../lib/db').open(); if (!db) return json(res, 200, { erreur: 'branche d\'abord la base' }); return json(res, 200, await require('../lib/missions').cocher(db, String(b.etape || ''), !!b.fait)); }
       if (b.op === 'mission_dns') return json(res, 200, await agir('boite_dns', {}));
       return json(res, 200, await agir(String(b.op || ''), b));

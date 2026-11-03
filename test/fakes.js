@@ -101,7 +101,7 @@ function jpeg(l, h, graine) {
 }
 
 /* ── faux Vercel ── */
-const VERCEL = { projets: { prj_tour: { id: 'prj_tour', name: 'btprecruit-crm' } }, env: {}, redemarrages: [], fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
+const VERCEL = { projets: { prj_tour: { id: 'prj_tour', name: 'btprecruit-crm', ssoProtection: { deploymentType: 'all_except_custom_domains' } } }, env: {}, envEchec: new Set(), redemarrages: [], fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
 function vercel(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, text: async function () { return JSON.stringify(obj); }, json: async function () { return obj; } }; };
@@ -114,7 +114,13 @@ function vercel(url, opts) {
   if ((r = p.match(/^\/v9\/projects\/([^/]+)\/domains$/))) return j(200, { domains: [{ name: 'novalemo-martinique.vercel.app' }].concat(Object.keys(VERCEL.domaines).map(function (d) { return { name: d }; })) });
   if (p === '/v2/files' && m === 'POST') { VERCEL.fichiers.add(opts.headers['x-vercel-digest']); return j(200, {}); }
   if (p === '/v13/deployments' && m === 'POST' && corps && corps.deploymentId) { VERCEL.redemarrages.push(corps); return j(200, { id: 'dpl_redemarrage_' + VERCEL.redemarrages.length, url: 'tour.vercel.app' }); }
-  if ((r = p.match(/^\/v10\/projects\/([^/]+)\/env$/)) && m === 'POST') { if (!/upsert=true/.test(u.search)) return j(400, { error: { message: 'exists' } }); VERCEL.env[corps.key] = { type: corps.type, target: corps.target, projet: r[1], longueur: String(corps.value || '').length }; return j(200, { created: { key: corps.key } }); }
+  if ((r = p.match(/^\/v10\/projects\/([^/]+)\/env$/)) && m === 'POST') {
+    if (!/upsert=true/.test(u.search)) return j(400, { error: { message: 'exists' } });
+    const lot = Array.isArray(corps) ? corps : [corps], crees = [], rates = [];
+    lot.forEach(function (c) { if (VERCEL.envEchec.has(c.key)) { rates.push({ error: { key: c.key, message: 'refusé' } }); return; } VERCEL.env[c.key] = { type: c.type, target: c.target, projet: r[1], longueur: String(c.value || '').length }; crees.push({ key: c.key }); });
+    VERCEL.ecrituresEnv = (VERCEL.ecrituresEnv || 0) + 1;
+    return j(200, Array.isArray(corps) ? { created: crees, failed: rates } : { created: crees[0] });
+  }
   if (p === '/v6/deployments' && m === 'GET') return j(200, { deployments: [{ uid: 'dpl_tour_prod', name: 'btprecruit-crm', state: 'READY' }] });
   if (p === '/v2/user') return j(200, { user: { id: 'u1' } });
   if (p === '/v13/deployments' && m === 'POST') {
@@ -141,7 +147,7 @@ function vercel(url, opts) {
 }
 
 /* ── faux Stripe ── */
-const STRIPE = { prix: [], liens: [], payes: {}, desactives: [], rembourses: [], abonnements: {}, factures: [], annules: [], pieds: {}, appels: 0, parLien: 0, globales: 0, listeEnPanne: false };
+const STRIPE = { prix: [], liens: [], payes: {}, desactives: [], rembourses: [], abonnements: {}, factures: [], annules: [], pieds: {}, appels: 0, parLien: 0, globales: 0, listeEnPanne: false, annulerEchecs: 0, rembourserEchecs: 0, facturesAnnulees: [] };
 function stripe(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, json: async function () { return obj; } }; };
@@ -156,13 +162,15 @@ function stripe(url, opts) {
     STRIPE.liens.push(x); return j(200, x);
   }
   if (p === '/v1/subscriptions' && m === 'GET') { const tous = Object.values(STRIPE.abonnements); return j(200, { data: tous, has_more: false }); }
-  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'POST') { const a = STRIPE.abonnements[r[1]]; if (!a) return j(404, { error: { message: 'no such subscription' } }); if (params.get('cancel_at_period_end') === 'true') a.cancel_at_period_end = true; return j(200, a); }
-  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'DELETE') { const a = STRIPE.abonnements[r[1]]; if (!a) return j(404, { error: { message: 'no such subscription' } }); a.status = 'canceled'; a.canceled_at = Math.floor(Date.now() / 1000); STRIPE.annules.push(a.id); return j(200, a); }
+  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'GET') { const a = STRIPE.abonnements[r[1]]; return a ? j(200, a) : j(404, { error: { code: 'resource_missing', message: 'No such subscription' } }); }
+  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'POST') { const a = STRIPE.abonnements[r[1]]; if (!a) return j(404, { error: { message: 'no such subscription' } }); if (params.get('cancel_at_period_end') === 'true') a.cancel_at_period_end = true; if (params.get('cancel_at')) { a.cancel_at = Number(params.get('cancel_at')); a.proration_behavior = params.get('proration_behavior'); } return j(200, a); }
+  if ((r = p.match(/^\/v1\/subscriptions\/([^/]+)$/)) && m === 'DELETE') { const a = STRIPE.abonnements[r[1]]; if (!a) return j(404, { error: { message: 'no such subscription' } }); if (STRIPE.annulerEchecs > 0) { STRIPE.annulerEchecs--; return j(500, { error: { message: 'temporary error' } }); } a.status = 'canceled'; a.canceled_at = Math.floor(Date.now() / 1000); a.cancellation_details = { reason: 'cancellation_requested' }; STRIPE.annules.push(a.id); return j(200, a); }
   if ((r = p.match(/^\/v1\/customers\/([^/]+)$/)) && m === 'POST') { STRIPE.pieds[r[1]] = params.get('invoice_settings[footer]'); return j(200, { id: r[1] }); }
-  if (p === '/v1/invoices' && m === 'GET') { const gte = Number(params.get('created[gte]') || 0); return j(200, { data: STRIPE.factures.filter(function (f) { return f.status === 'paid' && f.created >= gte; }), has_more: false }); }
+  if (p === '/v1/invoices' && m === 'GET') { const gte = Number(params.get('created[gte]') || 0), st = params.get('status'), sub = params.get('subscription'); return j(200, { data: STRIPE.factures.filter(function (f) { return (!st || f.status === st) && f.created >= gte && (!sub || f.subscription === sub); }).map(function (f) { return Object.assign({ status_transitions: { paid_at: f.status === 'paid' ? (f.paye_le || f.created) : null }, payment_intent: 'pi_' + f.id }, f); }), has_more: false }); }
+  if ((r = p.match(/^\/v1\/invoices\/([^/]+)\/void$/)) && m === 'POST') { const f = STRIPE.factures.find(function (y) { return y.id === r[1]; }); if (!f || f.status !== 'open') return j(400, { error: { message: 'You can only void an open invoice' } }); f.status = 'void'; STRIPE.facturesAnnulees.push(f.id); return j(200, f); }
   if ((r = p.match(/^\/v1\/payment_links\/([^/]+)$/)) && m === 'POST') { STRIPE.desactives.push(r[1]); return j(200, { id: r[1], active: false }); }
-  if (p === '/v1/account' && m === 'GET') return j(200, { id: 'acct_1', charges_enabled: !/inactif/.test((opts.headers && opts.headers.Authorization) || ''), details_submitted: true });
-  if (p === '/v1/refunds' && m === 'POST') { STRIPE.rembourses.push(params.get('payment_intent')); return j(200, { id: 're_' + STRIPE.rembourses.length, status: 'succeeded' }); }
+  if (p === '/v1/account' && m === 'GET') { const k = (opts.headers && opts.headers.Authorization) || ''; return j(200, { id: /autre_compte/.test(k) ? 'acct_2' : 'acct_1', charges_enabled: !/inactif/.test(k), details_submitted: true }); }
+  if (p === '/v1/refunds' && m === 'POST') { if (STRIPE.rembourserEchecs > 0) { STRIPE.rembourserEchecs--; return j(500, { error: { message: 'temporary error' } }); } STRIPE.rembourses.push(params.get('payment_intent') || params.get('charge')); return j(200, { id: 're_' + STRIPE.rembourses.length, status: 'succeeded' }); }
   if (p === '/v1/checkout/sessions') {
     STRIPE.appels++;
     const l = params.get('payment_link');
@@ -188,7 +196,7 @@ function payer(lien, extra) {
     // abonnement : la session crée l'abonnement et sa première facture, payée ; pas d'intention sur la session
     const sub = 'sub_' + lien, inv = 'in_' + sub + '_1';
     Object.assign(base, { mode: 'subscription', subscription: sub, payment_intent: null, invoice: inv, amount_total: lk.montant });
-    STRIPE.abonnements[sub] = { id: sub, status: 'active', customer: 'cus_' + lien, latest_invoice: inv, cancel_at_period_end: false, current_period_end: Math.floor((Date.now() + 30 * 86400000) / 1000), metadata: meta, created: base.created };
+    STRIPE.abonnements[sub] = { id: sub, status: 'active', customer: 'cus_' + lien, latest_invoice: inv, cancel_at_period_end: false, cancel_at: null, billing_cycle_anchor: base.created, start_date: base.created, current_period_end: Math.floor((Date.now() + 30 * 86400000) / 1000), metadata: meta, created: base.created };
     STRIPE.factures.push({ id: inv, subscription: sub, status: 'paid', amount_paid: lk.montant, billing_reason: 'subscription_create', created: base.created, number: 'NOVA-S1', hosted_invoice_url: 'https://invoice.stripe.com/i/' + inv });
   }
   STRIPE.payes[lien] = Object.assign(base, extra || {});
@@ -210,18 +218,20 @@ function kapso(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET';
   const j = function (code, obj) { return { ok: code < 300, status: code, json: async function () { return obj; } }; };
   if (!opts || !opts.headers || !opts.headers['X-API-Key']) return j(401, { error: { message: 'missing key' } });
+  if (/^\/storage\/media\//.test(u.pathname)) { const b = jpeg(900, 700, 11); return { ok: true, status: 200, headers: { get: function (h) { return /content-type/i.test(h) ? 'image/jpeg' : null; } }, arrayBuffer: async function () { return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } }; }
   if (/\/messages$/.test(u.pathname) && m === 'GET') {
     const depuis = u.searchParams.get('since');
     return j(200, { data: KAPSO.recus.filter(function (x) { return !depuis || new Date(Number(x.timestamp) * 1000).toISOString() >= depuis; }), paging: { cursors: {} } });
   }
   if (/\/messages$/.test(u.pathname) && m === 'POST') {
     const c = JSON.parse(opts.body);
-    if (KAPSO.fenetreFermee.has(c.to)) return j(422, { error: { message: 'Re-engagement message', code: 131047 } });
-    KAPSO.envoyes.push(c); return j(200, { messaging_product: 'whatsapp', contacts: [{ wa_id: c.to }], messages: [{ id: 'wamid.' + KAPSO.envoyes.length }] });
+    if (KAPSO.fenetreFermee.has(c.to || c.recipient)) return j(422, { error: { message: 'Re-engagement message', code: 131047 } });
+    if (!c.to && !c.recipient) return j(400, { error: { message: 'to or recipient required' } });
+    KAPSO.envoyes.push(c); return j(200, { messaging_product: 'whatsapp', contacts: [{ wa_id: c.to || null, user_id: c.recipient || null }], messages: [{ id: 'wamid.' + KAPSO.envoyes.length }] });
   }
   return j(404, { error: { message: 'inconnu' } });
 }
-function recuWhatsApp(de, texte, nom, ilYaMin) { const t = Math.floor((Date.now() - (ilYaMin || 0) * 60000) / 1000); KAPSO.recus.push({ id: 'wamid.in' + (KAPSO.recus.length + 1), from: String(de).replace(/[^\d]/g, ''), timestamp: String(t), type: 'text', text: { body: texte }, kapso: { direction: 'inbound', contact_name: nom || null } }); }
+function recuWhatsApp(de, texte, nom, ilYaMin, extra) { const t = Math.floor((Date.now() - (ilYaMin || 0) * 60000) / 1000); const m = { id: 'wamid.in' + (KAPSO.recus.length + 1), from: de ? String(de).replace(/[^\d]/g, '') : undefined, timestamp: String(t), type: 'text', text: { body: texte }, kapso: { direction: 'inbound', contact_name: nom || null } }; KAPSO.recus.push(Object.assign(m, extra || {})); return m; }
 
 global.fetch = async function (url, opts) {
   url = String(url);
