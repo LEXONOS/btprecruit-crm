@@ -278,6 +278,13 @@ table.t tr:hover td { background: rgba(255, 255, 255, 0.025); }
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .mobile-views { display: flex !important; }
 }
+@media (max-width: 520px) {
+  .brand-name { display: none; }
+  #misBtn span, #valBtn span { display: none; }
+  #misBtn, #valBtn { padding: 0 8px; }
+  #misBtn::before { content: "Missions"; font-size: 12.5px; }
+  #valBtn::before { content: "Valid."; font-size: 12.5px; }
+}
 .mobile-views { display: none; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
@@ -305,3 +312,27 @@ table.t tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .sites .mail { margin: 0; }
 .boitebar .switch { flex: none; }
 .pill.apercu { color: var(--accent); } .pill.commande { color: var(--gold); } .pill.paye, .pill.livraison { color: #A3E635; } .pill.en_ligne { color: var(--novalemo); } .pill.expire { color: var(--faint); } .pill.pause { color: var(--gold); } .pill.client { color: var(--novalemo); }
+
+/* ── missions : ce qu'il reste à faire, étape par étape ── */
+.mis-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 18px 0 8px; }
+.mis-tete h3 { margin: 0; font: 600 15px var(--f-title); }
+.mis-tete small { color: var(--muted); font: 600 11.5px var(--f-mono); }
+.mis-but { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+.mis-but.reco { color: var(--gold); }
+.mis-barre { height: 4px; border-radius: 4px; background: var(--raise); overflow: hidden; margin-bottom: 10px; }
+.mis-barre i { display: block; height: 100%; background: var(--novalemo); }
+.etape { border: 1px solid var(--line); border-radius: 12px; background: var(--raise); margin-bottom: 8px; }
+.etape > button.etape-tete { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer; font-size: 13px; }
+.etape-num { flex: none; width: 22px; height: 22px; border-radius: 7px; background: rgba(125, 211, 252, 0.16); color: var(--accent); font: 700 11.5px/22px var(--f-mono); text-align: center; }
+.etape.fait .etape-num { background: var(--ok); color: #04121c; }
+.etape.fait .etape-titre { color: var(--muted); }
+.etape-titre { flex: 1; font-weight: 600; }
+.etape-etat { font-size: 11.5px; color: var(--faint); }
+.etape.courante { border-color: rgba(46, 227, 175, 0.45); box-shadow: 0 0 0 1px rgba(46, 227, 175, 0.12) inset; }
+.etape-corps { padding: 0 12px 12px 44px; font-size: 13px; }
+.etape-corps p { margin: 0 0 8px; color: var(--muted); }
+.etape-corps ol { margin: 0 0 10px; padding-left: 18px; }
+.etape-corps li { margin-bottom: 4px; }
+.etape-corps .row { flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.etape-corps .field { margin-bottom: 8px; }
+.etape-note { font-size: 12px; color: var(--gold); margin-top: 6px; }

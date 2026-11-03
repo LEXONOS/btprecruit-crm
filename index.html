@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/hq/style.css?v=1">
+  <link rel="stylesheet" href="/assets/hq/style.css?v=2">
   <script type="importmap">
   { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -38,6 +38,9 @@
     <div class="bar-actions">
       <button class="btn ghost" data-act="cycle" id="cycleBtn" title="Fait passer maintenant tous les agents dont c'est l'heure">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg><span>Lancer un cycle</span>
+      </button>
+      <button class="btn gold zero" data-act="missions" id="misBtn" title="Ce qu'il te reste à faire, étape par étape">
+        <span>Missions</span><b id="misCount">0</b>
       </button>
       <button class="btn gold" data-act="validations" id="valBtn">
         <span>Validations</span><b id="valCount">0</b>
@@ -69,6 +72,6 @@
   <div class="toasts" id="toasts"></div>
 
   <noscript><p class="noscript">La tour a besoin de JavaScript.</p></noscript>
-  <script type="module" src="/assets/hq/app.js?v=1"></script>
+  <script type="module" src="/assets/hq/app.js?v=2"></script>
 </body>
 </html>

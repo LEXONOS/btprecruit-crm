@@ -52,7 +52,7 @@ async function post(body, url) {
   return d;
 }
 function hdr() { let k = ''; try { k = localStorage.getItem('hq_key') || ''; } catch (e) { /* stockage indisponible */ } return k ? { 'x-hq-key': k } : {}; }
-function garde() { if (demo()) { toast('La base n\'est pas encore branchée : regarde le bandeau en haut.', 'err'); openSetup(); return false; } return true; }
+function garde() { if (demo()) { toast('La base n\'est pas encore branchée : suis les missions, étape par étape.', 'err'); openMissions(); return false; } return true; }
 
 /* ── démarrage ── */
 async function init() {
@@ -67,6 +67,8 @@ async function init() {
     toast('La 3D n\'a pas pu démarrer sur cet appareil : le reste fonctionne.', 'err');
   }
   api('etat').then((e) => { S.etat = e; if (S.sel && S.sel.type === 'setup') openSetup(); }).catch(() => {});
+  chargerMissions();
+  setInterval(chargerMissions, 60000);
   poll();
   setInterval(() => { if (S.world && S.m) S.world.update(etatScene()); }, 60000); // le ciel suit l'heure de Guadeloupe
 }
@@ -177,7 +179,7 @@ function renderBanner() {
   if (!demo()) { b.hidden = true; return; }
   const raison = S.m.raison;
   const t = raison === 'tables' ? 'La base est branchée mais ses tables ne sont pas encore créées.' : raison === 'cle_refusee' ? 'La clé de la base est refusée : vérifie HQ_SUPABASE_KEY dans Vercel.' : 'Mode démo : tu vois la vraie organisation, mais la base n\'est pas branchée, personne ne travaille encore.';
-  b.innerHTML = '<span>' + esc(t) + '</span><button class="btn sm gold" data-act="setup">Voir comment (2 gestes)</button>';
+  b.innerHTML = '<span>' + esc(t) + '</span><button class="btn sm gold" data-act="missions">Mise en route, étape par étape</button>';
   b.hidden = false;
 }
 
@@ -349,6 +351,57 @@ function openBudget() {
   h += '<div class="sec"><h4>Nom du groupe</h4><div class="row"><input class="in" id="gName" value="' + esc(S.m.groupe.name) + '" style="flex:1"><button class="btn sm ghost" data-act="saveGroupe">Renommer</button></div></div>';
   if (S.etat) h += '<div class="sec"><h4>Branchements</h4><div class="list">' + [['Base Supabase (' + S.etat.projet + ')', S.etat.base && !demo()], ['Clé Anthropic', S.etat.anthropic], ['Clé Google Maps', S.etat.google], ['Boîte d\'envoi' + (S.etat.boite ? ' (' + S.etat.boite + ')' : ''), S.etat.envoi, 'boite'], ['Hébergement des sites (Vercel)', S.etat.vercel, 'setup'], ['Paiement (Stripe' + (S.etat.stripe_test ? ', test' : '') + ')', S.etat.stripe, 'setup'], ['Identité de vente', S.m.pilote && S.m.pilote.identite, 'identite']].map((x) => '<' + (x[2] ? 'button data-act="' + x[2] + '" class="item click"' : 'div class="item"') + ' style="display:flex;justify-content:space-between"><span>' + esc(x[0]) + '</span><b style="color:' + (x[1] ? 'var(--ok)' : 'var(--faint)') + '">' + (x[1] ? 'branché' : (x[2] ? 'brancher' : 'non')) + '</b></' + (x[2] ? 'button' : 'div') + '>').join('') + '</div></div>';
   panel(h, { type: 'budget' });
+}
+
+/* ── missions : ce qu'il reste à faire, une étape à la fois ── */
+S.mis = null; S.misOuverte = null; S.misAttente = {};
+async function chargerMissions() {
+  try {
+    S.mis = await api('missions');
+    const n = S.mis.a_faire || 0;
+    $('#misCount').textContent = n;
+    $('#misBtn').classList.toggle('zero', !n);
+    Object.keys(S.misAttente).forEach((k) => { const e = etapeDe(k); if ((e && e.fait) || Date.now() - S.misAttente[k] > 6 * 60000) delete S.misAttente[k]; });
+    if (S.sel && S.sel.type === 'missions') openMissions(true);
+  } catch (e) { /* hors ligne : on réessaie à la prochaine minute */ }
+}
+function etapeDe(id) { for (const m of (S.mis && S.mis.missions) || []) { const e = m.etapes.find((x) => x.id === id); if (e) return e; } return null; }
+function openMissions(silencieux) {
+  if (!S.mis) { chargerMissions().then(() => S.mis && openMissions()); return; }
+  // garder ce que Louis est en train de taper si le panneau se redessine
+  const tape = {}; document.querySelectorAll('#panelBody [data-var]').forEach((el) => { if (el.value) tape[el.dataset.var] = el.value; });
+  const ms = S.mis.missions;
+  const courante = (ms.find((m) => m.id === 'brancher' && !m.finie) || ms.find((m) => !m.finie && (m.recommande || m.id === 'domaine')) || {}).prochaine;
+  const ouverte = S.misOuverte || courante;
+  let h = '<div class="ph"><div class="avatar" style="--c:var(--novalemo)">✓</div><div><h2>Tes missions</h2><p>' + (S.mis.a_faire ? 'Il te reste ' + S.mis.a_faire + ' étape(s). Une à la fois, chaque étape est vérifiée.' : 'Tout est branché. La tour tourne seule.') + '</p></div></div>';
+  ms.forEach((m) => {
+    h += '<div class="mis-tete"><h3>' + esc(m.titre) + '</h3><small>' + m.faites + ' / ' + m.total + '</small></div>';
+    h += '<div class="mis-barre"><i style="width:' + Math.round((m.faites / m.total) * 100) + '%"></i></div><p class="mis-but' + (m.recommande ? ' reco' : '') + '">' + esc(m.but) + '</p>';
+    m.etapes.forEach((e, k) => {
+      const att = S.misAttente[e.id] && !e.fait;
+      const etat = e.fait ? 'fait' : att ? 'redémarrage en cours' : e.bloque ? esc(e.bloque) : e.id === courante ? 'à faire maintenant' : 'à faire';
+      h += '<div class="etape' + (e.fait ? ' fait' : '') + (e.id === courante ? ' courante' : '') + '"><button class="etape-tete" data-act="misEtape" data-id="' + esc(e.id) + '"><span class="etape-num">' + (e.fait ? '✓' : k + 1) + '</span><span class="etape-titre">' + esc(e.titre) + '</span><span class="etape-etat">' + etat + '</span></button>';
+      if (e.id === ouverte && !e.fait) {
+        h += '<div class="etape-corps"><p>' + esc(e.pourquoi) + '</p><ol>' + (e.faire || []).map((f) => '<li>' + esc(f) + '</li>').join('') + '</ol>';
+        if (e.champs) h += e.champs.map((c) => '<label class="field"><span>' + esc(c.label) + '</span><input class="in" data-var="' + esc(c.variable) + '" type="' + (c.type === 'password' ? 'password' : c.type === 'email' ? 'email' : 'text') + '" autocomplete="off" spellcheck="false" value="' + esc(tape[c.variable] || c.valeur || '') + '"></label>').join('');
+        const btns = [];
+        (e.liens || []).forEach((l) => btns.push('<a class="btn sm ghost" href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.texte) + '</a>'));
+        (e.copier || []).forEach((c, i) => btns.push('<button class="btn sm ghost" data-act="misCopier" data-id="' + esc(e.id) + '" data-i="' + i + '">' + esc(c.texte) + '</button>'));
+        if (e.champs && !e.bloque) btns.push('<button class="btn sm primary" data-act="misEnregistrer" data-id="' + esc(e.id) + '">Vérifier et enregistrer</button>');
+        if (e.action && !e.bloque) btns.push('<button class="btn sm primary" data-act="' + esc(e.action.act) + '">' + esc(e.action.texte) + '</button>');
+        if (e.coche && !e.bloque) btns.push('<button class="btn sm primary" data-act="misCocher" data-id="' + esc(e.id) + '">C\'est fait</button>');
+        h += '<div class="row">' + btns.join('') + '</div>';
+        if (e.note) h += '<div class="etape-note">' + esc(e.note) + '</div>';
+        if (att) h += '<div class="etape-note">Enregistré. La tour redémarre avec ce réglage (environ 2 minutes) : cette étape passera seule à « fait ».</div>';
+        h += '</div>';
+      } else if (e.id === ouverte && e.fait && e.coche) {
+        h += '<div class="etape-corps"><div class="row"><button class="btn sm ghost" data-act="misDecocher" data-id="' + esc(e.id) + '">Pas encore fait finalement</button></div></div>';
+      }
+      h += '</div>';
+    });
+  });
+  panel(h, { type: 'missions' });
+  if (!silencieux) { const c = $('#panelBody .etape.courante'); if (c) c.scrollIntoView({ block: 'center' }); }
 }
 
 function openSetup() {
@@ -649,7 +702,23 @@ function bind() {
       case 'rail': $('#rail').classList.toggle('open'); break;
       case 'validations': openValidations(); break;
       case 'budget': openBudget(); break;
-      case 'setup': openSetup(); break;
+      case 'setup': case 'missions': openMissions(); break;
+      case 'misEtape': S.misOuverte = S.misOuverte === d.id ? null : d.id; openMissions(true); break;
+      case 'misCopier': { const e = etapeDe(d.id); const c = e && e.copier && e.copier[Number(d.i)]; if (c) navigator.clipboard.writeText(c.valeur).then(() => toast('Copié.', 'ok')); break; }
+      case 'misEnregistrer': action(t, async () => {
+        const valeurs = {}; document.querySelectorAll('#panelBody [data-var]').forEach((el) => { if (el.value.trim()) valeurs[el.dataset.var] = el.value.trim(); });
+        if (!Object.keys(valeurs).length) throw new Error('Colle d\'abord le code dans le champ.');
+        const r = await post({ op: 'mission_enregistrer', valeurs: valeurs });
+        if (r.erreur) throw new Error(r.erreur.charAt(0).toUpperCase() + r.erreur.slice(1) + '.');
+        document.querySelectorAll('#panelBody [data-var]').forEach((el) => { el.value = ''; });
+        S.misAttente[d.id] = Date.now(); S.misOuverte = null;
+        toast(r.message || r.note || 'Enregistré.', 'ok');
+        if (r.note) toast(r.note);
+        openMissions(true);
+        const debut = Date.now(); const suivre = setInterval(async () => { await chargerMissions(); const e = etapeDe(d.id); if ((e && e.fait) || Date.now() - debut > 6 * 60000) { clearInterval(suivre); if (e && e.fait) { toast('« ' + e.titre + ' » : fait.', 'ok'); api('etat').then((x) => { S.etat = x; }).catch(() => {}); poll(); } } }, 20000);
+      }); break;
+      case 'misCocher': case 'misDecocher': action(t, async () => { const r = await post({ op: 'mission_cocher', etape: d.id, fait: d.act === 'misCocher' }); if (r.erreur) throw new Error(r.erreur); S.misOuverte = null; await chargerMissions(); openMissions(true); }); break;
+      case 'missionDns': action(t, async () => { const r = await post({ op: 'mission_dns' }); const dn = r.dns || {}; const ok = ['spf', 'dkim', 'dmarc'].filter((k) => dn[k] && dn[k].ok).length; toast(ok === 3 ? 'SPF, DKIM et DMARC : tout est bon.' : ok + ' sur 3 en place : ' + ['spf', 'dkim', 'dmarc'].filter((k) => !(dn[k] && dn[k].ok)).map((k) => k.toUpperCase()).join(', ') + ' encore à faire (un réglage DNS peut mettre une heure à se voir).', ok === 3 ? 'ok' : 'err'); await chargerMissions(); }); break;
       case 'cycle': lancerCycle(t); break;
       case 'lancer': lancerCycle(t, d.id); break;
       case 'pause': case 'reprendre': if (garde()) action(t, async () => { await post({ op: d.act, agent: d.id }); toast(d.act === 'pause' ? 'En pause.' : 'Repris.', 'ok'); await poll(); openAgent(d.id); }); break;
@@ -678,7 +747,7 @@ function bind() {
         const v = {}; ['entreprise', 'forme', 'siret', 'marque', 'prenom', 'nom', 'email', 'telephone', 'adresse', 'cp', 'ville', 'region', 'pays', 'mentions_facture'].forEach((k) => { const el = $('#id_' + k); if (el) v[k] = el.value; });
         const r = await post(Object.assign({ op: 'identite' }, v));
         toast(r.complete ? 'Identité enregistrée : les noms de domaine peuvent être réservés.' : 'Enregistré. Il manque encore des champs pour réserver les noms de domaine.', r.complete ? 'ok' : 'err');
-        await poll(); openSetup();
+        await poll(); await chargerMissions(); openMissions();
       }); break;
       case 'siteAnnuler': if (garde() && confirm('Retirer cet aperçu (il ne sera plus visible) ?')) action(t, async () => { await post({ op: 'site_annuler', id: Number(d.id) }); toast('Retiré : il disparaît à la prochaine publication.', 'ok'); await renderPage(false); }); break;
       case 'repSend': if (garde()) action(t, async () => {

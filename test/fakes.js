@@ -101,7 +101,7 @@ function jpeg(l, h, graine) {
 }
 
 /* ── faux Vercel ── */
-const VERCEL = { projets: {}, fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
+const VERCEL = { projets: { prj_tour: { id: 'prj_tour', name: 'btprecruit-crm' } }, env: {}, redemarrages: [], fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
 function vercel(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, text: async function () { return JSON.stringify(obj); }, json: async function () { return obj; } }; };
@@ -113,6 +113,10 @@ function vercel(url, opts) {
   if ((r = p.match(/^\/v9\/projects\/([^/]+)$/)) && m === 'PATCH') { const pr = VERCEL.projets[r[1]]; Object.assign(pr, corps); return j(200, pr); }
   if ((r = p.match(/^\/v9\/projects\/([^/]+)\/domains$/))) return j(200, { domains: [{ name: 'novalemo-martinique.vercel.app' }].concat(Object.keys(VERCEL.domaines).map(function (d) { return { name: d }; })) });
   if (p === '/v2/files' && m === 'POST') { VERCEL.fichiers.add(opts.headers['x-vercel-digest']); return j(200, {}); }
+  if (p === '/v13/deployments' && m === 'POST' && corps && corps.deploymentId) { VERCEL.redemarrages.push(corps); return j(200, { id: 'dpl_redemarrage_' + VERCEL.redemarrages.length, url: 'tour.vercel.app' }); }
+  if ((r = p.match(/^\/v10\/projects\/([^/]+)\/env$/)) && m === 'POST') { if (!/upsert=true/.test(u.search)) return j(400, { error: { message: 'exists' } }); VERCEL.env[corps.key] = { type: corps.type, target: corps.target, projet: r[1], longueur: String(corps.value || '').length }; return j(200, { created: { key: corps.key } }); }
+  if (p === '/v6/deployments' && m === 'GET') return j(200, { deployments: [{ uid: 'dpl_tour_prod', name: 'btprecruit-crm', state: 'READY' }] });
+  if (p === '/v2/user') return j(200, { user: { id: 'u1' } });
   if (p === '/v13/deployments' && m === 'POST') {
     const manquants = corps.files.filter(function (f) { return f.sha && !VERCEL.fichiers.has(f.sha); }).map(function (f) { return f.sha; });
     if (manquants.length) return j(400, { error: { code: 'missing_files', message: 'Missing files', missing: manquants } });
@@ -157,6 +161,7 @@ function stripe(url, opts) {
   if ((r = p.match(/^\/v1\/customers\/([^/]+)$/)) && m === 'POST') { STRIPE.pieds[r[1]] = params.get('invoice_settings[footer]'); return j(200, { id: r[1] }); }
   if (p === '/v1/invoices' && m === 'GET') { const gte = Number(params.get('created[gte]') || 0); return j(200, { data: STRIPE.factures.filter(function (f) { return f.status === 'paid' && f.created >= gte; }), has_more: false }); }
   if ((r = p.match(/^\/v1\/payment_links\/([^/]+)$/)) && m === 'POST') { STRIPE.desactives.push(r[1]); return j(200, { id: r[1], active: false }); }
+  if (p === '/v1/account' && m === 'GET') return j(200, { id: 'acct_1', charges_enabled: !/inactif/.test((opts.headers && opts.headers.Authorization) || ''), details_submitted: true });
   if (p === '/v1/refunds' && m === 'POST') { STRIPE.rembourses.push(params.get('payment_intent')); return j(200, { id: 're_' + STRIPE.rembourses.length, status: 'succeeded' }); }
   if (p === '/v1/checkout/sessions') {
     STRIPE.appels++;

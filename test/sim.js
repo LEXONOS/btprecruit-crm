@@ -747,6 +747,25 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     delete process.env.HQ_WHATSAPP_KEY; delete process.env.HQ_WHATSAPP_NUMERO; delete process.env.HQ_WHATSAPP_TEL;
     console.log('WhatsApp OK : demande mesurée, alerte, relève, numéro reconnu, réponse WhatsApp, repli email après 24 h, STOP');
   }
+  // 26. MISSIONS : chaque code est essayé avant d'être enregistré, la tour l'écrit elle-même dans Vercel et redémarre
+  {
+    const M = require('../lib/missions');
+    const e0 = await M.etat(db);
+    const br = e0.missions.find(function (m) { return m.id === 'brancher'; });
+    assert.ok(br && br.etapes.length === 8 && br.etapes.find(function (x) { return x.id === 'vercel'; }).fait && br.etapes.find(function (x) { return x.id === 'base'; }).fait && e0.missions.some(function (m) { return m.id === 'whatsapp'; }), 'missions : étapes et états détectés');
+    assert.ok(!JSON.stringify(e0).includes('sk_live_simulation') && !JSON.stringify(e0).includes('secret-de-test'), 'aucun code ne revient à l\'écran');
+    assert.ok(/clé de TEST/.test((await M.enregistrer({ HQ_STRIPE_KEY: 'sk_test_abc' })).erreur || ''), 'clé Stripe de test refusée avec la raison');
+    assert.ok(/clé publique/.test((await M.enregistrer({ HQ_SUPABASE_KEY: 'sb_publishable_abc' })).erreur || ''), 'clé publique Supabase refusée');
+    assert.ok(/rien à enregistrer/.test((await M.enregistrer({ PATH: '/tmp', NODE_OPTIONS: 'x' })).erreur || ''), 'seules les variables de la tour peuvent être écrites');
+    const okS = await M.enregistrer({ HQ_STRIPE_KEY: 'sk_live_nouvelle_cle_123' });
+    assert.ok(okS.ok && fakes.VERCEL.env.HQ_STRIPE_KEY && fakes.VERCEL.env.HQ_STRIPE_KEY.type === 'sensitive' && fakes.VERCEL.env.HQ_STRIPE_KEY.projet === 'prj_tour' && fakes.VERCEL.redemarrages.length === 1 && fakes.VERCEL.redemarrages[0].deploymentId === 'dpl_tour_prod', 'clé live : vérifiée, écrite (sensible) dans le projet de la tour, redémarrage lancé');
+    const okM = await M.enregistrer({ HQ_MAIL_USER: 'louis@novalemo-mq.fr', HQ_MAIL_PASS: 'nouveau-mot-de-passe' });
+    assert.ok(okM.ok && fakes.VERCEL.env.HQ_MAIL_PASS, 'boîte : connexion essayée puis enregistrée');
+    assert.ok(/étape inconnue/.test((await M.cocher(db, 'HQ_STRIPE_KEY', true)).erreur || '') && (await M.cocher(db, 'activite', true)).ok, 'seules les étapes à cocher se cochent');
+    const e1 = await M.etat(db);
+    assert.ok(e1.missions.find(function (m) { return m.id === 'brancher'; }).etapes.find(function (x) { return x.id === 'activite'; }).fait, 'étape cochée');
+    console.log('Missions OK : états, codes essayés avant enregistrement, écriture dans Vercel, redémarrage, cases à cocher');
+  }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
   console.log('Pilote automatique OK :', fakes.VERCEL.deploiements.length, 'déploiements,', fakes.STRIPE.liens.length, 'lien(s) de paiement, domaine', site.domaine, ', CA', w.compteurs.ca_eur, '€');

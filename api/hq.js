@@ -30,6 +30,7 @@ module.exports = async function (req, res) {
       if (['leads', 'outbox', 'livrables', 'runs', 'inbox', 'sites'].indexOf(op) >= 0) return json(res, 200, await liste(op, q));
       if (op === 'identite') return json(res, 200, await agir('identite_lire', {}));
       if (op === 'boite') return json(res, 200, await agir('boite_etat', {}));
+      if (op === 'missions') return json(res, 200, await require('../lib/missions').etat(require('../lib/db').open()));
       if (op === 'etat') return json(res, 200, { base: !!SUPABASE_KEY, projet: SUPABASE_URL.replace(/^https:\/\//, '').split('.')[0], anthropic: !!process.env.ANTHROPIC_API_KEY, google: !!process.env.GOOGLE_MAPS_API_KEY, envoi: mail.branchee(), boite: mail.identite().adresse || null, vercel: require('../lib/sites/vercel').branche(), stripe: require('../lib/sites/stripe').branche(), stripe_test: require('../lib/sites/stripe').modeTest() });
       return json(res, 400, { error: 'Opération inconnue' });
     }
@@ -38,6 +39,10 @@ module.exports = async function (req, res) {
       let b = req.body;
       if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
       b = b || {};
+      // la mise en route marche avant même que la base soit branchée
+      if (b.op === 'mission_enregistrer') return json(res, 200, await require('../lib/missions').enregistrer(b.valeurs || {}));
+      if (b.op === 'mission_cocher') { const db = require('../lib/db').open(); if (!db) return json(res, 200, { erreur: 'branche d\'abord la base' }); return json(res, 200, await require('../lib/missions').cocher(db, String(b.etape || ''), !!b.fait)); }
+      if (b.op === 'mission_dns') return json(res, 200, await agir('boite_dns', {}));
       return json(res, 200, await agir(String(b.op || ''), b));
     }
     return json(res, 405, { error: 'Méthode non autorisée' });
