@@ -100,18 +100,19 @@ function claude(body) {
   if (qui === 'Emma') {
     if (!toolResult) return rep([tu('lister_reponses', {})]);
     const res = dernierResultat(last);
-    if (res && res.erreur && /REFUS/.test(res.erreur)) return rep([tu('classer_reponse', { reponse_id: EMMA.dernier, intention: 'interesse', note: 'Veut être rappelé, on reste par email.' }), tu('repondre', { reponse_id: EMMA.dernier, corps: 'Bonjour Monsieur Dupont,\n\nMerci pour votre retour. Pour aller plus vite, tout se règle ici par email : je réponds à toutes vos questions. La formule Vitrine est à 990 € en une fois, sans abonnement. Voulez-vous que je vous prépare la commande ?\n\nEmma, l\'assistante IA de Louis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Réponse réécrite après le contrôle.' })]);
-    if (res && res.lien_paiement) return rep([tu('repondre', { reponse_id: Number((userText.match(/"reponse_id":(\d+)/) || [])[1]) || EMMA.dernier, corps: 'Bonjour,\n\nParfait, c\'est noté pour la formule Vitrine. En une fois (990 €) : ' + res.lien_paiement + (res.lien_mensuel ? '\nOu au mois (89 € par mois, engagement 12 mois) : ' + res.lien_mensuel : '') + '\n\nLe site sera mis en ligne sur ' + (res.domaine || 'votre nom de domaine') + ' dès le paiement, en général dans l\'heure, et vous recevrez la facture par email.\n\nEmma, l\'assistante IA de Louis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Commande envoyée.' })]);
-    if (typeof res === 'string' && /site modifié/.test(res)) return rep([tu('repondre', { reponse_id: EMMA.dernier, corps: 'Bonjour,\n\nC\'est fait : vos horaires sont ajoutés et la couleur a changé. Vous verrez la nouvelle version sur le même lien d\'ici une demi-heure. Elle vous plaît ainsi ?\n\nEmma, l\'assistante IA de Louis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Retouche faite.' })]);
+    if (res && res.erreur && /REFUS/.test(res.erreur)) return rep([tu('classer_reponse', { reponse_id: EMMA.dernier, intention: 'interesse', note: 'Veut être rappelé, on reste par email.' }), tu('repondre', { reponse_id: EMMA.dernier, corps: 'Bonjour Monsieur Dupont,\n\nMerci pour votre retour. Pour aller plus vite, tout se règle ici par email : je réponds à toutes vos questions. La formule Vitrine est à 990 € en une fois, sans abonnement. Voulez-vous que je vous prépare la commande ?\n\n' + signeEmma() }), tu('terminer', { resume: 'Réponse réécrite après le contrôle.' })]);
+    if (res && res.lien_paiement) return rep([tu('repondre', { reponse_id: Number((userText.match(/"reponse_id":(\d+)/) || [])[1]) || EMMA.dernier, corps: 'Bonjour,\n\nParfait, c\'est noté pour la formule Vitrine. En une fois (990 €) : ' + res.lien_paiement + (res.lien_mensuel ? '\nOu au mois (89 € par mois, engagement 12 mois) : ' + res.lien_mensuel : '') + '\n\nLe site sera mis en ligne sur ' + (res.domaine || 'votre nom de domaine') + ' dès le paiement, en général dans l\'heure, et vous recevrez la facture par email.\n\n' + signeEmma() }), tu('terminer', { resume: 'Commande envoyée.' })]);
+    if (typeof res === 'string' && /site modifié/.test(res)) return rep([tu('repondre', { reponse_id: EMMA.dernier, corps: 'Bonjour,\n\nC\'est fait : vos horaires sont ajoutés et la couleur a changé. Vous verrez la nouvelle version sur le même lien d\'ici une demi-heure. Elle vous plaît ainsi ?\n\n' + signeEmma() }), tu('terminer', { resume: 'Retouche faite.' })]);
     if (!Array.isArray(res) || !res.length) return rep([tu('terminer', { resume: 'Aucune réponse.' })]);
     const r = res[0];
     EMMA.dernier = r.id;
+    EMMA.ia = /^non/.test(String(r.sait_que_tu_es_une_ia || ''));
     const msg = r.leur_message || '';
     const lid = r.entreprise && r.entreprise.lead_id;
     if (/je prends|on y va|ok pour/i.test(msg)) return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'interesse', note: 'Prend la Vitrine.' }), tu('commande', { reponse_id: r.id, formule: 'vitrine', domaine: (msg.match(/[a-z0-9-]+\.(com|fr)/i) || [])[0] })]);
     if (/changer|ajouter|couleur|horaires/i.test(msg)) return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'question', note: 'Veut des retouches.' }), tu('modifier_site', { reponse_id: r.id, images: /logo/i.test(msg) ? 'logo' : 'aucune', demande: 'Ajouter les horaires (lundi au vendredi, 7 h 30 à 17 h) et passer sur une couleur turquoise.' })]);
     if (/appel|appeler|téléphone/i.test(msg) && EMMA.tentatives++ === 0) return rep([tu('repondre', { reponse_id: r.id, corps: 'Bonjour Monsieur Dupont,\nAvec plaisir. Je vous appelle demain en fin de matinée ou jeudi après-midi ?\nLouis\n+590 691 25 34 49' })]);
-    return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'interesse', note: 'Demande le prix.' }), tu('repondre', { reponse_id: r.id, corps: 'Bonjour Monsieur Dupont,\n\nMerci pour votre retour. La formule Vitrine est à 990 € en une fois, sans abonnement : le site de plusieurs pages, sa mise en ligne et l\'hébergement la première année. Tout se règle ici par email pour aller plus vite. Je vous prépare la commande ?\n\nEmma, l\'assistante IA de Louis\nNovalemo, sites internet en Martinique' }), tu('terminer', { resume: 'Réponse envoyée à ' + r.de })]);
+    return rep([tu('classer_reponse', { reponse_id: r.id, intention: 'interesse', note: 'Demande le prix.' }), tu('repondre', { reponse_id: r.id, corps: 'Bonjour Monsieur Dupont,\n\nMerci pour votre retour. La formule Vitrine est à 990 € en une fois, sans abonnement : le site de plusieurs pages, sa mise en ligne et l\'hébergement la première année. Tout se règle ici par email pour aller plus vite. Je vous prépare la commande ?\n\n' + signeEmma() }), tu('terminer', { resume: 'Réponse envoyée à ' + r.de })]);
   }
   // Colette, pôle écriture : remplace une variante à retirer par une nouvelle idée, sinon laisse tourner les tests
   if (qui === 'Colette') {
@@ -125,7 +126,9 @@ function claude(body) {
   if (qui === 'Clara') return rep([tu('livrer', { type: 'script', titre: 'Comment marche une serrure', contenu: 'Script.' }), tu('terminer', { resume: 'Un script.' })]);
   return rep([tu('apprendre', { lecon: 'Leçon de ' + qui, poids: 5 }), tu('terminer', { resume: 'Passage de ' + qui })]);
 }
-const EMMA = { dernier: null, tentatives: 0 };
+const EMMA = { dernier: null, tentatives: 0, ia: false };
+// Emma signe « Emma » ; la ligne IA seulement pour quelqu'un qui n'a jamais été prévenu (champ sait_que_tu_es_une_ia)
+function signeEmma() { return (EMMA.ia ? 'Emma, l\'assistante IA de Louis' : 'Emma') + '\nNovalemo, sites internet en Martinique'; }
 
 /* ── une fausse image JPEG (en-tête SOF0 lisible : 1200 x 800) ── */
 function jpeg(l, h, graine, texte) {

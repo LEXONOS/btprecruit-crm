@@ -1500,7 +1500,9 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(ligneV && String(ligneV.variante).indexOf(vAttendue.id + ' ') === 0, 'lister_leads donne sa variante : ' + JSON.stringify(ligneV && ligneV.variante));
     const okV = await exR.rediger_emails({ emails: [{ lead_id: vl.id, objet: 'Le site de Variante Clim', angle: 'facebook', corps: corpsTest('Je n\'ai trouvé qu\'une page Facebook pour Variante Clim, à Ducos.', vl.apercu_url) }] });
     const oV = db.tables.hq_outbox.filter(function (o) { return o.lead_id === vl.id; }).pop();
-    assert.ok(/ok/.test(okV) && oV && oV.angle === 'v:' + vAttendue.id + ' facebook', 'l\'email porte la variante du prospect : ' + okV + ' | ' + (oV && oV.angle));
+    assert.ok(/ok/.test(okV) && oV && oV.angle === 'v:' + vAttendue.id + ' facebook' && db.tables.hq_leads.find(function (l) { return l.id === vl.id; }).data.variante === vAttendue.id, 'l\'email porte la variante du prospect, notée sur lui : ' + okV + ' | ' + (oV && oV.angle));
+    const Q = require('../lib/qualite');
+    assert.ok(/Emma, mon assistante IA, s'occupe des réponses\.\nRépondez STOP pour ne plus recevoir de message\.$/.test(oV.body) && Q.avecPied(oV.body) === oV.body, 'bas de page du premier email : la ligne sur Emma, l\'assistante IA, puis STOP (une seule fois)');
     // D. la même première phrase qu'un email récent : refusée ; les formules qui sonnent robot, le jargon, les « !! » aussi
     const vl2 = await prospectTest('autre-clim', 'Autre Clim');
     const meme = await exR.rediger_emails({ emails: [{ lead_id: vl2.id, objet: 'Le site de Autre Clim', corps: corpsTest('Je n\'ai trouvé qu\'une page Facebook pour Autre Clim, à Ducos.', vl2.apercu_url) }] });
@@ -1509,19 +1511,24 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(/formule toute faite/.test(robot) && /jargon/.test(robot) && /exclamation/.test(robot), 'formule robot, jargon et « !! » refusés : ' + robot);
     const okV2 = await exR.rediger_emails({ emails: [{ lead_id: vl2.id, objet: 'Le site de Autre Clim', corps: corpsTest('Autre Clim apparaît sur Google à Ducos, mais aucun site ne montre vos chantiers.', vl2.apercu_url) }] });
     assert.ok(/ok/.test(okV2), 'une ouverture propre à lui passe : ' + okV2);
-    // E. Emma se présente comme l'assistante IA de Louis : à chaque email (signature), au premier message WhatsApp
+    assert.ok(Q.ouverture('Bonjour, je n\'ai trouvé qu\'une page Facebook pour Clim Un.\n\nhttps://apercu.exemple.fr/clim-un', 'Clim Un') !== Q.ouverture('Bonjour, votre site ne s\'ouvre pas sur un téléphone.', 'Clim Deux')
+      && Q.ouverture('J\'ai vu que M. Dupont a ouvert un garage à Ducos.', 'Garage A') !== Q.ouverture('J\'ai vu que M. Larcher pose des clims au Robert.', 'Clim B')
+      && Q.ouverture('Bonjour M. Dupont,\n\nJe n\'ai trouvé qu\'une page Facebook pour Clim Un.', 'Clim Un') === Q.ouverture('Bonjour,\nJe n\'ai trouvé qu\'une page Facebook pour Clim Deux.', 'Clim Deux')
+      && Q.premierePhrase('Bonjour,\n\nJ\'ai préparé votre site : https://apercu.exemple.fr/x. Il est en ligne.') === 'J\'ai préparé votre site : lien.', 'ouverture : salutation sur la même ligne gardée, « M. » ne coupe pas la phrase, « Bonjour M. Dupont, » ne cache rien, un lien ne coupe pas la phrase');
+    // E. Emma : qui a reçu le premier email (son bas de page le dit) lit une réponse écrite comme par une personne ; qui n'a
+    // jamais été prévenu (il écrit le premier) lit une fois la ligne « Emma, l'assistante IA de Louis »
     const exEm = tools.executeurs({ db: db, agent: ag('reponses'), agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
     const ibIA = (await db.insert('hq_inbox', { message_id: '<ia@test.mq>', lead_id: vl.id, from_email: 'contact@variante-clim.fr', subject: 'Re: Le site de Variante Clim', body: 'Combien ça coûte ?', kind: 'reponse', status: 'nouveau', data: { confiance: 'fil' }, received_at: new Date().toISOString() }))[0];
     const corpsPrix = 'Bonjour,\n\nLa formule Vitrine est à 990 € en une fois, hébergement compris la première année. Je vous prépare la commande ?\n\n';
-    const sansIA = await exEm.repondre({ reponse_id: ibIA.id, corps: corpsPrix + 'Louis\nNovalemo, sites internet en Martinique' });
-    const avecIA = await exEm.repondre({ reponse_id: ibIA.id, corps: corpsPrix + 'Emma, l\'assistante IA de Louis\nNovalemo, sites internet en Martinique' });
-    assert.ok(sansIA && /assistante IA/.test(sansIA.erreur || '') && !(avecIA && avecIA.erreur), 'Emma qui signe Louis : refusée ; signée Emma, l\'assistante IA de Louis : acceptée : ' + JSON.stringify([sansIA, avecIA]));
-    const waIn = async function (k, texte) { return (await db.insert('hq_inbox', { message_id: 'wa:test-ia-' + k, lead_id: vl2.id, from_email: 'wa:+596696777888', subject: 'WhatsApp', body: texte, kind: 'reponse', status: 'nouveau', data: { canal: 'whatsapp', confiance: 'whatsapp' }, received_at: new Date().toISOString() }))[0]; };
+    const naturel = await exEm.repondre({ reponse_id: ibIA.id, corps: corpsPrix + 'Emma\nNovalemo, sites internet en Martinique' });
+    assert.ok(!(naturel && naturel.erreur), 'déjà prévenu par le premier email : Emma signe « Emma », sans le redire : ' + JSON.stringify(naturel));
+    const inconnu = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'wa:+596696777888', source: 'whatsapp', name: 'Contact WhatsApp', island: 'MQ', phone: '+596696777888', status: 'repondu', score: 50 }))[0];
+    const waIn = async function (k, texte) { return (await db.insert('hq_inbox', { message_id: 'wa:test-ia-' + k, lead_id: inconnu.id, from_email: 'wa:+596696777888', subject: 'WhatsApp', body: texte, kind: 'reponse', status: 'nouveau', data: { canal: 'whatsapp', confiance: 'whatsapp' }, received_at: new Date().toISOString() }))[0]; };
     const w1i = await waIn(1, 'Bonjour, c\'est combien ?');
     const w1 = await exEm.repondre({ reponse_id: w1i.id, corps: 'Bonjour, la Vitrine est à 990 € en une fois. Je vous prépare la commande ?' });
-    const w1b = await exEm.repondre({ reponse_id: w1i.id, corps: 'Bonjour, c\'est Emma, l\'assistante IA de Louis. La Vitrine est à 990 € en une fois. Je vous prépare la commande ?' });
+    const w1b = await exEm.repondre({ reponse_id: w1i.id, corps: 'Bonjour, la Vitrine est à 990 € en une fois. Je vous prépare la commande ?\nEmma, l\'assistante IA de Louis' });
     const w2 = await exEm.repondre({ reponse_id: (await waIn(2, 'Oui vas-y')).id, corps: 'Parfait, je te prépare ça tout de suite.' });
-    assert.ok(/assistante IA/.test((w1 && w1.erreur) || '') && !(w1b && w1b.erreur) && !(w2 && w2.erreur), 'WhatsApp : le premier message dit qu\'elle est une IA, les suivants n\'ont plus à le redire (et elle tutoie qui la tutoie) : ' + JSON.stringify([w1, w1b, w2]));
+    assert.ok(/assistante IA/.test((w1 && w1.erreur) || '') && !(w1b && w1b.erreur) && !(w2 && w2.erreur), 'jamais prévenu : sa première réponse le dit en une ligne, les suivantes n\'ont plus à le redire (et elle tutoie qui la tutoie) : ' + JSON.stringify([w1, w1b, w2]));
     // F. les résultats de chaque variante, le verdict après 25 envois, et Colette qui remplace la moins bonne
     const lot = await db.insert('hq_leads', Array.from({ length: 60 }, function (x, k) { return { company_id: 'novalemo', dedupe: 'test:lot:' + k, source: 'maps', name: 'Lot ' + k, island: 'MQ', email: 'lot' + k + '@test-lot.fr', status: 'contacte', score: 50 }; }));
     await db.insert('hq_outbox', lot.map(function (l, k) { return { lead_id: l.id, agent_id: 'redacteur', to_email: l.email, subject: 'Le site de ' + l.name, body: 'x', step: 1, angle: k < 30 ? 'v:A apercu' : 'v:B apercu', status: 'envoye', kind: 'prospection', sent_at: new Date(Date.now() - 2 * 86400000).toISOString() }; }), { returning: false });
@@ -1541,6 +1548,17 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(/3 variantes/.test((await E.regler(db, { ajouter: { nom: 'Encore une', consigne: 'Une consigne assez longue pour passer le contrôle de longueur minimale.' } }, 'test')).erreur || ''), 'trois variantes en test au plus');
     await E.regler(db, { retirer: 'C' }, 'test'); await E.regler(db, { retirer: 'D' }, 'test');
     assert.ok(/au moins une/.test((await E.regler(db, { retirer: 'A' }, 'test')).erreur || '') && E.actives(await E.lire(db)).length === 1, 'il reste toujours une variante en test');
+    const echange = await E.regler(db, { charte: '', retirer: 'A', ajouter: { nom: 'Trois lignes', consigne: 'Trois lignes : ce que tu as vu sur lui, le lien de son aperçu, la question finale en un mot.' } }, 'test');
+    const ecE = await E.lire(db);
+    assert.ok(echange.ok && E.actives(ecE).map(function (v) { return v.id; }).join() === 'E', 'charte vide ignorée, retirer et ajouter dans le même réglage (une seule variante active) : ' + JSON.stringify(echange));
+    await E.regler(db, { ajouter: { nom: 'Le constat, version courte', consigne: 'Le problème constaté en une phrase, le lien de son aperçu, le prix, la question finale en un mot.' } }, 'test');
+    const vl3 = await prospectTest('troisieme-clim', 'Troisième Clim');
+    await exR.lister_leads({ statut: 'a_contacter', limite: 20 });
+    const notee = db.tables.hq_leads.find(function (l) { return l.id === vl3.id; }).data.variante;
+    await E.regler(db, { retirer: notee, ajouter: { nom: 'Encore une idée', consigne: 'Une question d\'abord sur ses clients, puis le lien de son aperçu, puis le prix en une phrase.' } }, 'test');
+    await exR.rediger_emails({ emails: [{ lead_id: vl3.id, objet: 'Le site de Troisième Clim', angle: 'facebook', corps: corpsTest('Troisième Clim a une belle fiche Google au Lamentin, mais personne ne peut voir vos réalisations.', vl3.apercu_url) }] });
+    const o3 = db.tables.hq_outbox.filter(function (o) { return o.lead_id === vl3.id; }).pop();
+    assert.ok(notee && o3 && o3.angle === 'v:' + notee + ' facebook', 'variante retirée entre la liste et l\'email : l\'email reste compté sous celle que la rédactrice a suivie : ' + (o3 && o3.angle) + ' / ' + notee);
     // G. le palier monte avec l'ancienneté de la boîte, la santé l'accélère ou le freine, le plafond de Louis reste le plafond
     const il = function (j) { return new Date(Date.now() - j * 86400000).toISOString(); };
     assert.deepStrictEqual([0, 3, 7, 14, 21, 30, 90].map(BX.palier), [8, 12, 18, 25, 32, 40, 40], 'palier : 8 par jour au départ, 40 au bout d\'un mois');
@@ -1551,6 +1569,17 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await db2.insert('hq_inbox', [0, 1].map(function (k) { return { message_id: '<rb' + k + '@x>', from_email: 'mailer-daemon@exemple-mq.fr', subject: 'Undeliverable', body: 'x', kind: 'rebond', status: 'traite', data: { dur: true }, received_at: il(1) }; }), { returning: false });
     const e2 = await BX.surveiller(db2, { debut: il(40), sante: { facteur: 1, mesure_le: il(1) } }, { emails_jour: 50 });
     assert.ok(e2.sante && e2.sante.facteur === 0.5 && e2.sante.niveau === 'fatigue' && BX.quota(Object.assign({ debut: il(40) }, e2), { emails_jour: 50 }) === 20 && (db2.tables.hq_messages || []).some(function (m) { return m.to_id === 'louis' && /fatigue/.test(m.subject || ''); }), 'la boîte fatigue (5 % de rebonds) : le palier baisse tout seul, Louis prévenu une fois : ' + JSON.stringify(e2.sante));
+    const db4 = DB.memory();
+    await db4.insert('hq_outbox', Array.from({ length: 40 }, function (x, k) { return { to_email: 's' + k + '@exemple-mq.fr', subject: 's', body: 'b', status: 'envoye', kind: 'prospection', step: 1, sent_at: il(2) }; }), { returning: false });
+    const l4 = await db4.insert('hq_leads', [{ dedupe: 'a', name: 'A', status: 'repondu' }, { dedupe: 'b', name: 'B', status: 'repondu' }, { dedupe: 'c', name: 'C', status: 'client' }]);
+    await db4.insert('hq_inbox', [
+      { message_id: '<a1>', lead_id: l4[0].id, from_email: 'a@exemple-mq.fr', kind: 'reponse', intent: 'question', received_at: il(1) },
+      { message_id: '<a2>', lead_id: l4[0].id, from_email: 'a@exemple-mq.fr', kind: 'reponse', intent: 'question', received_at: il(1) },
+      { message_id: '<b1>', lead_id: l4[1].id, from_email: 'b@exemple-mq.fr', kind: 'reponse', intent: 'stop', received_at: il(1) },
+      { message_id: '<c1>', lead_id: l4[2].id, from_email: 'c@exemple-mq.fr', kind: 'reponse', intent: 'question', received_at: il(1) }
+    ], { returning: false });
+    const s4 = await BX.mesurerSante(db4);
+    assert.ok(s4.reponses === 1 && s4.stop === 1 && s4.facteur === 0.85 && s4.niveau === 'fatigue', 'santé : deux emails du même prospect font une réponse, un « retirez-moi » classé STOP est un STOP, un client ne compte pas : ' + JSON.stringify(s4));
     // H. une réponse attend son heure : quelques minutes après le message, jamais à la seconde
     const dW = ENV.delaiReponse({ id: 7, to_email: 'wa:+596696000000' }), dM = ENV.delaiReponse({ id: 7, to_email: 'client@exemple-mq.fr' });
     assert.ok(dW >= 90000 && dW <= 200000 && dM >= 360000 && dM <= 1080000 && ENV.delaiReponse({ id: 7, to_email: 'client@exemple-mq.fr' }) === dM, 'délais : WhatsApp 1 min 30 à 3 min 20, email 6 à 18 min, le même à chaque passage');
@@ -1564,8 +1593,13 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const t1 = Date.now();
     await ENV.run({ db: db2, budget: { emails_jour: 50 }, limite: Date.now() + 40000, toujours: true, conversation: true });
     const attendu = Date.now() - t1;
+    const ib5 = (await db2.insert('hq_inbox', { message_id: '<avance@exemple-mq.fr>', from_email: 'avance@exemple-mq.fr', subject: 'Question', body: 'Et le prix ?', kind: 'reponse', status: 'traite', received_at: new Date(Date.now() + 2 * 3600000).toISOString() }))[0];
+    db2.tables.hq_inbox.find(function (x) { return x.id === ib5.id; }).created_at = new Date(Date.now() - 30 * 60000).toISOString();
+    const r5 = (await db2.insert('hq_outbox', { to_email: 'avance@exemple-mq.fr', subject: 'Re: Question', body: 'Le prix.', step: 1, status: 'pret', kind: 'reponse', inbox_id: ib5.id }))[0];
+    await ENV.run({ db: db2, budget: { emails_jour: 50 }, limite: Date.now() + 30000, toujours: true, conversation: true });
+    const r5fin = db2.tables.hq_outbox.find(function (o) { return o.id === r5.id; }).status;
     ENV.sansDelai(true);
-    assert.ok(avantHeure === 'pret' && db2.tables.hq_outbox.find(function (o) { return o.id === r2.id; }).status === 'envoye' && attendu >= 1000 && partis.length === 1, 'pas encore son heure : elle attend ; due dans une seconde et demie : le passage l\'attend puis l\'envoie : ' + JSON.stringify([avantHeure, attendu, partis.length]));
+    assert.ok(avantHeure === 'pret' && db2.tables.hq_outbox.find(function (o) { return o.id === r2.id; }).status === 'envoye' && attendu >= 1000 && r5fin === 'envoye', 'pas encore son heure : elle attend ; due dans une seconde et demie : le passage l\'attend puis l\'envoie ; horloge de l\'expéditeur en avance : comptée depuis la relève : ' + JSON.stringify([avantHeure, attendu, r5fin]));
     // I. une base de la version 7 : les plafonds restés aux anciennes valeurs par défaut sont relevés, ceux de Louis gardés ;
     // la stratégie d'Emma suit la nouvelle règle ; Colette est recrutée
     const db3 = DB.memory();
@@ -1573,11 +1607,11 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await db3.insert('hq_agents', { id: 'reponses', company_id: 'novalemo', parent_id: 'emailing', name: 'Emma', title: 'x', tier: 'agent', kind: 'llm', model: 'smart', mission: 'x', charter: 'x', playbook: 'ma stratégie à moi', tools: [], cadence_min: 60, status: 'idle', seat: 1 }, { returning: false });
     const s3 = await runtime.semer(db3);
     const b3 = db3.tables.hq_config.find(function (c) { return c.key === 'budget'; }).value, emma3 = db3.tables.hq_agents.find(function (a) { return a.id === 'reponses'; });
-    assert.ok(s3.seme && b3.emails_jour === 50 && b3.apercus_jour === 15 && b3.jour_usd === 2 && /assistante IA/.test(emma3.playbook) && /assistante IA/.test(emma3.charter) && db3.tables.hq_agents.some(function (a) { return a.id === 'plume'; }), 'version 8 : plafond par défaut relevé, celui de Louis gardé, stratégie d\'Emma à jour, Colette recrutée : ' + JSON.stringify(b3));
+    assert.ok(s3.seme && b3.emails_jour === 50 && b3.apercus_jour === 15 && b3.jour_usd === 2 && /assistante IA/.test(emma3.playbook) && /assistante IA/.test(emma3.charter) && db3.tables.hq_agents.some(function (a) { return a.id === 'plume'; }) && db3.tables.hq_messages.some(function (m) { return m.to_id === 'louis' && m.subject === 'Plafonds relevés' && /25 à 50/.test(m.body) && !/aperçus/.test(m.body); }), 'version 8 : plafond par défaut relevé (Louis prévenu), celui de Louis gardé, stratégie d\'Emma à jour, Colette recrutée : ' + JSON.stringify(b3));
     // J. le retour de Louis sur un email va à la rédactrice et au pôle écriture
     await agir('email', { id: oV.id, retour: 'Trop long : va plus vite au lien.' });
     assert.ok(db.tables.hq_messages.some(function (m) { return m.from_id === 'louis' && m.to_id === 'plume' && /plus vite au lien/.test(m.body || ''); }) && db.tables.hq_knowledge.some(function (k) { return k.agent_id === 'redacteur' && /plus vite au lien/.test(k.content || ''); }), 'le retour de Louis : une règle pour Chloé, et Colette prévenue pour la charte');
-    console.log('Pôle écriture OK : charte pour ceux qui écrivent, variantes réparties et notées, verdict après 25 envois, Colette remplace la moins bonne, formules robot et ouvertures répétées refusées, Emma se présente comme IA, palier qui suit la santé de la boîte, réponses à l\'heure humaine, plafonds relevés');
+    console.log('Pôle écriture OK : charte pour ceux qui écrivent, variantes réparties et notées, verdict après 25 envois, Colette remplace la moins bonne, formules robot et ouvertures répétées refusées, Emma IA dite une fois (bas du premier email), palier qui suit la santé de la boîte, réponses à l\'heure humaine, plafonds relevés');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
