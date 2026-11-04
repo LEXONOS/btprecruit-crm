@@ -1712,6 +1712,8 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const s1 = leSiteM(m1.s.id);
     assert.ok(s1.data.critique.verdict === 'a_refaire' && s1.data.critique.note === 6 && s1.version === 2 && s1.spec.compo.choix.hero !== hero0 && (s1.spec.compo.eviter || []).indexOf(hero0) >= 0 && fakes.MIRANDA.derniers[0].images >= 6, 'Miranda refuse un 6 : le haut de page est remplacé, le site republié : ' + JSON.stringify(s1.data.critique.reprise));
     assert.ok(!CR.peutPartir(s1).ok && /pas encore validé/.test(CR.peutPartir(s1).raison), 'pas validé : il ne part pas');
+    const lucas = db.tables.hq_agents.find(function (a) { return a.id === 'livraison'; });
+    assert.ok(lucas && Date.parse(lucas.next_run_at) <= Date.now() + 2 * 60000, 'reprise à publier : Lucas est réveillé, la chaîne ne dort pas');
     const jeton0 = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
     const rM = await exT.rediger_emails({ emails: [{ lead_id: m1.l.id, objet: 'Le site de Clim Miranda', corps: 'Bonjour' }] });
     if (jeton0 === undefined) delete process.env.HQ_VERCEL_TOKEN; else process.env.HQ_VERCEL_TOKEN = jeton0;
