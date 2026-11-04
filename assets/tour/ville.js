@@ -35,7 +35,7 @@ const SECTEURS = [
   { id: 'direction', nom: 'Direction', debut: 0, places: 6, teinte: '#F4E6C2', ton: '#E2B451', agents: ['dg_novalemo', 'dircom_novalemo', 'rh_novalemo', 'analyste', 'partenaires', 'inbound'] },
   { id: 'production', nom: 'Production des sites', debut: 7, places: 7, teinte: '#E6DEFF', ton: '#A086FF', agents: ['chef_prod', 'portfolio', 'demo', 'da', 'photos', 'juridique', 'livraison'] },
   { id: 'prospection', nom: 'Prospection', debut: 15, places: 5, teinte: '#D6F1E5', ton: '#3FBF8C', agents: ['contacts', 'chasse_domaines', 'chasse_maps', 'chasse_registre', 'chasse_reseaux'] },
-  { id: 'emails', nom: 'Emails et réponses', debut: 21, places: 4, teinte: '#DDE7FF', ton: '#6A8DFF', agents: ['emailing', 'redacteur', 'relanceur', 'reponses'] }
+  { id: 'ecriture', nom: 'Pôle écriture', debut: 21, places: 5, teinte: '#DDE7FF', ton: '#6A8DFF', agents: ['emailing', 'plume', 'redacteur', 'relanceur', 'reponses'] }
 ];
 const BANCS = [0, 100, 170, 270];          // les bancs du parc (angle), deux places chacun
 const BANCS_DEHORS = [211, 239];           // près du passage, tournés vers la ville

@@ -29,6 +29,7 @@ module.exports = async function (req, res) {
       if (['leads', 'outbox', 'livrables', 'runs', 'inbox', 'sites'].indexOf(op) >= 0) return json(res, 200, await liste(op, q));
       if (op === 'identite') return json(res, 200, await agir('identite_lire', {}));
       if (op === 'boite') return json(res, 200, await agir('boite_etat', {}));
+      if (op === 'ecriture') { const db = require('../lib/db').open(); return json(res, 200, db ? await require('../lib/ecriture').tableau(db) : { demo: true, variantes: [] }); }
       if (op === 'missions') return json(res, 200, await require('../lib/missions').etat(require('../lib/db').open()));
       if (op === 'etat') return json(res, 200, { base: !!SUPABASE_KEY, projet: SUPABASE_URL.replace(/^https:\/\//, '').split('.')[0], anthropic: !!process.env.ANTHROPIC_API_KEY, google: !!process.env.GOOGLE_MAPS_API_KEY, pexels: require('../lib/sites/images').branche(), envoi: mail.branchee(), boite: mail.identite().adresse || null, vercel: require('../lib/sites/vercel').branche(), stripe: require('../lib/sites/stripe').branche(), stripe_test: require('../lib/sites/stripe').modeTest(), cron: !!String(process.env.CRON_SECRET || '').trim() });
       return json(res, 400, { error: 'Opération inconnue' });
