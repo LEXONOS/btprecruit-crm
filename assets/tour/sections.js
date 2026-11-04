@@ -94,21 +94,39 @@ function ficheSite(r) {
   if (['apercu', 'commande', 'brouillon'].indexOf(r.status) >= 0) liens.push('<button class="btn btn-danger btn-petit" data-act="siteAnnuler" data-id="' + r.id + '">Retirer</button>');
   const ab = r.abonnement;
   const quand = r.live_at ? 'en ligne ' + depuis(r.live_at) : r.paid_at ? 'payé ' + depuis(r.paid_at) : r.published_at ? 'aperçu publié ' + depuis(r.published_at) : 'créé ' + depuis(r.created_at);
-  const prix = r.formule ? (FORMULE[r.formule] || r.formule) + (ab ? ', ' + eur(ab.mensualite_eur) + ' par mois' + (ab.arret ? ' (arrêt demandé)' : ab.statut !== 'active' ? ' (paiement en retard)' : '') : r.montant_eur ? ', ' + eur(r.montant_eur) : '') : '';
+  const prix = r.formule ? (FORMULE[r.formule] || r.formule) + (ab ? ', ' + eur(ab.mensualite_eur) + ' par mois' + (ab.arret ? ' (arrêt demandé)' : ab.statut !== 'active' ? ' (paiement en retard)' : ab.fin_auto ? ', 12 mois' : '') : r.montant_eur ? ', ' + eur(r.montant_eur) : '') : '';
   const autres = [r.domaine ? r.domaine + (r.domaine_mode === 'client' ? ' (son domaine)' : '') : '', r.revisions ? pluriel(r.revisions, 'retouche') : '', r.photos ? pluriel(r.photos, 'photo') + (r.logo ? ' et son logo' : '') : r.logo ? 'son logo' : '', r.composition ? 'modèle ' + String(r.composition).split(',')[0] : '', r.problemes && r.problemes.length ? pluriel(r.problemes.length, 'phrase') + ' retirée' + (r.problemes.length > 1 ? 's' : '') + ' au contrôle' : ''].filter(Boolean).join(', ');
   return '<article class="fiche site"><div class="site-l"><div class="s-nom"><b>' + esc(r.nom || l.name || r.slug) + '</b><span>' + esc([r.activite, r.commune].filter(Boolean).join(', ') + (l.email ? ', ' + l.email : '')) + '</span></div>' +
     '<div class="s-det">' + esc(prix || 'Formule pas encore choisie') + '<span>' + esc(autres) + '</span></div>' +
-    '<div class="s-etat"><span class="pastille ' + (SITETON[r.status] || '') + '">' + esc(SITEST[r.status] || r.status) + '</span><span style="font-size:12px;color:var(--doux)">' + esc(quand) + '</span></div>' +
+    '<div class="s-etat"><span class="pastille ' + (SITETON[r.status] || '') + '">' + esc(SITEST[r.status] || r.status) + '</span><span style="font-size:12px;color:var(--doux)">' + esc(quand) + '</span>' + (r.critique ? '<span class="pastille ' + (r.critique.verdict === 'valide' ? 'ok' : r.critique.abandon ? 'alerte' : 'cobalt') + '" title="' + esc(r.critique.resume || '') + '">' + esc(nom('critique')) + ' ' + note10(r.critique.note) + '</span>' : '') + '</div>' +
     (liens.length ? '<div class="ligne-actions">' + liens.join('') + '</div>' : '') + '</div></article>';
 }
+// La phase de test des sites : les aperçus du nouveau moteur, le verdict de Miranda, et le bouton qui lance l'envoi
+const note10 = (n) => String(n).replace('.', ',') + '/10';
+function carteTest(t) {
+  if (!t || t.demo) return '';
+  const test = t.phase === 'test';
+  const ligne = (x) => { const c = x.critique; const pas = !c ? '<span class="pastille">En attente de Miranda</span>' : c.verdict === 'valide' ? '<span class="pastille ok">' + note10(c.note) + ' validé</span>' : '<span class="pastille ' + (c.abandon ? 'alerte' : 'cobalt') + '">' + note10(c.note) + (c.abandon ? ' refusé' : ' en reprise') + '</span>';
+    return '<tr><td class="plein"><b>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener noreferrer">' + esc(x.nom || 'Site') + '</a>' : esc(x.nom || 'Site')) + '</b><small>' + esc([x.metier, x.commune, x.sans_site ? 'sans site aujourd\'hui' : null, x.photos ? pluriel(x.photos, 'photo') : 'sans photo'].filter(Boolean).join(', ')) + '</small></td><td>' + pas + (c && c.resume ? '<small class="serre">' + esc(c.resume) + '</small>' : '') + '</td></tr>'; };
+  return '<div class="carte" style="margin-bottom:14px"><h2 class="carte-t">' + (test ? 'Sites en test' : 'Les derniers sites du nouveau moteur') + '<small>' + (test ? 'aucun premier email ne part, ' : '') + esc(nom('critique')) + ' : ' + t.valides + ' validé' + (t.valides > 1 ? 's' : '') + ' sur ' + t.juges + ' jugé' + (t.juges > 1 ? 's' : '') + '</small></h2>' +
+    (t.sites && t.sites.length ? '<div class="defile"><table class="tableau adaptable"><thead><tr><th>Site</th><th>Verdict de ' + esc(nom('critique')) + '</th></tr></thead><tbody>' + t.sites.map(ligne).join('') + '</tbody></table></div>' : '<p class="note-emma">' + esc(nom('demo')) + ' fabrique les premiers sites du nouveau moteur : ils apparaissent ici avec le verdict de ' + esc(nom('critique')) + '.</p>') +
+    '<div class="ligne-actions" style="margin-top:12px">' + (test ? '<button class="btn btn-ok btn-petit" data-act="phaseSites" data-v="envoi">Lancer l\'envoi</button><span style="font-size:12.5px;color:var(--doux)">Les premiers emails partiront avec les sites validés.</span>' : '<button class="btn btn-second btn-petit" data-act="phaseSites" data-v="test">Remettre en test</button>') + '</div></div>';
+}
+action('phaseSites', async (b, d) => {
+  if (!garde()) return;
+  const envoi = d.v === 'envoi';
+  if (!(await dialogue({ titre: envoi ? 'Lancer l\'envoi ?' : 'Remettre les sites en test ?', texte: envoi ? 'Les premiers emails reprennent, au rythme de la boîte, seulement avec des aperçus validés par ' + nom('critique') + '.' : 'Plus aucun premier email ni relance tant que tu n\'auras pas relancé l\'envoi. Les réponses continuent.', ok: envoi ? 'Lancer l\'envoi' : 'Remettre en test' }))) return;
+  occupe(b, async () => { await envoyer({ op: 'phase_sites', phase: envoi ? 'envoi' : 'test' }); toast(envoi ? 'Envoi lancé : les sites validés partent avec les premiers emails.' : 'Sites remis en test : aucun premier email ne part.', 'ok'); recharger(); });
+});
 const ventes = {
   titre: 'Ventes et sites', court: 'Ventes', icone: 'ventes', vivante: false,
   compte: () => (k().commandes || 0),
-  async charger(p) { return demo() ? { rows: [] } : lireApi('sites', { limite: 150, statut: p.statut || '' }); },
+  async charger(p) { if (demo()) return { rows: [] }; const [r, t] = await Promise.all([lireApi('sites', { limite: 150, statut: p.statut || '' }), lireApi('phase_sites').catch(() => null)]); return Object.assign({}, r, { test: t }); },
   rendre(p, d) {
     const c = k();
     let h = tete('Ventes et sites', 'Chaque aperçu est un vrai site, fabriqué d\'avance pour un prospect de Martinique. Payé, il passe en ligne sur son nom de domaine, la facture part seule.');
     h += barrePilote();
+    h += carteTest(d && d.test);
     h += '<div class="carte argent" style="margin-bottom:14px"><div>' + chiffre('Encaissé', eur(c.ca_eur), pluriel(c.clients || 0, 'client')) + '</div><div>' + chiffre('Chaque mois', eur(c.mrr_eur || 0), pluriel(c.abonnes || 0, 'abonnement')) + '</div><div>' + chiffre('En ligne', nb(c.en_ligne)) + '</div><div>' + chiffre('Aperçus', nb(c.apercus), pluriel(c.commandes || 0, 'commande') + ' en cours') + '</div></div>';
     h += filtres(ST_SITES, p.statut);
     const rows = (d && d.rows) || [];

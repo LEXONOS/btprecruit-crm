@@ -64,8 +64,28 @@ function vision(body) {
   });
   return rep([tu('noter_photos', { notes: notes })], 'tool_use', { input_tokens: 400 + 120 * blocs.length, output_tokens: 300 });
 }
+// Miranda : le faux regard (captures) et le faux jugement ; MIRANDA.notes donne les notes successives à rendre
+const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, derniers: [] };
+function regardFaux(opts) {
+  MIRANDA.regards++;
+  if (MIRANDA.panne) return { ok: false, status: 500, json: async function () { return { ok: false, error: 'navigateur indisponible' }; } };
+  const b = jpeg(64, 40, 3, 'capture').toString('base64');
+  const u = JSON.parse(opts.body).url;
+  return { ok: true, status: 200, json: async function () { return { ok: true, ms: 1200, version: null, url: u, ordinateur: { haut: b, morceaux: [b, b], hauteur: 5200 }, telephone: { haut: b, morceaux: [b, b, b], hauteur: 7900 }, debord: { ordinateur: 0, telephone: 0 }, erreurs: [] }; } };
+}
+function critiqueFausse(body) {
+  MIRANDA.jugements++;
+  const texte = body.messages[0].content.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('\n');
+  const hero = (texte.match(/- hero : ([a-z]+\.[a-z0-9-]+)/) || [])[1] || null;
+  const services = (texte.match(/- services : ([a-z]+\.[a-z0-9-]+)/) || [])[1] || null;
+  MIRANDA.derniers.push({ hero: hero, services: services, images: body.messages[0].content.filter(function (b) { return b.type === 'image'; }).length });
+  const note = MIRANDA.notes.length ? MIRANDA.notes.shift() : 8.5;
+  const ok = note >= 8;
+  return rep([tu('juger_site', { note: note, verdict: ok ? 'valide' : 'a_refaire', resume: ok ? 'Un premier écran fort, une photo juste, tout se lit sur téléphone.' : 'Le haut de page est fade et le titre se perd sur la photo.', points_forts: ok ? ['premier écran'] : [], problemes: ok ? [] : [{ zone: 'haut de page', gravite: 'bloquant', constat: 'Le titre se lit mal sur la photo.', variante: hero }], actions: ok ? [] : ['changer_rubriques'] })], 'tool_use', { input_tokens: 9000, output_tokens: 500 });
+}
 function claude(body) {
   appelsClaude++;
+  if (body.tool_choice && body.tool_choice.name === 'juger_site') return critiqueFausse(body);
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
   if (body.tool_choice && body.tool_choice.name === 'noter_photos') return vision(body);
   const sys = body.system.map(function (b) { return b.text; }).join('\n');
@@ -300,6 +320,7 @@ function imageFausse(url, l, h) { const b = jpeg(l, h, Array.from(url).reduce(fu
 
 global.fetch = async function (url, opts) {
   url = String(url);
+  if (url.indexOf('/api/regard') >= 0) return regardFaux(opts);
   if (url.indexOf('api.pexels.com') >= 0) return pexels(url, opts);
   if (url.indexOf('images.pexels.com') >= 0) return imageFausse(url, 1920, 1280);
   if (url.indexOf('picsum.photos') >= 0) return imageFausse(url, 1920, 1280);
@@ -352,4 +373,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { appels: function () { return appelsClaude; }, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };

@@ -24,18 +24,18 @@ const BASE_VUE = 64;               // hauteur visible à zoom 1 (unités du mond
 const ZOOM_MIN = 0.42, ZOOM_MAX = 4.4;
 const MARCHE = 2.3;                // unités par seconde
 
-// Le campus de Novalemo : 26 places sur l'anneau, par services. Le passage (225°) regarde la tour.
+// Le campus de Novalemo : 27 places sur l'anneau, par services. Le passage (225°) regarde la tour.
 const CAMPUS = { x: 32.5, z: 32.5, R: 13.6, r: 8.4, siege: 9.95, bureau: 10.9, couloir: 9.05, allee: 5.6, pelouse: 15.5, porte: 225, ouverture: 26, portes: [45, 135, 315] };
 CAMPUS.f0 = CAMPUS.porte + CAMPUS.ouverture / 2;
 CAMPUS.f1 = CAMPUS.porte - CAMPUS.ouverture / 2 + 360;
-const PLACES = 26, PAS_PLACE = (CAMPUS.f1 - CAMPUS.f0) / PLACES;
+const PLACES = 27, PAS_PLACE = (CAMPUS.f1 - CAMPUS.f0) / PLACES;
 const angPlace = (i) => CAMPUS.f0 + (i + 0.5) * PAS_PLACE;
 // chaque service a sa couleur : son tapis au sol (pâle) et ses agents (franche), comme son enseigne
 const SECTEURS = [
   { id: 'direction', nom: 'Direction', debut: 0, places: 6, teinte: '#F4E6C2', ton: '#E2B451', agents: ['dg_novalemo', 'dircom_novalemo', 'rh_novalemo', 'analyste', 'partenaires', 'inbound'] },
-  { id: 'production', nom: 'Production des sites', debut: 7, places: 7, teinte: '#E6DEFF', ton: '#A086FF', agents: ['chef_prod', 'portfolio', 'demo', 'da', 'photos', 'juridique', 'livraison'] },
-  { id: 'prospection', nom: 'Prospection', debut: 15, places: 5, teinte: '#D6F1E5', ton: '#3FBF8C', agents: ['contacts', 'chasse_domaines', 'chasse_maps', 'chasse_registre', 'chasse_reseaux'] },
-  { id: 'ecriture', nom: 'Pôle écriture', debut: 21, places: 5, teinte: '#DDE7FF', ton: '#6A8DFF', agents: ['emailing', 'plume', 'redacteur', 'relanceur', 'reponses'] }
+  { id: 'production', nom: 'Production des sites', debut: 7, places: 8, teinte: '#E6DEFF', ton: '#A086FF', agents: ['chef_prod', 'portfolio', 'demo', 'da', 'photos', 'critique', 'juridique', 'livraison'] },
+  { id: 'prospection', nom: 'Prospection', debut: 16, places: 5, teinte: '#D6F1E5', ton: '#3FBF8C', agents: ['contacts', 'chasse_domaines', 'chasse_maps', 'chasse_registre', 'chasse_reseaux'] },
+  { id: 'ecriture', nom: 'Pôle écriture', debut: 22, places: 5, teinte: '#DDE7FF', ton: '#6A8DFF', agents: ['emailing', 'plume', 'redacteur', 'relanceur', 'reponses'] }
 ];
 const BANCS = [0, 100, 170, 270];          // les bancs du parc (angle), deux places chacun
 const BANCS_DEHORS = [211, 239];           // près du passage, tournés vers la ville
