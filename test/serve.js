@@ -1,120 +1,83 @@
-// Serveur local pour regarder la tour sans Vercel : node test/serve.js [--demo] [--port 8790]
-// Sans --demo : base en mémoire + faux réseau + un premier cycle simulé, et un peu d'activité factice
-// pour voir les messages voyager (uniquement ici, jamais en production).
+// La tour en local, sans Vercel : node test/serve.js [--creation | --demo] [--port=8790]
+// Les vraies API sur une base en mémoire remplie d'un monde réaliste (prospects, emails, aperçus, ventes, messages) ;
+// le réseau est simulé (test/fakes.js). Mot de passe local : « la tour de test 2026 ». --creation : la porte demande
+// de créer le mot de passe ; --demo : sans base. Uniquement pour regarder l'interface, jamais en production.
 'use strict';
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const DEMO = process.argv.indexOf('--demo') >= 0;
+const REPO = require('path').join(__dirname, '..');
+const http = require('http'), fs = require('fs'), path = require('path');
+process.env.ANTHROPIC_API_KEY = 'test'; process.env.GOOGLE_MAPS_API_KEY = 'test'; process.env.HQ_LOCAL = '1';
+const MODE = process.argv.indexOf('--creation') >= 0 ? 'creation' : process.argv.indexOf('--demo') >= 0 ? 'demo' : 'connexion';
+require('./fakes');
+const DB = require(REPO + '/lib/db');
+const A = require(REPO + '/lib/acces');
 const PORT = Number((process.argv.find(function (a) { return /^--port=/.test(a); }) || '--port=8790').split('=')[1]);
-const RACINE = path.join(__dirname, '..');
-const THREE = process.env.THREE_DIR || '/tmp/claude-0/-home-claude/dfcd46f1-fed0-583b-9c1b-956e7448c6b7/scratchpad/three/node_modules/three';
 
-let db = null;
-if (!DEMO) {
-  process.env.ANTHROPIC_API_KEY = 'test';
-  process.env.GOOGLE_MAPS_API_KEY = 'test';
-  require('./fakes');
-  const DB = require('../lib/db');
-  db = DB.memory();
-  DB.forcer(db);
-}
-const hq = require('../api/hq');
-const tick = require('../api/tick');
+const db = DB.memory();
+if (MODE !== 'demo') DB.forcer(db);
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.sql': 'text/plain; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
-
-function adapter(req, res, handler) {
-  let corps = '';
-  req.on('data', function (c) { corps += c; });
-  req.on('end', async function () {
-    const u = new URL(req.url, 'http://local');
-    req.query = Object.fromEntries(u.searchParams);
-    try { req.body = corps ? JSON.parse(corps) : {}; } catch (e) { req.body = {}; }
-    await handler(req, res);
+const T = (min) => new Date(Date.now() - min * 60000).toISOString();
+const r = (function () { let s = 42; return () => (s = s * 16807 % 2147483647) / 2147483647; })();
+async function peupler() {
+  const RT = require(REPO + '/lib/runtime');
+  await RT.semer(db);
+  const tb = db.tables;
+  // les agents : certains au travail, des passages, des coûts
+  const travail = { reponses: 'Prépare la réponse à Clim Éole (aperçu Vitrine)', demo: 'Fabrique l\'aperçu de Garage Lafontaine, Le Lamentin', chasse_maps: 'Cherche des plombiers à Ducos et au Robert', redacteur: 'Écrit à Boulangerie Saint-Pierre', photos: 'Regarde 6 photos de garage', da_studio: '' };
+  tb.hq_agents.forEach((a, i) => {
+    if (a.kind === 'attente') return;
+    a.status = travail[a.id] ? 'working' : (i % 9 === 4 ? 'waiting' : 'idle');
+    a.current_task = travail[a.id] || (a.kind === 'job' ? 'Passage fait : 12 pistes regardées, 3 retenues' : 'Rapport envoyé à son chef');
+    a.last_run_at = T(10 + i * 7); a.next_run_at = new Date(Date.now() + (5 + i * 3) * 60000).toISOString();
+    a.stats = { runs: 4 + (i % 9) * 3, cout: Math.round((0.05 + r() * 1.4) * 100) / 100, produit: Math.round(r() * 40) };
   });
+  const noms = ['Clim Éole', 'Garage Lafontaine', 'Boulangerie Saint-Pierre', 'Institut Lumière', 'Plomberie du Robert', 'Taxi Caraïbes', 'Le Comptoir du Marin', 'Serrurerie du Nord', 'Pâtisserie Les Anses', 'Auto-école Madinina', 'Fleurs de Trinité', 'Pressing du Lamentin', 'Kiné Schœlcher', 'Menuiserie Ducos', 'Glacier Tropic', 'Piscines Sainte-Luce'];
+  const secteurs = ['Climatisation', 'Garage', 'Boulangerie', 'Esthétique', 'Plomberie', 'Taxi', 'Restaurant', 'Serrurerie', 'Pâtisserie', 'Auto-école', 'Fleuriste', 'Pressing', 'Kinésithérapie', 'Menuiserie', 'Glacier', 'Piscines'];
+  const communes = ['Le Lamentin', 'Fort-de-France', 'Saint-Pierre', 'Schœlcher', 'Le Robert', 'Ducos', 'Le Marin', 'Le Lorrain', 'Les Anses-d\'Arlet', 'Rivière-Salée', 'La Trinité', 'Le Lamentin', 'Schœlcher', 'Ducos', 'Sainte-Anne', 'Sainte-Luce'];
+  const statuts = ['a_contacter', 'a_contacter', 'contacte', 'contacte', 'contacte', 'relance', 'a_appeler', 'brouillon', 'interesse', 'client', 'nouveau', 'ecarte'];
+  for (let i = 0; i < 146; i++) {
+    const k = i % noms.length;
+    await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'dev:' + i, source: ['maps', 'domaines', 'registre'][i % 3], name: noms[k] + (i >= noms.length ? ' ' + (Math.floor(i / noms.length) + 1) : ''), sector: secteurs[k], island: 'MQ', commune: communes[k], website: i % 4 ? 'www.' + noms[k].toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.fr' : null, email: i % 5 ? 'contact@' + noms[k].toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.fr' : null, phone: '+596 696 ' + String(100000 + i * 37).slice(0, 2) + ' ' + String(10 + i % 80) + ' ' + String(20 + i % 70), site_state: ['aucun', 'ancien', 'pas mobile', 'page Facebook'][i % 4], score: 40 + Math.round(r() * 55), reason: 'Pas de site, fiche Google bien notée (4,6 sur 31 avis), activité qui se montre en photos.', status: statuts[i % statuts.length], created_at: T(60 * 24 * (i % 14)), data: { audit: { defauts: i % 3 ? ['pas de https', 'pas de mentions légales'] : [] } } });
+  }
+  const leads = tb.hq_leads;
+  for (let i = 0; i < 64; i++) await db.insert('hq_outbox', { lead_id: leads[i].id, agent_id: i % 3 ? 'redacteur' : 'relanceur', to_email: leads[i].email || 'contact@exemple.fr', subject: i % 3 ? 'Votre site, déjà prêt à voir' : 'Re: Votre site, déjà prêt à voir', body: 'Bonjour,\n\nJ\'ai préparé un aperçu de site pour ' + leads[i].name + ' : il est en ligne, vous pouvez le voir ici.\n\nSi ça vous plaît, il passe sur votre nom de domaine en deux jours.\n\nLouis, Novalemo\n\nSTOP pour ne plus recevoir de message.', step: i % 3 ? 1 : 2, status: i < 4 ? 'pret' : i < 6 ? 'a_valider' : 'envoye', kind: i % 3 ? 'prospection' : 'relance', sent_at: i >= 6 ? T(60 * (i * 3)) : null, created_at: T(60 * (i * 3 + 5)) });
+  const ib = await db.insert('hq_inbox', { message_id: 'dev-1', kind: 'reponse', lead_id: leads[2].id, from_email: leads[2].email, from_name: 'Rodolphe Larcher', subject: 'Re: Votre site, déjà prêt à voir', body: 'Bonjour,\n\nJ\'ai regardé, c\'est pas mal du tout. C\'est combien pour la version avec plusieurs pages ? Et vous pouvez mettre nos horaires du samedi ?\n\nRodolphe', status: 'brouillon', intent: 'interesse', received_at: T(42), data: { note: 'Intéressé par Vitrine, demande les horaires du samedi : à ajouter avant le lien de paiement.' } });
+  await db.insert('hq_outbox', { lead_id: leads[2].id, inbox_id: ib[0].id, agent_id: 'reponses', to_email: leads[2].email, subject: 'Re: Votre site, déjà prêt à voir', body: 'Bonjour Rodolphe,\n\nMerci pour votre retour. La formule Vitrine (plusieurs pages : accueil, services, à propos, contact) est à 990 € en une fois, ou 89 € par mois.\n\nJ\'ajoute vos horaires du samedi dès maintenant. Lesquels sont-ils ?\n\nLouis, Novalemo', status: 'a_valider', kind: 'reponse', step: 1 });
+  await db.insert('hq_inbox', { message_id: 'dev-2', kind: 'reponse', lead_id: leads[8].id, from_email: leads[8].email, from_name: 'Institut Lumière', subject: 'Re: Votre site', body: 'Bonjour, pouvez-vous m\'appeler ?', status: 'nouveau', intent: 'rdv', received_at: T(12) });
+  // les sites
+  const sites = [['apercu', 12], ['commande', 2], ['paye', 1], ['en_ligne', 3]];
+  let n = 0;
+  for (const [st, c] of sites) for (let i = 0; i < c; i++) {
+    const l = leads[n % leads.length]; n++;
+    const ab = st === 'en_ligne' && i === 0;
+    await db.insert('hq_sites', { lead_id: l.id, slug: 'dev-' + n, status: st, formule: ['vitrine', 'essentiel', 'signature'][n % 3], montant_eur: [990, 590, 1390][n % 3], url_apercu: 'https://novalemo-martinique.vercel.app/dev-' + n, domaine: st === 'en_ligne' ? l.name.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.fr' : null, domaine_mode: 'achat', url_finale: st === 'en_ligne' ? 'https://' + l.name.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.fr' : null, stripe: st === 'commande' ? { url: 'https://buy.stripe.com/test_dev', url_mois: 'https://buy.stripe.com/test_dev_mois' } : st !== 'apercu' ? { facture_url: 'https://invoice.stripe.com/dev' } : {}, paid_at: ['paye', 'en_ligne'].indexOf(st) >= 0 ? T(60 * 24 * (3 + i)) : null, live_at: st === 'en_ligne' ? T(60 * 24 * (1 + i)) : null, published_at: T(60 * (20 + n * 9)), created_at: T(60 * (24 + n * 9)), spec: { nom: l.name, activite: l.sector, commune: l.commune, photos: [1, 2, 3], da: { modele: ['atelier', 'garage', 'comptoir', 'ecrin'][n % 4], hero: 'photo' } }, data: ab ? { abonnement: { mensualite_eur: 89, statut: 'active', paye_eur: 178, engagement_jusqu_au: new Date(Date.now() + 300 * 86400000).toISOString() } } : {} });
+  }
+  // les messages du fil
+  const fil = [['chasse_maps', 'contacts', 'rapport', '18 prospects trouvés au Lamentin et à Ducos'], ['demo', 'chef_prod', 'rapport', '3 aperçus en ligne : Garage Lafontaine, Clim Éole, Pressing du Lamentin'], ['reponses', 'louis', 'note', 'Rodolphe Larcher est intéressé par Vitrine'], ['livraison', 'louis', 'rapport', 'Clim Éole est en ligne sur climeole.fr'], ['dg_novalemo', 'dircom_novalemo', 'ordre', 'Priorité aux garages et aux climatiseurs cette semaine'], ['juridique', 'chef_prod', 'rapport', '2 entreprises trouvées dans le registre'], ['photos', 'chef_prod', 'rapport', '6 photos regardées, 4 posées'], ['controleur', 'pdg', 'rapport', 'Coût par aperçu : 0,03 $'], ['redacteur', 'emailing', 'rapport', '8 emails écrits, contrôle qualité passé'], ['pdg', 'louis', 'proposition', 'Créer Conformité Web : le dossier est prêt']];
+  for (let i = 0; i < fil.length; i++) await db.insert('hq_messages', { from_id: fil[i][0], to_id: fil[i][1], company_id: 'novalemo', kind: fil[i][2], subject: fil[i][3], body: fil[i][3] + '.', created_at: T(4 + i * 23) });
+  // 14 jours d'activité
+  for (let k = 13; k >= 0; k--) { const d = new Date(Date.now() - k * 86400000).toLocaleDateString('sv-SE', { timeZone: 'America/Guadeloupe' }); await db.upsert('hq_daily', { day: d, cost_usd: Math.round((0.35 + r() * 1.05) * 100) / 100, runs: 20 + Math.round(r() * 30), leads: Math.round(4 + r() * 16), emails: Math.round(r() * (14 - k)), items: Math.round(r() * 6) }, { onConflict: 'day' }); }
+  await db.upsert('hq_config', { key: 'identite', value: { entreprise: 'Louis Renault', forme: 'EI', siret: '10340524700018', marque: 'NOVALEM', prenom: 'Louis', nom: 'Renault', telephone: '+590691253449', adresse: '11 rue de la Somme', cp: '49300', ville: 'Cholet', region: 'Maine-et-Loire', pays: 'FR', source: 'rempli par Claude d\'après la fiche RNE de NOVALEM' } }, { onConflict: 'key' });
 }
 
-http.createServer(function (req, res) {
-  const u = new URL(req.url, 'http://local');
-  if (u.pathname === '/api/hq') return adapter(req, res, hq);
-  if (u.pathname === '/api/tick') return adapter(req, res, tick);
-  let f;
-  if (u.pathname.indexOf('/three/') === 0) f = path.join(THREE, u.pathname.slice(7));
-  else f = path.join(RACINE, u.pathname === '/' ? 'index.html' : u.pathname);
-  fs.readFile(f, function (err, data) {
-    if (err) { res.statusCode = 404; return res.end('404'); }
-    res.setHeader('Content-Type', TYPES[path.extname(f)] || 'application/octet-stream');
-    if (path.basename(f) === 'index.html') {
-      data = String(data).replace('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js', '/three/build/three.module.js').replace('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/', '/three/examples/jsm/')
-        .replace(/<link[^>]+fonts\.googleapis[^>]+>/g, '');
+async function lireCorps(req) { return new Promise((ok) => { let d = ''; req.on('data', (c) => { d += c; }); req.on('end', () => { try { ok(d ? JSON.parse(d) : {}); } catch (e) { ok({}); } }); }); }
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' };
+const H = { '/api/acces': require(REPO + '/api/acces.js'), '/api/hq': require(REPO + '/api/hq.js') };
+
+(async function () {
+  if (MODE !== 'demo') await peupler();
+  if (MODE !== 'creation') process.env.HQ_ACCES = await A.hacher('la tour de test 2026');
+  if (MODE !== 'demo') A.forcerBase(db);
+  http.createServer(async (req, res) => {
+    const u = new URL(req.url, 'http://localhost:' + PORT);
+    if (H[u.pathname] || u.pathname === '/api/tick') {
+      req.query = Object.fromEntries(u.searchParams);
+      if (req.method === 'POST') req.body = await lireCorps(req);
+      if (u.pathname === '/api/tick') { const s = await A.exiger(req, res); if (!s) return; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ passages: [{ cout: 0.02, resume: 'Passage de démonstration' }] })); return; }
+      return H[u.pathname](req, res);
     }
-    res.end(data);
-  });
-}).listen(PORT, '127.0.0.1', async function () {
-  console.log('La tour en local : http://127.0.0.1:' + PORT + (DEMO ? ' (mode démo)' : ''));
-  if (DEMO) return;
-  const runtime = require('../lib/runtime');
-  await runtime.semer(db);
-  db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
-  const r = await runtime.cycle({ db: db, secondes: 250 });
-  console.log('Premier cycle simulé :', r.passages.length, 'passages');
-  if (process.argv.indexOf('--boite') >= 0) {
-    // boîte d'envoi simulée : envois, une réponse de prospect, la réponse préparée par Emma
-    process.env.HQ_MAIL_USER = 'contact@studionovalem.fr'; process.env.HQ_MAIL_PASS = 'local';
-    const mail = require('../lib/mail'), ENVOI = require('../lib/jobs/envoi'), BOITE = require('../lib/jobs/boite'), { agir } = require('../lib/actions');
-    const file = [];
-    mail.forcer({ mx: ['mx1.mail.ovh.net'], envoyer: async function () {}, tester: async function () { return { smtp: { ok: true }, imap: { ok: true } }; },
-      relever: async function (etat, garder) { const out = []; for (const m of file.splice(0)) if (await garder(m)) out.push(m); return { etat: { uidValidity: '1', dernier: 50 }, messages: out }; },
-      dns: async function (d) { return { domaine: d, fournisseur: 'OVH', mx: ['mx1.mail.ovh.net'], spf: { ok: true, valeur: 'v=spf1 include:mx.ovh.com ~all' }, dkim: { ok: false, conseil: 'Espace client OVH > Web Cloud > Emails > ton domaine > onglet DKIM : activer.' }, dmarc: { ok: false, conseil: 'Ajoute un enregistrement TXT sur _dmarc.' + d + ' : v=DMARC1; p=none; rua=mailto:contact@' + d }, verifie_le: new Date().toISOString() }; } });
-    db.tables.hq_agents.forEach(function (a) { if (a.id === 'redacteur' || a.id === 'contacts') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
-    await runtime.cycle({ db: db, secondes: 250 });
-    for (const o of db.tables.hq_outbox.filter(function (x) { return x.status === 'a_valider'; }).slice(0, 1)) await agir('email', { id: o.id, statut: 'pret' });
-    await ENVOI.run({ db: db, budget: (await runtime.charger(db)).budget, limite: Date.now() + 60000, toujours: true, espacement: 0 });
-    const o1 = db.tables.hq_outbox.find(function (x) { return x.status === 'envoye'; });
-    const l1 = o1 && db.tables.hq_leads.find(function (l) { return l.id === o1.lead_id; });
-    if (o1) {
-      file.push({ uid: 11, messageId: '<r1@climpro971.fr>', inReplyTo: o1.message_id, from: l1.email, fromName: 'Jean Dupont', subject: 'Re: ' + o1.subject, headers: '', date: new Date(),
-        source: Buffer.from('Subject: Re\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nBonjour,\r\nOui ça m\'intéresse, on a justement un problème avec notre site actuel. Vous pouvez m\'appeler demain matin ? Combien ça coûterait pour 3 pages ?\r\n\r\nJean Dupont\r\nClim Pro 971\r\n\r\nLe lun. 2 nov. 2026, Louis a écrit :\r\n> Bonjour\r\n') });
-      await BOITE.releve({ db: db });
-      await runtime.cycle({ db: db, agentId: 'reponses', secondes: 200 });
-    }
-    console.log('Boîte simulée :', db.tables.hq_outbox.length, 'emails,', (db.tables.hq_inbox || []).length, 'réponse(s)');
-  }
-  if (process.argv.indexOf('--ventes') >= 0) {
-    // pilote automatique simulé : aperçus, une commande, un paiement, un site en ligne
-    process.env.HQ_MAIL_USER = process.env.HQ_MAIL_USER || 'louis@novalemo-mq.fr'; process.env.HQ_MAIL_PASS = 'local';
-    process.env.HQ_VERCEL_TOKEN = 'local'; process.env.HQ_STRIPE_KEY = 'sk_live_local';
-    const fakes = require('./fakes'), { agir } = require('../lib/actions');
-    require('../lib/mail').forcer({ mx: ['mx1.mail.ovh.net'], envoyer: async function () {}, relever: async function () { return { etat: { uidValidity: '1', dernier: 1 }, messages: [] }; }, tester: async function () { return { smtp: { ok: true }, imap: { ok: true } }; }, dns: async function () { return null; } });
-    await agir('identite', { entreprise: 'NOVALEM', forme: 'Entrepreneur individuel', siret: '10340524700018', marque: 'Studio Novalem', prenom: 'Louis', nom: 'Renault', email: 'louis@novalemo-mq.fr', telephone: '+590691253449', adresse: '1 rue Exemple', cp: '97170', ville: 'Petit-Bourg', region: 'Guadeloupe', pays: 'GP' });
-    const noms = [['Clim Éole', 'climatisation', 'Le Lamentin', 'https://climpro972.fr'], ['Net Éclat Services', 'nettoyage professionnel', 'Ducos', null], ['Sentinelle Sécurité', 'entreprise de sécurité', 'Fort-de-France', null], ['Jardins de la Caravelle', 'paysagiste', 'La Trinité', null]];
-    for (let k = 0; k < noms.length; k++) await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'local:' + k, source: 'maps', name: noms[k][0], sector: noms[k][1], island: 'MQ', commune: noms[k][2], website: noms[k][3], site_state: noms[k][3] ? 'douteux' : 'aucun', email: 'contact@exemple' + k + '-mq.fr', email_source: 'site', phone: '+596696' + String(100000 + k * 1111), score: 90 - k, status: 'a_contacter', data: { google: { place_id: 'l' + k, note: 4.7, avis: 20 + k, adresse: noms[k][2] + ', Martinique' } } });
-    const runtime2 = require('../lib/runtime');
-    db.tables.hq_agents.forEach(function (a) { if (a.id === 'demo') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
-    await runtime2.cycle({ db: db, agentId: 'demo', secondes: 200 });
-    db.tables.hq_agents.forEach(function (a) { if (a.id === 'demo') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
-    await runtime2.cycle({ db: db, agentId: 'demo', secondes: 200 });
-    const tools = require('../lib/tools'), env = await runtime2.charger(db);
-    const emma = env.agents.find(function (a) { return a.id === 'reponses'; });
-    const ex = tools.executeurs({ db: db, agent: emma, agents: env.agents, budget: env.budget, compteurs: { items: 0, leads: 0, emails: 0, messages: 0, places: 0 } });
-    const l0 = db.tables.hq_leads.find(function (l) { return l.dedupe === 'local:0'; }), l1 = db.tables.hq_leads.find(function (l) { return l.dedupe === 'local:1'; });
-    const msg = async function (l) { return (await db.insert('hq_inbox', { message_id: '<local' + l.id + '@client.mq>', lead_id: l.id, from_email: l.email, subject: 'Re: votre site', body: 'On y va.', kind: 'reponse', status: 'traite', data: { confiance: 'adresse' } }))[0].id; };
-    await ex.commande({ reponse_id: await msg(l0), formule: 'vitrine' });
-    await ex.commande({ reponse_id: await msg(l1), formule: 'essentiel' });
-    const s0 = db.tables.hq_sites.find(function (x) { return x.lead_id === l0.id; });
-    fakes.payer(s0.stripe.lien); fakes.FAUX_EN_LIGNE.add(s0.domaine);
-    for (let k = 0; k < 3; k++) { db.tables.hq_agents.forEach(function (a) { if (a.id === 'livraison') a.next_run_at = new Date(Date.now() - 60000).toISOString(); }); await runtime2.cycle({ db: db, agentId: 'livraison', secondes: 200 }); }
-    console.log('Ventes simulées :', db.tables.hq_sites.map(function (x) { return x.slug + ' ' + x.status; }).join(', '));
-  }
-  // activité factice pour voir la scène vivre
-  const ids = db.tables.hq_agents.filter(function (a) { return a.kind !== 'attente'; }).map(function (a) { return a; });
-  setInterval(function () {
-    const a = ids[Math.floor(Math.random() * ids.length)];
-    if (!a.parent_id) return;
-    db.tables.hq_messages.push({ id: (db.tables.hq_messages.length + 1000), from_id: a.id, to_id: a.parent_id, company_id: a.company_id, kind: ['rapport', 'rapport', 'note', 'proposition'][Math.floor(Math.random() * 4)], subject: 'Point de ' + a.name, body: 'Activité simulée en local.', created_at: new Date().toISOString() });
-    ids.forEach(function (x) { if (x.status === 'working' && Math.random() < 0.5) x.status = 'idle'; });
-    const w = ids[Math.floor(Math.random() * ids.length)]; w.status = 'working';
-    db.tables.hq_agents.forEach(function (x) { const y = ids.find(function (z) { return z.id === x.id; }); if (y) x.status = y.status; });
-  }, 2500);
-});
+    let p = decodeURIComponent(u.pathname); if (p === '/') p = '/index.html';
+    const f = path.join(REPO, p);
+    if (!f.startsWith(REPO + path.sep) || /^\/(lib|test|api|supabase|node_modules)\//.test(p)) { res.writeHead(404); res.end(); return; }
+    fs.readFile(f, (e, d) => { if (e) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' }); res.end(d); });
+  }).listen(PORT, () => console.log('La tour en local : http://localhost:' + PORT + (MODE === 'connexion' ? ' (mot de passe : la tour de test 2026)' : ' (' + MODE + ')')));
+})().catch((e) => { console.error(e); process.exit(1); });

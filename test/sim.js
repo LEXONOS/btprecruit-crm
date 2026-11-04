@@ -2,6 +2,8 @@
 // Vercel, Stripe et le registrar simulés. Novalemo en Martinique, pilote automatique de bout en bout.
 // Lance : node test/sim.js
 'use strict';
+process.env.HQ_TOUR_PROJET = 'prj_tour'; process.env.HQ_TOUR_EQUIPE = 'team_test';
+process.env.HQ_LOCAL = '1';            // le cron sans secret ne passe qu'en local déclaré
 process.env.ANTHROPIC_API_KEY = 'test';
 process.env.GOOGLE_MAPS_API_KEY = 'test';
 delete process.env.HQ_SUPABASE_KEY; delete process.env.HQ_VERCEL_TOKEN; delete process.env.VERCEL_TOKEN; delete process.env.HQ_STRIPE_KEY; delete process.env.STRIPE_SECRET_KEY;
@@ -911,23 +913,29 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const sansEmma = await RT.cycle({ db: db, agentId: 'reponses', secondes: 120, verrou: 'cycle:whatsapp' });
     await RT.deverrouiller(db, 'agent:reponses', 'emma-ailleurs');
     assert.ok(!sansEmma.occupe && !(sansEmma.passages || []).length, 'Emma déjà au travail : jamais deux passages en même temps');
-    // G. Missions : origine exigée, protection Vercel vérifiée, ancienne clé publique et autre compte Stripe refusés, écriture d'un bloc
+    // G. Missions : session et origine exigées, ancienne clé publique et autre compte Stripe refusés, écriture d'un bloc
+    const A0 = require('../lib/acces');
+    process.env.HQ_ACCES = await A0.hacher('mot de passe de test 2026');
+    const cookieTour = A0.COOKIE + '=' + A0.signer({ app: 'test', d: Date.now(), iat: Date.now(), exp: Date.now() + 3600000, n: 'x' });
     const H0 = require('../api/hq.js');
-    const appelHq = async function (headers, corps) { let out = null; const res = { statusCode: 0, setHeader: function () {}, end: function (x) { out = { code: this.statusCode, corps: JSON.parse(x) }; } }; await H0({ method: 'POST', headers: headers, body: corps, url: '/api/hq' }, res); return out; };
+    const appelHq = async function (headers, corps) { let out = null; const res = { statusCode: 0, setHeader: function () {}, end: function (x) { out = { code: this.statusCode, corps: JSON.parse(x) }; } }; await H0({ method: 'POST', headers: Object.assign({ 'content-type': 'application/json' }, headers), body: corps, url: '/api/hq' }, res); return out; };
     const ecr0 = fakes.VERCEL.ecrituresEnv;
-    const sansOrigine = await appelHq({ host: 'btprecruit-crm.vercel.app' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
-    const autreOrigine = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://pirate.example' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
-    assert.ok(sansOrigine.code === 403 && autreOrigine.code === 403 && fakes.VERCEL.ecrituresEnv === ecr0, 'un code ne s\'enregistre que depuis la page de la tour');
-    const depuisTour = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://btprecruit-crm.vercel.app' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    const sansOrigine = await appelHq({ host: 'btprecruit-crm.vercel.app', cookie: cookieTour }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    const autreOrigine = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://pirate.example', cookie: cookieTour }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    const sansSession = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://btprecruit-crm.vercel.app' }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
+    assert.ok(sansOrigine.code === 403 && autreOrigine.code === 403 && sansSession.code === 401 && fakes.VERCEL.ecrituresEnv === ecr0, 'un code ne s\'enregistre que depuis la page de la tour, connecté');
+    const depuisTour = await appelHq({ host: 'btprecruit-crm.vercel.app', origin: 'https://btprecruit-crm.vercel.app', cookie: cookieTour }, { op: 'mission_enregistrer', valeurs: { HQ_STRIPE_KEY: 'sk_live_autre_compte_123' } });
     assert.ok(depuisTour.code === 200 && /autre compte Stripe/.test(depuisTour.corps.erreur || ''), 'clé d\'un autre compte Stripe refusée tant que la clé branchée marche');
     process.env.VERCEL = '1';
     const perso = await M.enregistrer({ HQ_SITES_DOMAINE: 'apercu.novalemo.fr' }, { hote: 'tour.novalemo.fr' });
-    const vapp = await M.enregistrer({ HQ_SITES_DOMAINE: 'apercu.novalemo.fr' }, { hote: 'btprecruit-crm.vercel.app' });
     fakes.VERCEL.projets.prj_tour.ssoProtection = null;
     const nue = await M.enregistrer({ HQ_SITES_DOMAINE: 'apercu.novalemo.fr' }, { hote: 'btprecruit-crm.vercel.app' });
     fakes.VERCEL.projets.prj_tour.ssoProtection = { deploymentType: 'all_except_custom_domains' };
     delete process.env.VERCEL;
-    assert.ok(/adresse vercel\.app/.test(perso.erreur || '') && vapp.ok && /pas protégée/.test(nue.erreur || ''), 'codes acceptés seulement derrière la protection Vercel : ' + JSON.stringify([perso, vapp, nue]));
+    assert.ok(perso.ok && nue.ok, 'la tour a sa propre porte : un code s\'enregistre aussi depuis un domaine perso ou sans protection Vercel : ' + JSON.stringify([perso, nue]));
+    const avantAnnul = (fakes.VERCEL.enCours || []).filter(function (x) { return !x.annule; }).length;
+    assert.ok(avantAnnul === 1 && fakes.VERCEL.redemarrages.slice(-1)[0].meta.tour === 'redemarrage', 'deux codes collés coup sur coup : le premier redémarrage est annulé, le dernier gagne');
+    delete process.env.HQ_ACCES;
     const jwt = function (role) { return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + Buffer.from(JSON.stringify({ iss: 'supabase', ref: 'fbmzlfrwxrzflfkazvmn', role: role })).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_') + '.signature'; };
     assert.ok(/clé publique \(anon\)/.test((await M.enregistrer({ HQ_SUPABASE_KEY: jwt('anon') })).erreur || '') && M.roleJwt(jwt('service_role')) === 'service_role', 'ancienne clé publique (anon) refusée');
     // une étape à moitié acceptée par Vercel est défaite : jamais une adresse neuve avec l'ancien mot de passe
@@ -1261,6 +1269,201 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(s17.contact.tel === '+596596700000' && s17.contact.mobile === '+596696112233', 'fixe ajouté, portable gardé : ' + JSON.stringify(s17.contact));
     delete process.env.HQ_PEXELS_KEY;
     console.log('Relecture v3 OK : quota sans plantage, aucune photo sans regard, reprise de Léa, photos rangées par titre, titres lisibles, liens des mentions, pages de service distinctes, étoiles et icônes justes, correction du client prioritaire, siège et greffe, téléphone exigé, Vercel à Covina, annuaire qui refuse une recherche, fixe et portable');
+  }
+  // 30. LA PORTE DE LA TOUR : mot de passe créé avec un jeton Vercel (du projet fixé), connexion, essais comptés avant
+  // d'être vérifiés (même lancés en même temps), verrou par adresse et par bloc IPv6, appareil connu jamais bloqué par les
+  // autres, cookie signé, version du mot de passe en base (une tour restée sur l'ancien n'ouvre plus rien), génération des
+  // sessions, déconnexion fermée côté serveur, cron fermé sans son secret
+  {
+    const A = require('../lib/acces');
+    const H = require('../api/acces.js');
+    const HQ = require('../api/hq.js');
+    const T = require('../api/tick.js');
+    db.tables.hq_config = db.tables.hq_config.filter(function (c) { return !/^(acces|essai:|fermee:)/.test(c.key); });
+    A.forcerBase(db); A.rythme(0);
+    const hote = 'btprecruit-crm.vercel.app', origine = 'https://btprecruit-crm.vercel.app';
+    const MDP = 'La tour de Louis, 2026 !';
+    let jar = {};
+    const appel = async function (handler, methode, corps, opts) {
+      opts = opts || {};
+      const headers = { host: hote, 'user-agent': opts.ua || 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1', 'x-real-ip': opts.ip || '203.0.113.7' };
+      if (methode === 'POST' && !opts.sansOrigine) { headers.origin = origine; headers['content-type'] = 'application/json'; }
+      Object.assign(headers, opts.headers || {});
+      const pot = opts.jar || jar;
+      const ck = Object.keys(pot).filter(function (k) { return pot[k]; }).map(function (k) { return k + '=' + pot[k]; }).join('; ');
+      if (ck && !opts.sansCookie) headers.cookie = ck;
+      let out = null; const ent = {};
+      const res = { statusCode: 0, setHeader: function (k, v) { ent[k.toLowerCase()] = v; }, getHeader: function (k) { return ent[k.toLowerCase()]; }, end: function (x) { out = { code: this.statusCode, corps: x ? JSON.parse(x) : null }; } };
+      await handler({ method: methode, headers: headers, body: corps || null, url: '/api/x', query: opts.query }, res);
+      const lignes = [].concat(ent['set-cookie'] || []);
+      if (!opts.sansCookie || opts.garder) lignes.forEach(function (l) { const m = l.match(/^([^=]+)=([^;]*)/); if (m) pot[m[1]] = /Max-Age=0(;|$)/.test(l) ? '' : m[2]; });
+      out.cookies = lignes;
+      return out;
+    };
+    const redemarrerAvec = function () { process.env.HQ_ACCES = fakes.VERCEL.valeurs.HQ_ACCES; process.env.HQ_SESSION = fakes.VERCEL.valeurs.HQ_SESSION; };
+    delete process.env.HQ_ACCES; delete process.env.HQ_SESSION; delete process.env.CRON_SECRET; delete process.env.HQ_VERCEL_TOKEN;
+    // A. avant le mot de passe : tout est fermé, seule la porte répond (et ne dit rien de la base)
+    const e0 = await appel(H, 'GET', null, { query: { op: 'etat' } });
+    const w0 = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    const t0b = await appel(T, 'POST', {});
+    assert.ok(e0.corps.configure === false && e0.corps.connecte === false && e0.corps.base === undefined && e0.corps.version === null && w0.code === 401 && w0.corps.configurer && t0b.code === 401, 'sans mot de passe : la tour est fermée, seule la porte répond');
+    // B. création : trop court, évident, jeton illisible, jeton qui ne voit qu'un projet du même nom ailleurs ; puis le bon
+    const tropCourt = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_valide_1234567890', mdp: 'abc' });
+    const evident = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_valide_1234567890', mdp: 'Motdepasse2026' });
+    const jetonFaux = await appel(H, 'POST', { op: 'creer', jeton: 'pas un jeton !', mdp: MDP }, { ip: '203.0.113.8' });
+    assert.ok(tropCourt.code === 400 && /12 caractères/.test(tropCourt.corps.erreur) && evident.code === 400 && /deviner/.test(evident.corps.erreur) && jetonFaux.code === 400 && /jeton Vercel/.test(jetonFaux.corps.erreur), 'mot de passe trop court ou évident, jeton illisible : refusés');
+    const ecr0 = fakes.VERCEL.ecrituresEnv || 0;
+    fakes.VERCEL.appelsPirate = [];
+    const pirate = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_pirate_0123456789', mdp: 'Le mot de passe du pirate 99' }, { ip: '203.0.113.66' });
+    assert.ok(pirate.code === 400 && /ne voit pas le projet/.test(pirate.corps.erreur) && (fakes.VERCEL.ecrituresEnv || 0) === ecr0 && fakes.VERCEL.appelsPirate.length === 1 && /\/v9\/projects\/prj_tour\?teamId=team_test$/.test(fakes.VERCEL.appelsPirate[0]), 'un jeton qui ne voit qu\'un projet du même nom ailleurs : refusé, seul le projet fixé est demandé, rien n\'est écrit : ' + JSON.stringify([pirate.corps, fakes.VERCEL.appelsPirate]));
+    assert.ok(await require('../lib/missions').ecrireVariables('vercel_jeton_valide_1234567890', { equipe: 'team_pirate', projet: { id: 'prj_pirate', nom: 'btprecruit-crm' } }, { HQ_ACCES: 'x' }).then(function () { return false; }, function (e) { return /inattendu/.test(e.message); }) && (fakes.VERCEL.ecrituresEnv || 0) === ecr0, 'jamais une variable écrite dans un autre projet que celui de la tour');
+    const red = fakes.VERCEL.redemarrages.length;
+    const cree = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_valide_1234567890', mdp: MDP }, { ip: '203.0.113.99' });
+    const env = fakes.VERCEL.env;
+    assert.ok(cree.code === 200 && cree.corps.ok && (fakes.VERCEL.ecrituresEnv || 0) === ecr0 + 1 && env.HQ_ACCES && env.HQ_SESSION && env.CRON_SECRET && env.HQ_VERCEL_TOKEN && env.HQ_ACCES.type === 'sensitive' && env.HQ_SESSION.longueur >= 40 && env.CRON_SECRET.longueur >= 40 && fakes.VERCEL.redemarrages.length === red + 1, 'mot de passe créé : empreinte, clé de session, secret du cron et jeton écrits ensemble dans Vercel (sensibles), puis redémarrage : ' + JSON.stringify(cree.corps));
+    assert.ok(cree.corps.version === A.versionDe(fakes.VERCEL.valeurs.HQ_ACCES) && db.tables.hq_config.find(function (c) { return c.key === 'acces'; }).value.version === cree.corps.version, 'la version du nouveau mot de passe est notée en base et rendue à la page (qui attend la tour qui la connaît)');
+    assert.ok(!JSON.stringify(db.tables.hq_messages).includes(MDP) && !JSON.stringify(db.tables.hq_config).includes(MDP) && db.tables.hq_messages.some(function (m) { return m.subject === 'La tour a son mot de passe'; }), 'le mot de passe n\'est écrit nulle part en clair ; Louis prévenu');
+    const h1 = await A.hacher(MDP), h2 = await A.hacher(MDP);
+    assert.ok(h1 !== h2 && /^scrypt\$32768\$8\$1\$/.test(h1) && await A.bonMotDePasse(MDP, h1) && !(await A.bonMotDePasse(MDP + ' ', h1)), 'empreinte scrypt salée, vérifiée au caractère près');
+    // C. la tour redémarrée connaît l'empreinte, sa clé de session et le secret du cron
+    redemarrerAvec(); process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
+    const e1 = await appel(H, 'GET', null, { query: { op: 'etat' } });
+    assert.ok(e1.corps.configure && !e1.corps.connecte && e1.corps.version === cree.corps.version && !e1.corps.redemarre, 'après le redémarrage : la porte demande le mot de passe, la version attendue est là');
+    // D. mauvais mot de passe ; cinq essais ratés : même le bon attend ; une autre adresse reste libre
+    const faux = await appel(H, 'POST', { op: 'connexion', mdp: 'pas le bon mot de passe' });
+    assert.ok(faux.code === 401 && faux.corps.restants === 4 && !jar[A.COOKIE], 'mauvais mot de passe : refusé, aucun cookie');
+    let cinquieme = null;
+    for (let k = 0; k < 4; k++) cinquieme = await appel(H, 'POST', { op: 'connexion', mdp: 'toujours faux ' + k });
+    const bloque = await appel(H, 'POST', { op: 'connexion', mdp: MDP });
+    assert.ok(cinquieme.code === 429 && bloque.code === 429 && /Réessaie dans 15 minutes/.test(bloque.corps.erreur) && !jar[A.COOKIE], 'cinq essais ratés : l\'adresse attend 15 minutes : ' + JSON.stringify([cinquieme.corps, bloque.corps]));
+    assert.ok(db.tables.hq_config.some(function (c) { return /^essai:ip:[0-9a-f]{16}$/.test(c.key) && !JSON.stringify(c).includes('203.0.113.7'); }), 'essais gardés en base, adresses jamais en clair');
+    const ok1 = await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '198.51.100.20' });
+    assert.ok(ok1.code === 200 && jar[A.COOKIE] && jar[A.COOKIE_APP] && ok1.cookies.some(function (c) { return /^__Host-tour=/.test(c) && /HttpOnly/.test(c) && /Secure/.test(c) && /SameSite=Lax/.test(c) && /Path=\//.test(c); }), 'bon mot de passe depuis une autre adresse : session posée (HttpOnly, Secure, SameSite)');
+    // E. connecté : la tour s'ouvre ; un cookie trafiqué ou expiré est refusé
+    const w1 = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    assert.ok(w1.code === 200 && w1.corps.agents && w1.corps.agents.length, 'connecté : la tour répond');
+    const vrai = jar[A.COOKIE];
+    const pc = vrai.split('.');
+    const ch = JSON.parse(Buffer.from(pc[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+    assert.ok(typeof ch.s === 'string' && ch.s.length >= 12 && ch.g === 1, 'la session porte son identifiant et la génération en cours');
+    const trafique = Object.assign({}, ch, { exp: ch.exp + 365 * 86400000 });
+    jar[A.COOKIE] = pc[0] + '.' + Buffer.from(JSON.stringify(trafique)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_') + '.' + pc[2];
+    const w2 = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    jar[A.COOKIE] = A.signer({ app: 'x', d: Date.now() - 40 * 86400000, s: 'sess-expiree', g: 1, iat: Date.now() - 40 * 86400000, exp: Date.now() - 1000, n: 'y' });
+    const w3 = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    jar[A.COOKIE] = A.signer({ app: 'x', d: Date.now() - 91 * 86400000, s: 'sess-vieille', g: 1, iat: Date.now() - 3600000, exp: Date.now() + 86400000, n: 'z' });
+    const w4 = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    jar[A.COOKIE] = vrai;
+    assert.ok(w2.code === 401 && w3.code === 401 && w4.code === 401, 'cookie trafiqué, expiré, ou connexion de plus de 90 jours : refusé');
+    // F. un POST d'un autre site, sans origine, en formulaire ou sans type : refusé même connecté
+    const sansO = await appel(HQ, 'POST', { op: 'budget', jour_usd: 9 }, { sansOrigine: true });
+    const pirateO = await appel(HQ, 'POST', { op: 'budget', jour_usd: 9 }, { headers: { origin: 'https://pirate.example' } });
+    const formulaire = await appel(H, 'POST', { op: 'partout' }, { headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+    const sansType = await appel(H, 'POST', { op: 'partout' }, { headers: { 'content-type': '' } });
+    const deguise = await appel(H, 'POST', { op: 'partout' }, { headers: { 'content-type': 'text/plain; x=application/json' } });
+    assert.ok(sansO.code === 403 && pirateO.code === 403 && formulaire.code === 403 && sansType.code === 403 && deguise.code === 403, 'POST d\'un autre site, sans origine, en formulaire, sans type ou déguisé : refusé');
+    // G. le cron : rien sans son secret, même hors de Vercel (sauf en local déclaré)
+    process.env.VERCEL = '1';
+    const c1 = await appel(T, 'GET', null, { sansCookie: true });
+    const c3 = await appel(require('../api/whatsapp.js'), 'GET', null, { sansCookie: true, headers: { authorization: 'Bearer faux' } });
+    const bonCron = A.cronAutorise({ headers: { authorization: 'Bearer secret-du-cron-de-test-0123456789' } });
+    delete process.env.CRON_SECRET;
+    const surVercel = A.cronAutorise({ headers: {} });
+    delete process.env.VERCEL; delete process.env.HQ_LOCAL;
+    const sansVariable = A.cronAutorise({ headers: {} });
+    process.env.HQ_LOCAL = '1';
+    const enLocal = A.cronAutorise({ headers: {} });
+    process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
+    assert.ok(c1.code === 401 && c3.code === 401 && bonCron && !surVercel && !sansVariable && enLocal, 'cron : seulement avec son secret ; sans secret, fermé partout sauf en local déclaré');
+    // H. un nouvel appareil prévient Louis, une seule fois ; le tout premier (celui qui a créé le mot de passe) ne dit rien
+    const nouv = function () { return db.tables.hq_messages.filter(function (m) { return /^Nouvelle connexion/.test(m.subject || ''); }).length; };
+    assert.ok(nouv() === 0, 'premier appareil : pas d\'alerte');
+    const jarIphone = Object.assign({}, jar);
+    jar = {};
+    const PC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
+    await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '192.0.2.44', ua: PC });
+    const a1 = nouv();
+    await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '192.0.2.44', ua: PC });
+    assert.ok(a1 === 1 && nouv() === 1 && /Windows, Chrome/.test(db.tables.hq_messages.filter(function (m) { return /^Nouvelle connexion/.test(m.subject || ''); })[0].subject), 'nouvel appareil : une alerte, une seule');
+    const ap = await appel(H, 'GET', null, { query: { op: 'appareils' } });
+    assert.ok(ap.code === 200 && ap.corps.appareils.length === 2 && ap.corps.appareils.filter(function (x) { return x.ici; }).length === 1 && !JSON.stringify(ap.corps).includes('192.0.2.44') && JSON.stringify(ap.corps).includes('192.0.x.x'), 'appareils connus : listés, adresses masquées');
+    // I. 31 essais lancés en même temps depuis une adresse neuve (le bon au milieu) : cinq seulement sont vérifiés
+    const lot = [];
+    for (let k = 0; k < 31; k++) lot.push(appel(H, 'POST', { op: 'connexion', mdp: k === 20 ? MDP : 'essai en rafale ' + k }, { ip: '198.51.100.77', sansCookie: true }));
+    const rafale = await Promise.all(lot);
+    const verifies = rafale.filter(function (x) { return x.code === 401 || x.code === 200 || (x.code === 429 && x.corps.restants === 0); }).length;
+    assert.ok(verifies <= 5 && rafale[20].code === 429 && rafale.filter(function (x) { return x.code === 200; }).length === 0, 'rafale de 31 essais simultanés : cinq vérifiés au plus, le bon mot de passe arrivé après est refusé : ' + verifies);
+    // J. IPv6 : toutes les adresses d'un même bloc /64 partagent le compteur ; le bloc voisin reste libre
+    const v6 = [];
+    for (let k = 1; k <= 5; k++) v6.push(await appel(H, 'POST', { op: 'connexion', mdp: 'faux en ipv6 ' + k }, { ip: '2001:db8:1:2::' + k, sansCookie: true }));
+    const memeBloc = await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '2001:db8:1:2:ffff:ffff:ffff:9', sansCookie: true });
+    const voisin = await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '2001:0db8:0001:0003::1', sansCookie: true });
+    assert.ok(v6[4].code === 429 && memeBloc.code === 429 && voisin.code === 200 && A.cleAdresse('2001:db8:1:2::1') === A.cleAdresse('2001:0db8:0001:0002:abcd::') && A.cleAdresse('::ffff:203.0.113.5') === '203.0.113.5', 'IPv6 : un bloc /64 compte comme une adresse');
+    // K. 40 essais ratés depuis 40 adresses : les appareils inconnus attendent, ceux de Louis entrent toujours
+    db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'essai:tous'; });
+    for (let k = 0; k < 40; k++) await appel(H, 'POST', { op: 'connexion', mdp: 'attaque ' + k }, { ip: '203.0.114.' + (k + 1), sansCookie: true });
+    const inconnu = await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '198.51.100.200', sansCookie: true });
+    const louis = await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '198.51.100.201', ua: PC });
+    assert.ok(inconnu.code === 429 && louis.code === 200 && db.tables.hq_messages.some(function (m) { return /Beaucoup d'essais ratés/.test(m.subject || ''); }), '40 essais ratés de partout : les inconnus attendent 15 minutes, l\'appareil de Louis entre, Louis prévenu : ' + JSON.stringify([inconnu.corps, louis.corps]));
+    // L. déconnecter partout : l'autre appareil perd sa session, celui-ci la garde, même après renouvellement
+    const parti = await appel(H, 'POST', { op: 'partout' }, { ua: PC });
+    const ici = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    const jarPc = Object.assign({}, jar);
+    jar = jarIphone;
+    const labas = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    assert.ok(parti.code === 200 && ici.code === 200 && labas.code === 401 && !jar[A.COOKIE], 'déconnecter partout : les autres sessions tombent (et leur cookie est effacé)');
+    const vieux = A.signer({ app: ch.app, d: Date.now() - 3 * 86400000, s: ch.s, g: 1, iat: Date.now() - 2 * 86400000, exp: Date.now() + 20 * 86400000, n: 'w' });
+    const renouvele = await appel(HQ, 'GET', null, { query: { op: 'world' }, jar: { [A.COOKIE]: vieux } });
+    assert.ok(renouvele.code === 401 && !renouvele.cookies.some(function (c) { return /^__Host-tour=v1\./.test(c); }), 'une session d\'avant « partout » n\'est jamais re-signée, même par une tour qui la renouvellerait');
+    // M. se déconnecter : la session est fermée côté serveur, le même cookie copié ailleurs ne rouvre rien
+    jar = jarPc;
+    const copie = jar[A.COOKIE];
+    const dec = await appel(H, 'POST', { op: 'deconnexion' }, { ua: PC });
+    const rejoue = await appel(HQ, 'GET', null, { query: { op: 'world' }, jar: { [A.COOKIE]: copie } });
+    assert.ok(dec.code === 200 && !jar[A.COOKIE] && dec.cookies.some(function (c) { return /^__Host-tour=;/.test(c) && /Max-Age=0/.test(c); }) && rejoue.code === 401, 'déconnexion : cookie effacé, et la session fermée côté serveur');
+    // N. changer de mot de passe : l'ancien est exigé ; la nouvelle version est notée en base, l'ancienne tour se ferme
+    await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '192.0.2.44', ua: PC });
+    process.env.HQ_VERCEL_TOKEN = 'vercel_jeton_valide_1234567890';
+    const mauvais = await appel(H, 'POST', { op: 'changer', actuel: 'faux faux faux faux', nouveau: 'Un autre mot de passe 2027' }, { ip: '192.0.2.44', ua: PC });
+    const faible = await appel(H, 'POST', { op: 'changer', actuel: MDP, nouveau: '1234567890' }, { ip: '192.0.2.44', ua: PC });
+    const bon = await appel(H, 'POST', { op: 'changer', actuel: MDP, nouveau: 'Un autre mot de passe 2027' }, { ip: '192.0.2.44', ua: PC });
+    assert.ok(mauvais.code === 400 && /actuel incorrect/.test(mauvais.corps.erreur) && faible.code === 400 && bon.code === 200 && bon.corps.ok && bon.corps.version === A.versionDe(fakes.VERCEL.valeurs.HQ_ACCES), 'changement : l\'ancien mot de passe exigé, le nouveau doit tenir : ' + JSON.stringify([mauvais.corps, faible.corps, bon.corps]));
+    // la tour qui tourne encore avec l'ancien mot de passe (le temps du redémarrage, ou un vieux déploiement) n'ouvre plus rien
+    const encore = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    const ancienMdp = await appel(H, 'POST', { op: 'connexion', mdp: MDP }, { ip: '192.0.2.45', sansCookie: true });
+    const eAncienne = await appel(H, 'GET', null, { query: { op: 'etat' }, sansCookie: true });
+    assert.ok(encore.code === 401 && encore.corps.redemarre && ancienMdp.code === 503 && ancienMdp.corps.redemarre && eAncienne.corps.redemarre, 'ancienne tour : ni session ni ancien mot de passe, la page attend la nouvelle : ' + JSON.stringify([encore.corps, ancienMdp.corps]));
+    redemarrerAvec();
+    const apres = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    const nouveau = await appel(H, 'POST', { op: 'connexion', mdp: 'Un autre mot de passe 2027' }, { ip: '192.0.2.50', ua: PC });
+    assert.ok(apres.code === 401 && !apres.corps.redemarre && nouveau.code === 200, 'nouvelle tour : les anciennes sessions tombent, le nouveau mot de passe entre');
+    // O. mot de passe oublié : un nouveau jeton Vercel suffit, Louis prévenu par email aussi (s'il y a une boîte)
+    const changes = function () { return db.tables.hq_messages.filter(function (m) { return m.subject === 'Mot de passe de la tour changé'; }).length; };
+    const avantOubli = changes();
+    const oubli = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_neuf_abcdefghij', mdp: 'Mon nouveau mot de passe 2028' }, { ip: '192.0.2.60' });
+    assert.ok(oubli.code === 200 && changes() === avantOubli + 1 && oubli.corps.version !== bon.corps.version, 'mot de passe oublié : un jeton Vercel de son compte suffit, Louis prévenu');
+    // Q. base d'avant les fonctions de la porte (pas encore mise à jour) : on compte en mémoire, rien ne casse
+    const rpc0 = db.rpc;
+    db.rpc = async function (fn, a) { if (/^hq_(compter|acces_)/.test(fn)) throw new Error('rpc/' + fn + ' : Could not find the function public.' + fn + ' in the schema cache'); return rpc0.call(db, fn, a); };
+    A.forcerBase(db); redemarrerAvec();
+    db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'acces'; });
+    const sansFn = await appel(H, 'POST', { op: 'connexion', mdp: 'Mon nouveau mot de passe 2028' }, { ip: '192.0.2.61', sansCookie: true, garder: true });
+    const sansFnFaux = []; for (let k = 0; k < 6; k++) sansFnFaux.push(await appel(H, 'POST', { op: 'connexion', mdp: 'raté ' + k }, { ip: '192.0.2.62', sansCookie: true }));
+    const sansFnPartout = await appel(H, 'POST', { op: 'partout' });
+    db.rpc = rpc0;
+    const accesSansFn = db.tables.hq_config.find(function (c) { return c.key === 'acces'; });
+    assert.ok(sansFn.code === 200 && sansFnFaux[4].code === 429 && sansFnFaux[5].code === 429 && sansFnPartout.code === 200 && accesSansFn && accesSansFn.value.version === A.versionDe(process.env.HQ_ACCES) && accesSansFn.value.gen >= 1, 'base sans les fonctions de la porte : connexion, verrou (en mémoire), version notée et déconnexion partout marchent quand même : ' + JSON.stringify([sansFn.corps, sansFnFaux[4].corps, sansFnPartout.corps, accesSansFn && accesSansFn.value]));
+    // P. la base branchée mais muette : la porte ferme plutôt que de deviner
+    const one = db.select;
+    db.select = async function () { throw new Error('panne simulée'); };
+    A.forcerBase(db);
+    redemarrerAvec();
+    const muette = await appel(HQ, 'GET', null, { query: { op: 'world' } });
+    db.select = one;
+    assert.ok(muette.code === 503, 'base muette : rien ne s\'ouvre');
+    A.rythme(null); A.forcerBase(null);
+    delete process.env.HQ_ACCES; delete process.env.HQ_SESSION; delete process.env.CRON_SECRET; delete process.env.HQ_VERCEL_TOKEN;
+    console.log('Porte OK : mot de passe créé avec un jeton du projet fixé, empreinte salée, essais comptés avant vérification (rafale, IPv6 /64), appareil connu jamais bloqué, cookie signé, origine et JSON exigés, cron fermé, nouvel appareil signalé, ancienne tour fermée, déconnexion côté serveur, changement et oubli');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }

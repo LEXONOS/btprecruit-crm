@@ -11,6 +11,9 @@
       "maxDuration": 60,
       "includeFiles": "lib/sites/polices/**"
     },
+    "api/acces.js": {
+      "maxDuration": 60
+    },
     "api/whatsapp.js": {
       "maxDuration": 240
     }
@@ -25,6 +28,33 @@
       "schedule": "*/5 * * * *"
     }
   ],
+  "redirects": [
+    {
+      "source": "/lib/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/test/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/supabase/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/node_modules/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/(README\\.md|package\\.json|package-lock\\.json|vercel\\.json|\\.gitignore|\\.env.*)",
+      "destination": "/",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -32,6 +62,61 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/tour/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     }
