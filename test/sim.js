@@ -1739,7 +1739,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(sr && sr.value.echecs >= 3, 'la santé du regard compte ses échecs');
     sr.value.depuis = new Date(Date.now() - 3 * 3600000).toISOString();
     await passeM(); leSiteM(m3.s.id).data.regard.attendre_jusqua = null; await passeM();
-    const alertes = db.tables.hq_messages.filter(function (m) { return m.from_id === 'critique' && /en panne/.test(m.subject || ''); });
+    const alertes = db.tables.hq_messages.filter(function (m) { return m.from_id === 'critique' && /ne peux plus juger/.test(m.subject || ''); });
     assert.ok(alertes.length === 1 && !CR.peutPartir(leSiteM(m3.s.id)).ok, 'en panne depuis deux heures : Louis prévenu une seule fois, le site ne part toujours pas');
     // un site validé puis refait : l'ancien verdict ne vaut pas pour la nouvelle version, même quand le regard échoue
     leSiteM(m3.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString();
@@ -1752,6 +1752,15 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await passeM();
     assert.ok(CR.peutPartir(leSiteM(m1.s.id)).ok && !leSiteM(m1.s.id).data.regard, 'regard rétabli : la nouvelle version est jugée puis validée');
     assert.ok(db.tables.hq_config.find(function (x) { return x.key === CR.CLE_REGARD; }).value.echecs === 0, 'regard rétabli : la panne est close');
+    // des captures illisibles (le défaut de Node 26) ne partent jamais au jugement : essai raté, la file avance
+    const m4 = await mk('miranda-quatre', 'Clim Illisible');
+    fakes.MIRANDA.illisible = true;
+    const jug0 = fakes.MIRANDA.jugements;
+    await passeM();
+    const g4 = leSiteM(m4.s.id).data.regard;
+    assert.ok(g4 && /illisibles/.test(g4.erreur || '') && fakes.MIRANDA.jugements === jug0 && !CR.peutPartir(leSiteM(m4.s.id)).ok, 'captures illisibles : rien envoyé au jugement, essai noté, le site attend : ' + JSON.stringify(g4));
+    fakes.MIRANDA.illisible = false;
+    leSiteM(m4.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString();
     // ce qui attendait déjà dans la file passe les mêmes règles au moment de partir
     const ENVq = require('../lib/jobs/envoi');
     const fileq = async function (lead, adr) { return (await db.insert('hq_outbox', { lead_id: lead.id, company_id: 'novalemo', kind: 'prospection', status: 'pret', to_email: adr, subject: 'Votre site', body: 'Bonjour' }))[0]; };

@@ -65,11 +65,12 @@ function vision(body) {
   return rep([tu('noter_photos', { notes: notes })], 'tool_use', { input_tokens: 400 + 120 * blocs.length, output_tokens: 300 });
 }
 // Miranda : le faux regard (captures) et le faux jugement ; MIRANDA.notes donne les notes successives à rendre
-const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, derniers: [] };
+const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, illisible: false, derniers: [] };
 function regardFaux(opts) {
   MIRANDA.regards++;
   if (MIRANDA.panne) return { ok: false, status: 500, json: async function () { return { ok: false, error: 'navigateur indisponible' }; } };
-  const b = jpeg(64, 40, 3, 'capture').toString('base64');
+  // illisible : ce que rendait Node 26 avec un Uint8Array (« 255,216,... »), refusé par l'API
+  const b = MIRANDA.illisible ? '255,216,255,224,0,16,74,70,73,70,0,1,1,0,0,1,0,1,0,0,255,219,0,67,0,8,6,6,7,6,5,8,7,7,7,9,9,8,10,12,20,13,12,11,11,12,25,18,19,15,20,29,26,31,30,29,26,28,28,32,36,46,39,32,34,44,35,28,28,40,55,41,44,48,49,52,52,52,31,39,57,61,56,50,60,46,51,52,50' : jpeg(64, 40, 3, 'capture').toString('base64');
   const u = JSON.parse(opts.body).url;
   return { ok: true, status: 200, json: async function () { return { ok: true, ms: 1200, version: null, url: u, ordinateur: { haut: b, morceaux: [b, b], hauteur: 5200 }, telephone: { haut: b, morceaux: [b, b, b], hauteur: 7900 }, debord: { ordinateur: 0, telephone: 0 }, erreurs: [] }; } };
 }
