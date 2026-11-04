@@ -1,7 +1,8 @@
-// Le cœur qui bat : appelé par le cron Vercel toutes les 15 minutes (GET), ou par la tour
-// (POST « Lancer un cycle » / « Lancer maintenant » sur un agent). Un seul passage à la fois.
+// Le cœur qui bat : appelé par le cron Vercel toutes les 15 minutes (GET, avec le secret du cron), ou par Louis depuis
+// la tour (POST « Lancer un cycle » / « Lancer maintenant » sur un agent, avec sa session). Un seul passage à la fois.
 'use strict';
 const { cycle } = require('../lib/runtime');
+const A = require('../lib/acces');
 
 function json(res, code, obj) {
   res.statusCode = code;
@@ -13,11 +14,13 @@ function json(res, code, obj) {
 module.exports = async function (req, res) {
   try {
     if (req.method === 'GET') {
-      if (process.env.CRON_SECRET && req.headers.authorization !== 'Bearer ' + process.env.CRON_SECRET) return json(res, 401, { error: 'Réservé au cron' });
+      if (!A.cronAutorise(req)) return json(res, 401, { error: 'Réservé au cron' });
       return json(res, 200, await cycle({}));
     }
     if (req.method === 'POST') {
-      if (process.env.HQ_KEY && req.headers['x-hq-key'] !== process.env.HQ_KEY) return json(res, 401, { error: 'Clé d\'accès requise' });
+      if (!A.memeOrigine(req)) return json(res, 403, { error: 'Origine refusée' });
+      const s = await A.exiger(req, res);
+      if (!s) return;
       let b = req.body;
       if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
       b = b || {};

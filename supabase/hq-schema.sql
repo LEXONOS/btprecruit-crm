@@ -350,6 +350,73 @@ language sql security definer set search_path = public as $$
   where key = 'lock:' || p_name and (p_owner is null or value->>'owner' is null or value->>'owner' = p_owner);
 $$;
 
+-- La porte de la tour : chaque essai de mot de passe est compté AVANT d'être vérifié, en une seule instruction (verrou
+-- de ligne) : des essais lancés en même temps ne passent jamais tous. Le dernier essai permis pose le verrou (il est
+-- quand même vérifié) ; croissant : 15 minutes, puis 30, 1 h... jusqu'à 24 h à chaque récidive.
+create or replace function public.hq_compter(p_cle text, p_fenetre_s int, p_max int, p_blocage_s int, p_croissant boolean default true)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  k text := 'essai:' || p_cle;
+  t timestamptz := clock_timestamp();
+  v jsonb; n int; b int; debut timestamptz; jusqu timestamptz; duree double precision;
+begin
+  insert into public.hq_config (key, value, updated_at)
+  values (k, jsonb_build_object('n', 0, 'debut', t, 'blocages', 0), t)
+  on conflict (key) do nothing;
+  select value into v from public.hq_config where key = k for update;
+  n := coalesce((v->>'n')::int, 0);
+  b := coalesce((v->>'blocages')::int, 0);
+  debut := coalesce((v->>'debut')::timestamptz, t);
+  jusqu := nullif(v->>'bloque_jusqu', '')::timestamptz;
+  if jusqu is not null and jusqu > t then
+    return jsonb_build_object('bloque', true, 'dernier', false, 'n', n, 'blocages', b, 'reste_ms', ceil(extract(epoch from (jusqu - t)) * 1000));
+  end if;
+  if debut < t - make_interval(secs => p_fenetre_s) then n := 0; debut := t; end if;
+  n := n + 1;
+  if n >= p_max then
+    b := b + 1;
+    duree := case when p_croissant then least(86400, p_blocage_s * power(2, b - 1)) else p_blocage_s end;
+    jusqu := t + make_interval(secs => duree);
+    update public.hq_config set value = jsonb_build_object('n', 0, 'debut', t, 'blocages', b, 'bloque_jusqu', jusqu), updated_at = t where key = k;
+    return jsonb_build_object('bloque', false, 'dernier', true, 'n', n, 'blocages', b, 'reste_ms', ceil(extract(epoch from (jusqu - t)) * 1000));
+  end if;
+  update public.hq_config set value = jsonb_build_object('n', n, 'debut', debut, 'blocages', b, 'bloque_jusqu', jusqu), updated_at = t where key = k;
+  return jsonb_build_object('bloque', false, 'dernier', false, 'n', n, 'blocages', b, 'reste_ms', 0);
+end;
+$$;
+
+-- L'état de la porte (version du mot de passe en service, génération des sessions) : fusion atomique, la génération
+-- ne se perd jamais entre deux écritures
+create or replace function public.hq_acces_maj(p_patch jsonb default '{}'::jsonb, p_gen_plus int default 0)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  insert into public.hq_config (key, value, updated_at) values ('acces', '{}'::jsonb, now()) on conflict (key) do nothing;
+  update public.hq_config
+     set value = (value || coalesce(p_patch, '{}'::jsonb)) || jsonb_build_object('gen', coalesce((value->>'gen')::int, 0) + coalesce(p_gen_plus, 0)),
+         updated_at = now()
+   where key = 'acces'
+  returning value into v;
+  return v;
+end;
+$$;
+
+-- La première tour branchée sur la base note la version de son mot de passe, seulement si aucune ne l'est déjà
+create or replace function public.hq_acces_init(p_version text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  insert into public.hq_config (key, value, updated_at) values ('acces', jsonb_build_object('version', p_version, 'gen', 0), now())
+  on conflict (key) do update set value = public.hq_config.value || jsonb_build_object('version', p_version), updated_at = now()
+  where not (public.hq_config.value ? 'version');
+  select value into v from public.hq_config where key = 'acces';
+  return v;
+end;
+$$;
+
 -- Ménage : garde les tables légères (lancé par le Contrôleur de gestion)
 create or replace function public.hq_menage()
 returns jsonb
@@ -360,6 +427,8 @@ begin
   get diagnostics r = row_count;
   delete from public.hq_messages where created_at < now() - interval '90 days' and kind not in ('evenement', 'decision');
   get diagnostics m = row_count;
+  delete from public.hq_config where key like 'essai:%' and updated_at < now() - interval '2 days';
+  delete from public.hq_config where key like 'fermee:%' and coalesce(nullif(value->>'jusqu', '')::timestamptz, now()) < now();
   delete from public.hq_knowledge k where k.id in (
     select id from (
       select id, row_number() over (partition by agent_id order by weight desc, created_at desc) as rn
@@ -374,7 +443,13 @@ revoke all on function public.hq_bump(date, numeric, int, int, int, int, int, in
 revoke all on function public.hq_lock(text, int, text) from public, anon, authenticated;
 revoke all on function public.hq_unlock(text, text) from public, anon, authenticated;
 revoke all on function public.hq_menage() from public, anon, authenticated;
+revoke all on function public.hq_compter(text, int, int, int, boolean) from public, anon, authenticated;
+revoke all on function public.hq_acces_maj(jsonb, int) from public, anon, authenticated;
+revoke all on function public.hq_acces_init(text) from public, anon, authenticated;
 grant execute on function public.hq_bump(date, numeric, int, int, int, int, int, int) to service_role;
 grant execute on function public.hq_lock(text, int, text) to service_role;
 grant execute on function public.hq_unlock(text, text) to service_role;
 grant execute on function public.hq_menage() to service_role;
+grant execute on function public.hq_compter(text, int, int, int, boolean) to service_role;
+grant execute on function public.hq_acces_maj(jsonb, int) to service_role;
+grant execute on function public.hq_acces_init(text) to service_role;

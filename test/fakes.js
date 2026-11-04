@@ -120,30 +120,39 @@ function jpeg(l, h, graine, texte) {
 }
 
 /* ── faux Vercel ── */
-const VERCEL = { projets: { prj_tour: { id: 'prj_tour', name: 'btprecruit-crm', ssoProtection: { deploymentType: 'all_except_custom_domains' } } }, env: {}, envEchec: new Set(), redemarrages: [], fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
+const VERCEL = { projets: { prj_tour: { id: 'prj_tour', name: 'btprecruit-crm', ssoProtection: { deploymentType: 'all_except_custom_domains' } } }, env: {}, valeurs: {}, pirate: null, envEchec: new Set(), redemarrages: [], fichiers: new Set(), deploiements: [], domaines: {}, commandes: {}, achats: [], autoRenew: {}, autoRenewEchecs: 0, echecs: new Set(), ailleurs: new Set(), auCompte: new Set(), pris: new Set(), manquantUneFois: true };
 function vercel(url, opts) {
   const u = new URL(url), m = (opts && opts.method) || 'GET', p = u.pathname;
   const j = function (code, obj) { return { ok: code < 300, status: code, text: async function () { return JSON.stringify(obj); }, json: async function () { return obj; } }; };
   let corps = null; try { corps = opts && opts.body && !Buffer.isBuffer(opts.body) ? JSON.parse(opts.body) : null; } catch (e) { corps = null; }
   if (p === '/v2/teams') return j(200, { teams: [{ id: 'team_test', slug: 'louis' }] });
   let r;
-  if ((r = p.match(/^\/v9\/projects\/([^/]+)$/)) && m === 'GET') { const pr = Object.values(VERCEL.projets).find(function (x) { return x.id === r[1] || x.name === decodeURIComponent(r[1]); }); return pr ? j(200, pr) : j(404, { error: { code: 'not_found', message: 'Project not found' } }); }
+  const pirate = /pirate/.test(String((opts && opts.headers && (opts.headers.Authorization || opts.headers.authorization)) || ''));
+  if (pirate) VERCEL.appelsPirate = (VERCEL.appelsPirate || []).concat([m + ' ' + p + u.search]);
+  if ((r = p.match(/^\/v9\/projects\/([^/]+)$/)) && m === 'GET') {
+    if (pirate) { const n = decodeURIComponent(r[1]); return n === 'btprecruit-crm' || n === 'prj_pirate' ? j(200, { id: 'prj_pirate', name: 'btprecruit-crm' }) : j(404, { error: { code: 'not_found', message: 'Project not found' } }); }
+    const pr = Object.values(VERCEL.projets).find(function (x) { return x.id === r[1] || x.name === decodeURIComponent(r[1]); }); return pr ? j(200, pr) : j(404, { error: { code: 'not_found', message: 'Project not found' } });
+  }
   if (p === '/v11/projects' && m === 'POST') { const pr = { id: 'prj_sites', name: corps.name, ssoProtection: corps.ssoProtection }; VERCEL.projets[pr.id] = pr; return j(200, pr); }
   if ((r = p.match(/^\/v9\/projects\/([^/]+)$/)) && m === 'PATCH') { const pr = VERCEL.projets[r[1]]; Object.assign(pr, corps); return j(200, pr); }
   if ((r = p.match(/^\/v9\/projects\/([^/]+)\/domains$/))) return j(200, { domains: [{ name: 'novalemo-martinique.vercel.app' }].concat(Object.keys(VERCEL.domaines).map(function (d) { return { name: d }; })) });
   if (p === '/v2/files' && m === 'POST') { VERCEL.fichiers.add(opts.headers['x-vercel-digest']); return j(200, {}); }
-  if (p === '/v13/deployments' && m === 'POST' && corps && corps.deploymentId) { VERCEL.redemarrages.push(corps); return j(200, { id: 'dpl_redemarrage_' + VERCEL.redemarrages.length, url: 'tour.vercel.app' }); }
+  if (p === '/v13/deployments' && m === 'POST' && corps && corps.deploymentId) { VERCEL.redemarrages.push(corps); const id = 'dpl_redemarrage_' + VERCEL.redemarrages.length; VERCEL.enCours = (VERCEL.enCours || []).concat([{ uid: id, state: 'BUILDING', meta: corps.meta || {} }]); return j(200, { id: id, url: 'tour.vercel.app' }); }
   if ((r = p.match(/^\/v10\/projects\/([^/]+)\/env$/)) && m === 'POST') {
     if (!/upsert=true/.test(u.search)) return j(400, { error: { message: 'exists' } });
     const lot = Array.isArray(corps) ? corps : [corps], crees = [], rates = [];
-    lot.forEach(function (c) { if (VERCEL.envEchec.has(c.key)) { rates.push({ error: { key: c.key, message: 'refusé' } }); return; } VERCEL.env[c.key] = { type: c.type, target: c.target, projet: r[1], longueur: String(c.value || '').length }; crees.push({ key: c.key }); });
+    lot.forEach(function (c) { if (VERCEL.envEchec.has(c.key)) { rates.push({ error: { key: c.key, message: 'refusé' } }); return; } VERCEL.env[c.key] = { type: c.type, target: c.target, projet: r[1], longueur: String(c.value || '').length }; VERCEL.valeurs[c.key] = String(c.value || ''); crees.push({ key: c.key }); });
     VERCEL.ecrituresEnv = (VERCEL.ecrituresEnv || 0) + 1;
     crees.forEach(function (c) { VERCEL.env[c.key].id = 'env_' + c.key; });
     return j(200, Array.isArray(corps) ? { created: crees, failed: rates } : { created: crees[0] });
   }
   if ((r = p.match(/^\/v9\/projects\/([^/]+)\/env$/)) && m === 'GET') return j(200, { envs: Object.keys(VERCEL.env).map(function (k) { return { id: VERCEL.env[k].id || 'env_' + k, key: k, target: VERCEL.env[k].target, type: VERCEL.env[k].type }; }) });
   if ((r = p.match(/^\/v9\/projects\/([^/]+)\/env\/([^/]+)$/)) && m === 'DELETE') { const k = Object.keys(VERCEL.env).find(function (x) { return (VERCEL.env[x].id || 'env_' + x) === decodeURIComponent(r[2]); }); if (k) delete VERCEL.env[k]; return j(200, {}); }
-  if (p === '/v6/deployments' && m === 'GET') return j(200, { deployments: [{ uid: 'dpl_tour_prod', name: 'btprecruit-crm', state: 'READY' }] });
+  if (p === '/v6/deployments' && m === 'GET') {
+    if (/BUILDING/.test(u.searchParams.get('state') || '')) return j(200, { deployments: (VERCEL.enCours || []).filter(function (d) { return !d.annule; }) });
+    return j(200, { deployments: [{ uid: 'dpl_tour_prod', name: 'btprecruit-crm', state: 'READY' }] });
+  }
+  if ((r = p.match(/^\/v12\/deployments\/([^/]+)\/cancel$/)) && m === 'PATCH') { const d = (VERCEL.enCours || []).find(function (x) { return x.uid === decodeURIComponent(r[1]); }); if (d) d.annule = true; return j(200, { id: r[1], readyState: 'CANCELED' }); }
   if (p === '/v2/user') return j(200, { user: { id: 'u1' } });
   if (p === '/v13/deployments' && m === 'POST') {
     const manquants = corps.files.filter(function (f) { return f.sha && !VERCEL.fichiers.has(f.sha); }).map(function (f) { return f.sha; });

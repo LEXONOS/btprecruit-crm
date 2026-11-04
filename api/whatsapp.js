@@ -3,6 +3,7 @@
 'use strict';
 const W = require('../lib/whatsapp');
 const { open } = require('../lib/db');
+const A = require('../lib/acces');
 
 function json(res, code, obj) {
   res.statusCode = code;
@@ -14,7 +15,7 @@ function json(res, code, obj) {
 module.exports = async function (req, res) {
   try {
     if (req.method !== 'GET') return json(res, 405, { error: 'Méthode non autorisée' });
-    if (process.env.CRON_SECRET && req.headers.authorization !== 'Bearer ' + process.env.CRON_SECRET) return json(res, 401, { error: 'Réservé au cron' });
+    if (!A.cronAutorise(req)) return json(res, 401, { error: 'Réservé au cron' });
     if (!W.branche()) return json(res, 200, { ok: true, whatsapp: false });
     const db = open();
     if (!db) return json(res, 200, { ok: true, demo: true });
