@@ -131,7 +131,8 @@ const recharger = () => { if (rechargeur) rechargeur(); };
 function barreBoite(boite) {
   if (!(S.m.boite && S.m.boite.branchee)) return '<div class="barre-pilote manque"><div><b>Boîte d\'envoi pas encore branchée</b><span>Les emails partent de ton adresse et les réponses arrivent ici, toutes les 15 minutes.</span></div><button class="btn btn-primaire btn-petit" data-aller="gestion/route">Brancher</button></div>';
   if (!boite) return '';
-  return '<div class="barre-pilote"><div><b>' + esc(boite.adresse) + '</b><span>' + (boite.pause ? 'En pause : ' + esc(boite.raison || '') : 'Aujourd\'hui ' + boite.envoyes_jour + ' sur ' + boite.quota + ' (palier de chauffe), ' + boite.prets + ' en file, ' + pluriel(boite.stats14.reponses, 'réponse') + ' en 14 jours') + '</span></div><button class="btn btn-second btn-petit" data-aller="gestion/reglages?onglet=boite">La boîte</button></div>';
+  const rythme = boite.sante && boite.sante.niveau === 'fatigue' ? 'freiné : ' + boite.sante.raison : boite.sante && boite.sante.niveau === 'saine' ? 'la boîte est saine, il accélère' : 'il monte tant que la boîte reste saine';
+  return '<div class="barre-pilote"><div><b>' + esc(boite.adresse) + '</b><span>' + (boite.pause ? 'En pause : ' + esc(boite.raison || '') : 'Aujourd\'hui ' + boite.envoyes_jour + ' sur ' + boite.quota + ' (' + esc(rythme) + '), ' + boite.prets + ' en file, ' + pluriel(boite.stats14.reponses, 'réponse') + ' en 14 jours') + '</span></div><button class="btn btn-second btn-petit" data-aller="gestion/reglages?onglet=boite">La boîte</button></div>';
 }
 function ficheReponse(r) {
   const l = r.lead || {}, o = r.origine, rep = r.reponse, ouverte = r.status === 'nouveau' || r.status === 'brouillon';
@@ -184,17 +185,31 @@ function ficheEmail(r) {
     (bo ? (r.status === 'pret' ? '<button class="btn btn-second btn-petit" data-act="mail" data-id="' + r.id + '" data-s="a_valider">Retirer de la file</button>' : '<button class="btn btn-ok btn-petit" data-act="mail" data-id="' + r.id + '" data-s="pret">' + (r.status === 'erreur' ? 'Réessayer' : 'Valider l\'envoi') + '</button>') : '<a class="btn btn-ok btn-petit" href="' + esc(mailto) + '">Ouvrir dans ma messagerie</a><button class="btn btn-second btn-petit" data-act="mail" data-id="' + r.id + '" data-s="envoye">Marquer envoyé</button>') +
     '<button class="btn btn-discret btn-petit" data-act="mailModifier" data-id="' + r.id + '">Modifier</button><button class="btn btn-discret btn-petit" data-act="mailRetour" data-id="' + r.id + '">Un retour pour ' + esc(nom(r.agent_id || 'redacteur')) + '</button><button class="btn btn-danger btn-petit" data-act="mail" data-id="' + r.id + '" data-s="annule">Annuler</button></div></article>';
 }
+// Le pôle écriture : les variantes du premier email en test, ce que chacune a donné, et la charte que suivent ceux qui écrivent
+const VERDICT = { en_tete: ['En tête', 'ok'], a_retirer: ['À retirer', 'alerte'], en_test: ['En test', 'cobalt'], retiree: ['Retirée', ''] };
+const varianteDe = (angle) => (String(angle || '').match(/^v:([A-Z]{1,2})(?:\s|$)/) || [])[1] || null;
+function carteEcriture(ec) {
+  if (!ec || !ec.variantes || !ec.variantes.length) return '';
+  const vs = ec.variantes.filter((v) => v.statut !== 'retiree' || v.envoyes);
+  const resultats = (v) => !v.envoyes ? 'Pas encore envoyée' : [pluriel(v.envoyes, 'envoi'), pluriel(v.reponses, 'réponse') + ' (' + String(v.taux_reponse).replace('.', ',') + ' %)', pluriel(v.positifs, 'intéressé'), v.stop + ' STOP', v.ventes ? pluriel(v.ventes, 'vente') : ''].filter(Boolean).join(', ');
+  return '<div class="carte" style="margin-bottom:14px"><h2 class="carte-t">Les messages en test<small>pôle écriture, ' + esc(nom('plume')) + '</small></h2>' +
+    '<div class="defile"><table class="tableau adaptable"><thead><tr><th>Variante</th><th>Ce qu\'elle a donné</th><th>Verdict</th></tr></thead><tbody>' +
+    vs.map((v) => { const vd = VERDICT[v.verdict] || [v.verdict, '']; return '<tr><td class="plein"><b>' + esc(v.id) + ', ' + esc(v.nom) + '</b><small class="serre">' + esc(v.consigne) + '</small></td><td>' + esc(resultats(v)) + '</td><td><span class="pastille ' + vd[1] + '">' + esc(vd[0]) + '</span>' + (v.verdict === 'en_test' && v.manque ? '<small>jugée dans ' + pluriel(v.manque, 'envoi') + '</small>' : '') + '</td></tr>'; }).join('') +
+    '</tbody></table></div>' +
+    '<details class="repli"><summary>La charte que suivent ceux qui écrivent</summary><div class="texte-mail">' + esc(ec.charte || '') + '</div></details></div>';
+}
 const emails = {
   titre: 'Emails', icone: 'emails', vivante: false,
   compte: () => (pilote().auto ? 0 : k().brouillons || 0),
-  async charger() { if (demo()) return { rows: [] }; const [o, b] = await Promise.all([lireApi('outbox', { limite: 80 }), S.m.boite && S.m.boite.branchee ? lireApi('boite').catch(() => null) : Promise.resolve(null)]); emailsCache = o.rows || []; return { rows: o.rows, boite: b }; },
+  async charger() { if (demo()) return { rows: [] }; const [o, b, ec] = await Promise.all([lireApi('outbox', { limite: 80 }), S.m.boite && S.m.boite.branchee ? lireApi('boite').catch(() => null) : Promise.resolve(null), lireApi('ecriture').catch(() => null)]); emailsCache = o.rows || []; return { rows: o.rows, boite: b, ecriture: ec }; },
   rendre(p, d) {
-    let h = tete('Emails', pilote().auto ? 'Les premiers emails et les relances partent seuls, au bon rythme, après le contrôle qualité. Tu peux toujours en retenir un.' : 'Pilote coupé : chaque email attend ta validation ici.');
+    let h = tete('Emails', pilote().auto ? 'Les premiers emails et les relances partent seuls, au rythme que la boîte supporte, après le contrôle qualité. Tu peux toujours en retenir un.' : 'Pilote coupé : chaque email attend ta validation ici.');
     h += S.m.boite && S.m.boite.branchee ? barreBoite(d && d.boite) : barrePilote();
+    h += carteEcriture(d && d.ecriture);
     const rows = ((d && d.rows) || []).filter((r) => r.kind !== 'reponse' && ['a_valider', 'pret', 'erreur'].indexOf(r.status) >= 0);
     const faits = ((d && d.rows) || []).filter((r) => ['envoye', 'annule'].indexOf(r.status) >= 0).slice(0, 30);
     h += rows.length ? rows.map(ficheEmail).join('') : vide('Aucun email en attente', nom('redacteur') + ' écrit dès que les chasseurs trouvent des prospects avec un email.');
-    if (faits.length) h += '<div class="carte" style="margin-top:18px"><h2 class="carte-t">Déjà partis ou annulés</h2><div class="defile"><table class="tableau adaptable"><thead><tr><th>À</th><th>Objet</th><th>État</th><th class="d">Le</th></tr></thead><tbody>' + faits.map((r) => '<tr><td class="plein">' + esc(r.to_email) + '</td><td class="plein">' + esc(r.subject) + (r.kind === 'reponse' ? ' <small>réponse</small>' : r.kind === 'relance' ? ' <small>relance</small>' : '') + '</td><td><span class="pastille ' + (r.status === 'envoye' ? 'ok' : '') + '">' + (r.status === 'envoye' ? 'Envoyé' : 'Annulé') + '</span>' + (r.error ? '<small>' + esc(r.error) + '</small>' : '') + '</td><td class="d" style="color:var(--doux)">' + esc(date(r.sent_at || r.updated_at)) + '</td></tr>').join('') + '</tbody></table></div></div>';
+    if (faits.length) h += '<div class="carte" style="margin-top:18px"><h2 class="carte-t">Déjà partis ou annulés</h2><div class="defile"><table class="tableau adaptable"><thead><tr><th>À</th><th>Objet</th><th>État</th><th class="d">Le</th></tr></thead><tbody>' + faits.map((r) => '<tr><td class="plein">' + esc(r.to_email) + '</td><td class="plein">' + esc(r.subject) + (r.kind === 'reponse' ? ' <small>réponse</small>' : r.kind === 'relance' ? ' <small>relance</small>' : varianteDe(r.angle) ? ' <small>variante ' + esc(varianteDe(r.angle)) + '</small>' : '') + '</td><td><span class="pastille ' + (r.status === 'envoye' ? 'ok' : '') + '">' + (r.status === 'envoye' ? 'Envoyé' : 'Annulé') + '</span>' + (r.error ? '<small>' + esc(r.error) + '</small>' : '') + '</td><td class="d" style="color:var(--doux)">' + esc(date(r.sent_at || r.updated_at)) + '</td></tr>').join('') + '</tbody></table></div></div>';
     return h;
   }
 };

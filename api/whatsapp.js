@@ -13,6 +13,7 @@ function json(res, code, obj) {
 }
 
 module.exports = async function (req, res) {
+  const t0 = Date.now();
   try {
     if (req.method !== 'GET') return json(res, 405, { error: 'Méthode non autorisée' });
     if (!A.cronAutorise(req)) return json(res, 401, { error: 'Réservé au cron' });
@@ -30,7 +31,9 @@ module.exports = async function (req, res) {
       emma = await require('../lib/runtime').cycle({ db: db, agentId: 'reponses', secondes: 150, verrou: 'cycle:whatsapp' });
       if (emma && (emma.passages || []).some(function (p) { return p.id === 'reponses'; })) await db.upsert('hq_config', { key: 'whatsapp:emma', value: { jusqu_a: neufs[0].received_at }, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     }
-    const envoi = await require('../lib/jobs/envoi').run({ db: db, budget: {}, limite: Date.now() + 50000, conversation: true });
+    // une réponse attend son heure (une minute et demie à trois minutes après le message) si la fonction a le temps
+    // (240 s au plus), sinon elle part au passage suivant
+    const envoi = await require('../lib/jobs/envoi').run({ db: db, budget: {}, limite: Math.min(Date.now() + 90000, t0 + 228000), conversation: true });
     return json(res, 200, { ok: true, releve: r.resume, emma: emma && emma.passages ? emma.passages.map(function (p) { return p.resume; }) : null, envoi: envoi.resume });
   } catch (e) {
     return json(res, 500, { error: String(e.message || e) });

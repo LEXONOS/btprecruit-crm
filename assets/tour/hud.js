@@ -7,7 +7,7 @@ import * as Fiches from './fiches.js';
 let calque = null, etiquettes = null, panneau = null, ouvert = null, filOuvert = false, chaud = null;
 const elEtq = new Map(), elNoms = new Map(), elSec = new Map();
 // la couleur franche de chaque service du campus (son tapis au sol en est la version pâle)
-const TON = { direction: '#D9A43A', production: '#8B6CF6', prospection: '#22A673', emails: '#4C74F5' };
+const TON = { direction: '#D9A43A', production: '#8B6CF6', prospection: '#22A673', ecriture: '#4C74F5' };
 const px = (v) => (Math.round(v * 10) / 10) + 'px';
 const tailles = new Map();
 
