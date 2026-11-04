@@ -1727,15 +1727,43 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     // la tour : la phase et les verdicts
     const tb = await PHs.tableau(db);
     assert.ok(tb.phase === 'envoi' && tb.sites.some(function (x) { return x.id === m1.s.id && x.critique && x.critique.verdict === 'valide'; }), 'la tour montre les verdicts de Miranda');
-    // son regard en panne : les sites ne restent pas bloqués plus d'un jour
+    // son regard en panne : rien ne part (jamais de sortie automatique), Louis est prévenu une fois après deux heures
     const m3 = await mk('miranda-trois', 'Clim Panne');
     fakes.MIRANDA.panne = true;
-    for (let k = 0; k < 3; k++) { await passeM(); const c = leSiteM(m3.s.id).data.critique; if (c) c.attendre_jusqua = null; }
-    const c3 = leSiteM(m3.s.id).data.critique;
-    assert.ok(c3 && c3.echecs === 3 && c3.indisponible && !CR.peutPartir(leSiteM(m3.s.id)).ok, 'regard en panne : noté, le site attend');
-    c3.indisponible = new Date(Date.now() - 2 * 86400000).toISOString();
-    assert.ok(CR.peutPartir(leSiteM(m3.s.id)).ok, 'en panne depuis plus d\'un jour : le site peut partir');
+    for (let k = 0; k < 3; k++) { await passeM(); const g = leSiteM(m3.s.id).data.regard; if (g) g.attendre_jusqua = null; }
+    const g3 = leSiteM(m3.s.id).data.regard;
+    assert.ok(g3 && g3.echecs === 3 && !leSiteM(m3.s.id).data.critique && !CR.peutPartir(leSiteM(m3.s.id)).ok, 'regard en panne : la tentative est notée à part, le site attend');
+    const sr = db.tables.hq_config.find(function (x) { return x.key === CR.CLE_REGARD; });
+    assert.ok(sr && sr.value.echecs >= 3, 'la santé du regard compte ses échecs');
+    sr.value.depuis = new Date(Date.now() - 3 * 3600000).toISOString();
+    await passeM(); leSiteM(m3.s.id).data.regard.attendre_jusqua = null; await passeM();
+    const alertes = db.tables.hq_messages.filter(function (m) { return m.from_id === 'critique' && /en panne/.test(m.subject || ''); });
+    assert.ok(alertes.length === 1 && !CR.peutPartir(leSiteM(m3.s.id)).ok, 'en panne depuis deux heures : Louis prévenu une seule fois, le site ne part toujours pas');
+    // un site validé puis refait : l'ancien verdict ne vaut pas pour la nouvelle version, même quand le regard échoue
+    leSiteM(m3.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString();
+    leSiteM(m1.s.id).version = 3;
+    await passeM();
+    assert.ok(!CR.peutPartir(leSiteM(m1.s.id)).ok && leSiteM(m1.s.id).data.critique.version === 2 && leSiteM(m1.s.id).data.regard && leSiteM(m1.s.id).data.regard.version === 3, 'nouvelle version, regard en panne : l\'ancien verdict ne la libère pas, la reprise reste à juger');
     fakes.MIRANDA.panne = false;
+    leSiteM(m1.s.id).data.regard.attendre_jusqua = null;
+    fakes.MIRANDA.notes = [9];
+    await passeM();
+    assert.ok(CR.peutPartir(leSiteM(m1.s.id)).ok && !leSiteM(m1.s.id).data.regard, 'regard rétabli : la nouvelle version est jugée puis validée');
+    assert.ok(db.tables.hq_config.find(function (x) { return x.key === CR.CLE_REGARD; }).value.echecs === 0, 'regard rétabli : la panne est close');
+    // ce qui attendait déjà dans la file passe les mêmes règles au moment de partir
+    const ENVq = require('../lib/jobs/envoi');
+    const fileq = async function (lead, adr) { return (await db.insert('hq_outbox', { lead_id: lead.id, company_id: 'novalemo', kind: 'prospection', status: 'pret', to_email: adr, subject: 'Votre site', body: 'Bonjour' }))[0]; };
+    const ldq = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:file-devine', source: 'domaines', name: 'File Devine', island: 'MQ', email: 'contact@file-devine.fr', email_source: 'devine', phone: '+596696202020', status: 'brouillon', score: 70 }))[0];
+    const oq1 = await fileq(ldq, 'contact@file-devine.fr');
+    const rq1 = await ENVq.envoyerUn(db, oq1);
+    assert.ok(!rq1.ok && db.tables.hq_outbox.find(function (o) { return o.id === oq1.id; }).status === 'annule' && db.tables.hq_leads.find(function (l) { return l.id === ldq.id; }).status === 'a_appeler', 'file : un premier email à une adresse devinée est annulé au départ, le prospect passe en appel');
+    const oq2 = await fileq(m2.l, m2.l.email);
+    const rq2 = await ENVq.envoyerUn(db, oq2);
+    assert.ok(!rq2.ok && db.tables.hq_outbox.find(function (o) { return o.id === oq2.id; }).status === 'annule', 'file : un aperçu refusé par Miranda ne part jamais');
+    const oq3 = await fileq(m3.l, m3.l.email);
+    const rq3 = await ENVq.envoyerUn(db, oq3);
+    assert.ok(!rq3.ok && rq3.attendre && db.tables.hq_outbox.find(function (o) { return o.id === oq3.id; }).status === 'pret', 'file : un aperçu pas encore validé attend dans la file');
+    db.tables.hq_outbox.filter(function (o) { return [oq1.id, oq2.id, oq3.id].indexOf(o.id) >= 0; }).forEach(function (o) { o.status = 'annule'; });
     delete process.env.CRON_SECRET;
     console.log('Nouveau moteur OK : ' + ctl.variantes + ' variantes contrôlées (' + ctl.rendus + ' rendus), compositions stables et toujours différentes entre voisins, choix du constructeur gardé, phase de test, priorité aux entreprises sans site, adresses devinées écartées, Miranda (regard, refus, reprise, validation, abandon, panne)');
   }
