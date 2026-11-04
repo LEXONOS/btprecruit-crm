@@ -105,7 +105,7 @@ function claude(body) {
     if (!toolResult) return rep([tu('lister_leads', { statut: 'a_contacter', pret: true, limite: 5 })]);
     const r = dernierResultat(last);
     if (!Array.isArray(r)) return rep([tu('terminer', { resume: 'Emails écrits.' })]);
-    return rep([tu('rediger_emails', { emails: r.slice(0, 3).map(function (l) {
+    return rep([tu('rediger_emails', { emails: r.slice(0, 6).map(function (l) {
       const lien = /^https?:/.test(String(l.apercu || '')) ? l.apercu : null;
       // une ouverture propre à chacun (le contrôle refuse la même première phrase que dans un email récent)
       const m = String(l.metier || l.secteur || 'votre métier').toLowerCase(), ou = l.commune ? 'à ' + l.commune : 'en Martinique';
@@ -116,7 +116,7 @@ function claude(body) {
         'J\'ai regardé qui fait ' + m + ' ' + ou + ' : ' + l.nom + ' n\'a pas encore de site.'
       ][l.id % 4];
       return { lead_id: l.id, objet: 'Le site de ' + l.nom, angle: lien ? 'apercu' : 'conformite', corps: 'Bonjour,\n\n' + ouverture + '\n\n' + (lien ? 'J\'ai préparé un aperçu de ce que pourrait être le vôtre : ' + lien + '\n\n' : 'Je peux vous préparer un aperçu gratuit de votre futur site.\n\n') + 'Tout est inclus : la création, la mise en ligne sur votre nom de domaine et l\'hébergement la première année. Le site vous appartient, sans abonnement obligatoire, et tout reste modifiable : textes, photos, couleurs.\n\nJe le mets en ligne pour vous ?\n\nLouis\nNovalemo, sites internet en Martinique' };
-    }) }), tu('terminer', { resume: Math.min(3, r.length) + ' emails.' })]);
+    }) }), tu('terminer', { resume: Math.min(6, r.length) + ' emails.' })]);
   }
   if (qui === 'Emma') {
     if (!toolResult) return rep([tu('lister_reponses', {})]);
