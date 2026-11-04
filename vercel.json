@@ -16,6 +16,10 @@
     },
     "api/whatsapp.js": {
       "maxDuration": 240
+    },
+    "api/regard.js": {
+      "maxDuration": 90,
+      "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
     }
   },
   "crons": [
