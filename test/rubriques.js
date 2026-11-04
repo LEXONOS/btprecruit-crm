@@ -48,7 +48,9 @@ function controler(filtre) {
     let css = '';
     try { css = typeof v.css === 'function' ? v.css(x0.ctx) : String(v.css || ''); } catch (e) { defauts.push(id + ' : css plante (' + e.message + ')'); }
     const a = analyserCss(css);
-    a.selecteurs.forEach(function (sel) { sel.split(',').forEach(function (x) { x = x.trim(); if (x && x.indexOf(v.classe) < 0 && !/^(from|to|\d+%)$/.test(x)) defauts.push(id + ' : sélecteur hors de sa classe « ' + x.slice(0, 80) + ' »'); }); });
+    // (seulement les virgules hors parenthèses : « :is(a,b) » et « :not(a,b) » restent entiers)
+    const couper = function (sel) { const out = []; let p = 0, cur = ''; for (const ch of sel) { if (ch === '(') p++; if (ch === ')') p--; if (ch === ',' && p === 0) { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out; };
+    a.selecteurs.forEach(function (sel) { couper(sel).forEach(function (x) { x = x.trim(); if (x && x.indexOf(v.classe) < 0 && !/^(from|to|\d+%)$/.test(x)) defauts.push(id + ' : sélecteur hors de sa classe « ' + x.slice(0, 80) + ' »'); }); });
     a.keyframes.forEach(function (k) { if (!/^k-/.test(k)) defauts.push(id + ' : animation « ' + k + ' » à nommer k-…'); if (keyframes[k] && keyframes[k] !== id) defauts.push(id + ' : animation « ' + k + ' » déjà définie par ' + keyframes[k]); keyframes[k] = id; });
     if (v.js) v.js.forEach(function (m) { if (!require('../lib/sites/rubriques/mouvement').MODULES[m]) defauts.push(id + ' : module de mouvement inconnu « ' + m + ' »'); });
     Object.keys(V.EXEMPLES).forEach(function (e) {
