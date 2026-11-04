@@ -1312,6 +1312,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const evident = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_valide_1234567890', mdp: 'Motdepasse2026' });
     const jetonFaux = await appel(H, 'POST', { op: 'creer', jeton: 'pas un jeton !', mdp: MDP }, { ip: '203.0.113.8' });
     assert.ok(tropCourt.code === 400 && /12 caractères/.test(tropCourt.corps.erreur) && evident.code === 400 && /deviner/.test(evident.corps.erreur) && jetonFaux.code === 400 && /jeton Vercel/.test(jetonFaux.corps.erreur), 'mot de passe trop court ou évident, jeton illisible : refusés');
+    assert.ok(A.regle('Lexonos9876#') === null && A.regle('Azerty123456!') !== null, 'le nom d\'une entreprise de Louis suivi de chiffres est permis ; un mot que tout le monde essaie ne l\'est pas');
     const ecr0 = fakes.VERCEL.ecrituresEnv || 0;
     fakes.VERCEL.appelsPirate = [];
     const pirate = await appel(H, 'POST', { op: 'creer', jeton: 'vercel_jeton_pirate_0123456789', mdp: 'Le mot de passe du pirate 99' }, { ip: '203.0.113.66' });
