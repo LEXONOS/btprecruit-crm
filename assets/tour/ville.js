@@ -552,7 +552,7 @@ export function creerVille(conteneur, rappels) {
 
   // Une pièce ouverte, vue comme une maison de poupée : deux murs au fond, un muret devant, les bureaux dedans
   const STYLE = {
-    studio3d: { w: 15, d: 13, decor: 'studio' },
+    studio3d: { w: 20.5, d: 17, decor: 'studio' },   // 18 postes : la salle d'écriture et la fabrication
     ecom: { w: 15, d: 13, decor: 'entrepot' },
     labo: { w: 14, d: 12, decor: 'labo' }
   };
@@ -603,9 +603,11 @@ export function creerVille(conteneur, rappels) {
     a.boite(W - 3.6, 0.03, Math.min(D - 3.4, rangs * pz + 0.8), -W / 2 + 2.6 + (W - 4.2) / 2, 0.46, -D / 2 + 2.6 + rangs * pz / 2, pastel);
     [[W / 2 - 1.3, -D / 2 + 1.3], [-W / 2 + 1.3, D / 2 - 1.3]].forEach(function (p) { a.cylindre(0.45, 0.7, p[0], 0.45, p[1], C.pot); a.boule(0.75, p[0], 0.45 + 1.35, p[1], C.plante, 1.15, true); });
     if (st.decor === 'studio') {
-      a.boite(0.25, 0.08, 0.25, W / 2 - 2.4, 0.45, D / 2 - 3, C.pied);
-      a.cylindre(0.05, 2.1, W / 2 - 2.4, 0.45, D / 2 - 3, C.pied, true); a.boite(0.7, 0.45, 0.45, W / 2 - 2.4, 0.45 + 2.1, D / 2 - 3, C.ecran);
-      a.boite(1.6, 1.6, 0.12, -W / 2 + 2.2, 0.45 + 2.4, D / 2 - 2.4, '#F6F8FC'); a.cylindre(0.05, 2.4, -W / 2 + 2.2, 0.45, D / 2 - 2.3, C.pied, true);
+      // la caméra sur pied et le panneau de lumière, dans la bande libre le long du mur de gauche (hors des bureaux)
+      const xb = -W / 2 + 1.5;
+      a.boite(0.25, 0.08, 0.25, xb, 0.45, -D / 2 + 2.4, C.pied);
+      a.cylindre(0.05, 2.1, xb, 0.45, -D / 2 + 2.4, C.pied, true); a.boite(0.7, 0.45, 0.45, xb, 0.45 + 2.1, -D / 2 + 2.4, C.ecran);
+      a.boite(1.4, 1.6, 0.12, xb, 0.45 + 2.4, D / 2 - 3.4, '#F6F8FC'); a.cylindre(0.05, 2.4, xb, 0.45, D / 2 - 3.3, C.pied, true);
     } else if (st.decor === 'entrepot') {
       for (let k = 0; k < 3; k++) { a.boite(0.8, 0.12, 4.4, -W / 2 + 1.1, 0.45 + 0.4 + k * 1.3, D / 2 - 3.6, C.pied); for (let j = 0; j < 3; j++) a.boite(0.62, 0.62, 0.9, -W / 2 + 1.1, 0.45 + 0.52 + k * 1.3, D / 2 - 5.2 + j * 1.35, j % 2 ? '#E6C28A' : '#F1D6A8'); }
       a.boite(1.6, 0.18, 1.6, W / 2 - 2, 0.45, D / 2 - 2.2, '#D9C7A4'); a.boite(1.2, 1.1, 1.2, W / 2 - 2, 0.63, D / 2 - 2.2, '#F1D6A8');
@@ -623,7 +625,7 @@ export function creerVille(conteneur, rappels) {
     monde.add(g);
     pieces.push({ x: x, z: z, w: W, d: D });
     const b = { id: co.id, type: 'company', groupe: g, survol: sb, hauteur: 0.45 + HM + 0.5, ancre: new THREE.Vector3(x - W / 2 + 1.2, SOL + 0.45 + HM + 1.6, z - D / 2 + 1.2), postes: postes, w: W, d: D, x: x, z: z, decor: st.decor, coul: coul,
-      allee: z + D / 2 - 1.55, centre: new THREE.Vector3(x, 2.5, z), zoomVue: 2.15 };
+      allee: z + D / 2 - 1.55, centre: new THREE.Vector3(x, 2.5, z), zoomVue: 2.15 * Math.min(1, 15 / W) };
     b.pick = zonePick(co.id, 'company', new THREE.BoxGeometry(W, 0.45 + HM, D), x, (0.45 + HM) / 2, z);
     if (st.decor === 'studio') {
       const ecran = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.2), new THREE.MeshBasicMaterial({ map: textureEcranGeant('#8B6CF6', '#4FA3FF'), toneMapped: false }));

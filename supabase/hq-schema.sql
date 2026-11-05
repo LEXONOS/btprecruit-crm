@@ -463,10 +463,10 @@ create table if not exists public.hq_videos (
   ligne text not null default 'meca',             -- meca | serie | brainrot
   sujet text,
   titre text,
-  status text not null default 'script',          -- script | scene | traduction | a_rendre | en_rendu | rendu | valide | a_refaire | refuse | publie | echec
+  status text not null default 'script',          -- accroche | relecture | reecriture | verification | script | scene | essai | critique | traduction | langues | prete | publiee | refuse | echec
   langue_source text not null default 'en',
   langues text[] not null default '{}',           -- langues à fabriquer (la source comprise)
-  script jsonb not null default '{}'::jsonb,      -- accroche, beats [{voix, ecran}], description, hashtags, sources
+  script jsonb not null default '{}'::jsonb,      -- brief (Sacha), accroche, beats [{role, voix, ecran, image}], boucles, relectures (Félix), verif (Hélène), description, hashtags
   scene jsonb not null default '{}'::jsonb,       -- style, objets, plans (le moteur de l'usine)
   traductions jsonb not null default '{}'::jsonb, -- { fr: { titre, accroche, description, hashtags, beats } }
   rendus jsonb not null default '{}'::jsonb,      -- { fr: { etat, demande_le, fini_le, duree, taille, fichiers, erreur, essais } }

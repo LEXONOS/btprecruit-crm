@@ -20,7 +20,8 @@ const FONDS = {
 };
 const RAMPE = 0.6;          // secondes pour changer de vitesse ou d'état
 const FONDU = 0.45;         // apparition et disparition
-const TRANSITION = 0.75;    // passage d'un plan de caméra au suivant
+const TRANSITION = 0.5;     // passage d'un plan de caméra au suivant
+const RELANCE = 3.2;        // un plan plus long change d'angle en son milieu (l'œil ne s'ennuie jamais)
 
 function textureDegrade(c1, c2) {
   const c = document.createElement('canvas'); c.width = 4; c.height = 512;
@@ -122,6 +123,14 @@ export function creer(spec) {
     const a = vec(o.def.ancre, null) || (o.res.ancre && vec(o.res.ancre, null));
     o.ancreLocal = a ? new THREE.Vector3().fromArray(a) : o.centreLocal.clone();
   });
+  // le centre des pièces posées dans chaque pièce (pour la vue éclatée)
+  ordre.forEach((id) => {
+    const o = objets[id];
+    if (!o.enfants.length) { o.centreEnfants = [0, 0, 0]; return; }
+    const c = [0, 0, 0];
+    o.enfants.forEach((e) => { const p = vec(objets[e].def.pos, [0, 0, 0]); c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; });
+    o.centreEnfants = c.map((x) => x / o.enfants.length);
+  });
   // la scène entière (pour les plans larges)
   const boiteTout = new THREE.Box3();
   ordre.forEach((id) => { const o = objets[id]; if (o.def.visible === false) return; const c = o.centreLocal.clone().applyMatrix4(o.racine.matrixWorld); const s = o.rayonLocal * o.racine.getWorldScale(new THREE.Vector3()).x; boiteTout.expandByPoint(c.clone().addScalar(s * 0.7)); boiteTout.expandByPoint(c.clone().addScalar(-s * 0.7)); });
@@ -154,7 +163,7 @@ export function creer(spec) {
   ordre.forEach((id) => {
     const d = objets[id].def, p = d.params || {};
     etats[id] = [];
-    let cur = { vis: d.visible !== false, vitesse: 0, flux: !!(p.flux && p.flux.actif), vflux: num(p.flux && p.flux.vitesse, 0.6), pos: vec(d.pos, [0, 0, 0]), transp: 0, couleur: null, compr: 1 };
+    let cur = { vis: d.visible !== false, vitesse: 0, flux: !!(p.flux && p.flux.actif), vflux: num(p.flux && p.flux.vitesse, 0.6), pos: vec(d.pos, [0, 0, 0]), transp: 0, couleur: null, compr: 1, ecl: 0 };
     plans.forEach((pl) => {
       cur = Object.assign({}, cur);
       (pl.montrer || []).forEach((x) => { if (x === id) cur.vis = true; });
@@ -171,6 +180,8 @@ export function creer(spec) {
         else if (a.faire === 'compresser') cur.compr = clamp(num(a.valeur, 0.6), 0.2, 1.5);
         else if (a.faire === 'montrer') cur.vis = true;
         else if (a.faire === 'cacher') cur.vis = false;
+        else if (a.faire === 'eclater') cur.ecl = clamp(num(a.valeur, 1), 0, 3);
+        else if (a.faire === 'rassembler') cur.ecl = 0;
       });
       etats[id].push(cur);
     });
@@ -236,6 +247,7 @@ export function creer(spec) {
   }
 
   /* ── la caméra ── */
+  const fov0 = camera.fov;
   const hfov = 2 * Math.atan(Math.tan(rad(camera.fov / 2)) * camera.aspect);
   const centreDe = (id) => { const o = objets[id]; return o ? o.centreLocal.clone().applyMatrix4(o.racine.matrixWorld) : centreTout.clone(); };
   const rayonDe = (id) => { const o = objets[id]; if (!o) return rayonTout; const s = new THREE.Vector3(); o.racine.getWorldScale(s); return o.rayonLocal * Math.max(s.x, s.y, s.z); };
@@ -245,25 +257,46 @@ export function creer(spec) {
     if (typeof c === 'string' && objets[c]) return { p: centreDe(c), r: rayonDe(c) };
     return { p: centreTout.clone(), r: rayonTout };
   }
-  function camPlan(i, t) {
-    const pl = plans[i] || {}, cam = pl.camera || {};
+  // une vue de caméra entre les instants a et b : la cible, la distance, l'angle et le mouvement
+  function camVue(cam, i, t, a, b) {
     const c = cibleDe(cam.cible || 'tout');
-    const ajuste = (c.r / Math.sin(Math.min(hfov, rad(camera.fov)) / 2)) * num(cam.cadrage, 1.0);
+    const ajuste = (c.r / Math.sin(Math.min(hfov, rad(fov0)) / 2)) * num(cam.cadrage, 1.0);
     // une distance trop courte met la caméra dans la pièce : on garde au moins 1,7 fois son rayon
     const dist = Math.max(num(cam.distance, ajuste), c.r * 1.7, 0.35);
     let az = num(cam.azimut, 30), el = num(cam.elevation, 16);
-    const k = lisse(clamp((t - T[i].debut) / Math.max(0.1, T[i].fin - T[i].debut), 0, 1));
+    const dt = Math.max(0, t - a), k = lisse(clamp(dt / Math.max(0.1, b - a), 0, 1));
     let d = dist;
-    const mv = cam.mouvement || 'orbite', amp = num(cam.amplitude, 1);
+    // le premier plan révèle : gros plan sur la pièce, puis la caméra recule vite
+    const mv = cam.mouvement || (i === 0 ? 'revele' : 'orbite'), amp = num(cam.amplitude, 1);
     if (mv === 'orbite') az += lerp(-9, 9, k) * amp;
     else if (mv === 'avance') d *= lerp(1.12, 0.9, k * amp);
     else if (mv === 'recule') d *= lerp(0.88, 1.12, k * amp);
     else if (mv === 'monte') el += lerp(-7, 9, k) * amp;
     else if (mv === 'descend') el += lerp(9, -7, k) * amp;
+    else if (mv === 'revele') { const r = sortie(clamp(dt / 1.4, 0, 1)); d *= lerp(0.5, 1.0, r) * lerp(1, 1.04, k); az += lerp(-14, 3, r) + lerp(0, 4, k); el += lerp(-4, 0, r); }
+    else if (mv === 'plonge') { const r = entreeSortie(k); d *= lerp(1.25, 0.72, r); el += lerp(16, 0, r) * amp; }
     else { az += lerp(-1.5, 1.5, k); d *= lerp(1.01, 0.99, k); }
     const p = c.p.clone();
     if (vec(cam.decalage, null)) p.add(new THREE.Vector3().fromArray(cam.decalage));
     return { p, d, az, el: clamp(el, -60, 85) };
+  }
+  // un plan : sa vue, puis, s'il est long, un second angle en son milieu (« puis » vise une autre pièce, sinon le moteur
+  // tourne de 24 degrés et se rapproche un peu)
+  function camPlan(i, t) {
+    const pl = plans[i] || {}, cam = pl.camera || {};
+    const d0 = T[i].debut, d1 = T[i].fin, dur = d1 - d0;
+    const s = camVue(cam, i, t, d0, d1);
+    const puis = cam.puis && typeof cam.puis === 'object' ? cam.puis : null;
+    if (!puis && (cam.relance === false || dur < RELANCE)) return s;
+    const tm = d0 + dur * clamp(num(puis && puis.a, 0.5), 0.25, 0.8);
+    if (t < tm) return s;
+    const k = puis && puis.transition === 'coupe' ? 1 : entreeSortie((t - tm) / 0.45);
+    if (puis) {
+      const s2 = camVue(Object.assign({ azimut: cam.azimut, elevation: cam.elevation, mouvement: 'orbite' }, puis), i, t, tm, d1);
+      return { p: s.p.clone().lerp(s2.p, k), d: lerp(s.d, s2.d, k), az: angleVers(s.az, s2.az, k), el: lerp(s.el, s2.el, k) };
+    }
+    const sens = i % 2 ? 1 : -1;
+    return { p: s.p, d: s.d * lerp(1, 0.86, k), az: s.az + sens * 24 * k, el: clamp(s.el + sens * 5 * k, -60, 85) };
   }
   function camA(t) {
     const i = indicePlan(t);
@@ -278,6 +311,15 @@ export function creer(spec) {
     }
     return s;
   }
+
+  // les coups de zoom : sur chaque mot fort dit (*mot*), et la secousse d'un « choc »
+  const coups = [];
+  (textes.beats || []).forEach((b) => ((b && b.mots) || []).forEach((m) => { if (m.fort) coups.push(m.t0); }));
+  const chocs = [];
+  plans.forEach((pl, i) => ((pl && pl.actions) || []).forEach((a) => { if (a && a.faire === 'choc') chocs.push(T[i].debut + clamp(num(a.delai, 0.2), 0, Math.max(0, T[i].fin - T[i].debut - 0.3))); }));
+  const bosse = (x, montee, chute) => (x < 0 ? 0 : x < montee ? sortie(x / montee) : Math.exp(-(x - montee) * chute));
+  function punch(t) { let p = 0; coups.forEach((c) => { if (t >= c - 0.01 && t < c + 0.8) p = Math.max(p, bosse(t - c, 0.07, 6)); }); return p; }
+  function secousse(t) { let s = 0, dtc = 0; chocs.forEach((c) => { if (t >= c && t < c + 0.6) { const v = bosse(t - c, 0.03, 8); if (v > s) { s = v; dtc = t - c; } } }); return { s, dt: dtc }; }
 
   /* ── une image ── */
   const sortieToile = document.createElement('canvas'); sortieToile.width = W; sortieToile.height = H;
@@ -305,19 +347,36 @@ export function creer(spec) {
     return ids.concat((pl.etiquettes || []).map((e) => e.objet), pl.surbrillance || []).filter((x) => objets[x]);
   });
   function isoleAuto(i) { return autos[i] || []; }
+  // un second cadrage (« puis ») sur une petite pièce l'isole aussi, à partir de son moment dans le plan
+  const autosPuis = plans.map((pl, i) => {
+    const p2 = pl && pl.camera && pl.camera.puis;
+    if (!p2 || typeof p2 !== 'object') return null;
+    const ids = [].concat(p2.cible || []).filter((x) => typeof x === 'string' && objets[x]);
+    if (!ids.length || Math.max.apply(null, ids.map(rayonDe)) > rayonTout * 0.45) return null;
+    return { ids: ids.concat(pl.surbrillance || []).filter((x) => objets[x]), t: T[i].debut + (T[i].fin - T[i].debut) * clamp(num(p2.a, 0.5), 0.25, 0.8) };
+  });
+  function etendre(iso) { // les parents et les enfants d'une pièce isolée restent visibles
+    if (!iso.size) return iso;
+    const ajoute = (id) => { (objets[id] ? objets[id].enfants : []).forEach((c) => { iso.add(c); ajoute(c); }); };
+    Array.from(iso).forEach((id) => { ajoute(id); let x = objets[id]; while (x && x.parentId) { iso.add(x.parentId); x = objets[x.parentId]; } });
+    return iso;
+  }
+  // l'isolement en vigueur à la fin d'un plan (celui de « puis » s'il y en a un)
+  const isoFin = (i) => (autosPuis[i] ? autosPuis[i].ids : (plans[i].isoler || isoleAuto(i)));
   function poser(t) {
     const i = indicePlan(t), pl = plans[i] || {};
-    const iso = new Set(pl.isoler || isoleAuto(i));
-    if (iso.size) { // les parents et les enfants d'une pièce isolée restent visibles
-      const ajoute = (id) => { (objets[id] ? objets[id].enfants : []).forEach((c) => { iso.add(c); ajoute(c); }); };
-      Array.from(iso).forEach((id) => { ajoute(id); let x = objets[id]; while (x && x.parentId) { iso.add(x.parentId); x = objets[x.parentId]; } });
-    }
+    const iso = etendre(new Set(pl.isoler || isoleAuto(i)));
     const brille = new Set(pl.surbrillance || []);
-    const isoPrec = new Set(i ? (plans[i - 1].isoler || isoleAuto(i - 1)) : []);
-    const kTrans = entreeSortie((t - T[i].debut) / FONDU);
+    const isoPrec = etendre(new Set(i ? isoFin(i - 1) : []));
+    // le premier plan est déjà en place à la première image (pas de fondu : l'accroche se joue dès 0 s)
+    const kTrans = i === 0 ? 1 : entreeSortie((t - T[i].debut) / FONDU);
+    const ap = autosPuis[i] && t >= autosPuis[i].t ? autosPuis[i] : null;
+    const isoPuis = ap ? etendre(new Set(ap.ids)) : null, kPuis = ap ? entreeSortie((t - ap.t) / FONDU) : 0;
     ordre.forEach((id) => {
       const o = objets[id];
       const pos = etatLisse(id, t, 'pos', 0.9);
+      // vue éclatée : les pièces posées dans un parent « éclaté » s'écartent de son centre
+      if (o.parentId) { const e = etatLisse(o.parentId, t, 'ecl', 0.9); if (e > 0.001) { const c = objets[o.parentId].centreEnfants; for (let a = 0; a < 3; a++) pos[a] = pos[a] + (pos[a] - c[a]) * e * 0.9; } }
       o.racine.position.fromArray(pos);
       const vis = etatLisse(id, t, 'vis', FONDU);
       o.racine.visible = vis > 0.01;
@@ -332,7 +391,8 @@ export function creer(spec) {
       // isolement, rayons X, surbrillance
       const ghostNow = iso.size && !iso.has(id) ? 1 : 0;
       const ghostAvant = isoPrec.size && !isoPrec.has(id) ? 1 : 0;
-      const ghost = lerp(ghostAvant, ghostNow, kTrans);
+      let ghost = lerp(ghostAvant, ghostNow, kTrans);
+      if (isoPuis) ghost = lerp(ghost, isoPuis.has(id) ? 0 : 1, kPuis);
       const transp = etatLisse(id, t, 'transp', 0.7);
       const kb = brille.has(id) ? sortie((t - T[i].debut) / 0.4) * (0.55 + 0.45 * Math.sin((t - T[i].debut) * Math.PI * 2.2)) : 0;
       o.mailles.forEach((m) => {
@@ -352,9 +412,14 @@ export function creer(spec) {
     scene.updateMatrixWorld(true);
     const s = camA(t);
     const off = new THREE.Vector3(Math.sin(rad(s.az)) * Math.cos(rad(s.el)), Math.sin(rad(s.el)), Math.cos(rad(s.az)) * Math.cos(rad(s.el))).multiplyScalar(s.d);
+    const sc = secousse(t);
+    const vise = s.p.clone();
+    if (sc.s > 0) { const a = s.d * 0.022 * sc.s; const tremble = new THREE.Vector3(Math.sin(sc.dt * 71), Math.sin(sc.dt * 93 + 1.3), Math.sin(sc.dt * 57 + 2.1)).multiplyScalar(a); off.add(tremble); vise.add(tremble.multiplyScalar(0.5)); }
     camera.position.copy(s.p).add(off);
+    camera.fov = fov0 * (1 - 0.05 * punch(t) - 0.07 * sc.s);
     camera.near = Math.max(0.02, s.d / 60); camera.far = s.d * 30 + rayonTout * 6; camera.updateProjectionMatrix();
-    camera.lookAt(s.p);
+    camera.lookAt(vise);
+    if (sc.s > 0) camera.rotateZ(Math.sin(sc.dt * 64) * 0.02 * sc.s);
     camera.updateMatrixWorld(true);
     return i;
   }
