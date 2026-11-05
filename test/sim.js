@@ -65,7 +65,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const exC = tools.executeurs({ db: db, agent: chloe, agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
   const autre = db.tables.hq_leads.find(function (l) { return l.status === 'a_contacter' && l.email; }) || (await db.insert('hq_leads', { dedupe: 'test:ctrl', source: 'maps', name: 'Test Contrôle', island: 'MQ', email: 'test@controle-mq.fr', status: 'a_contacter', score: 60 }))[0];
   const refus = await exC.rediger_emails({ emails: [{ lead_id: autre.id, objet: 'Le site de Test', corps: 'Bonjour,\nOn vous fait votre site pour 450 €, une solution clé en main, je vous appelle demain ? Remise de 20 % cette semaine.\nLouis' }] });
-  assert.ok(/REFUSÉ/.test(refus) && /450/.test(refus) && /appel/.test(refus), 'prix hors grille, mot creux, remise et appel refusés : ' + refus);
+  assert.ok(/REFUSÉ/.test(refus) && /450/.test(refus) && /appel/.test(refus) && /modifiable/.test(refus), 'prix hors grille, mot creux, remise, appel et site modifiable non dit : refusés : ' + refus);
   const gp = (await db.insert('hq_leads', { dedupe: 'test:gp', source: 'web', name: 'Garage Gwada', island: 'GP', email: 'a@gwada.fr', status: 'a_contacter', score: 70 }))[0];
   assert.ok(/hors zone/.test(await exC.rediger_emails({ emails: [{ lead_id: gp.id, objet: 'x', corps: 'y' }] })), 'Guadeloupe refusée à la rédaction');
   const ajout = await tools.executeurs({ db: db, agent: env.agents.find(function (a) { return a.id === 'partenaires'; }), agents: env.agents, budget: env.budget, compteurs: C0() }).ajouter_leads({ leads: [{ nom: 'Cabinet X', commune: 'Pointe-à-Pitre', source_url: 'https://x.fr' }, { nom: 'Cabinet Y', commune: 'Schœlcher', email: 'contact@cabinety.fr', source_url: 'https://y.fr' }] });
@@ -75,7 +75,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   env = await runtime.charger(db);
   const exM = tools.executeurs({ db: db, agent: chloe, agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
   const lm = (await db.insert('hq_leads', { dedupe: 'test:manuel', source: 'maps', name: 'Manuel SARL', island: 'MQ', email: 'contact@manuel-mq.fr', status: 'a_contacter', score: 60 }))[0];
-  const okM = await exM.rediger_emails({ emails: [{ lead_id: lm.id, objet: 'Le site de Manuel SARL', corps: 'Bonjour,\n\nEn cherchant les entreprises de nettoyage en Martinique, j\'ai vu que Manuel SARL n\'a pas encore de site qui la présente vraiment. Je peux vous préparer un aperçu de votre futur site, et le mettre en ligne sur votre nom de domaine avec l\'hébergement inclus la première année. Le site vous appartient, sans abonnement obligatoire.\n\nJe vous le prépare ?\n\nLouis\nNovalemo, sites internet en Martinique' }] });
+  const okM = await exM.rediger_emails({ emails: [{ lead_id: lm.id, objet: 'Le site de Manuel SARL', corps: 'Bonjour,\n\nEn cherchant les entreprises de nettoyage en Martinique, j\'ai vu que Manuel SARL n\'a pas encore de site qui la présente vraiment. Je peux vous préparer un aperçu de votre futur site, et le mettre en ligne sur votre nom de domaine avec l\'hébergement inclus la première année. Le site vous appartient, sans abonnement obligatoire, et tout reste modifiable.\n\nJe vous le prépare ?\n\nLouis\nNovalemo, sites internet en Martinique' }] });
   assert.ok(/ok/.test(okM) && db.tables.hq_outbox.find(function (o) { return o.lead_id === lm.id; }).status === 'a_valider', 'pilote coupé : validation de Louis');
   await agir('budget', { envoi_auto: true });
 
@@ -189,7 +189,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   dus(['redacteur']);
   await runtime.cycle({ db: db, agentId: 'redacteur', secondes: 200 });
   let oc = db.tables.hq_outbox.find(function (o) { return o.lead_id === lc.id && o.kind === 'prospection'; });
-  assert.ok(oc && oc.status === 'pret' && oc.body.indexOf(l3.apercu_url) >= 0, 'premier email avec le lien de l\'aperçu');
+  assert.ok(oc && oc.status === 'pret' && oc.body.indexOf(l3.apercu_url) >= 0, 'premier email avec le lien de l\'aperçu : ' + JSON.stringify({ oc: oc && { st: oc.status, lien: oc.body.indexOf(l3.apercu_url) }, lead: { id: lc.id, st: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).status, score: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).score }, prets: db.tables.hq_leads.filter(function (l) { return l.status === 'a_contacter' && ['publie', 'echec'].indexOf(l.apercu_etat) >= 0; }).map(function (l) { return l.id + ':' + l.score; }), boite: db.tables.hq_outbox.filter(function (o) { return o.kind === 'prospection'; }).map(function (o) { return o.lead_id + ':' + o.status; }) }));
   const sansLien = await exC.rediger_emails({ emails: [{ lead_id: lc.id, objet: 'x', corps: 'y' }] });
   assert.ok(/déjà un email/.test(sansLien), 'un seul premier email');
   env = await runtime.charger(db);
@@ -1220,6 +1220,18 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const cL = await runtime.cycle({ db: db, agentId: 'photos', secondes: 120 });
     const sL2 = leSite(sL.id);
     assert.ok(sL2.spec.photos.length >= 2 && sL2.spec.photos.every(function (p) { return p.credit && p.role; }) && sL2.spec.da.hero !== 'nu' && sL2.spec.da.palette === 'marine-jaune' && sL2.spec.da.type === 'barlow' && sL2.data.photos.v === IM.VERSION && sL2.version === 2, 'Léa illustre l\'aperçu, le haut de page montre la photo, mêmes couleurs et mêmes lettres : ' + cL.passages.map(function (p) { return p.resume; }).join(' | '));
+    // n2. un prospect sans email (à appeler) n'a encore rien vu : Léa reprend aussi son aperçu ; un prospect écarté, jamais
+    const unePhoto = [{ fichier: 'ancienne.jpg', credit: { id: 'px-ancienne' }, role: 'hero' }];
+    const lA = await prospect('lea-tel', 'Clim Au Téléphone', 'climatisation', 'Le Robert', { phone: '+596 696 41 42 43', email: null, status: 'a_appeler' });
+    const sA = (await db.insert('hq_sites', { lead_id: lA.id, slug: 'clim-tel-1a2b', status: 'apercu', version: 1, url_apercu: 'https://x/a/clim-tel-1a2b/', spec: Object.assign({}, base, { nom: 'Clim Au Téléphone', secteur: 'climatisation', commune: 'Le Robert', photo_hero: 'air conditioner technician', photos: unePhoto, contact: { tel: '+596696414243' } }), data: {} }))[0];
+    const lE = await prospect('lea-ecarte', 'Clim Écartée', 'climatisation', 'Le Robert', { status: 'ecarte' });
+    const sE = (await db.insert('hq_sites', { lead_id: lE.id, slug: 'clim-ecartee-1a2b', status: 'apercu', version: 1, url_apercu: 'https://x/a/clim-ecartee-1a2b/', spec: Object.assign({}, base, { nom: 'Clim Écartée', secteur: 'climatisation', commune: 'Le Robert', photo_hero: 'air conditioner', photos: [], contact: { tel: '+596696414244' } }), data: {} }))[0];
+    process.env.HQ_PEXELS_KEY = 'pexels-test';
+    dus(['photos']);
+    const cA = await runtime.cycle({ db: db, agentId: 'photos', secondes: 120 });
+    const sA2 = leSite(sA.id), sE2 = leSite(sE.id);
+    assert.ok(sA2.version === 2 && !sA2.data.photos.rien && sA2.spec.photos.length >= 2 && sA2.spec.photos.every(function (p) { return p.fichier !== 'ancienne.jpg'; }), 'à appeler : pas encore vu, Léa le réillustre : ' + cA.passages.map(function (p) { return p.resume; }).join(' | '));
+    assert.ok(sE2.version === 1 && sE2.data.photos.rien === 'prospect injoignable' && !sE2.spec.photos.length, 'écarté : rien dépensé pour son site');
     delete process.env.HQ_PEXELS_KEY;
     // o. une fiche qui ne se rend pas ne bloque plus la publication des autres sites
     const casse = (await db.insert('hq_sites', { lead_id: lL.id, slug: 'casse-1a2b', status: 'apercu', version: 1, spec: { nom: 'Fiche cassée' }, data: {} }))[0];
@@ -1522,7 +1534,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     // C. la variante suit le prospect jusqu'à l'email
     const exR = tools.executeurs({ db: db, agent: ag('redacteur'), agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
     const lienDe = function (slug) { return new URL(db.tables.hq_sites.find(function (x) { return x.url_apercu; }).url_apercu).origin + '/' + slug; };
-    const corpsTest = function (ouv, lien) { return 'Bonjour,\n\n' + ouv + '\n\nJ\'ai préparé un aperçu de ce que pourrait être votre site : ' + lien + '\n\nTout est inclus : la création, la mise en ligne sur votre nom de domaine et l\'hébergement la première année. Le site vous appartient.\n\nJe le mets en ligne pour vous ?\n\nLouis\nNovalemo, sites internet en Martinique'; };
+    const corpsTest = function (ouv, lien) { return 'Bonjour,\n\n' + ouv + '\n\nJ\'ai préparé un aperçu de ce que pourrait être votre site : ' + lien + '\n\nTout est inclus : la création, la mise en ligne sur votre nom de domaine et l\'hébergement la première année. Le site vous appartient et tout reste modifiable.\n\nJe le mets en ligne pour vous ?\n\nLouis\nNovalemo, sites internet en Martinique'; };
     const prospectTest = async function (slug, nomP) { return (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:' + slug, source: 'maps', name: nomP, sector: 'Climatisation', island: 'MQ', commune: 'Ducos', email: 'contact@' + slug + '.fr', status: 'a_contacter', score: 99, apercu_etat: 'publie', apercu_url: lienDe(slug) }))[0]; };
     const vl = await prospectTest('variante-clim', 'Variante Clim');
     const vAttendue = E.variantePour(vl, ec0);
@@ -1739,7 +1751,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(sr && sr.value.echecs >= 3, 'la santé du regard compte ses échecs');
     sr.value.depuis = new Date(Date.now() - 3 * 3600000).toISOString();
     await passeM(); leSiteM(m3.s.id).data.regard.attendre_jusqua = null; await passeM();
-    const alertes = db.tables.hq_messages.filter(function (m) { return m.from_id === 'critique' && /en panne/.test(m.subject || ''); });
+    const alertes = db.tables.hq_messages.filter(function (m) { return m.from_id === 'critique' && /ne peux plus juger/.test(m.subject || ''); });
     assert.ok(alertes.length === 1 && !CR.peutPartir(leSiteM(m3.s.id)).ok, 'en panne depuis deux heures : Louis prévenu une seule fois, le site ne part toujours pas');
     // un site validé puis refait : l'ancien verdict ne vaut pas pour la nouvelle version, même quand le regard échoue
     leSiteM(m3.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString();
@@ -1752,6 +1764,53 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await passeM();
     assert.ok(CR.peutPartir(leSiteM(m1.s.id)).ok && !leSiteM(m1.s.id).data.regard, 'regard rétabli : la nouvelle version est jugée puis validée');
     assert.ok(db.tables.hq_config.find(function (x) { return x.key === CR.CLE_REGARD; }).value.echecs === 0, 'regard rétabli : la panne est close');
+    // des captures illisibles (le défaut de Node 26) ne partent jamais au jugement : essai raté, la file avance
+    const m4 = await mk('miranda-quatre', 'Clim Illisible');
+    fakes.MIRANDA.illisible = true;
+    const jug0 = fakes.MIRANDA.jugements;
+    await passeM();
+    const g4 = leSiteM(m4.s.id).data.regard;
+    assert.ok(g4 && /illisibles/.test(g4.erreur || '') && fakes.MIRANDA.jugements === jug0 && !CR.peutPartir(leSiteM(m4.s.id)).ok, 'captures illisibles : rien envoyé au jugement, essai noté, le site attend : ' + JSON.stringify(g4));
+    fakes.MIRANDA.illisible = false;
+    leSiteM(m4.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString();
+    // un site déjà montré au prospect n'est jamais refait par Miranda : son avis est gardé, le site ne bouge pas
+    const m5 = await mk('miranda-cinq', 'Clim Montrée');
+    await db.update('hq_leads', { status: 'contacte' }, { eq: { id: m5.l.id } });
+    fakes.MIRANDA.notes = [5];
+    const v5 = leSiteM(m5.s.id).version;
+    await passeM();
+    assert.ok(leSiteM(m5.s.id).data.critique && leSiteM(m5.s.id).data.critique.montre && leSiteM(m5.s.id).version === v5, 'déjà montré : avis gardé, site inchangé');
+    // un prospect qu'on ne joindra plus (écarté, sans contact) : Miranda ne regarde pas son site, rien n'est dépensé
+    const m6 = await mk('miranda-six', 'Clim Injoignable');
+    await db.update('hq_leads', { status: 'sans_contact' }, { eq: { id: m6.l.id } });
+    const jug6 = fakes.MIRANDA.jugements;
+    await passeM();
+    assert.ok(!leSiteM(m6.s.id).data.critique && !leSiteM(m6.s.id).data.regard && fakes.MIRANDA.jugements === jug6, 'injoignable : son site n\'est pas jugé');
+    await db.update('hq_leads', { status: 'a_contacter' }, { eq: { id: m6.l.id } });
+    fakes.MIRANDA.notes = [9];
+    await passeM();
+    assert.ok(CR.peutPartir(leSiteM(m6.s.id)).ok, 'de nouveau joignable : jugé et validé au passage suivant');
+    // une publication en cours ne l'arrête plus : chaque page est vérifiée d'une simple requête ; celle qui n'est pas encore
+    // republiée (ou pas encore en ligne) attend sans occuper le navigateur ni prendre la place d'une autre
+    const m7 = await mk('miranda-sept', 'Clim A Jour');
+    const m8 = await mk('miranda-huit', 'Clim Pas Republiee');
+    const m9 = await mk('miranda-neuf', 'Clim Pas En Ligne');
+    leSiteM(m8.s.id).version = 2;
+    fakes.MIRANDA.pages[m7.s.url_apercu] = '<html><head><meta name="novalemo:version" content="1"></head></html>';
+    fakes.MIRANDA.pages[m8.s.url_apercu] = '<html><head><meta name="novalemo:version" content="1"></head></html>';
+    fakes.MIRANDA.pages[m9.s.url_apercu] = 404;
+    await PU.ecrireEtat(db, { en_cours: { id: 'dpl_en_cours', le: new Date().toISOString(), sites: [] }, a_publier: true });
+    const reg7 = fakes.MIRANDA.regards;
+    fakes.MIRANDA.notes = [9];
+    dus(['critique']);
+    const c7 = await runtime.cycle({ db: db, agentId: 'critique', secondes: 200 });
+    const r7 = c7.passages.map(function (p) { return p.resume; }).join(' | ');
+    assert.ok(CR.peutPartir(leSiteM(m7.s.id)).ok && fakes.MIRANDA.regards === reg7 + 1, 'publication en cours : la page à jour est jugée quand même, un seul passage au navigateur : ' + r7);
+    assert.ok(!leSiteM(m8.s.id).data.critique && /encore la version 1/.test(leSiteM(m8.s.id).data.regard.erreur) && !leSiteM(m8.s.id).data.regard.echecs, 'pas encore republiée : elle attend sa publication, sans compter comme un échec');
+    assert.ok(!leSiteM(m9.s.id).data.critique && /pas encore en ligne/.test(leSiteM(m9.s.id).data.regard.erreur), 'pas encore en ligne : elle attend');
+    await PU.ecrireEtat(db, { en_cours: null, a_publier: false });
+    fakes.MIRANDA.pages = {};
+    [m8, m9].forEach(function (m) { leSiteM(m.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString(); });
     // ce qui attendait déjà dans la file passe les mêmes règles au moment de partir
     const ENVq = require('../lib/jobs/envoi');
     const fileq = async function (lead, adr) { return (await db.insert('hq_outbox', { lead_id: lead.id, company_id: 'novalemo', kind: 'prospection', status: 'pret', to_email: adr, subject: 'Votre site', body: 'Bonjour' }))[0]; };
@@ -1767,6 +1826,29 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(!rq3.ok && rq3.attendre && db.tables.hq_outbox.find(function (o) { return o.id === oq3.id; }).status === 'pret', 'file : un aperçu pas encore validé attend dans la file');
     db.tables.hq_outbox.filter(function (o) { return [oq1.id, oq2.id, oq3.id].indexOf(o.id) >= 0; }).forEach(function (o) { o.status = 'annule'; });
     delete process.env.CRON_SECRET;
+    // G. une base de la version 10 : Jade cherche toutes les 90 minutes, les écartés « vrai site » jamais écrits sont
+    // réaudités, et Léa reprend les aperçus des prospects à appeler qu'elle avait pris pour déjà montrés (pas les autres)
+    const IM = require('../lib/sites/images');
+    const db11 = DB.memory();
+    await db11.insert('hq_config', [{ key: 'seed', value: { version: 10 } }, { key: 'budget', value: { jour_usd: 10, emails_jour: 50, apercus_jour: 20, places_jour: 25, envoi_auto: true } }], { returning: false });
+    await db11.insert('hq_agents', { id: 'chasse_maps', company_id: 'novalemo', parent_id: 'emailing', name: 'Jade', title: 'x', tier: 'agent', kind: 'job', model: 'none', mission: 'x', charter: 'x', playbook: 'x', tools: [], cadence_min: 180, status: 'idle', seat: 1 }, { returning: false });
+    const la = (await db11.insert('hq_leads', [
+      { company_id: 'novalemo', dedupe: 'v11:appel', source: 'maps', name: 'Appel', island: 'MQ', status: 'a_appeler', phone: '+596696111111' },
+      { company_id: 'novalemo', dedupe: 'v11:vu', source: 'maps', name: 'Vu', island: 'MQ', status: 'contacte', email: 'vu@v11-mq.fr' },
+      { company_id: 'novalemo', dedupe: 'v11:ecarte', source: 'maps', name: 'Ecarte', island: 'MQ', status: 'ecarte', site_state: 'correct', score: 25, reason: 'Google Maps : plombier, site faible ; pas de mentions légales, a déjà un vrai site' },
+      { company_id: 'novalemo', dedupe: 'v11:ecrit', source: 'maps', name: 'Ecrit', island: 'MQ', status: 'ecarte', site_state: 'correct', reason: 'a déjà un vrai site (correct)' }
+    ]));
+    await db11.insert('hq_outbox', { lead_id: la[3].id, company_id: 'novalemo', kind: 'prospection', status: 'envoye', to_email: 'ecrit@v11-mq.fr', subject: 'x', body: 'y' }, { returning: false });
+    const sv = await db11.insert('hq_sites', [
+      { lead_id: la[0].id, slug: 'appel-1a2b', status: 'apercu', version: 1, spec: { nom: 'Appel' }, data: { photos: { v: IM.VERSION, rien: 'déjà montré au prospect' } } },
+      { lead_id: la[1].id, slug: 'vu-1a2b', status: 'apercu', version: 1, spec: { nom: 'Vu' }, data: { photos: { v: IM.VERSION, rien: 'déjà montré au prospect' } } }
+    ]);
+    await runtime.semer(db11);
+    const ph11 = function (k) { return db11.tables.hq_sites.find(function (x) { return x.id === sv[k].id; }).data.photos; };
+    const st11 = function (k) { return db11.tables.hq_leads.find(function (x) { return x.id === la[k].id; }).status; };
+    assert.ok(ph11(0).v === 0 && !ph11(0).rien && ph11(1).rien === 'déjà montré au prospect' && ph11(1).v === IM.VERSION, 'version 11 : l\'aperçu du prospect à appeler est repris par Léa, celui déjà montré ne bouge pas');
+    const re11 = db11.tables.hq_leads.find(function (x) { return x.id === la[2].id; });
+    assert.ok(st11(2) === 'nouveau' && re11.score === 66 && re11.reason === 'Google Maps : plombier, site faible' && st11(3) === 'ecarte' && db11.tables.hq_agents.find(function (a) { return a.id === 'chasse_maps'; }).cadence_min === 90, 'version 11 : réaudit des écartés jamais écrits (repartis de leur note et de leur raison d\'origine), Jade toutes les 90 minutes : ' + JSON.stringify([re11.score, re11.reason]));
     console.log('Nouveau moteur OK : ' + ctl.variantes + ' variantes contrôlées (' + ctl.rendus + ' rendus), compositions stables et toujours différentes entre voisins, choix du constructeur gardé, phase de test, priorité aux entreprises sans site, adresses devinées écartées, Miranda (regard, refus, reprise, validation, abandon, panne)');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');

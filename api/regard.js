@@ -31,6 +31,14 @@ async function navigateur() {
   return puppeteer.launch({ args: await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }), executablePath: await chromium.executablePath(), headless: 'shell', defaultViewport: null });
 }
 
+// une capture en base64, quel que soit ce que rend la bibliothèque (texte, Buffer ou Uint8Array), et vérifiée : jamais
+// une image illisible envoyée à Miranda
+function base64(x) {
+  const t = typeof x === 'string' ? x : Buffer.from(x).toString('base64');
+  if (!t || t.length < 200 || !/^[A-Za-z0-9+/]+={0,2}$/.test(t) || t.slice(0, 4) !== '/9j/') throw new Error('capture illisible');
+  return t;
+}
+
 // une page parcourue de haut en bas (images chargées, apparitions jouées), puis découpée en morceaux
 async function capturer(nav, url, o) {
   const page = await nav.newPage();
@@ -75,14 +83,15 @@ async function capturer(nav, url, o) {
   const pas = Math.min(o.pasMax, Math.max(o.pas, Math.ceil(info.hauteur / o.max)));
   const morceaux = [];
   for (let y = 0; y < info.hauteur && morceaux.length < o.max; y += pas) {
-    const b = await page.screenshot({ type: 'jpeg', quality: 58, clip: { x: 0, y: y, width: o.largeur, height: Math.min(pas, info.hauteur - y) }, captureBeyondViewport: true });
-    morceaux.push(b.toString('base64'));
+    // encoding base64 : la capture arrive déjà en texte. Sur Node 26 (celui de Vercel), la bibliothèque rend un
+    // Uint8Array et non un Buffer : son toString('base64') donnait « 255,216,... », refusé par l'API (Miranda en panne)
+    morceaux.push(base64(await page.screenshot({ type: 'jpeg', quality: 58, clip: { x: 0, y: y, width: o.largeur, height: Math.min(pas, info.hauteur - y) }, captureBeyondViewport: true, encoding: 'base64' })));
   }
   const vue = Math.min(info.hauteur, pas * o.max);
   // le premier écran, net : c'est ce que le prospect voit en ouvrant le lien
   if (o.echelle !== 1) { await page.setViewport({ width: o.largeur, height: o.hauteur, deviceScaleFactor: 1, isMobile: !!o.mobile, hasTouch: !!o.mobile }); await new Promise(function (r) { setTimeout(r, 400); }); }
   await page.evaluate(function () { window.scrollTo(0, 0); });
-  const haut = (await page.screenshot({ type: 'jpeg', quality: 72 })).toString('base64');
+  const haut = base64(await page.screenshot({ type: 'jpeg', quality: 72, encoding: 'base64' }));
   await page.close();
   return { haut: haut, morceaux: morceaux, hauteur: info.hauteur, vue: vue, tronque: vue < info.hauteur, debord: info.debord, version: info.version, erreurs: erreurs.slice(0, 6) };
 }
