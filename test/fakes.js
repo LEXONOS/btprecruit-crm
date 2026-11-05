@@ -85,8 +85,20 @@ function critiqueFausse(body) {
   const ok = note >= 8;
   return rep([tu('juger_site', { note: note, verdict: ok ? 'valide' : 'a_refaire', resume: ok ? 'Un premier écran fort, une photo juste, tout se lit sur téléphone.' : 'Le haut de page est fade et le titre se perd sur la photo.', points_forts: ok ? ['premier écran'] : [], problemes: ok ? [] : [{ zone: 'haut de page', gravite: 'bloquant', constat: 'Le titre se lit mal sur la photo.', variante: hero }], actions: ok ? [] : ['changer_rubriques'] })], 'tool_use', { input_tokens: 9000, output_tokens: 500 });
 }
+// les modèles de la génération 5.5 refusent un outil imposé (tool_choice « tool » ou « any ») : on le simule pour le modèle
+// le plus fort (CLAUDE.refusOutil), et l'outil demandé en clair (tool_choice « auto ») est servi comme l'outil imposé
+const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
 function claude(body) {
   appelsClaude++;
+  if (CLAUDE.refusOutil && body.model === require('../lib/config').MODELS.genius.id && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
+    CLAUDE.refus++;
+    return { ok: false, status: 400, json: async function () { return { type: 'error', error: { type: 'invalid_request_error', message: 'tool_choice: type "tool" and "any" are not supported for this model.' } }; } };
+  }
+  if (body.tool_choice && body.tool_choice.type === 'auto' && (body.tools || []).length === 1 && ['juger_site', 'ecrire_site', 'noter_photos'].indexOf(body.tools[0].name) >= 0) {
+    const last = body.messages[body.messages.length - 1];
+    const demande = typeof last.content !== 'string' && last.content.some(function (b) { return b.type === 'text' && new RegExp('appelant l\'outil ' + body.tools[0].name).test(b.text || ''); });
+    if (demande) { CLAUDE.enClair++; body = Object.assign({}, body, { tool_choice: { type: 'tool', name: body.tools[0].name } }); }
+  }
   if (body.tool_choice && body.tool_choice.name === 'juger_site') return critiqueFausse(body);
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
   if (body.tool_choice && body.tool_choice.name === 'noter_photos') return vision(body);
@@ -381,4 +393,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { appels: function () { return appelsClaude; }, CLAUDE: CLAUDE, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };

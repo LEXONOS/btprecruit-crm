@@ -20,6 +20,9 @@
     "api/regard.js": {
       "maxDuration": 90,
       "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    },
+    "api/apercu.js": {
+      "maxDuration": 30
     }
   },
   "crons": [
