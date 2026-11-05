@@ -33,6 +33,9 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   console.log('Fondation :', db.tables.hq_agents.length, 'agents,', db.tables.hq_companies.length, 'entreprises,', db.tables.hq_proposals.length, 'propositions');
 
   // 2. tout le monde dû maintenant (hébergement et paiement pas encore branchés)
+  // le Studio 3D a son propre essai (test/studio.js) : ici ses travaux automatiques restent en pause, pour garder
+  // l'ordre de passage des chasseurs de Novalemo (les numéros des prospects en dépendent)
+  db.tables.hq_agents.forEach(function (a) { if (a.company_id === 'studio3d' && a.kind === 'job') a.status = 'paused'; });
   db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
   const c1 = await runtime.cycle({ db: db, secondes: 250 });
   assert.ok(c1.ok, 'cycle ok');

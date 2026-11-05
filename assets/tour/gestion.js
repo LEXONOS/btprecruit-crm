@@ -3,12 +3,14 @@ import { $, esc, ico } from './outils.js';
 import { S, surMonde, aller } from './etat.js';
 import { SECTIONS, brancherRecharge } from './sections.js';
 import { SECTIONS_PILOTAGE, brancherRechargePilotage } from './reglages.js';
+import { SECTIONS_STUDIO, brancherRechargeStudio } from './studio.js';
 import * as Fiches from './fiches.js';
 
-const TOUTES = Object.assign({}, SECTIONS, SECTIONS_PILOTAGE);
+const TOUTES = Object.assign({}, SECTIONS, SECTIONS_STUDIO, SECTIONS_PILOTAGE);
 const MENU = [
   { titre: null, ids: ['tableau'] },
   { titre: 'Novalemo', ids: ['ventes', 'reponses', 'emails', 'prospects'] },
+  { titre: 'Studio 3D', ids: ['studio'] },
   { titre: 'Le groupe', ids: ['equipe', 'decisions', 'couts', 'veille'] },
   { titre: 'Pilotage', ids: ['route', 'reglages'] }
 ];
@@ -21,7 +23,7 @@ export function monter(el) {
   racine.innerHTML = '<nav class="nav-g" id="navG" aria-label="Sections"></nav><main class="contenu" id="contenuG"><div class="contenu-i" id="contenuI"></div></main><nav class="nav-bas verre" id="navBas" aria-label="Sections"></nav>';
   nav = $('#navG', racine); contenu = $('#contenuI', racine); bas = $('#navBas', racine);
   racine.addEventListener('click', clic);
-  brancherRecharge(recharger); brancherRechargePilotage(recharger);
+  brancherRecharge(recharger); brancherRechargePilotage(recharger); brancherRechargeStudio(recharger);
   racine.addEventListener('input', (e) => { if (courante && TOUTES[courante].saisie) TOUTES[courante].saisie(e, contenu); });
   surMonde(() => {
     majNav();
@@ -89,7 +91,7 @@ function clic(e) {
 }
 // sur téléphone : les sections qui ne tiennent pas dans la barre du bas
 function plus() {
-  const ids = ['emails', 'prospects', 'decisions', 'couts', 'veille', 'route', 'reglages'];
+  const ids = ['studio', 'emails', 'prospects', 'decisions', 'couts', 'veille', 'route', 'reglages'];
   let m = $('#menuPlus');
   if (m) { m.remove(); return; }
   m = document.createElement('div'); m.className = 'menu-compte'; m.id = 'menuPlus';
