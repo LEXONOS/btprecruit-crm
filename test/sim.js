@@ -798,8 +798,12 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   {
     const M = require('../lib/missions');
     const e0 = await M.etat(db);
-    const br = e0.missions.find(function (m) { return m.id === 'brancher'; });
-    assert.ok(br && br.etapes.length === 9 && br.etapes.some(function (x) { return x.id === 'photos' && !x.fait; }) && br.etapes.find(function (x) { return x.id === 'vercel'; }).fait && br.etapes.find(function (x) { return x.id === 'base'; }).fait && e0.missions.some(function (m) { return m.id === 'whatsapp'; }), 'missions : étapes et états détectés');
+    const etapeDe = function (e, id) { let x = null; e.missions.forEach(function (m) { m.etapes.forEach(function (y) { if (y.id === id) x = Object.assign({ mission: m.id, groupe: m.groupe }, y); }); }); return x; };
+    assert.ok(etapeDe(e0, 'photos') && !etapeDe(e0, 'photos').fait && etapeDe(e0, 'vercel').fait && etapeDe(e0, 'base').fait && e0.missions.some(function (m) { return m.id === 'whatsapp'; }), 'missions : étapes et états détectés');
+    assert.ok(['cles', 'vendre', 'emails', 'studio'].every(function (id) { return e0.missions.some(function (m) { return m.id === id && m.groupe === 'essentiel'; }); }) && e0.missions[0].groupe === 'essentiel' && e0.essentiel.total >= 10, 'l\'essentiel d\'abord, rangé par mission');
+    assert.ok(e0.maintenant && !etapeDe(e0, e0.maintenant.etape).fait && etapeDe(e0, e0.maintenant.etape).groupe !== 'facultatif' && e0.maintenant.duree, 'une seule chose à faire maintenant, avec sa durée : ' + JSON.stringify(e0.maintenant));
+    assert.ok(e0.plus_tard.some(function (t) { return t.qui === 'Tom' && /TikTok/.test(t.attend); }), 'ce qui attendra un feu vert plus tard est listé');
+    assert.ok(e0.missions.every(function (m) { return m.etapes.every(function (x) { return x.titre && x.pourquoi && x.duree; }); }), 'chaque étape a un titre, une raison et une durée');
     assert.ok(!JSON.stringify(e0).includes('sk_live_simulation') && !JSON.stringify(e0).includes('secret-de-test'), 'aucun code ne revient à l\'écran');
     assert.ok(/clé de TEST/.test((await M.enregistrer({ HQ_STRIPE_KEY: 'sk_test_abc' })).erreur || ''), 'clé Stripe de test refusée avec la raison');
     assert.ok(/clé publique/.test((await M.enregistrer({ HQ_SUPABASE_KEY: 'sb_publishable_abc' })).erreur || ''), 'clé publique Supabase refusée');
@@ -810,7 +814,8 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(okM.ok && fakes.VERCEL.env.HQ_MAIL_PASS, 'boîte : connexion essayée puis enregistrée');
     assert.ok(/étape inconnue/.test((await M.cocher(db, 'HQ_STRIPE_KEY', true)).erreur || '') && (await M.cocher(db, 'activite', true)).ok, 'seules les étapes à cocher se cochent');
     const e1 = await M.etat(db);
-    assert.ok(e1.missions.find(function (m) { return m.id === 'brancher'; }).etapes.find(function (x) { return x.id === 'activite'; }).fait, 'étape cochée');
+    assert.ok(etapeDe(e1, 'activite').fait, 'étape cochée');
+    assert.ok((await M.cocher(db, 'tiktok', true)).ok && etapeDe(await M.etat(db), 'tiktok').fait, 'les comptes de publication se cochent');
     console.log('Missions OK : états, codes essayés avant enregistrement, écriture dans Vercel, redémarrage, cases à cocher');
   }
   // 27. TROISIÈME RELECTURE : l'argent des abonnements, STOP, WhatsApp, verrous, Missions

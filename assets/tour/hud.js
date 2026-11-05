@@ -264,7 +264,7 @@ function majRappel() {
   const r = $('#rappel', calque);
   const mis = S.mis;
   if (!mis || !mis.a_faire) { r.innerHTML = ''; return; }
-  const b = (mis.missions || []).find((m) => m.id === 'brancher') || { faites: 0, total: 1 };
+  const b = mis.essentiel || { faites: 0, total: 1 };
   r.innerHTML = '<div class="rappel verre">' + anneau(b.faites, b.total) + '<div><b>Mise en route</b><span>' + (demo() ? 'La tour attend ses clés : ' : 'Encore ') + pluriel(mis.a_faire, 'étape') + ', quelques minutes.</span></div><button class="btn btn-primaire btn-petit" data-aller="gestion/route">Continuer</button></div>';
 }
 

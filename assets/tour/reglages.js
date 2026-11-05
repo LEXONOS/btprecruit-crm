@@ -14,10 +14,23 @@ const recharger = () => { if (recharge) recharge(); };
 const enAttente = {};            // étape -> heure de l'enregistrement (la tour redémarre)
 let choisie = null;
 function etapes() { const out = []; ((S.mis && S.mis.missions) || []).forEach((m) => m.etapes.forEach((e) => out.push(Object.assign({ mission: m }, e)))); return out; }
-function courante() {
-  const ms = (S.mis && S.mis.missions) || [];
-  const b = ms.find((m) => m.id === 'brancher' && !m.finie) || ms.find((m) => !m.finie && (m.recommande || m.id === 'domaine'));
-  return b ? b.prochaine : null;
+function courante() { return (S.mis && S.mis.maintenant && S.mis.maintenant.etape) || null; }
+const etatEtape = (x) => (x.fait ? 'fait' : enAttente[x.id] ? 'redémarrage en cours' : x.bloque ? x.bloque : x.id === courante() ? 'maintenant' : (x.duree || 'à faire'));
+function listeMissions(ms, id) {
+  const groupes = (S.mis.groupes || [{ id: 'essentiel', titre: 'L\'essentiel' }]);
+  return groupes.map((g) => {
+    const dans = ms.filter((m) => (m.groupe || 'essentiel') === g.id);
+    if (!dans.length) return '';
+    return '<div class="route-groupe"><b>' + esc(g.titre) + '</b>' + (g.texte ? '<small>' + esc(g.texte) + '</small>' : '') + '</div>' + dans.map((m) => {
+      // une mission finie, ou facultative, se replie sur son titre (sauf si on regarde une de ses étapes)
+      const ouverte = m.etapes.some((x) => x.id === id) || (!m.finie && m.groupe !== 'facultatif');
+      const premiere = (m.etapes.find((x) => !x.fait) || m.etapes[0] || {}).id;
+      const titre = '<span>' + esc(m.titre) + '</span><span class="pastille ' + (m.finie ? 'ok' : m.urgent ? 'alerte' : '') + '">' + (m.finie ? 'fini' : m.faites + ' sur ' + m.total) + '</span>';
+      return '<div class="route-mission' + (m.finie ? ' finie' : '') + (m.urgent && !m.finie ? ' urgente' : '') + '">' + (ouverte ? '<div class="rm-t">' + titre + '</div>' +
+        m.etapes.map((x, i) => '<button class="' + (x.fait ? 'fait ' : '') + (x.id === id ? 'on' : '') + '" data-etape="' + esc(x.id) + '"><span class="n">' + (x.fait ? ico('coche') : i + 1) + '</span><span>' + esc(x.titre) + '<small>' + esc(etatEtape(x)) + '</small></span></button>').join('')
+        : '<button class="rm-t rm-replie" data-etape="' + esc(premiere) + '">' + titre + '</button>') + '</div>';
+    }).join('');
+  }).join('');
 }
 const route = {
   titre: 'Mise en route', icone: 'route', vivante: true, chaud: true,
@@ -25,15 +38,21 @@ const route = {
   async charger() { if (!S.mis) await chargerMissions(); return null; },
   rendre(p) {
     if (!S.mis) return tete('Mise en route') + '<div class="vide">La liste ne se charge pas : recharge la page.</div>';
-    const ms = S.mis.missions, b = ms.find((m) => m.id === 'brancher') || { faites: 0, total: 1 };
+    const ms = S.mis.missions, ess = S.mis.essentiel || { faites: 0, total: 1 }, mt = S.mis.maintenant;
     const id = (p.etape && etapes().some((e) => e.id === p.etape)) ? p.etape : (choisie && etapes().some((e) => e.id === choisie && !e.fait)) ? choisie : courante() || (etapes()[0] || {}).id;
     const e = etapes().find((x) => x.id === id);
-    let h = '<div class="s-tete"><div><h1>Mise en route</h1><p>' + (S.mis.a_faire ? 'Encore ' + pluriel(S.mis.a_faire, 'étape') + '. Chaque code est essayé avant d\'être gardé, puis la tour l\'enregistre elle-même dans Vercel et redémarre.' : 'Tout est branché : la tour tourne seule.') + '</p></div><div style="display:flex;align-items:center;gap:12px">' + anneau(b.faites, b.total, 46) + '<span style="font-size:13px;color:var(--doux)"><b style="display:block;color:var(--encre);font-size:17px">' + b.faites + ' sur ' + b.total + '</b>pour brancher Novalemo</span></div></div>';
-    h += '<div class="route"><div class="carte route-liste">' + ms.map((m) => '<h3>' + esc(m.titre) + '</h3>' + m.etapes.map((x, i) => {
-      const att = enAttente[x.id] && !x.fait;
-      return '<button class="' + (x.fait ? 'fait ' : '') + (x.id === id ? 'on' : '') + '" data-etape="' + esc(x.id) + '"><span class="n">' + (x.fait ? ico('coche') : i + 1) + '</span><span>' + esc(x.titre) + '<small>' + esc(x.fait ? 'fait' : att ? 'redémarrage en cours' : x.bloque ? x.bloque : x.id === courante() ? 'maintenant' : 'à faire') + '</small></span></button>';
-    }).join('')).join('') + '</div>';
+    let h = '<div class="s-tete"><div><h1>Mise en route</h1><p>' + (S.mis.a_faire ? 'Tout ce que la tour attend de toi, dans l\'ordre. Une étape à la fois : chaque code est essayé avant d\'être gardé, puis la tour l\'enregistre seule.' : 'Tout est fait : la tour tourne seule. Les étapes « quand tu veux » restent là si tu en as envie.') + '</p></div>' +
+      '<div class="route-total">' + anneau(ess.faites, ess.total, 46) + '<span><b>' + ess.faites + ' sur ' + ess.total + '</b>de l\'essentiel</span></div></div>';
+    // on regarde une autre étape que celle du moment : un rappel pour y revenir
+    if (mt && mt.etape !== id) h += '<div class="carte route-maintenant"><div><small>À faire maintenant</small><b>' + esc(mt.titre) + '</b><span>' + esc(mt.mission_titre) + (mt.duree ? ', ' + esc(mt.duree) : '') + '</span></div><button class="btn btn-primaire" data-etape="' + esc(mt.etape) + '">Y aller</button></div>';
+    h += '<div class="route"><div class="carte route-liste">' + listeMissions(ms, id) + '</div>';
     h += '<div class="carte etape">' + (e ? carteEtape(e) : '') + '</div></div>';
+    const tard = S.mis.plus_tard || [];
+    if (tard.length) {
+      // rangés par entreprise, sur deux colonnes : de quoi voir d'un coup d'œil ce qui viendra
+      const par = {}; tard.forEach((t) => { (par[t.ou] = par[t.ou] || []).push(t); });
+      h += '<div class="carte route-tard"><h2 class="carte-t">Plus tard<small>Rien à faire aujourd\'hui : ces postes attendront ton feu vert ou un outil</small></h2>' + Object.keys(par).map((ou) => '<div class="rt-ou">' + esc(ou) + '</div><div class="rt-grille">' + par[ou].map((t) => '<div class="rt-l"><span class="avatar petit">' + esc(String(t.qui || '?').charAt(0)) + '</span><div><b>' + esc(t.qui) + '</b><span>' + esc(t.poste) + '</span><p>' + esc(t.attend) + '</p></div></div>').join('') + '</div>').join('') + '</div>';
+    }
     return h;
   },
   apres(el) {
@@ -44,7 +63,8 @@ const route = {
 };
 function carteEtape(e) {
   const att = enAttente[e.id] && !e.fait;
-  let h = '<h2>' + esc(e.titre) + '</h2><p class="pourquoi">' + esc(e.pourquoi || '') + '</p>';
+  const maintenant = e.id === courante();
+  let h = '<div class="etape-t">' + (maintenant ? '<span class="pastille cobalt">À faire maintenant</span>' : '') + '<span>' + esc(e.mission.titre) + '</span>' + (e.duree && !e.fait ? '<span class="pastille">' + esc(e.duree) + '</span>' : '') + '</div><h2>' + esc(e.titre) + '</h2><p class="pourquoi">' + esc(e.pourquoi || '') + '</p>';
   if (e.fait) {
     h += '<div class="reussite">' + ico('coche') + '<div><b>C\'est fait.</b>' + (e.coche ? '<div class="ligne-actions" style="margin-top:8px"><button class="btn btn-discret btn-petit" data-act="misDecocher" data-id="' + esc(e.id) + '">Pas encore fait finalement</button></div>' : '') + '</div></div>';
     const suite = etapes().find((x) => !x.fait && !x.bloque);
@@ -56,6 +76,7 @@ function carteEtape(e) {
   const btn = [];
   (e.liens || []).forEach((l) => btn.push('<a class="btn btn-second" href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer">' + ico('externe') + esc(l.texte) + '</a>'));
   (e.copier || []).forEach((c, i) => btn.push('<button class="btn btn-second" data-act="misCopier" data-id="' + esc(e.id) + '" data-i="' + i + '">' + ico('copier') + esc(c.texte) + '</button>'));
+  if (e.lienInterne) btn.push('<button class="btn btn-second" data-aller="' + esc(e.lienInterne.aller) + '">' + esc(e.lienInterne.texte) + '</button>');
   if (btn.length) h += '<div class="ligne-actions" style="margin-bottom:16px">' + btn.join('') + '</div>';
   if (e.champs) h += e.champs.map((c) => '<label class="champ"><span>' + esc(c.label) + '</span><input class="saisie' + (c.type === 'password' ? ' code' : '') + '" data-var="' + esc(c.variable) + '" type="' + (c.type === 'password' ? 'password' : c.type === 'email' ? 'email' : c.type === 'tel' ? 'tel' : 'text') + '" autocomplete="off" spellcheck="false" value="' + esc(c.valeur || '') + '"' + (c.type === 'password' ? ' placeholder="colle ici"' : '') + '></label>').join('');
   const fin = [];
