@@ -1,5 +1,6 @@
-// Le Studio 3D sans réseau : une vidéo traverse toute la chaîne (Clara, Oscar, l'usine, Vera, Nina, l'usine encore)
-// avec Claude, GitHub et le stockage simulés. Lance : node test/studio.js
+// Le Studio 3D sans réseau : une vidéo traverse toute la chaîne (la salle d'écriture : Gaspard, Sacha, Clara, Félix,
+// Hélène ; puis Oscar, l'usine, Vera, Romane et Nina, l'usine encore) avec Claude, GitHub et le stockage simulés.
+// Lance : node test/studio.js
 'use strict';
 process.env.HQ_TOUR_PROJET = 'prj_tour'; process.env.HQ_TOUR_EQUIPE = 'team_test';
 process.env.HQ_LOCAL = '1';
@@ -64,7 +65,9 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   const video = async (id) => db.one('hq_videos', { eq: { id } });
 
   // 1. l'organigramme
-  ['scenariste', 'animateur', 'monteur', 'critique_video', 'localisation'].forEach((id) => assert.strictEqual(agent(id).kind, 'job', id + ' travaille seul'));
+  ['actu_studio', 'accrocheur', 'scenariste', 'prof_viral', 'verif_studio', 'animateur', 'monteur', 'critique_video', 'plume_fr', 'localisation'].forEach((id) => { assert.strictEqual(agent(id).kind, 'job', id + ' travaille seul'); assert.ok(runtime.JOBS[agent(id).job], id + ' : son travail existe'); });
+  assert.strictEqual(agent('monteur').name, 'Elsa', 'la cheffe de fabrication ne porte plus le prénom du portfolio');
+  assert.strictEqual(env.agents.filter((a) => a.company_id === 'studio3d').length, 18, 'dix-huit postes au Studio');
   ['publication', 'showrunner', 'brainrot'].forEach((id) => assert.strictEqual(agent(id).kind, 'attente', id + ' attend son branchement'));
   assert.ok(agent('dg_studio').tools.indexOf('regler_studio') >= 0, 'le DG règle le rythme');
 
@@ -75,19 +78,68 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   const vf = SC.verifier(fausse, 11);
   assert.ok(!vf.ok && vf.erreurs.some((e) => /rien ne bouge/.test(e)) && vf.erreurs.some((e) => /parent/.test(e)), 'erreurs nommées : ' + vf.erreurs.join(' | '));
 
-  // 3. Clara écrit un script
-  const r1 = await lancer('scenariste');
-  assert.ok(r1.produit === 1, 'un script : ' + r1.resume);
-  let v = (await db.select('hq_videos', {}))[0];
-  assert.strictEqual(v.status, 'script');
-  assert.deepStrictEqual(v.langues, ['en', 'fr', 'es', 'pt', 'hi'], 'cinq langues par défaut');
-  assert.ok(v.script.mots >= 165, 'assez long pour dépasser une minute');
-  // un sujet déjà fait n'est jamais refait
-  await db.update('hq_videos', { dedupe: 'meca:clim-2' }, { eq: { id: v.id } });
-  const r1b = await lancer('scenariste');
-  assert.ok(/déjà/.test(r1b.resume), 'doublon écarté : ' + r1b.resume);
+  // 3. Gaspard : la fiche d'actualité du jour, une seule fois par jour
+  const ra = await lancer('actu_studio');
+  assert.ok(ra.produit === 2, 'fiche faite pour la France et le monde anglophone : ' + ra.resume);
+  const actu = (await db.one('hq_config', { eq: { key: 'studio_actu' } })).value;
+  assert.ok(actu.langues.fr.length >= 4 && actu.langues.fr[0].exemple && actu.langues.fr[0].a_eviter, 'chaque sujet a sa situation, son exemple et ce qu\'il faut éviter');
+  assert.ok(/déjà faite/.test((await lancer('actu_studio')).resume), 'pas deux fiches le même jour');
 
-  // 4. Oscar : une première scène fausse est corrigée dans le même passage
+  // 4. Sacha : le sujet, la révélation et 8 accroches ; il garde la meilleure ; un sujet déjà fait n'est jamais refait
+  const r1 = await lancer('accrocheur');
+  assert.ok(r1.produit === 1, 'un sujet lancé : ' + r1.resume);
+  let v = (await db.select('hq_videos', {}))[0];
+  assert.strictEqual(v.status, 'accroche');
+  assert.deepStrictEqual(v.langues, ['en', 'fr', 'es', 'pt', 'hi'], 'cinq langues par défaut');
+  assert.ok(v.script.brief.accroches.length === 8 && v.script.brief.choix === 2 && v.script.brief.revelation, 'les accroches et la révélation sont gardées');
+  assert.ok(/Grève des transports/.test(fakes.STUDIO.consignes.trouver_accroches), 'Sacha lit l\'actualité pour choisir un sujet de saison');
+  await db.update('hq_videos', { dedupe: 'meca:clim-2' }, { eq: { id: v.id } });
+  const r1b = await lancer('accrocheur');
+  const v2b = (await db.select('hq_videos', { order: 'id.desc', limit: 1 }))[0];
+  assert.ok(r1b.produit === 1 && v2b.dedupe === 'meca:clim-3', 'doublon refusé puis un autre sujet : ' + r1b.resume);
+  await db.update('hq_videos', { status: 'refuse' }, { eq: { id: v2b.id } });
+  assert.ok(/Quota du jour/.test((await lancer('accrocheur')).resume), 'deux sujets par jour, pas plus');
+
+  // 5. Clara écrit le script ; un premier jet refusé par le contrôle est réécrit dans le même passage
+  fakes.STUDIO.scriptsRates = 1;
+  const r2s = await lancer('scenariste');
+  v = await video(v.id);
+  assert.strictEqual(v.status, 'relecture', 'script écrit : ' + r2s.resume);
+  assert.strictEqual(fakes.STUDIO.appels.ecrire_script, 2, 'le jet trop court est refusé puis réécrit');
+  assert.ok(v.script.beats.length === 16 && v.script.mots >= 150 && v.script.boucles.length >= 2 && v.script.brief, 'structure de rétention complète, le brief de Sacha gardé');
+  assert.ok(/Your AC has never made \*a single degree\* of cold/.test(fakes.STUDIO.consignes.ecrire_script), 'Clara part de l\'accroche choisie par Sacha');
+
+  // 6. Félix : trop faible, Clara réécrit avec ses corrections ; la règle qu'il a vue revenir est gardée pour l'équipe
+  fakes.STUDIO.viral.push(6.5);
+  const rf = await lancer('prof_viral');
+  v = await video(v.id);
+  assert.strictEqual(v.status, 'reecriture', 'sous le seuil : ' + rf.resume);
+  assert.ok(db.tables.hq_knowledge.some((k) => k.agent_id === 'prof_viral' && /événement visuel/.test(k.content)), 'la leçon de Félix est gardée');
+  await lancer('scenariste');
+  v = await video(v.id);
+  assert.ok(v.status === 'relecture' && v.script.versions === 2, 'version 2');
+  assert.ok(/NOTE DE FÉLIX : 6\.5\/10/.test(fakes.STUDIO.consignes.ecrire_script) && /One fluid does \*all\* the work/.test(fakes.STUDIO.consignes.ecrire_script), 'Clara a reçu les corrections de Félix');
+  assert.ok(/événement visuel/.test(fakes.STUDIO.systemes.ecrire_script), 'et la règle apprise par Félix');
+  await lancer('prof_viral');
+  v = await video(v.id);
+  assert.strictEqual(v.status, 'verification', 'au-dessus du seuil : à la vérification');
+  assert.strictEqual(v.script.note_viral, 9);
+
+  // 7. Hélène vérifie les faits sur le web et corrige elle-même une approximation
+  const rh = await lancer('verif_studio');
+  v = await video(v.id);
+  assert.strictEqual(v.status, 'script', 'faits vérifiés : ' + rh.resume);
+  assert.ok(/about \*ten times\*/.test(v.script.beats[9].voix) && v.script.verif.faits.length === 2, 'la phrase 10 est nuancée');
+  assert.ok(rh.cout > 0.01, 'la recherche web est comptée');
+  // un mécanisme faux renvoie à Clara une fois, puis la vidéo sort
+  const vf2 = (await db.insert('hq_videos', { ligne: 'meca', titre: 'Faux', status: 'verification', langue_source: 'en', langues: ['en'], script: JSON.parse(JSON.stringify(v.script)) }))[0];
+  await db.update('hq_videos', { updated_at: new Date(Date.now() - 86400000).toISOString() }, { eq: { id: vf2.id } });
+  fakes.STUDIO.verifs.push({ faits: [{ beat: 13, affirmation: 'boiling drinks heat', statut: 'faux', explication: 'test' }], corrections: [], verdict: 'a_reecrire', resume: 'Le mécanisme est faux.' });
+  await lancer('verif_studio');
+  assert.strictEqual((await video(vf2.id)).status, 'reecriture', 'un fait faux renvoie à Clara');
+  await db.update('hq_videos', { status: 'refuse' }, { eq: { id: vf2.id } });
+
+  // 8. Oscar : une première scène fausse est corrigée dans le même passage
   fakes.STUDIO.scenesRatees = 1;
   const r2 = await lancer('animateur');
   v = await video(v.id);
@@ -95,7 +147,7 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   assert.strictEqual(fakes.STUDIO.appels.ecrire_scene, 2, 'deux appels : le jet refusé puis le bon');
   assert.strictEqual(v.scene.plans.length, v.script.beats.length, 'un plan par phrase');
 
-  // 5. Lina sans usine : elle attend, sans rien casser
+  // 9. Elsa sans usine : elle attend, sans rien casser
   const r3 = await lancer('monteur');
   assert.ok(/pas encore branchée/.test(r3.resume));
   // l'usine branchée : la langue source part la première
@@ -107,7 +159,7 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   assert.deepStrictEqual(GH.lances.map((x) => x.langue), ['en'], 'seulement l\'anglais d\'abord');
   assert.ok(!('tour' in GH.lances[0]), 'l\'adresse de la tour ne passe jamais au lancement');
 
-  // 6. la porte de l'usine
+  // 10. la porte de l'usine
   assert.strictEqual((await appelUsine('GET', { op: 'commande', video: String(v.id), langue: 'en' }, 'faux')).code, 401, 'mauvais secret refusé');
   const cmd = await appelUsine('GET', { op: 'commande', video: String(v.id), langue: 'en' });
   assert.strictEqual(cmd.code, 200);
@@ -123,7 +175,7 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   const fin1 = await appelUsine('POST', { op: 'fini', video: v.id, langue: 'en', jeton, ok: true, duree: 62.3, taille: 25000000, fichiers: fichiers.map((f) => f.nom) });
   assert.strictEqual(fin1.d.statut, 'critique', 'la langue source rendue part chez Vera');
 
-  // 7. Vera : scène à refaire d'abord, puis publication
+  // 11. Vera : scène à refaire d'abord, puis publication
   fakes.STUDIO.verdicts.push({ note: 5, verdict: 'refaire_scene' });
   await lancer('critique_video');
   v = await video(v.id);
@@ -131,6 +183,7 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   assert.strictEqual(v.essais, 1);
   assert.ok(!v.rendus.en, 'le rendu d\'essai sera refait');
   assert.ok(fakes.STUDIO.images >= 3, 'Vera a regardé les images');
+  assert.ok(/\[relance\]/.test(require('../lib/jobs/studio_critique').OUTIL ? fakes.STUDIO.consignes.juger_video : ''), 'Vera voit le rôle de chaque plan');
   await lancer('animateur');
   v = await video(v.id);
   assert.strictEqual(v.status, 'scene');
@@ -141,17 +194,25 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   v = await video(v.id);
   assert.strictEqual(v.status, 'traduction', 'validée : place aux langues');
 
-  // 8. Nina : trois langues par passage, puis la quatrième, puis l'usine
+  // 12. Nina adapte l'espagnol, le portugais et le hindi ; le français attend Romane
   await lancer('localisation');
   v = await video(v.id);
-  assert.deepStrictEqual(Object.keys(v.traductions).sort(), ['es', 'fr', 'pt']);
-  assert.ok(v.traductions.fr.beats[2].etiquettes[0].objet === 'compresseur', 'les étiquettes visent les mêmes pièces');
-  await lancer('localisation');
-  await lancer('localisation');
+  assert.deepStrictEqual(Object.keys(v.traductions).sort(), ['es', 'hi', 'pt'], 'Nina laisse le français à Romane');
+  assert.ok(v.traductions.es.beats[4].etiquettes[0].objet === 'compresseur', 'les étiquettes visent les mêmes pièces');
+  assert.ok(/J'attends la version française/.test((await lancer('localisation')).resume));
+  // Romane : une version sans humour est refusée et réécrite ; avec la fiche de Gaspard, puis tout part à l'usine
+  fakes.STUDIO.plumeRatee = 1;
+  const rr = await lancer('plume_fr');
   v = await video(v.id);
-  assert.strictEqual(v.status, 'langues', 'toutes les langues adaptées');
+  assert.strictEqual(fakes.STUDIO.appels.ecrire_francais, 2, 'la version sans blague est réécrite');
+  assert.ok(/RER un jour de grève/.test(fakes.STUDIO.systemes.ecrire_francais), 'Romane a la fiche d\'actualité');
+  assert.ok(v.traductions.fr.blagues.length === 2 && /grève/.test(v.traductions.fr.beats[4].voix), 'la blague du jour : ' + rr.resume);
+  assert.strictEqual(v.status, 'langues', 'toutes les langues écrites');
+  // si Romane échoue deux fois, Nina reprend le français
+  assert.deepStrictEqual(require('../lib/jobs/studio_langues').pourNina({ langue_source: 'en', langues: ['en', 'fr', 'es'], traductions: { es: {} }, critique: { plume_echecs: 2 } }), ['fr']);
+  assert.deepStrictEqual(require('../lib/jobs/studio_langues').pourNina({ langue_source: 'en', langues: ['en', 'fr', 'es'], traductions: { es: {} }, critique: { le: new Date().toISOString() } }), []);
 
-  // 9. l'usine rend les autres langues ; une langue sans nouvelles est relancée
+  // 13. l'usine rend les autres langues ; une langue sans nouvelles est relancée
   GH.lances = [];
   await lancer('monteur');
   assert.deepStrictEqual(GH.lances.map((x) => x.langue).sort(), ['es', 'fr', 'hi', 'pt']);
@@ -172,7 +233,7 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   assert.strictEqual(v.status, 'prete', 'la vidéo est prête dans les 5 langues');
   assert.ok(Number(v.cout_usd) > 0, 'le coût de l\'IA est suivi');
 
-  // 10. un échec répété de la langue source arrête la vidéo et prévient le DG
+  // 14. un échec répété de la langue source arrête la vidéo et prévient le DG
   const v2 = (await db.insert('hq_videos', { ligne: 'meca', titre: 'Essai panne', status: 'scene', langue_source: 'en', langues: ['en'], script: ex.script, scene: ex.scene }))[0];
   await lancer('monteur');
   for (let k = 0; k < 2; k++) {
@@ -183,11 +244,13 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   assert.strictEqual((await video(v2.id)).status, 'echec');
   assert.ok(db.tables.hq_messages.some((m) => m.to_id === 'dg_studio' && /Chrome a planté/.test(m.body)), 'le DG est prévenu avec la raison');
 
-  // 11. ce que voit Louis, et ce qu'il peut faire
+  // 15. ce que voit Louis, et ce qu'il peut faire
   const vue = await require('../lib/studio/vue').liste(db, {});
   const pv = vue.videos.find((x) => x.id === v.id);
   assert.strictEqual(pv.rendus.filter((x) => x.video).length, 5, 'un lecteur par langue');
   assert.ok(vue.usine.branchee && vue.usine.fabrications.length === 1);
+  assert.ok(pv.ecriture.accroche.nombre === 8 && pv.ecriture.viral.note === 9 && pv.ecriture.verif.corriges === 1 && pv.ecriture.blagues.length === 2, 'Louis voit le travail de la salle d\'écriture');
+  assert.ok((await require('../lib/studio/vue').liste(db, { statut: 'ecriture' })).videos.every((x) => S.ECRITURE.indexOf(x.statut) >= 0), 'le filtre « en écriture »');
   await require('../lib/actions').agir('studio_video', { id: v2.id, faire: 'relancer' });
   assert.strictEqual((await video(v2.id)).status, 'scene', 'Louis relance une vidéo en échec');
   await require('../lib/actions').agir('studio_regler', { ligne: 'meca', videos_jour: 4, langues: ['fr', 'es'] });
@@ -195,14 +258,14 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   assert.strictEqual(rg.videos_jour, 4);
   assert.deepStrictEqual(rg.langues, ['en', 'fr', 'es'], 'l\'anglais reste la langue source');
 
-  // 12. les outils du DG
+  // 16. les outils du DG
   const ex2 = tools.executeurs({ db, agent: agent('dg_studio'), agents: env.agents, budget: env.budget, compteurs: C0() });
   const lv = await ex2.lister_videos({});
   assert.ok(lv.comptes.prete === 1 && lv.videos.length >= 2);
   const ex3 = tools.executeurs({ db, agent: agent('tendances'), agents: env.agents, budget: env.budget, compteurs: C0() });
   assert.ok((await ex3.regler_studio({ ligne: 'meca', videos_jour: 9, raison: 'x' })).erreur, 'seul le DG règle le rythme');
 
-  // 13. la mise en route : le jeton GitHub pose le secret de l'usine et l'adresse de la tour
+  // 17. la mise en route : le jeton GitHub pose le secret de l'usine et l'adresse de la tour
   assert.ok((await G.verifier('pas-un-jeton')).erreur);
   assert.ok((await G.verifier(process.env.HQ_GITHUB_TOKEN)).ok);
   await G.poserSecret(process.env.HQ_GITHUB_TOKEN, 'HQ_USINE_SECRET', 'b'.repeat(64));

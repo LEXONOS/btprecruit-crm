@@ -85,17 +85,32 @@ function critiqueFausse(body) {
   const ok = note >= 8;
   return rep([tu('juger_site', { note: note, verdict: ok ? 'valide' : 'a_refaire', resume: ok ? 'Un premier écran fort, une photo juste, tout se lit sur téléphone.' : 'Le haut de page est fade et le titre se perd sur la photo.', points_forts: ok ? ['premier écran'] : [], problemes: ok ? [] : [{ zone: 'haut de page', gravite: 'bloquant', constat: 'Le titre se lit mal sur la photo.', variante: hero }], actions: ok ? [] : ['changer_rubriques'] })], 'tool_use', { input_tokens: 9000, output_tokens: 500 });
 }
-/* ── le Studio 3D : script, scène, adaptation, critique ── */
-const STUDIO = { verdicts: [], scenesRatees: 0, appels: {} };
+/* ── le Studio 3D : actualité, accroches, script, relecture, vérification, scène, langues, critique ── */
+// STUDIO.viral : notes successives de Félix ; STUDIO.verifs : verdicts d'Hélène ; STUDIO.scriptsRates : jets de Clara
+// refusés par le contrôle ; STUDIO.consignes : le dernier texte reçu par chaque outil
+const STUDIO = { verdicts: [], viral: [], verifs: [], scenesRatees: 0, scriptsRates: 0, plumeRatee: 0, appels: {}, consignes: {}, systemes: {} };
+const texteDe = function (body) { return body.messages.map(function (m) { return typeof m.content === 'string' ? m.content : m.content.map(function (b) { return b.text || ''; }).join('\n'); }).join('\n'); };
 function studio(body) {
   const n = body.tool_choice.name;
   STUDIO.appels[n] = (STUDIO.appels[n] || 0) + 1;
   const ex = require('../usine/exemples/clim.json');
-  const texte = body.messages[0].content.map(function (b) { return b.text || ''; }).join('\n');
-  if (n === 'ecrire_script') {
+  const texte = texteDe(body);
+  STUDIO.consignes[n] = texte;
+  STUDIO.systemes[n] = body.system.map(function (b) { return b.text; }).join('\n');
+  if (n === 'trouver_accroches') {
     const k = STUDIO.appels[n];
-    const beats = ex.script.beats.map(function (b, i) { return { voix: b.voix + (i % 3 === 0 ? ' Watch closely here.' : ''), ecran: b.ecran, image: 'les pièces du plan ' + (i + 1) }; });
-    return rep([tu('ecrire_script', { sujet: 'climatiseur ' + k, cle: 'clim-' + k, titre: 'How your AC moves heat ' + k, accroche: 'Your AC doesn\'t *make* cold.', beats: beats, description: 'The full loop in 3D.', hashtags: ['howitworks', '#engineering'], sources: ['ASHRAE handbook'], a_verifier: [] })], 'tool_use', { output_tokens: 1800 });
+    const familles = ['contradiction', 'chiffre_choc', 'enjeu_cache', 'question_impossible', 'personne_ne_dit', 'defi_regard', 'pov', 'comparaison_absurde'];
+    return rep([tu('trouver_accroches', { sujet: 'climatiseur ' + k, cle: 'clim-' + k, mecanisme: ['Le compresseur comprime le gaz', 'Le condenseur évacue la chaleur dehors', 'Le détendeur fait chuter la pression', 'L\'évaporateur absorbe la chaleur de la pièce'], revelation: 'Le froid n\'existe pas : la clim déplace la chaleur.', chiffres: ['environ 80 °C en sortie de compresseur', 'environ 5 °C dans l\'évaporateur'], pourquoi_maintenant: 'la chaleur', accroches: familles.map(function (f, i) { return { famille: f, voix: i === 1 ? 'Your AC has never made *a single degree* of cold.' : 'Accroche ' + (i + 1) + ' sur la *clim*.', ecran: 'So where does the *heat* go?', image: 'gros plan sur le serpentin', question: 'où part la chaleur', notes: { arret: 9 - (i % 3), clarte: 9, curiosite: 9, verite: 9 } }; }), choix: 2, pourquoi: 'La contradiction la plus nette.' })], 'tool_use', { output_tokens: 1500 });
+  }
+  if (n === 'ecrire_script') {
+    const beats = ex.script.beats.map(function (b) { return { role: b.role, voix: b.voix, ecran: b.ecran, image: b.image }; });
+    if (STUDIO.scriptsRates > 0) { STUDIO.scriptsRates--; return rep([tu('ecrire_script', { titre: 'Trop court', accroche: 'Court', beats: beats.slice(0, 6), boucles: [], description: 'x', commentaire: 'x', hashtags: [] })]); }
+    return rep([tu('ecrire_script', { titre: 'Your AC has never made cold ' + STUDIO.appels[n], accroche: ex.script.accroche, beats: beats, boucles: ex.script.boucles, description: ex.script.description, commentaire: ex.script.commentaire, hashtags: ['howitworks', '#engineering'], sources: ['ASHRAE handbook'], a_verifier: [] })], 'tool_use', { output_tokens: 2400 });
+  }
+  if (n === 'juger_script') {
+    const v = STUDIO.viral.length ? STUDIO.viral.shift() : 9;
+    const notes = {}; ['accroche', 'enjeu', 'boucles', 'relance', 'rythme', 'concret', 'gain', 'fin', 'humour', 'clarte'].forEach(function (k) { notes[k] = v; });
+    return rep([tu('juger_script', { notes: notes, spectateur: v < 8 ? [{ beat: 4, risque: 3, pourquoi: 'rien de neuf à l\'écran' }] : [], corrections: v < 8 ? [{ beat: 4, probleme: 'phrase molle', proposition: 'One fluid does *all* the work.' }] : [], resume: v < 8 ? 'La phrase 4 est molle.' : 'Accroche nette, relance au bon endroit.', lecon: v < 8 ? 'Une phrase sans événement visuel fait décrocher : chaque phrase doit montrer du neuf.' : '' })]);
   }
   if (n === 'ecrire_scene') {
     const nb = Number((texte.match(/LE SCRIPT \((\d+) phrases/) || [])[1]) || ex.scene.plans.length;
@@ -107,7 +122,13 @@ function studio(body) {
   }
   if (n === 'adapter_video') {
     const src = JSON.parse((texte.match(/LA VIDÉO EN ANGLAIS :\n([\s\S]*?)\n\nAdapte/) || [])[1] || '{}');
-    return rep([tu('adapter_video', { titre: 'Adapté : ' + src.titre, accroche: 'Ta clim ne *fabrique* pas de froid.', description: 'Version adaptée.', hashtags: ['#commentcamarche'], beats: (src.beats || []).map(function (b) { return { voix: 'Adapté. ' + b.voix, ecran: b.ecran, etiquettes: (b.etiquettes || []).map(function (e) { return { objet: e.objet, texte: 'É ' + e.texte }; }) }; }) })]);
+    return rep([tu('adapter_video', { titre: 'Adapté : ' + src.titre, accroche: 'Alors où part la *chaleur* ?', description: 'Version adaptée.', hashtags: ['#commentcamarche'], beats: (src.beats || []).map(function (b) { return { voix: 'Adapté. ' + b.voix, ecran: b.ecran, etiquettes: (b.etiquettes || []).map(function (e) { return { objet: e.objet, texte: 'É ' + e.texte }; }) }; }) })]);
+  }
+  if (n === 'ecrire_francais') {
+    const src = JSON.parse((texte.match(/LA VIDÉO EN ANGLAIS \([^)]*\) :\n([\s\S]*?)\n\nLA RÉVÉLATION/) || [])[1] || '{}');
+    const fr = ex.langues.fr;
+    const raté = STUDIO.plumeRatee > 0 && STUDIO.plumeRatee--;
+    return rep([tu('ecrire_francais', { titre: fr.titre, accroche: fr.accroche, description: fr.description, hashtags: fr.hashtags, blagues: raté ? [] : fr.blagues, beats: (src.beats || []).map(function (b, i) { return { voix: (fr.beats[i] || {}).voix || b.voix, ecran: b.ecran, etiquettes: (b.etiquettes || []).map(function (e) { return { objet: e.objet, texte: 'FR ' + e.texte }; }) }; }) })], 'tool_use', { output_tokens: 2600 });
   }
   if (n === 'juger_video') {
     const v = STUDIO.verdicts.length ? STUDIO.verdicts.shift() : { note: 8, verdict: 'publier' };
@@ -117,9 +138,29 @@ function studio(body) {
   }
   return null;
 }
+// les travaux du Studio qui cherchent sur le web (Gaspard, Hélène) : une recherche, puis leur outil de fin
+function studioWeb(body) {
+  const noms = body.tools.map(function (t) { return t.name; });
+  const texte = texteDe(body);
+  const apresRecherche = body.messages.length > 1;
+  if (noms.indexOf('fiche_actu') >= 0) {
+    STUDIO.appels.fiche_actu = (STUDIO.appels.fiche_actu || 0) + 1;
+    if (!apresRecherche) return rep([{ type: 'server_tool_use', id: 'st1', name: 'web_search', input: { query: 'actualité étudiants' } }, { type: 'web_search_tool_result', tool_use_id: 'st1', content: [] }, { type: 'text', text: 'Je fais la fiche.' }, tu('fiche_actu', { saison: 'Le froid arrive, les partiels approchent.', sujets: [{ sujet: 'Grève des transports', contexte: 'Journée de grève nationale ce jeudi.', situation: 'Le RER bondé un jour de grève', exemple: 'plus serré que le RER un jour de grève', a_eviter: 'la cause de la grève, un camp', source: 'https://www.sortiraparis.com' }, { sujet: 'Lycées bloqués', contexte: 'Blocages devant plusieurs lycées.', situation: 'Réviser quand le lycée est bloqué', exemple: 'plus de pression qu\'un lycéen devant Parcoursup', a_eviter: 'prendre parti', source: 'https://www.letudiant.fr' }, { sujet: 'Partiels', contexte: 'Les partiels de décembre approchent.', situation: 'La nuit blanche avant le partiel', exemple: 'plus chaud qu\'un cerveau en partiels', a_eviter: '', source: '' }, { sujet: 'Froid', contexte: 'Premières gelées.', situation: 'Le chauffage qu\'on n\'ose pas allumer', exemple: 'plus froid que ton appart en novembre', a_eviter: '', source: '' }] })], 'tool_use', { server_tool_use: { web_search_requests: 1 } });
+    return rep([{ type: 'text', text: 'Fini.' }], 'end_turn');
+  }
+  if (noms.indexOf('verdict_faits') >= 0) {
+    STUDIO.appels.verdict_faits = (STUDIO.appels.verdict_faits || 0) + 1;
+    STUDIO.consignes.verdict_faits = texte;
+    const v = STUDIO.verifs.length ? STUDIO.verifs.shift() : null;
+    const x = v || { faits: [{ beat: 6, affirmation: 'eighty degrees', statut: 'juste', explication: 'Ordre de grandeur juste pour un R-32.', source: 'fabricant' }, { beat: 10, affirmation: 'ten times tire pressure', statut: 'approximatif', explication: 'Plutôt huit à douze fois selon le fluide.', source: 'manuel' }], corrections: [{ beat: 10, voix: 'Still warm, and squeezed to about *ten times* a car tire\'s pressure.' }], verdict: 'corrige', resume: 'Tout est juste, un chiffre nuancé.' };
+    return rep([{ type: 'server_tool_use', id: 'st2', name: 'web_search', input: { query: 'R-32 high side pressure' } }, { type: 'web_search_tool_result', tool_use_id: 'st2', content: [] }, tu('verdict_faits', x)], 'tool_use', { server_tool_use: { web_search_requests: 1 } });
+  }
+  return null;
+}
 function claude(body) {
   appelsClaude++;
-  if (body.tool_choice && ['ecrire_script', 'ecrire_scene', 'adapter_video', 'juger_video'].indexOf(body.tool_choice.name) >= 0) return studio(body);
+  if (body.tool_choice && ['trouver_accroches', 'ecrire_script', 'juger_script', 'ecrire_scene', 'adapter_video', 'ecrire_francais', 'juger_video'].indexOf(body.tool_choice.name) >= 0) return studio(body);
+  if (!body.tool_choice && Array.isArray(body.tools) && body.tools.some(function (t) { return t.name === 'fiche_actu' || t.name === 'verdict_faits'; })) return studioWeb(body);
   if (body.tool_choice && body.tool_choice.name === 'juger_site') return critiqueFausse(body);
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
   if (body.tool_choice && body.tool_choice.name === 'noter_photos') return vision(body);

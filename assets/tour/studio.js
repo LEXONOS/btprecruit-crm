@@ -5,8 +5,10 @@ import { $, esc, ico, usd, depuis, pluriel, toast, occupe, dialogue } from './ou
 import { lireApi, envoyer } from './api.js';
 import { nom, demo, action, aller } from './etat.js';
 
-const TON = { script: '', scene: '', essai: 'cobalt', critique: 'attention', traduction: 'cobalt', langues: 'cobalt', prete: 'ok', publiee: 'ok', refuse: 'alerte', echec: 'alerte' };
-const QUI = { script: 'scenariste', scene: 'animateur', essai: 'monteur', critique: 'critique_video', traduction: 'localisation', langues: 'monteur' };
+const TON = { accroche: 'nu', relecture: 'attention', reecriture: 'nu', verification: 'nu', script: '', scene: '', essai: 'cobalt', critique: 'attention', traduction: 'cobalt', langues: 'cobalt', prete: 'ok', publiee: 'ok', refuse: 'alerte', echec: 'alerte' };
+// qui a la vidéo entre les mains à chaque étape
+const QUI = { accroche: 'scenariste', relecture: 'prof_viral', reecriture: 'scenariste', verification: 'verif_studio', script: 'animateur', scene: 'monteur', essai: 'monteur', critique: 'critique_video', traduction: 'plume_fr', langues: 'monteur' };
+const ECRITURE = ['accroche', 'relecture', 'reecriture', 'verification'];
 const tete = (titre, texte, actions) => '<div class="s-tete"><div><h1>' + esc(titre) + '</h1>' + (texte ? '<p>' + texte + '</p>' : '') + '</div>' + (actions ? '<div class="ligne-actions">' + actions + '</div>' : '') + '</div>';
 const vide = (titre, texte, bouton) => '<div class="vide"><b>' + esc(titre) + '</b>' + esc(texte) + (bouton || '') + '</div>';
 let rechargeur = null;
@@ -16,7 +18,7 @@ let dernier = null;
 
 function carteUsine(d) {
   const u = d.usine || {};
-  if (!u.branchee) return '<div class="barre-pilote manque"><div><b>L\'usine n\'est pas encore branchée</b><span>Clara, Oscar et Vera travaillent déjà ; les vidéos se fabriquent dès que le jeton GitHub est collé (2 minutes).</span></div><button class="btn btn-primaire btn-petit" data-aller="gestion/route">Mise en route</button></div>';
+  if (!u.branchee) return '<div class="barre-pilote manque"><div><b>L\'usine n\'est pas encore branchée</b><span>La salle d\'écriture travaille déjà (accroches, scripts, relecture, vérification) ; les vidéos se fabriquent dès que le jeton GitHub est collé (2 minutes).</span></div><button class="btn btn-primaire btn-petit" data-aller="gestion/route">Mise en route</button></div>';
   const f = (u.fabrications || []).slice(0, 4);
   const enCours = f.filter((x) => x.etat !== 'completed').length;
   return '<div class="carte" style="margin-bottom:14px"><h2 class="carte-t">L\'usine<small>GitHub Actions, ' + esc(u.depot || '') + '</small></h2>' +
@@ -41,7 +43,12 @@ function ficheVideo(v, noms) {
   const enCours = (v.rendus || []).filter((r) => r.etat === 'demande').map((r) => noms[r.langue] || r.langue);
   const ratees = (v.rendus || []).filter((r) => r.etat === 'echec');
   let h = '<article class="fiche studio-v"><div class="fiche-t"><div><b>' + esc(v.titre || v.sujet || 'Vidéo ' + v.id) + '</b><span class="s">' + esc([v.sujet, 'n° ' + v.id, depuis(v.maj), usd(v.cout)].filter(Boolean).join(', ')) + '</span></div><span class="pastille ' + (TON[v.statut] || '') + '">' + esc((dernier.statuts || {})[v.statut] || v.statut) + esc(etape) + '</span></div>';
-  if (v.accroche) h += '<p class="info">Accroche : « ' + esc(String(v.accroche).replace(/\*/g, '')) + ' »</p>';
+  const e = v.ecriture || {};
+  if (e.accroche) h += '<p class="info">' + esc(nom('accrocheur')) + ' : « ' + esc(String(e.accroche.voix).replace(/\*/g, '')) + ' » <span style="color:var(--doux)">(la meilleure de ' + esc(e.accroche.nombre) + ' accroches' + (v.accroche ? ', à l\'écran : « ' + esc(String(v.accroche).replace(/\*/g, '')) + ' »' : '') + ')</span></p>';
+  else if (v.accroche) h += '<p class="info">Accroche : « ' + esc(String(v.accroche).replace(/\*/g, '')) + ' »</p>';
+  if (e.viral) h += '<p class="info"><b>' + esc(nom('prof_viral')) + ' ' + esc(e.viral.note) + '/10</b>' + (e.viral.versions > 1 ? ' (version ' + esc(e.viral.versions) + ')' : '') + ' : ' + esc(e.viral.resume || '') + '</p>';
+  if (e.verif) h += '<p class="info">' + esc(nom('verif_studio')) + ' : ' + esc(pluriel(e.verif.faits, 'fait')) + ' vérifiés' + (e.verif.corriges ? ', ' + esc(e.verif.corriges) + ' corrigé(s)' : '') + (e.verif.faux ? ', <b style="color:var(--alerte)">' + esc(e.verif.faux) + ' faux</b>' : '') + '. ' + esc(e.verif.resume || '') + '</p>';
+  if (e.blagues) h += '<p class="info">' + esc(nom('plume_fr')) + ', l\'humour de la version française : ' + esc(e.blagues.join(' ; ')) + '</p>';
   if (c) h += '<p class="info"><b>' + esc(nom('critique_video')) + ' ' + esc(c.note) + '/10</b> : ' + esc(c.resume || '') + (c.problemes && c.problemes.length ? '<br><span style="color:var(--doux)">' + c.problemes.slice(0, 3).map((p) => 'plan ' + esc(p.plan) + ' : ' + esc(p.constat)).join('<br>') + '</span>' : '') + '</p>';
   if (v.a_verifier && v.a_verifier.length) h += '<p class="info" style="color:var(--attention)">À vérifier : ' + esc(v.a_verifier.join(' ; ')) + '</p>';
   if (enCours.length) h += '<p class="info">À l\'usine : ' + esc(enCours.join(', ')) + '</p>';
@@ -66,20 +73,21 @@ const studio = {
     if (d.erreur) return tete('Studio 3D') + vide('Le Studio ne se charge pas', d.erreur);
     const c = d.comptes || {}, noms = d.langues || {};
     const total = Object.keys(c).reduce((s, k) => s + c[k], 0);
-    let h = tete('Studio 3D', 'Les vidéos se font seules : Malik trouve le sujet, Clara écrit, Oscar monte la scène 3D, l\'usine rend, Vera juge, Nina traduit. ' + (total ? pluriel(total, 'vidéo') + ', ' + usd(d.cout_total) + ' d\'IA en tout.' : ''));
+    let h = tete('Studio 3D', 'Les vidéos se font seules. La salle d\'écriture : ' + nom('actu_studio') + ' suit l\'actualité, ' + nom('accrocheur') + ' trouve les accroches, ' + nom('scenariste') + ' écrit, ' + nom('prof_viral') + ' juge la viralité, ' + nom('verif_studio') + ' vérifie les faits. La fabrication : ' + nom('animateur') + ' monte la 3D, l\'usine rend, ' + nom('critique_video') + ' juge, ' + nom('plume_fr') + ' écrit en français, ' + nom('localisation') + ' adapte le reste. ' + (total ? pluriel(total, 'vidéo') + ', ' + usd(d.cout_total) + ' d\'IA en tout.' : ''));
     if (demo()) return h + vide('La base n\'est pas encore branchée', 'La mise en route d\'abord.', '<button class="btn btn-primaire btn-petit" style="margin-top:10px" data-aller="gestion/route">Mise en route</button>');
     h += carteUsine(d);
     h += carteLignes(d);
-    const filtres = [['', 'Tout'], ['prete', 'Prêtes'], ['critique', 'À juger'], ['langues', 'Langues'], ['script', 'Scripts'], ['refuse', 'Refusées'], ['echec', 'Échecs']];
-    h += '<div class="filtres" style="margin-top:16px">' + filtres.map((x) => '<button data-filtre="' + x[0] + '" class="' + ((p.statut || '') === x[0] ? 'on' : '') + '">' + esc(x[1]) + (x[0] && c[x[0]] ? '<b>' + c[x[0]] + '</b>' : '') + '</button>').join('') + '</div>';
+    const filtres = [['', 'Tout'], ['prete', 'Prêtes'], ['critique', 'À juger'], ['langues', 'Langues'], ['ecriture', 'En écriture'], ['script', 'À monter'], ['refuse', 'Refusées'], ['echec', 'Échecs']];
+    const nb = (k) => (k === 'ecriture' ? ECRITURE.reduce((s2, x) => s2 + (c[x] || 0), 0) : c[k]);
+    h += '<div class="filtres" style="margin-top:16px">' + filtres.map((x) => '<button data-filtre="' + x[0] + '" class="' + ((p.statut || '') === x[0] ? 'on' : '') + '">' + esc(x[1]) + (x[0] && nb(x[0]) ? '<b>' + nb(x[0]) + '</b>' : '') + '</button>').join('') + '</div>';
     const rows = d.videos || [];
-    h += rows.length ? rows.map((v) => ficheVideo(v, noms)).join('') : vide(p.statut ? 'Aucune vidéo dans cet état' : 'Aucune vidéo pour l\'instant', 'Clara écrit le premier script à son prochain passage.');
+    h += rows.length ? rows.map((v) => ficheVideo(v, noms)).join('') : vide(p.statut ? 'Aucune vidéo dans cet état' : 'Aucune vidéo pour l\'instant', nom('accrocheur') + ' lance le premier sujet à son prochain passage.');
     return h;
   }
 };
 
 action('studioVideo', async (b, d) => {
-  const libelles = { valider: ['Valider cette vidéo ?', 'Elle part en traduction, puis à l\'usine pour les autres langues.', 'Valider'], refaire: ['Demander une autre scène ?', 'Oscar refait la scène 3D, puis l\'usine refait le rendu.', 'Autre scène'], refuser: ['Refuser cette vidéo ?', 'Elle sort de la fabrication.', 'Refuser'], relancer: ['Relancer la fabrication ?', 'Lina renvoie les langues ratées à l\'usine.', 'Relancer'] };
+  const libelles = { valider: ['Valider cette vidéo ?', 'Elle part en traduction, puis à l\'usine pour les autres langues.', 'Valider'], refaire: ['Demander une autre scène ?', 'Oscar refait la scène 3D, puis l\'usine refait le rendu.', 'Autre scène'], refuser: ['Refuser cette vidéo ?', 'Elle sort de la fabrication.', 'Refuser'], relancer: ['Relancer la fabrication ?', nom('monteur') + ' renvoie les langues ratées à l\'usine.', 'Relancer'] };
   const l = libelles[d.faire];
   if (!l || !(await dialogue({ titre: l[0], texte: l[1], ok: l[2], danger: d.faire === 'refuser' }))) return;
   occupe(b, async () => { await envoyer({ op: 'studio_video', id: Number(d.id), faire: d.faire }); toast('C\'est noté.', 'ok'); recharger(); });

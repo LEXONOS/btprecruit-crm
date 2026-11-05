@@ -3,9 +3,10 @@
   "ligne": "meca",
   "langue_source": "en",
   "script": {
-    "titre": "Your AC doesn't make cold",
-    "accroche": "Your AC doesn't *make* cold.",
-    "description": "Your air conditioner never creates cold: it moves heat from your room to the outside, with one fluid, a compressor and a tiny valve. Watch the full loop in 3D.",
+    "titre": "Your AC has never made cold",
+    "accroche": "So where does the *heat* go?",
+    "description": "Your air conditioner never creates cold: it moves your room's heat outside, with one fluid, a compressor and a valve smaller than your thumb. What should we open up next?",
+    "commentaire": "What machine should we open up next?",
     "hashtags": [
       "#howitworks",
       "#engineering",
@@ -15,39 +16,99 @@
     ],
     "beats": [
       {
-        "voix": "Your air conditioner doesn't make cold. It moves heat from inside your room to the outside."
+        "role": "accroche",
+        "voix": "Your AC has never made *a single degree* of cold.",
+        "image": "gros plan sur le serpentin glacé qui fume, la caméra recule et révèle toute la clim"
       },
       {
-        "voix": "It all runs on one fluid, the refrigerant, looping through these copper pipes."
+        "role": "enjeu",
+        "voix": "It *steals heat* from your room and dumps it *outside*.",
+        "image": "l'air tiède de la pièce entre, l'air chaud sort dehors"
       },
       {
-        "voix": "Step one: the compressor squeezes the gas. Squeezed gas gets hot, around eighty degrees.",
-        "ecran": "80°C"
+        "role": "boucle",
+        "voix": "And the whole trick hides in a part *smaller than your thumb*.",
+        "image": "la caméra plonge vers une petite pièce en laiton qui pulse, sans la nommer"
       },
       {
-        "voix": "That hot gas flows up into the outdoor coil."
+        "role": "mecanisme",
+        "voix": "It all runs on one fluid, the *refrigerant*, looping through these pipes.",
+        "image": "seuls les tuyaux restent, le fluide lumineux fait toute la boucle"
       },
       {
-        "voix": "A fan pushes outside air through the fins and pulls the heat out of the gas."
+        "role": "mecanisme",
+        "voix": "First, the *compressor* squeezes that gas tighter than a *rush-hour subway*.",
+        "image": "gros plan sur le compresseur transparent, ses spirales qui tournent"
       },
       {
-        "voix": "As it cools, the gas turns back into a liquid, still under high pressure."
+        "role": "mecanisme",
+        "voix": "Squeezed gas gets *hot*. Around *eighty degrees*.",
+        "ecran": "80°C",
+        "image": "le gaz qui sort du compresseur devient rouge vif"
       },
       {
-        "voix": "Then the trick: a tiny valve. The liquid squeezes through and its pressure collapses."
+        "role": "mecanisme",
+        "voix": "That hot gas rushes into the *outdoor coil*.",
+        "image": "la caméra monte le long du serpentin extérieur qui s'allume"
       },
       {
-        "voix": "At low pressure, it boils at just five degrees. And boiling soaks up heat.",
-        "ecran": "5°C"
+        "role": "mecanisme",
+        "voix": "A fan blasts air through the fins and *rips the heat out*.",
+        "image": "le ventilateur accélère, l'air chaud jaillit"
       },
       {
-        "voix": "Inside, your room's warm air crosses this ice cold coil and comes out chilled."
+        "role": "relance",
+        "voix": "Now here's the *wild* part: the gas turns back into a *liquid*.",
+        "image": "secousse, la caméra plonge sur le tuyau qui devient liquide"
       },
       {
-        "voix": "The gas, now carrying your room's heat, flows back to the compressor."
+        "role": "mecanisme",
+        "voix": "Still warm, and squeezed to *ten times* your car tire's pressure.",
+        "ecran": "x10",
+        "image": "le liquide sous pression avance vers la petite pièce"
       },
       {
-        "voix": "And the loop starts over, all day long. That's why the outdoor unit blows hot air: it's your room's heat, dumped outside."
+        "role": "gain",
+        "voix": "Then, the tiny part: the *expansion valve*. The pressure *collapses*.",
+        "image": "gros plan sur la vanne de détente qui s'allume, secousse quand la pression tombe"
+      },
+      {
+        "role": "gain",
+        "voix": "At low pressure, it *boils* at just *five degrees*.",
+        "ecran": "5°C",
+        "image": "le fluide devient une brume bleue glacée"
+      },
+      {
+        "role": "gain",
+        "voix": "And boiling *drinks heat*. That's where your cold really comes from.",
+        "image": "la caméra plonge dans le serpentin intérieur glacé"
+      },
+      {
+        "role": "mecanisme",
+        "voix": "Your room's warm air crosses this *icy coil* and comes out *chilled*.",
+        "image": "l'air tiède entre dans l'unité intérieure et ressort bleu"
+      },
+      {
+        "role": "mecanisme",
+        "voix": "The gas, now loaded with *your heat*, races back to the compressor.",
+        "image": "on suit le retour du gaz jusqu'au compresseur"
+      },
+      {
+        "role": "fin",
+        "voix": "That hot breeze outside is *your room's heat*. Your AC never made cold.",
+        "image": "retour sur la vue du début, l'air chaud souffle dehors"
+      }
+    ],
+    "boucles": [
+      {
+        "annonce": 3,
+        "paiement": 11,
+        "promesse": "la pièce plus petite que le pouce"
+      },
+      {
+        "annonce": 2,
+        "paiement": 16,
+        "promesse": "où part la chaleur"
       }
     ]
   },
@@ -70,7 +131,7 @@
         "params": {
           "taille": [
             0.08,
-            3.0,
+            3,
             1.5
           ],
           "arrondi": 0.01,
@@ -99,7 +160,7 @@
         "params": {
           "taille": [
             1.36,
-            1.0,
+            1,
             0.56
           ],
           "arrondi": 0.05,
@@ -136,7 +197,8 @@
           "rangs": 6,
           "flux": {
             "couleur": "chaud"
-          }
+          },
+          "matiere": "verre"
         }
       },
       {
@@ -262,7 +324,7 @@
             [
               0.5,
               2.66,
-              0.0
+              0
             ],
             [
               1.15,
@@ -320,12 +382,13 @@
           -0.03
         ],
         "params": {
-          "largeur": 1.0,
+          "largeur": 1,
           "hauteur": 0.26,
           "rangs": 4,
           "flux": {
             "couleur": "froid"
-          }
+          },
+          "matiere": "verre"
         }
       },
       {
@@ -339,7 +402,7 @@
         ],
         "params": {
           "rayon": 0.06,
-          "longueur": 1.0,
+          "longueur": 1,
           "axe": "x"
         }
       },
@@ -374,7 +437,7 @@
               -0.4
             ],
             [
-              0.0,
+              0,
               0.6,
               -0.2
             ],
@@ -427,7 +490,7 @@
         "params": {
           "forme": "boite",
           "taille": [
-            1.0,
+            1,
             0.03,
             0.06
           ],
@@ -452,7 +515,7 @@
         "params": {
           "forme": "boite",
           "taille": [
-            1.0,
+            1,
             0.05,
             0.1
           ],
@@ -470,11 +533,17 @@
     "plans": [
       {
         "camera": {
-          "cible": "tout",
-          "azimut": 28,
-          "elevation": 12,
-          "mouvement": "orbite",
-          "cadrage": 0.78
+          "cible": "evaporateur",
+          "azimut": 20,
+          "elevation": 8,
+          "mouvement": "revele",
+          "puis": {
+            "cible": "tout",
+            "azimut": 28,
+            "elevation": 12,
+            "cadrage": 0.66,
+            "a": 0.5
+          }
         },
         "actions": [
           {
@@ -552,8 +621,53 @@
       {
         "camera": {
           "cible": "tout",
-          "azimut": -18,
-          "elevation": 24,
+          "azimut": -20,
+          "elevation": 22,
+          "mouvement": "recule",
+          "cadrage": 0.82
+        },
+        "actions": [
+          {
+            "objet": "air_piece",
+            "faire": "flux",
+            "vitesse": 0.5
+          }
+        ],
+        "etiquettes": [
+          {
+            "objet": "air_piece",
+            "texte": "Your room"
+          },
+          {
+            "objet": "air_chaud",
+            "texte": "Outside"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "detendeur",
+          "distance": 1.5,
+          "azimut": 34,
+          "elevation": 10,
+          "mouvement": "plonge"
+        },
+        "actions": [
+          {
+            "objet": "air_piece",
+            "faire": "flux",
+            "on": false
+          }
+        ],
+        "surbrillance": [
+          "detendeur"
+        ]
+      },
+      {
+        "camera": {
+          "cible": "tout",
+          "azimut": 18,
+          "elevation": 26,
           "mouvement": "orbite",
           "cadrage": 0.8
         },
@@ -583,7 +697,7 @@
       {
         "camera": {
           "cible": "compresseur",
-          "distance": 1.1,
+          "distance": 1.05,
           "azimut": 35,
           "elevation": 12,
           "mouvement": "avance"
@@ -598,6 +712,11 @@
             "objet": "ext_caisse",
             "faire": "transparent",
             "valeur": 0.92
+          },
+          {
+            "objet": "compresseur",
+            "faire": "tourner",
+            "vitesse": 4
           }
         ],
         "surbrillance": [
@@ -612,29 +731,56 @@
       },
       {
         "camera": {
-          "cible": [
-            "gaz_chaud",
-            "condenseur"
-          ],
-          "azimut": 18,
-          "elevation": 8,
+          "cible": "gaz_chaud",
+          "azimut": -15,
+          "elevation": 14,
           "mouvement": "orbite",
-          "cadrage": 1.05
+          "cadrage": 1.1
         },
         "actions": [
           {
-            "objet": "compresseur",
-            "faire": "opaque"
+            "objet": "gaz_chaud",
+            "faire": "flux",
+            "vitesse": 0.75,
+            "couleur": "brulant"
           }
         ],
         "surbrillance": [
-          "gaz_chaud",
-          "condenseur"
+          "gaz_chaud"
         ],
         "etiquettes": [
           {
             "objet": "gaz_chaud",
             "texte": "Hot gas"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "condenseur",
+          "azimut": -30,
+          "elevation": 6,
+          "mouvement": "monte",
+          "cadrage": 1.15
+        },
+        "actions": [
+          {
+            "objet": "compresseur",
+            "faire": "opaque"
+          },
+          {
+            "objet": "ext_caisse",
+            "faire": "transparent",
+            "valeur": 0.85
+          }
+        ],
+        "surbrillance": [
+          "condenseur"
+        ],
+        "etiquettes": [
+          {
+            "objet": "condenseur",
+            "texte": "Outdoor coil"
           }
         ]
       },
@@ -650,19 +796,15 @@
           {
             "objet": "ext_ventilo",
             "faire": "tourner",
-            "vitesse": 3.2
+            "vitesse": 3.4
           },
           {
             "objet": "air_chaud",
             "faire": "flux",
-            "vitesse": 1.2
+            "vitesse": 1.3
           }
         ],
         "etiquettes": [
-          {
-            "objet": "condenseur",
-            "texte": "Condenser"
-          },
           {
             "objet": "air_chaud",
             "texte": "Heat out"
@@ -672,9 +814,38 @@
       {
         "camera": {
           "cible": "liquide",
-          "distance": 2.2,
-          "azimut": -25,
-          "elevation": 10,
+          "distance": 2.1,
+          "azimut": -28,
+          "elevation": 12,
+          "mouvement": "plonge"
+        },
+        "actions": [
+          {
+            "objet": "liquide",
+            "faire": "flux",
+            "vitesse": 0.5
+          },
+          {
+            "faire": "choc",
+            "delai": 0.25
+          }
+        ],
+        "surbrillance": [
+          "liquide"
+        ],
+        "etiquettes": [
+          {
+            "objet": "liquide",
+            "texte": "Liquid now"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "liquide",
+          "distance": 1.9,
+          "azimut": 20,
+          "elevation": 22,
           "mouvement": "orbite"
         },
         "surbrillance": [
@@ -683,14 +854,14 @@
         "etiquettes": [
           {
             "objet": "liquide",
-            "texte": "Warm liquid"
+            "texte": "High pressure"
           }
         ]
       },
       {
         "camera": {
           "cible": "detendeur",
-          "distance": 0.9,
+          "distance": 0.95,
           "azimut": 30,
           "elevation": 8,
           "mouvement": "avance"
@@ -700,6 +871,15 @@
             "objet": "detendeur",
             "faire": "transparent",
             "valeur": 0.6
+          },
+          {
+            "objet": "detendeur",
+            "faire": "flux",
+            "vitesse": 0.9
+          },
+          {
+            "faire": "choc",
+            "delai": 1.7
           }
         ],
         "surbrillance": [
@@ -724,6 +904,12 @@
           {
             "objet": "detendeur",
             "faire": "opaque"
+          },
+          {
+            "objet": "gaz_froid",
+            "faire": "flux",
+            "vitesse": 0.7,
+            "couleur": "glace"
           }
         ],
         "surbrillance": [
@@ -732,34 +918,67 @@
         "etiquettes": [
           {
             "objet": "gaz_froid",
-            "texte": "Cold mist"
+            "texte": "Boiling cold"
           }
         ]
       },
       {
         "camera": {
-          "cible": "int_caisse",
-          "distance": 2.0,
-          "azimut": 22,
-          "elevation": -4,
-          "mouvement": "avance"
+          "cible": "evaporateur",
+          "azimut": -22,
+          "elevation": 6,
+          "mouvement": "plonge",
+          "cadrage": 1.1
         },
         "actions": [
           {
-            "objet": "int_caisse",
-            "faire": "transparent",
-            "valeur": 0.88
-          },
-          {
-            "objet": "air_piece",
+            "objet": "evaporateur",
             "faire": "flux",
-            "vitesse": 0.5
+            "vitesse": 0.6
           }
+        ],
+        "surbrillance": [
+          "evaporateur"
         ],
         "etiquettes": [
           {
             "objet": "evaporateur",
             "texte": "Evaporator"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": [
+            "evaporateur",
+            "air_froid"
+          ],
+          "azimut": 24,
+          "elevation": 6,
+          "mouvement": "recule",
+          "cadrage": 0.95
+        },
+        "actions": [
+          {
+            "objet": "int_caisse",
+            "faire": "transparent",
+            "valeur": 0.95
+          },
+          {
+            "objet": "air_piece",
+            "faire": "flux",
+            "vitesse": 0.5
+          },
+          {
+            "objet": "air_froid",
+            "faire": "flux",
+            "vitesse": 1.0
+          }
+        ],
+        "etiquettes": [
+          {
+            "objet": "air_piece",
+            "texte": "Warm air"
           },
           {
             "objet": "air_froid",
@@ -773,7 +992,14 @@
           "azimut": -30,
           "elevation": 18,
           "mouvement": "orbite",
-          "cadrage": 0.95
+          "cadrage": 0.95,
+          "puis": {
+            "cible": "compresseur",
+            "distance": 1.6,
+            "azimut": 10,
+            "elevation": 14,
+            "a": 0.6
+          }
         },
         "actions": [
           {
@@ -785,6 +1011,11 @@
             "objet": "air_piece",
             "faire": "flux",
             "on": false
+          },
+          {
+            "objet": "compresseur",
+            "faire": "transparent",
+            "valeur": 0.8
           }
         ],
         "surbrillance": [
@@ -803,16 +1034,29 @@
           "azimut": 28,
           "elevation": 12,
           "mouvement": "orbite",
-          "cadrage": 0.78
-        }
+          "cadrage": 0.66
+        },
+        "actions": [
+          {
+            "objet": "air_chaud",
+            "faire": "flux",
+            "vitesse": 1.2
+          }
+        ],
+        "etiquettes": [
+          {
+            "objet": "air_chaud",
+            "texte": "Your room's heat"
+          }
+        ]
       }
     ]
   },
   "langues": {
     "fr": {
-      "titre": "Ta clim ne fabrique pas de froid",
-      "accroche": "Ta clim ne *fabrique* pas de froid.",
-      "description": "Ta clim ne crée jamais de froid : elle déplace la chaleur de ta pièce vers l'extérieur, avec un fluide, un compresseur et une minuscule vanne. Toute la boucle en 3D.",
+      "titre": "Ta clim n'a jamais fait de froid",
+      "accroche": "Alors où part la *chaleur* ?",
+      "description": "Ta clim ne crée jamais de froid : elle sort la chaleur de ta chambre, avec un fluide, un compresseur et une pièce plus petite que ton pouce. On ouvre quelle machine la prochaine fois ?",
       "hashtags": [
         "#commentcamarche",
         "#ingenierie",
@@ -822,10 +1066,28 @@
       ],
       "beats": [
         {
-          "voix": "Ta clim ne fabrique pas de froid. Elle déplace la chaleur de ta pièce vers l'extérieur."
+          "voix": "Ta clim n'a jamais fabriqué *un seul degré* de froid.",
+          "etiquettes": []
         },
         {
-          "voix": "Tout repose sur un seul fluide, le réfrigérant, qui tourne en boucle dans ces tuyaux de cuivre.",
+          "voix": "Elle *vole la chaleur* de ta chambre et la jette *dehors*.",
+          "etiquettes": [
+            {
+              "objet": "air_piece",
+              "texte": "Ta chambre"
+            },
+            {
+              "objet": "air_chaud",
+              "texte": "Dehors"
+            }
+          ]
+        },
+        {
+          "voix": "Et tout le secret tient dans une pièce *plus petite que ton pouce*.",
+          "etiquettes": []
+        },
+        {
+          "voix": "Tout tourne avec un seul fluide, le *réfrigérant*, en boucle dans ces tuyaux.",
           "etiquettes": [
             {
               "objet": "aspiration",
@@ -834,8 +1096,7 @@
           ]
         },
         {
-          "voix": "Étape un : le compresseur écrase le gaz. Un gaz comprimé chauffe, autour de quatre-vingts degrés.",
-          "ecran": "80 °C",
+          "voix": "D'abord, le *compresseur* écrase ce gaz, plus serré que le *RER un jour de grève*.",
           "etiquettes": [
             {
               "objet": "compresseur",
@@ -844,38 +1105,54 @@
           ]
         },
         {
-          "voix": "Ce gaz brûlant monte dans le serpentin de l'unité extérieure.",
+          "voix": "Un gaz écrasé, ça *chauffe*. Environ *80 degrés*.",
+          "ecran": "80 °C",
           "etiquettes": [
             {
               "objet": "gaz_chaud",
-              "texte": "Gaz chaud"
+              "texte": "Gaz brûlant"
             }
           ]
         },
         {
-          "voix": "Un ventilateur pousse l'air du dehors entre les ailettes et arrache la chaleur du gaz.",
+          "voix": "Ce gaz brûlant file dans le *condenseur*, dehors.",
           "etiquettes": [
             {
               "objet": "condenseur",
               "texte": "Condenseur"
-            },
-            {
-              "objet": "air_chaud",
-              "texte": "Chaleur évacuée"
             }
           ]
         },
         {
-          "voix": "En refroidissant, le gaz redevient liquide, toujours sous haute pression.",
+          "voix": "Un ventilateur souffle dans les ailettes et lui *arrache sa chaleur*.",
+          "etiquettes": [
+            {
+              "objet": "air_chaud",
+              "texte": "Chaleur dehors"
+            }
+          ]
+        },
+        {
+          "voix": "Et là, ça devient *dingue* : le gaz redevient *liquide*.",
           "etiquettes": [
             {
               "objet": "liquide",
-              "texte": "Liquide tiède"
+              "texte": "Liquide"
             }
           ]
         },
         {
-          "voix": "Puis vient l'astuce : une minuscule vanne. Le liquide s'y faufile, et sa pression s'effondre.",
+          "voix": "Encore tiède, sous *dix fois* la pression d'un pneu. Pire que *Parcoursup*.",
+          "ecran": "x10",
+          "etiquettes": [
+            {
+              "objet": "liquide",
+              "texte": "Haute pression"
+            }
+          ]
+        },
+        {
+          "voix": "Puis la petite pièce : le *détendeur*. Et la pression *s'effondre*.",
           "etiquettes": [
             {
               "objet": "detendeur",
@@ -884,30 +1161,39 @@
           ]
         },
         {
-          "voix": "À basse pression, il bout dès cinq degrés. Et en bouillant, il absorbe la chaleur.",
+          "voix": "À basse pression, il *bout* à seulement *5 degrés*.",
           "ecran": "5 °C",
           "etiquettes": [
             {
               "objet": "gaz_froid",
-              "texte": "Brouillard froid"
+              "texte": "Il bout à froid"
             }
           ]
         },
         {
-          "voix": "Dedans, l'air chaud de ta pièce traverse ce serpentin glacé, et ressort tout froid.",
+          "voix": "Et bouillir, ça *avale la chaleur*. Ton froid vient de là.",
           "etiquettes": [
             {
               "objet": "evaporateur",
               "texte": "Évaporateur"
-            },
-            {
-              "objet": "air_froid",
-              "texte": "Air froid"
             }
           ]
         },
         {
-          "voix": "Le gaz, chargé de la chaleur de ta pièce, repart vers le compresseur.",
+          "voix": "L'air tiède de ta chambre traverse ce *serpentin glacé* et ressort *frais*.",
+          "etiquettes": [
+            {
+              "objet": "air_piece",
+              "texte": "Air tiède"
+            },
+            {
+              "objet": "air_froid",
+              "texte": "Air frais"
+            }
+          ]
+        },
+        {
+          "voix": "Le gaz, chargé de *ta chaleur*, repart vers le compresseur.",
           "etiquettes": [
             {
               "objet": "aspiration",
@@ -916,8 +1202,18 @@
           ]
         },
         {
-          "voix": "Et la boucle recommence, toute la journée. Voilà pourquoi l'unité dehors souffle chaud : c'est la chaleur de ta pièce, jetée dehors."
+          "voix": "Ce souffle chaud dehors, c'est *ta chambre*. Ta clim n'a jamais fait de froid.",
+          "etiquettes": [
+            {
+              "objet": "air_chaud",
+              "texte": "La chaleur de ta chambre"
+            }
+          ]
         }
+      ],
+      "blagues": [
+        "phrase 5 : plus serré que le RER un jour de grève",
+        "phrase 10 : pire que Parcoursup"
       ]
     }
   }

@@ -40,6 +40,18 @@ function textesPour(prod, langue) {
   return { langue, accroche: t.accroche || s.accroche, beats: t.beats.map((b, i) => ({ voix: b.voix, ecran: b.ecran || null, etiquettes: b.etiquettes || (plans[i] && plans[i].etiquettes) || [] })) };
 }
 
+// les mots d'une phrase, avec les mots forts (*mot* ou *plusieurs mots*) : la voix les dit sans étoiles, l'écran les
+// met en couleur et la caméra donne un coup de zoom dessus
+function motsForts(voix) {
+  let ouvert = false;
+  return String(voix || '').split(/\s+/).filter(Boolean).map((w) => {
+    const n = (w.match(/\*/g) || []).length;
+    const fort = ouvert || n > 0;
+    if (n % 2) ouvert = !ouvert;
+    return { m: w.replace(/\*/g, ''), fort };
+  }).filter((x) => x.m);
+}
+
 function srt(segments) {
   const ts = (x) => { const ms = Math.round(x * 1000); const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + ',' + String(ms % 1000).padStart(3, '0'); };
   let n = 0, out = '';
@@ -58,20 +70,25 @@ async function produire(prod, langue, sortie, options) {
   const t0 = Date.now();
   // 1. la voix
   const modeles = process.env.KOKORO_DIR || path.join(__dirname, '.modeles');
-  const commande = { langue: L.kokoro, voix: L.voix, vitesse: L.vitesse || 1.0, segments: textes.beats.map((b) => b.voix), sortie, modele: path.join(modeles, 'kokoro-v1.0.onnx'), voix_fichier: path.join(modeles, 'voices-v1.0.bin'), debut: 0.3, ecart: 0.42, fin: 1.0, duree_min: options.dureeMin != null ? options.dureeMin : 61.5, musique: options.musique !== false, graine: (prod.id || 7), etiquettes: textes.beats.map((b) => Math.min(3, (b.etiquettes || []).length)) };
+  const forts = textes.beats.map((b) => motsForts(b.voix));
+  const commande = { langue: L.kokoro, voix: L.voix, vitesse: L.vitesse || 1.0, segments: forts.map((f) => f.map((x) => x.m).join(' ')), sortie, modele: path.join(modeles, 'kokoro-v1.0.onnx'), voix_fichier: path.join(modeles, 'voices-v1.0.bin'), debut: 0.3, ecart: 0.34, fin: 1.0, duree_min: options.dureeMin != null ? options.dureeMin : 61.5, musique: options.musique !== false, graine: (prod.id || 7), etiquettes: textes.beats.map((b) => Math.min(3, (b.etiquettes || []).length)) };
   const res = await lancer(process.env.PYTHON || 'python3', [path.join(__dirname, 'voix.py')], JSON.stringify(commande));
   const temps = JSON.parse(fs.readFileSync(path.join(sortie, 'temps.json'), 'utf8'));
   journal(langue, 'voix', res.trim(), Math.round((Date.now() - t0) / 1000) + ' s');
   // 2. le rendu calé sur la voix : chaque plan commence un peu avant sa phrase (la caméra arrive, puis on parle)
   const segs = temps.segments;
+  segs.forEach((sg, i) => (sg.mots || []).forEach((m, j) => { if (forts[i] && forts[i][j] && forts[i][j].fort) m.fort = true; }));
   const plansT = segs.map((s, i) => ({ debut: i === 0 ? 0 : Math.max(0, s.debut - 0.35), fin: i < segs.length - 1 ? Math.max(0, segs[i + 1].debut - 0.35) : temps.duree }));
   const spec = {
     largeur: 1080, hauteur: 1920, fps: 30, qualite: Object.assign({ echelle: 0.75, msaa: 4, bloom: true, ombre: 1024 }, options.qualite || {}),
     scene: prod.scene, style: Object.assign({}, options.style || {}),
-    textes: { langue, accroche: textes.accroche, beats: textes.beats.map((b, i) => ({ voix: b.voix, ecran: b.ecran, etiquettes: b.etiquettes, mots: segs[i].mots })) },
+    textes: { langue, accroche: textes.accroche, beats: textes.beats.map((b, i) => ({ voix: commande.segments[i], ecran: b.ecran, etiquettes: b.etiquettes, mots: segs[i].mots })) },
     temps: plansT, duree: temps.duree
   };
-  const cles = segs.filter((s, i) => i % 2 === 1 || i === segs.length - 1).slice(0, 6).map((s) => (s.debut + s.fin) / 2 + 0.3);
+  // les images clés pour Vera : juste après l'accroche, puis sept plans répartis sur toute la vidéo
+  const cles = [Math.min(temps.duree - 0.3, segs[0].fin + 0.6)];
+  const pris = new Set();
+  for (let k = 0; k < 7 && segs.length > 1; k++) { const i = Math.min(segs.length - 1, Math.round(1 + (segs.length - 2) * k / 6)); if (!pris.has(i)) { pris.add(i); cles.push(Math.min(temps.duree - 0.2, (segs[i].debut + segs[i].fin) / 2 + 0.3)); } }
   const muette = path.join(sortie, 'muette.mp4');
   const r = await rendre(spec, muette, { images: cles, vignette: Math.min(1.2, segs[0].fin), progres: (i, n, ms) => { if (i % 300 === 0) journal(langue, 'rendu', i + '/' + n, Math.round(ms / 1000) + ' s'); } });
   journal(langue, 'rendu fini', r.frames + ' images en ' + r.secondes + ' s');
@@ -145,4 +162,4 @@ async function principal() {
 
 if (require.main === module) principal().catch((e) => { console.error('[usine] échec :', e.message || e); process.exit(1); });
 
-module.exports = { produire, textesPour, srt };
+module.exports = { produire, textesPour, srt, motsForts };

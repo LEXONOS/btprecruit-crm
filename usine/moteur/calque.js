@@ -32,9 +32,26 @@ function texteContoure(ctx, txt, x, y, remplissage, contour, epaisseur) {
   ctx.fillStyle = remplissage; ctx.fillText(txt, x, y);
 }
 
+// un chiffre à l'écran monte de 0 à sa valeur (« 80°C », « x10 », « 3 000 tr/min », « 2,5 bar ») ; une année ne bouge pas
+export function compteur(txt, k) {
+  const m = String(txt || '').match(/^(\D*?)(\d(?:[\d\s\u00a0\u202f.,]*\d)?)(.*)$/);
+  if (!m || k >= 1) return txt;
+  const brut = m[2], t = brut.replace(/[\s\u00a0\u202f]/g, '');
+  let v, dec = 0, sepDec = null, mil = null;
+  if (/^\d{1,3}([.,]\d{3})+$/.test(t)) { v = Number(t.replace(/[.,]/g, '')); mil = t.match(/[.,]/)[0]; }
+  else { const d = t.match(/^(\d+)(?:[.,](\d+))?$/); if (!d) return txt; v = Number(d[1] + (d[2] ? '.' + d[2] : '')); dec = d[2] ? d[2].length : 0; sepDec = d[2] ? t.match(/[.,]/)[0] : null; if (/[\s\u00a0\u202f]/.test(brut)) mil = ' '; }
+  if (!isFinite(v) || (v >= 1800 && v <= 2100 && !dec && !m[3].trim())) return txt;
+  const x = v * k;
+  let ent = dec ? x.toFixed(dec) : String(Math.round(x));
+  let [e, f] = ent.split('.');
+  if (mil && e.length > 3) e = e.replace(/\B(?=(\d{3})+(?!\d))/g, mil);
+  return m[1] + e + (f ? (sepDec || '.') + f : '') + m[3];
+}
+
 export function creerCalque(W, H, style) {
   const accent = style.accent || '#FFD60A';
   const accent2 = style.accent2 || '#38BDF8';
+  const fort = style.fort || '#5CF08A';
   const titre = '"Unbounded", "Noto Sans Devanagari", sans-serif';
   const sous = '"Archivo", "Noto Sans Devanagari", sans-serif';
   const texte = '"Inter", "Noto Sans Devanagari", sans-serif';
@@ -84,8 +101,8 @@ export function creerCalque(W, H, style) {
     ctx.save();
     const taille = W * 0.1;
     police(ctx, 900, taille, titre);
-    const t2 = enCapitales(txt, langue);
-    let tw = ctx.measureText(t2).width, sc = 1;
+    const t2 = enCapitales(compteur(txt, sortie((t - debut - 0.15) / 0.75)), langue);
+    let tw = ctx.measureText(enCapitales(txt, langue)).width, sc = 1;
     if (tw > W * 0.86) sc = (W * 0.86) / tw;
     const pop = 0.7 + 0.3 * rebond(clamp((t - debut - 0.15) / 0.45, 0, 1));
     ctx.translate(W / 2, H * 0.245); ctx.scale(sc * pop, sc * pop); ctx.globalAlpha = k;
@@ -103,21 +120,27 @@ export function creerCalque(W, H, style) {
     police(ctx, 850, taille, sous, true);
     const mots = m.mots.map((x) => Object.assign({}, x, { txt: enCapitales(x.m, langue) }));
     const esp = taille * 0.34;
-    mots.forEach((x) => { x.w = ctx.measureText(x.txt).width; });
-    let total = mots.reduce((s, x) => s + x.w, 0) + esp * (mots.length - 1);
+    // le mot dit grossit un peu ; un mot fort (*mot*) est en couleur et grossit franchement quand il est dit (les voisins
+    // s'écartent pour lui laisser la place)
+    mots.forEach((x) => {
+      x.w = ctx.measureText(x.txt).width;
+      x.dit = t >= x.t0 && t < x.t1 + 0.04;
+      x.s = x.dit ? (x.fort ? 1.04 + 0.16 * rebond(clamp((t - x.t0) / 0.18, 0, 1)) : 1.04) : 1;
+    });
+    const total = mots.reduce((s2, x) => s2 + x.w * x.s, 0) + esp * (mots.length - 1);
     const sc = total > W * 0.84 ? (W * 0.84) / total : 1;
     const pop = 0.92 + 0.08 * sortie((t - m.t0) / 0.09);
     ctx.translate(W / 2, H * 0.695); ctx.scale(sc * pop, sc * pop);
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     let x = -total / 2;
     mots.forEach((w) => {
-      const dit = t >= w.t0 && t < w.t1 + 0.04;
+      const larg = w.w * w.s;
       ctx.save();
-      if (dit) { ctx.translate(x + w.w / 2, 0); ctx.scale(1.04, 1.04); ctx.translate(-(x + w.w / 2), 0); }
-      ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
-      texteContoure(ctx, w.txt, x, 0, dit ? accent : '#ffffff', 'rgba(0,0,0,0.95)', taille * 0.22);
+      ctx.translate(x + larg / 2, w.fort && w.dit ? -taille * 0.04 : 0); ctx.scale(w.s, w.s);
+      ctx.shadowColor = w.fort ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+      texteContoure(ctx, w.txt, -w.w / 2, 0, w.fort ? fort : w.dit ? accent : '#ffffff', 'rgba(0,0,0,0.95)', taille * 0.22);
       ctx.restore();
-      x += w.w + esp;
+      x += larg + esp;
     });
     ctx.restore();
   }
