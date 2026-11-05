@@ -1,0 +1,38 @@
+{
+  "en": {
+    "nom": "anglais",
+    "kokoro": "en-us",
+    "voix": "af_heart",
+    "vitesse": 0.92
+  },
+  "fr": {
+    "nom": "français",
+    "kokoro": "fr-fr",
+    "voix": "ff_siwis",
+    "vitesse": 1.0
+  },
+  "es": {
+    "nom": "espagnol",
+    "kokoro": "es",
+    "voix": "em_alex",
+    "vitesse": 0.95
+  },
+  "pt": {
+    "nom": "portugais (Brésil)",
+    "kokoro": "pt-br",
+    "voix": "pm_alex",
+    "vitesse": 0.95
+  },
+  "it": {
+    "nom": "italien",
+    "kokoro": "it",
+    "voix": "im_nicola",
+    "vitesse": 1.0
+  },
+  "hi": {
+    "nom": "hindi",
+    "kokoro": "hi",
+    "voix": "hm_omega",
+    "vitesse": 1.0
+  }
+}

@@ -17,6 +17,9 @@
     "api/whatsapp.js": {
       "maxDuration": 240
     },
+    "api/usine.js": {
+      "maxDuration": 60
+    },
     "api/regard.js": {
       "maxDuration": 90,
       "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
@@ -43,6 +46,11 @@
     },
     {
       "source": "/test/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/usine/:chemin*",
       "destination": "/",
       "permanent": false
     },
@@ -96,7 +104,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://fbmzlfrwxrzflfkazvmn.supabase.co; media-src 'self' https://fbmzlfrwxrzflfkazvmn.supabase.co; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
         }
       ]
     },

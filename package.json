@@ -7,15 +7,17 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/sim.js"
+    "test": "node test/sim.js && node test/studio.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "153.0.0",
     "an-array-of-english-words": "^2.0.0",
     "an-array-of-french-words": "^2.0.0",
+    "blakejs": "^1.2.1",
     "imapflow": "^1.7.8",
     "mailparser": "^3.9.39",
     "nodemailer": "^6.10.1",
-    "puppeteer-core": "25.12.0"
+    "puppeteer-core": "25.12.0",
+    "tweetnacl": "^1.0.3"
   }
 }

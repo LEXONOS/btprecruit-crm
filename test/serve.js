@@ -52,6 +52,18 @@ async function peupler() {
     await db.insert('hq_sites', { lead_id: l.id, slug: 'dev-' + n, status: st, formule: ['vitrine', 'essentiel', 'signature'][n % 3], montant_eur: [990, 590, 1390][n % 3], url_apercu: 'https://novalemo-martinique.vercel.app/dev-' + n, domaine: st === 'en_ligne' ? l.name.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.fr' : null, domaine_mode: 'achat', url_finale: st === 'en_ligne' ? 'https://' + l.name.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.fr' : null, stripe: st === 'commande' ? { url: 'https://buy.stripe.com/test_dev', url_mois: 'https://buy.stripe.com/test_dev_mois' } : st !== 'apercu' ? { facture_url: 'https://invoice.stripe.com/dev' } : {}, paid_at: ['paye', 'en_ligne'].indexOf(st) >= 0 ? T(60 * 24 * (3 + i)) : null, live_at: st === 'en_ligne' ? T(60 * 24 * (1 + i)) : null, published_at: T(60 * (20 + n * 9)), created_at: T(60 * (24 + n * 9)), spec: { nom: l.name, activite: l.sector, commune: l.commune, photos: [1, 2, 3], da: { modele: ['atelier', 'garage', 'comptoir', 'ecrin'][n % 4], hero: 'photo' } }, data: ab ? { abonnement: { mensualite_eur: 89, statut: 'active', paye_eur: 178, engagement_jusqu_au: new Date(Date.now() + 300 * 86400000).toISOString() } } : {} });
   }
   // les messages du fil
+  // le Studio : quelques vidéos à différentes étapes
+  const ex = require(REPO + '/usine/exemples/clim.json');
+  const vids = [
+    ['prete', 'How your AC moves heat outside', 'climatiseur à compression', { note: 8.5, verdict: 'publier', resume: 'On comprend toute la boucle, les gros plans sont nets et les étiquettes tombent juste.' }, ['en', 'fr', 'es', 'pt', 'hi']],
+    ['langues', 'Why a tunnel boring machine never stops', 'tunnelier', { note: 8, verdict: 'publier', resume: 'La roue de coupe impressionne dès la première image.' }, ['en', 'fr']],
+    ['critique', 'The 4-stroke engine in 60 seconds', 'moteur 4 temps', null, ['en']],
+    ['script', 'How a water fountain stays cold', 'fontaine à eau réfrigérée', null, []]
+  ];
+  for (const [k, v] of vids.entries()) {
+    const rendus = {}; v[4].forEach((l) => { rendus[l] = { etat: v[0] === 'langues' && l !== 'en' ? 'demande' : 'fini', duree: 62 + k, demande_le: T(30) }; });
+    await db.insert('hq_videos', { ligne: 'meca', titre: v[1], sujet: v[2], status: v[0], langue_source: 'en', langues: ['en', 'fr', 'es', 'pt', 'hi'], script: Object.assign({}, ex.script, { titre: v[1] }), scene: ex.scene, traductions: v[0] === 'prete' ? ex.langues : {}, rendus: rendus, critique: v[3] || {}, cout_usd: 0.21 + k * 0.03, dedupe: 'meca:dev-' + k, created_at: T(60 * (5 + k)), updated_at: T(10 + k * 25) });
+  }
   const fil = [['chasse_maps', 'contacts', 'rapport', '18 prospects trouvés au Lamentin et à Ducos'], ['demo', 'chef_prod', 'rapport', '3 aperçus en ligne : Garage Lafontaine, Clim Éole, Pressing du Lamentin'], ['reponses', 'louis', 'note', 'Rodolphe Larcher est intéressé par Vitrine'], ['livraison', 'louis', 'rapport', 'Clim Éole est en ligne sur climeole.fr'], ['dg_novalemo', 'dircom_novalemo', 'ordre', 'Priorité aux garages et aux climatiseurs cette semaine'], ['juridique', 'chef_prod', 'rapport', '2 entreprises trouvées dans le registre'], ['photos', 'chef_prod', 'rapport', '6 photos regardées, 4 posées'], ['controleur', 'pdg', 'rapport', 'Coût par aperçu : 0,03 $'], ['redacteur', 'emailing', 'rapport', '8 emails écrits, contrôle qualité passé'], ['pdg', 'louis', 'proposition', 'Créer Conformité Web : le dossier est prêt']];
   for (let i = 0; i < fil.length; i++) await db.insert('hq_messages', { from_id: fil[i][0], to_id: fil[i][1], company_id: 'novalemo', kind: fil[i][2], subject: fil[i][3], body: fil[i][3] + '.', created_at: T(4 + i * 23) });
   // 14 jours d'activité

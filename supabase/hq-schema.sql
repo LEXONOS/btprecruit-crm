@@ -453,3 +453,36 @@ grant execute on function public.hq_menage() to service_role;
 grant execute on function public.hq_compter(text, int, int, int, boolean) to service_role;
 grant execute on function public.hq_acces_maj(jsonb, int) to service_role;
 grant execute on function public.hq_acces_init(text) to service_role;
+
+-- ───────────────────────── STUDIO 3D ─────────────────────────
+-- Une ligne par vidéo : le script (Clara), la scène 3D (Oscar), les traductions (Nina), les rendus par langue (l'usine
+-- sur GitHub Actions), la critique (Vera), la publication (Tom). Les fichiers (mp4, vignettes, sous-titres, images
+-- clés) sont dans le stockage privé « studio », sous videos/<id>/<langue>/.
+create table if not exists public.hq_videos (
+  id bigserial primary key,
+  ligne text not null default 'meca',             -- meca | serie | brainrot
+  sujet text,
+  titre text,
+  status text not null default 'script',          -- script | scene | traduction | a_rendre | en_rendu | rendu | valide | a_refaire | refuse | publie | echec
+  langue_source text not null default 'en',
+  langues text[] not null default '{}',           -- langues à fabriquer (la source comprise)
+  script jsonb not null default '{}'::jsonb,      -- accroche, beats [{voix, ecran}], description, hashtags, sources
+  scene jsonb not null default '{}'::jsonb,       -- style, objets, plans (le moteur de l'usine)
+  traductions jsonb not null default '{}'::jsonb, -- { fr: { titre, accroche, description, hashtags, beats } }
+  rendus jsonb not null default '{}'::jsonb,      -- { fr: { etat, demande_le, fini_le, duree, taille, fichiers, erreur, essais } }
+  critique jsonb not null default '{}'::jsonb,    -- verdict de Vera, note, problèmes
+  publication jsonb not null default '{}'::jsonb, -- plus tard : comptes, dates, liens
+  essais int not null default 0,                  -- scènes refaites après critique
+  item_id bigint,                                 -- l'idée d'origine (hq_items)
+  cout_usd numeric(10,4) not null default 0,
+  dedupe text unique,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists hq_videos_status on public.hq_videos (status, updated_at);
+alter table public.hq_videos enable row level security;
+
+-- le stockage des vidéos : privé, lu par liens signés (la tour) et rempli par liens d'envoi signés (l'usine)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('studio', 'studio', false, 209715200, array['video/mp4', 'image/jpeg', 'application/x-subrip', 'text/plain'])
+on conflict (id) do nothing;

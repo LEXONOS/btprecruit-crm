@@ -1,0 +1,924 @@
+{
+  "titre": "How an air conditioner really works",
+  "ligne": "meca",
+  "langue_source": "en",
+  "script": {
+    "titre": "Your AC doesn't make cold",
+    "accroche": "Your AC doesn't *make* cold.",
+    "description": "Your air conditioner never creates cold: it moves heat from your room to the outside, with one fluid, a compressor and a tiny valve. Watch the full loop in 3D.",
+    "hashtags": [
+      "#howitworks",
+      "#engineering",
+      "#airconditioner",
+      "#physics",
+      "#3danimation"
+    ],
+    "beats": [
+      {
+        "voix": "Your air conditioner doesn't make cold. It moves heat from inside your room to the outside."
+      },
+      {
+        "voix": "It all runs on one fluid, the refrigerant, looping through these copper pipes."
+      },
+      {
+        "voix": "Step one: the compressor squeezes the gas. Squeezed gas gets hot, around eighty degrees.",
+        "ecran": "80°C"
+      },
+      {
+        "voix": "That hot gas flows up into the outdoor coil."
+      },
+      {
+        "voix": "A fan pushes outside air through the fins and pulls the heat out of the gas."
+      },
+      {
+        "voix": "As it cools, the gas turns back into a liquid, still under high pressure."
+      },
+      {
+        "voix": "Then the trick: a tiny valve. The liquid squeezes through and its pressure collapses."
+      },
+      {
+        "voix": "At low pressure, it boils at just five degrees. And boiling soaks up heat.",
+        "ecran": "5°C"
+      },
+      {
+        "voix": "Inside, your room's warm air crosses this ice cold coil and comes out chilled."
+      },
+      {
+        "voix": "The gas, now carrying your room's heat, flows back to the compressor."
+      },
+      {
+        "voix": "And the loop starts over, all day long. That's why the outdoor unit blows hot air: it's your room's heat, dumped outside."
+      }
+    ]
+  },
+  "scene": {
+    "style": {
+      "fond": "nuit",
+      "accent": "#FFD60A",
+      "accent2": "#38BDF8",
+      "sol": "socle"
+    },
+    "objets": [
+      {
+        "id": "mur",
+        "type": "boite",
+        "pos": [
+          0,
+          1.5,
+          -0.25
+        ],
+        "params": {
+          "taille": [
+            0.08,
+            3.0,
+            1.5
+          ],
+          "arrondi": 0.01,
+          "matiere": "fantome",
+          "couleur": "#4a5a6e"
+        }
+      },
+      {
+        "id": "ext",
+        "type": "groupe",
+        "pos": [
+          -0.85,
+          0,
+          0.1
+        ]
+      },
+      {
+        "id": "ext_caisse",
+        "type": "boite",
+        "parent": "ext",
+        "pos": [
+          0,
+          0.62,
+          0
+        ],
+        "params": {
+          "taille": [
+            1.36,
+            1.0,
+            0.56
+          ],
+          "arrondi": 0.05,
+          "matiere": "plastique",
+          "couleur": "#e9ecef"
+        }
+      },
+      {
+        "id": "ext_ventilo",
+        "type": "ventilateur",
+        "parent": "ext",
+        "pos": [
+          -0.2,
+          0.62,
+          0.29
+        ],
+        "params": {
+          "rayon": 0.36,
+          "pales": 4
+        }
+      },
+      {
+        "id": "condenseur",
+        "type": "serpentin",
+        "parent": "ext",
+        "pos": [
+          -0.2,
+          0.62,
+          0.08
+        ],
+        "params": {
+          "largeur": 0.82,
+          "hauteur": 0.78,
+          "rangs": 6,
+          "flux": {
+            "couleur": "chaud"
+          }
+        }
+      },
+      {
+        "id": "compresseur",
+        "type": "compresseur",
+        "parent": "ext",
+        "pos": [
+          0.45,
+          0.38,
+          0.02
+        ],
+        "params": {
+          "rayon": 0.12,
+          "hauteur": 0.46
+        }
+      },
+      {
+        "id": "gaz_chaud",
+        "type": "tuyau",
+        "params": {
+          "points": [
+            [
+              -0.4,
+              0.66,
+              0.12
+            ],
+            [
+              -0.4,
+              0.9,
+              0.12
+            ],
+            [
+              -0.5,
+              1.01,
+              0.16
+            ],
+            [
+              -0.64,
+              1.01,
+              0.18
+            ]
+          ],
+          "rayon": 0.03,
+          "flux": {
+            "couleur": "chaud"
+          }
+        }
+      },
+      {
+        "id": "liquide",
+        "type": "tuyau",
+        "params": {
+          "points": [
+            [
+              -0.64,
+              0.23,
+              0.18
+            ],
+            [
+              -0.58,
+              0.13,
+              0.3
+            ],
+            [
+              -0.35,
+              0.12,
+              0.36
+            ],
+            [
+              -0.14,
+              0.2,
+              0.36
+            ],
+            [
+              -0.1,
+              0.6,
+              0.36
+            ],
+            [
+              -0.1,
+              1.15,
+              0.36
+            ]
+          ],
+          "rayon": 0.026,
+          "flux": {
+            "couleur": "tiede"
+          }
+        }
+      },
+      {
+        "id": "detendeur",
+        "type": "detendeur",
+        "pos": [
+          -0.1,
+          1.26,
+          0.36
+        ],
+        "params": {
+          "taille": 0.13
+        }
+      },
+      {
+        "id": "gaz_froid",
+        "type": "tuyau",
+        "params": {
+          "points": [
+            [
+              -0.1,
+              1.36,
+              0.36
+            ],
+            [
+              -0.08,
+              1.8,
+              0.34
+            ],
+            [
+              0.1,
+              2.3,
+              0.2
+            ],
+            [
+              0.5,
+              2.66,
+              0.0
+            ],
+            [
+              1.15,
+              2.68,
+              -0.08
+            ],
+            [
+              1.25,
+              2.56,
+              -0.13
+            ]
+          ],
+          "rayon": 0.03,
+          "flux": {
+            "couleur": "froid"
+          }
+        }
+      },
+      {
+        "id": "int",
+        "type": "groupe",
+        "pos": [
+          0.75,
+          2.4,
+          -0.1
+        ]
+      },
+      {
+        "id": "int_caisse",
+        "type": "boite",
+        "parent": "int",
+        "pos": [
+          0,
+          0,
+          0
+        ],
+        "params": {
+          "taille": [
+            1.3,
+            0.42,
+            0.32
+          ],
+          "arrondi": 0.08,
+          "matiere": "plastique",
+          "couleur": "#f4f5f7"
+        }
+      },
+      {
+        "id": "evaporateur",
+        "type": "serpentin",
+        "parent": "int",
+        "pos": [
+          0,
+          0.03,
+          -0.03
+        ],
+        "params": {
+          "largeur": 1.0,
+          "hauteur": 0.26,
+          "rangs": 4,
+          "flux": {
+            "couleur": "froid"
+          }
+        }
+      },
+      {
+        "id": "int_ventilo",
+        "type": "rouleau",
+        "parent": "int",
+        "pos": [
+          0,
+          -0.1,
+          0.06
+        ],
+        "params": {
+          "rayon": 0.06,
+          "longueur": 1.0,
+          "axe": "x"
+        }
+      },
+      {
+        "id": "aspiration",
+        "type": "tuyau",
+        "params": {
+          "points": [
+            [
+              1.25,
+              2.3,
+              -0.13
+            ],
+            [
+              1.4,
+              2.2,
+              -0.2
+            ],
+            [
+              1.3,
+              1.9,
+              -0.35
+            ],
+            [
+              0.6,
+              1.6,
+              -0.42
+            ],
+            [
+              0.05,
+              1.1,
+              -0.4
+            ],
+            [
+              0.0,
+              0.6,
+              -0.2
+            ],
+            [
+              -0.08,
+              0.33,
+              0.06
+            ],
+            [
+              -0.21,
+              0.3,
+              0.12
+            ]
+          ],
+          "rayon": 0.032,
+          "flux": {
+            "couleur": "glace"
+          }
+        }
+      },
+      {
+        "id": "air_chaud",
+        "type": "particules",
+        "pos": [
+          -1.05,
+          0.62,
+          0.5
+        ],
+        "params": {
+          "forme": "disque",
+          "rayon": 0.3,
+          "direction": [
+            0,
+            0.08,
+            1
+          ],
+          "longueur": 1.2,
+          "couleur": "chaud",
+          "nombre": 110
+        }
+      },
+      {
+        "id": "air_froid",
+        "type": "particules",
+        "pos": [
+          0.75,
+          2.22,
+          0.08
+        ],
+        "params": {
+          "forme": "boite",
+          "taille": [
+            1.0,
+            0.03,
+            0.06
+          ],
+          "direction": [
+            0,
+            -0.6,
+            1
+          ],
+          "longueur": 1.1,
+          "couleur": "glace",
+          "nombre": 110
+        }
+      },
+      {
+        "id": "air_piece",
+        "type": "particules",
+        "pos": [
+          0.75,
+          2.95,
+          0.45
+        ],
+        "params": {
+          "forme": "boite",
+          "taille": [
+            1.0,
+            0.05,
+            0.1
+          ],
+          "direction": [
+            0,
+            -0.55,
+            -1
+          ],
+          "longueur": 0.5,
+          "couleur": "tiede",
+          "nombre": 70
+        }
+      }
+    ],
+    "plans": [
+      {
+        "camera": {
+          "cible": "tout",
+          "azimut": 28,
+          "elevation": 12,
+          "mouvement": "orbite",
+          "cadrage": 0.78
+        },
+        "actions": [
+          {
+            "objet": "compresseur",
+            "faire": "tourner",
+            "vitesse": 3
+          },
+          {
+            "objet": "ext_ventilo",
+            "faire": "tourner",
+            "vitesse": 2.5
+          },
+          {
+            "objet": "int_ventilo",
+            "faire": "tourner",
+            "vitesse": 4
+          },
+          {
+            "objet": "gaz_chaud",
+            "faire": "flux",
+            "vitesse": 0.5
+          },
+          {
+            "objet": "condenseur",
+            "faire": "flux",
+            "vitesse": 0.45
+          },
+          {
+            "objet": "liquide",
+            "faire": "flux",
+            "vitesse": 0.35
+          },
+          {
+            "objet": "detendeur",
+            "faire": "flux",
+            "vitesse": 0.5
+          },
+          {
+            "objet": "gaz_froid",
+            "faire": "flux",
+            "vitesse": 0.55
+          },
+          {
+            "objet": "evaporateur",
+            "faire": "flux",
+            "vitesse": 0.45
+          },
+          {
+            "objet": "aspiration",
+            "faire": "flux",
+            "vitesse": 0.6
+          },
+          {
+            "objet": "air_chaud",
+            "faire": "flux",
+            "vitesse": 0.9
+          },
+          {
+            "objet": "air_froid",
+            "faire": "flux",
+            "vitesse": 0.8
+          },
+          {
+            "objet": "ext_caisse",
+            "faire": "transparent",
+            "valeur": 0.72
+          },
+          {
+            "objet": "int_caisse",
+            "faire": "transparent",
+            "valeur": 0.72
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "tout",
+          "azimut": -18,
+          "elevation": 24,
+          "mouvement": "orbite",
+          "cadrage": 0.8
+        },
+        "isoler": [
+          "gaz_chaud",
+          "liquide",
+          "gaz_froid",
+          "aspiration",
+          "detendeur",
+          "condenseur",
+          "evaporateur",
+          "compresseur"
+        ],
+        "surbrillance": [
+          "gaz_chaud",
+          "liquide",
+          "gaz_froid",
+          "aspiration"
+        ],
+        "etiquettes": [
+          {
+            "objet": "aspiration",
+            "texte": "Refrigerant"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "compresseur",
+          "distance": 1.1,
+          "azimut": 35,
+          "elevation": 12,
+          "mouvement": "avance"
+        },
+        "actions": [
+          {
+            "objet": "compresseur",
+            "faire": "transparent",
+            "valeur": 0.82
+          },
+          {
+            "objet": "ext_caisse",
+            "faire": "transparent",
+            "valeur": 0.92
+          }
+        ],
+        "surbrillance": [
+          "compresseur"
+        ],
+        "etiquettes": [
+          {
+            "objet": "compresseur",
+            "texte": "Compressor"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": [
+            "gaz_chaud",
+            "condenseur"
+          ],
+          "azimut": 18,
+          "elevation": 8,
+          "mouvement": "orbite",
+          "cadrage": 1.05
+        },
+        "actions": [
+          {
+            "objet": "compresseur",
+            "faire": "opaque"
+          }
+        ],
+        "surbrillance": [
+          "gaz_chaud",
+          "condenseur"
+        ],
+        "etiquettes": [
+          {
+            "objet": "gaz_chaud",
+            "texte": "Hot gas"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "ext_ventilo",
+          "distance": 2.4,
+          "azimut": 32,
+          "elevation": 6,
+          "mouvement": "recule"
+        },
+        "actions": [
+          {
+            "objet": "ext_ventilo",
+            "faire": "tourner",
+            "vitesse": 3.2
+          },
+          {
+            "objet": "air_chaud",
+            "faire": "flux",
+            "vitesse": 1.2
+          }
+        ],
+        "etiquettes": [
+          {
+            "objet": "condenseur",
+            "texte": "Condenser"
+          },
+          {
+            "objet": "air_chaud",
+            "texte": "Heat out"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "liquide",
+          "distance": 2.2,
+          "azimut": -25,
+          "elevation": 10,
+          "mouvement": "orbite"
+        },
+        "surbrillance": [
+          "liquide"
+        ],
+        "etiquettes": [
+          {
+            "objet": "liquide",
+            "texte": "Warm liquid"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "detendeur",
+          "distance": 0.9,
+          "azimut": 30,
+          "elevation": 8,
+          "mouvement": "avance"
+        },
+        "actions": [
+          {
+            "objet": "detendeur",
+            "faire": "transparent",
+            "valeur": 0.6
+          }
+        ],
+        "surbrillance": [
+          "detendeur"
+        ],
+        "etiquettes": [
+          {
+            "objet": "detendeur",
+            "texte": "Expansion valve"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "gaz_froid",
+          "distance": 2.2,
+          "azimut": 18,
+          "elevation": 14,
+          "mouvement": "monte"
+        },
+        "actions": [
+          {
+            "objet": "detendeur",
+            "faire": "opaque"
+          }
+        ],
+        "surbrillance": [
+          "gaz_froid"
+        ],
+        "etiquettes": [
+          {
+            "objet": "gaz_froid",
+            "texte": "Cold mist"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "int_caisse",
+          "distance": 2.0,
+          "azimut": 22,
+          "elevation": -4,
+          "mouvement": "avance"
+        },
+        "actions": [
+          {
+            "objet": "int_caisse",
+            "faire": "transparent",
+            "valeur": 0.88
+          },
+          {
+            "objet": "air_piece",
+            "faire": "flux",
+            "vitesse": 0.5
+          }
+        ],
+        "etiquettes": [
+          {
+            "objet": "evaporateur",
+            "texte": "Evaporator"
+          },
+          {
+            "objet": "air_froid",
+            "texte": "Cold air"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "aspiration",
+          "azimut": -30,
+          "elevation": 18,
+          "mouvement": "orbite",
+          "cadrage": 0.95
+        },
+        "actions": [
+          {
+            "objet": "int_caisse",
+            "faire": "transparent",
+            "valeur": 0.72
+          },
+          {
+            "objet": "air_piece",
+            "faire": "flux",
+            "on": false
+          }
+        ],
+        "surbrillance": [
+          "aspiration"
+        ],
+        "etiquettes": [
+          {
+            "objet": "aspiration",
+            "texte": "Back to compressor"
+          }
+        ]
+      },
+      {
+        "camera": {
+          "cible": "tout",
+          "azimut": 28,
+          "elevation": 12,
+          "mouvement": "orbite",
+          "cadrage": 0.78
+        }
+      }
+    ]
+  },
+  "langues": {
+    "fr": {
+      "titre": "Ta clim ne fabrique pas de froid",
+      "accroche": "Ta clim ne *fabrique* pas de froid.",
+      "description": "Ta clim ne crée jamais de froid : elle déplace la chaleur de ta pièce vers l'extérieur, avec un fluide, un compresseur et une minuscule vanne. Toute la boucle en 3D.",
+      "hashtags": [
+        "#commentcamarche",
+        "#ingenierie",
+        "#climatisation",
+        "#physique",
+        "#3d"
+      ],
+      "beats": [
+        {
+          "voix": "Ta clim ne fabrique pas de froid. Elle déplace la chaleur de ta pièce vers l'extérieur."
+        },
+        {
+          "voix": "Tout repose sur un seul fluide, le réfrigérant, qui tourne en boucle dans ces tuyaux de cuivre.",
+          "etiquettes": [
+            {
+              "objet": "aspiration",
+              "texte": "Réfrigérant"
+            }
+          ]
+        },
+        {
+          "voix": "Étape un : le compresseur écrase le gaz. Un gaz comprimé chauffe, autour de quatre-vingts degrés.",
+          "ecran": "80 °C",
+          "etiquettes": [
+            {
+              "objet": "compresseur",
+              "texte": "Compresseur"
+            }
+          ]
+        },
+        {
+          "voix": "Ce gaz brûlant monte dans le serpentin de l'unité extérieure.",
+          "etiquettes": [
+            {
+              "objet": "gaz_chaud",
+              "texte": "Gaz chaud"
+            }
+          ]
+        },
+        {
+          "voix": "Un ventilateur pousse l'air du dehors entre les ailettes et arrache la chaleur du gaz.",
+          "etiquettes": [
+            {
+              "objet": "condenseur",
+              "texte": "Condenseur"
+            },
+            {
+              "objet": "air_chaud",
+              "texte": "Chaleur évacuée"
+            }
+          ]
+        },
+        {
+          "voix": "En refroidissant, le gaz redevient liquide, toujours sous haute pression.",
+          "etiquettes": [
+            {
+              "objet": "liquide",
+              "texte": "Liquide tiède"
+            }
+          ]
+        },
+        {
+          "voix": "Puis vient l'astuce : une minuscule vanne. Le liquide s'y faufile, et sa pression s'effondre.",
+          "etiquettes": [
+            {
+              "objet": "detendeur",
+              "texte": "Détendeur"
+            }
+          ]
+        },
+        {
+          "voix": "À basse pression, il bout dès cinq degrés. Et en bouillant, il absorbe la chaleur.",
+          "ecran": "5 °C",
+          "etiquettes": [
+            {
+              "objet": "gaz_froid",
+              "texte": "Brouillard froid"
+            }
+          ]
+        },
+        {
+          "voix": "Dedans, l'air chaud de ta pièce traverse ce serpentin glacé, et ressort tout froid.",
+          "etiquettes": [
+            {
+              "objet": "evaporateur",
+              "texte": "Évaporateur"
+            },
+            {
+              "objet": "air_froid",
+              "texte": "Air froid"
+            }
+          ]
+        },
+        {
+          "voix": "Le gaz, chargé de la chaleur de ta pièce, repart vers le compresseur.",
+          "etiquettes": [
+            {
+              "objet": "aspiration",
+              "texte": "Retour au compresseur"
+            }
+          ]
+        },
+        {
+          "voix": "Et la boucle recommence, toute la journée. Voilà pourquoi l'unité dehors souffle chaud : c'est la chaleur de ta pièce, jetée dehors."
+        }
+      ]
+    }
+  }
+}

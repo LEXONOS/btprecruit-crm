@@ -85,6 +85,38 @@ function critiqueFausse(body) {
   const ok = note >= 8;
   return rep([tu('juger_site', { note: note, verdict: ok ? 'valide' : 'a_refaire', resume: ok ? 'Un premier écran fort, une photo juste, tout se lit sur téléphone.' : 'Le haut de page est fade et le titre se perd sur la photo.', points_forts: ok ? ['premier écran'] : [], problemes: ok ? [] : [{ zone: 'haut de page', gravite: 'bloquant', constat: 'Le titre se lit mal sur la photo.', variante: hero }], actions: ok ? [] : ['changer_rubriques'] })], 'tool_use', { input_tokens: 9000, output_tokens: 500 });
 }
+/* ── le Studio 3D : script, scène, adaptation, critique ── */
+const STUDIO = { verdicts: [], scenesRatees: 0, appels: {} };
+function studio(body) {
+  const n = body.tool_choice.name;
+  STUDIO.appels[n] = (STUDIO.appels[n] || 0) + 1;
+  const ex = require('../usine/exemples/clim.json');
+  const texte = body.messages[0].content.map(function (b) { return b.text || ''; }).join('\n');
+  if (n === 'ecrire_script') {
+    const k = STUDIO.appels[n];
+    const beats = ex.script.beats.map(function (b, i) { return { voix: b.voix + (i % 3 === 0 ? ' Watch closely here.' : ''), ecran: b.ecran, image: 'les pièces du plan ' + (i + 1) }; });
+    return rep([tu('ecrire_script', { sujet: 'climatiseur ' + k, cle: 'clim-' + k, titre: 'How your AC moves heat ' + k, accroche: 'Your AC doesn\'t *make* cold.', beats: beats, description: 'The full loop in 3D.', hashtags: ['howitworks', '#engineering'], sources: ['ASHRAE handbook'], a_verifier: [] })], 'tool_use', { output_tokens: 1800 });
+  }
+  if (n === 'ecrire_scene') {
+    const nb = Number((texte.match(/LE SCRIPT \((\d+) phrases/) || [])[1]) || ex.scene.plans.length;
+    const scene = JSON.parse(JSON.stringify(ex.scene));
+    while (scene.plans.length < nb) scene.plans.push({ camera: { cible: 'tout' } });
+    scene.plans = scene.plans.slice(0, nb);
+    if (STUDIO.scenesRatees > 0) { STUDIO.scenesRatees--; scene.objets[2].type = 'tracteur'; }
+    return rep([tu('ecrire_scene', { idee: 'Les deux unités de part et d\'autre du mur.', scene: scene })], 'tool_use', { output_tokens: 6000 });
+  }
+  if (n === 'adapter_video') {
+    const src = JSON.parse((texte.match(/LA VIDÉO EN ANGLAIS :\n([\s\S]*?)\n\nAdapte/) || [])[1] || '{}');
+    return rep([tu('adapter_video', { titre: 'Adapté : ' + src.titre, accroche: 'Ta clim ne *fabrique* pas de froid.', description: 'Version adaptée.', hashtags: ['#commentcamarche'], beats: (src.beats || []).map(function (b) { return { voix: 'Adapté. ' + b.voix, ecran: b.ecran, etiquettes: (b.etiquettes || []).map(function (e) { return { objet: e.objet, texte: 'É ' + e.texte }; }) }; }) })]);
+  }
+  if (n === 'juger_video') {
+    const v = STUDIO.verdicts.length ? STUDIO.verdicts.shift() : { note: 8, verdict: 'publier' };
+    const images = body.messages[0].content.filter(function (b) { return b.type === 'image'; }).length;
+    STUDIO.images = images;
+    return rep([tu('juger_video', Object.assign({ resume: v.verdict === 'publier' ? 'On comprend tout, c\'est net.' : 'Le plan 3 est voilé.', problemes: v.verdict === 'publier' ? [] : [{ plan: 3, constat: 'image laiteuse' }], conseils: v.verdict === 'publier' ? '' : 'Recule la caméra au plan 3.' }, v))]);
+  }
+  return null;
+}
 // les modèles de la génération 5.5 refusent un outil imposé (tool_choice « tool » ou « any ») : on le simule pour le modèle
 // le plus fort (CLAUDE.refusOutil), et l'outil demandé en clair (tool_choice « auto ») est servi comme l'outil imposé
 const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
@@ -94,11 +126,12 @@ function claude(body) {
     CLAUDE.refus++;
     return { ok: false, status: 400, json: async function () { return { type: 'error', error: { type: 'invalid_request_error', message: 'tool_choice: type "tool" and "any" are not supported for this model.' } }; } };
   }
-  if (body.tool_choice && body.tool_choice.type === 'auto' && (body.tools || []).length === 1 && ['juger_site', 'ecrire_site', 'noter_photos'].indexOf(body.tools[0].name) >= 0) {
+  if (body.tool_choice && body.tool_choice.type === 'auto' && (body.tools || []).length === 1) {
     const last = body.messages[body.messages.length - 1];
     const demande = typeof last.content !== 'string' && last.content.some(function (b) { return b.type === 'text' && new RegExp('appelant l\'outil ' + body.tools[0].name).test(b.text || ''); });
     if (demande) { CLAUDE.enClair++; body = Object.assign({}, body, { tool_choice: { type: 'tool', name: body.tools[0].name } }); }
   }
+  if (body.tool_choice && ['ecrire_script', 'ecrire_scene', 'adapter_video', 'juger_video'].indexOf(body.tool_choice.name) >= 0) return studio(body);
   if (body.tool_choice && body.tool_choice.name === 'juger_site') return critiqueFausse(body);
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
   if (body.tool_choice && body.tool_choice.name === 'noter_photos') return vision(body);
@@ -393,4 +426,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { appels: function () { return appelsClaude; }, CLAUDE: CLAUDE, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { STUDIO: STUDIO, appels: function () { return appelsClaude; }, CLAUDE: CLAUDE, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };

@@ -1,0 +1,12 @@
+{
+  "name": "la-tour-usine",
+  "private": true,
+  "version": "1.0.0",
+  "description": "L'usine du Studio 3D : voix, rendu 3D et montage des vidéos, sur GitHub Actions",
+  "engines": { "node": ">=20" },
+  "scripts": { "essai": "node local.js exemples/clim.json en" },
+  "dependencies": {
+    "puppeteer-core": "25.12.0",
+    "three": "0.170.0"
+  }
+}

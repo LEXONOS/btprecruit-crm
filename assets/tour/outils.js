@@ -47,6 +47,7 @@ export const SOURCE = { domaines: 'nouveau domaine', maps: 'Google Maps', regist
 
 /* ── icônes (trait 1,8, coins arrondis) ── */
 const P = {
+  studio: '<rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3"/><path d="M8 10l3.5 2L8 14z"/>',
   ville: '<path d="M3 21h18M5 21V10l5-3v14M10 21V4l9 4v13"/><path d="M13 10h3M13 13h3M13 16h3"/>',
   gestion: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 13h3M8 16h6"/>',
   tableau: '<rect x="3" y="3" width="8" height="9" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="14" width="8" height="7" rx="2"/>',
