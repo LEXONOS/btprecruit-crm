@@ -65,7 +65,8 @@ function vision(body) {
   return rep([tu('noter_photos', { notes: notes })], 'tool_use', { input_tokens: 400 + 120 * blocs.length, output_tokens: 300 });
 }
 // Miranda : le faux regard (captures) et le faux jugement ; MIRANDA.notes donne les notes successives à rendre
-const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, illisible: false, derniers: [] };
+// pages : ce que sert un aperçu en ligne (son HTML, ou 404) quand Miranda vérifie sa version avant de le regarder
+const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, illisible: false, derniers: [], pages: {} };
 function regardFaux(opts) {
   MIRANDA.regards++;
   if (MIRANDA.panne) return { ok: false, status: 500, json: async function () { return { ok: false, error: 'navigateur indisponible' }; } };
@@ -105,16 +106,21 @@ function claude(body) {
     if (!toolResult) return rep([tu('lister_leads', { statut: 'a_contacter', pret: true, limite: 5 })]);
     const r = dernierResultat(last);
     if (!Array.isArray(r)) return rep([tu('terminer', { resume: 'Emails écrits.' })]);
-    return rep([tu('rediger_emails', { emails: r.slice(0, 6).map(function (l) {
+    return rep([tu('rediger_emails', { emails: r.slice(0, 6).map(function (l, k) {
       const lien = /^https?:/.test(String(l.apercu || '')) ? l.apercu : null;
       // une ouverture propre à chacun (le contrôle refuse la même première phrase que dans un email récent)
       const m = String(l.metier || l.secteur || 'votre métier').toLowerCase(), ou = l.commune ? 'à ' + l.commune : 'en Martinique';
+      // (huit ouvertures, une par place dans le lot : deux emails d'un même lot ne commencent jamais pareil)
       const ouverture = [
         'En cherchant ' + m + ' ' + ou + ', je suis tombé sur ' + l.nom + ', mais pas sur un site.',
         l.nom + ' apparaît sur Google pour ' + m + ' ' + ou + ', sans site derrière.',
         'Un client qui cherche ' + m + ' ' + ou + ' trouve ' + l.nom + ' sans pouvoir voir votre travail.',
-        'J\'ai regardé qui fait ' + m + ' ' + ou + ' : ' + l.nom + ' n\'a pas encore de site.'
-      ][l.id % 4];
+        'J\'ai regardé qui fait ' + m + ' ' + ou + ' : ' + l.nom + ' n\'a pas encore de site.',
+        'Votre fiche Google pour ' + m + ' ' + ou + ' ne mène vers aucune page qui montre ' + l.nom + '.',
+        'Quand on tape ' + m + ' ' + ou + ', on trouve ' + l.nom + ' mais rien pour découvrir vos services.',
+        l.nom + ' a de bons avis pour ' + m + ' ' + ou + ', il ne manque qu\'un site pour les montrer.',
+        'Pour ' + m + ' ' + ou + ', ' + l.nom + ' sort sur Google, mais sans site à visiter.'
+      ][(k + (r[0] ? r[0].id : 0)) % 8];
       return { lead_id: l.id, objet: 'Le site de ' + l.nom, angle: lien ? 'apercu' : 'conformite', corps: 'Bonjour,\n\n' + ouverture + '\n\n' + (lien ? 'J\'ai préparé un aperçu de ce que pourrait être le vôtre : ' + lien + '\n\n' : 'Je peux vous préparer un aperçu gratuit de votre futur site.\n\n') + 'Tout est inclus : la création, la mise en ligne sur votre nom de domaine et l\'hébergement la première année. Le site vous appartient, sans abonnement obligatoire, et tout reste modifiable : textes, photos, couleurs.\n\nJe le mets en ligne pour vous ?\n\nLouis\nNovalemo, sites internet en Martinique' };
     }) }), tu('terminer', { resume: Math.min(6, r.length) + ' emails.' })]);
   }
@@ -322,6 +328,7 @@ function imageFausse(url, l, h) { const b = jpeg(l, h, Array.from(url).reduce(fu
 global.fetch = async function (url, opts) {
   url = String(url);
   if (url.indexOf('/api/regard') >= 0) return regardFaux(opts);
+  if (MIRANDA.pages[url] !== undefined) { const pg = MIRANDA.pages[url]; return pg === 404 ? { ok: false, status: 404, text: async function () { return 'introuvable'; } } : { ok: true, status: 200, url: url, text: async function () { return pg; } }; }
   if (url.indexOf('api.pexels.com') >= 0) return pexels(url, opts);
   if (url.indexOf('images.pexels.com') >= 0) return imageFausse(url, 1920, 1280);
   if (url.indexOf('picsum.photos') >= 0) return imageFausse(url, 1920, 1280);
