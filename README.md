@@ -12,11 +12,11 @@ Derrière une porte : le mot de passe de Louis.
 - **Direction du Groupe** : Maximilien (PDG), Inès (DRH), Hugo (développement), Camille (contrôle de gestion).
 - **Labo Avengers** : Tony, Ada (veille GitHub), Alan (veille IA). Ils cherchent les meilleurs projets IA et proposent de les intégrer.
 - **Novalemo Sites** : vend des sites aux entreprises de **Martinique uniquement** (la Guadeloupe est le terrain de Studio Novalem), en pilote automatique de bout en bout. DG, directeur commercial, RH, commerciale emailing, fournisseur de contacts, chasseurs (nouveaux domaines .fr, Google Maps, créations BODACC, réseaux), rédactrice, relanceur, Emma (réponses et vente, l'assistante IA de Louis), Colette (pôle écriture), partenariats, inbound, analyste, chef de production, portfolio, Noé (aperçus), Iris (direction artistique), Léa (photos), Margot (mentions légales), Lucas (mise en ligne).
-- **Studio 3D** : vidéos d'ingénierie en 3D pour TikTok et YouTube (veille, scripts ; rendu, voix et publication en attente de branchement).
+- **Studio 3D** : trois lignes de vidéos pour TikTok et YouTube. Mécanique 3D (« comment ça marche », en service), Séries IA et Brainrot 3D (à brancher). Malik (sujets), Clara (scripts), Oscar (scènes 3D), Lina (fabrication), Vera (critique), Nina (langues), Tom (publication, à brancher), Zoé (audience).
 - **E-commerce Lab** : veille, études de niches, puis boutique validée par Louis.
 - **Chantiers** : 4 projets d'entreprises soumis à Louis (Conformité Web, Leads Antilles, Fiches Google, Recover). Validé = un étage de plus.
 
-47 agents. Chacun a une fiche de poste, une stratégie qu'il réécrit lui-même, des connaissances qu'il accumule, un chef, et des outils limités à son rôle.
+53 agents. Chacun a une fiche de poste, une stratégie qu'il réécrit lui-même, des connaissances qu'il accumule, un chef, et des outils limités à son rôle.
 
 ## Comment ça tourne
 
@@ -45,6 +45,24 @@ Derrière une porte : le mot de passe de Louis.
 - Envois : un email est réservé avant de partir (jamais deux fois, jamais après une annulation) ; une erreur passagère est réessayée (15 min à 24 h) ; seule une adresse refusée définitivement est écartée ; un refus pour authentification vient de notre domaine d'envoi : le prospect est gardé, Louis est prévenu, la prospection se met en pause après trois refus ; une adresse ne reçoit jamais deux premiers emails.
 - Zone : Lamentin, Sainte-Anne, Saint-Pierre et d'autres noms existent aussi en Guadeloupe, à La Réunion ou dans l'Hexagone : seuls, ils ne prouvent rien (code postal 972 ou numéro de Martinique exigé).
 - Base : au-delà de 1 000 lignes (plafond de Supabase par requête), les lectures paginent ; aucune file de travail n'est plafonnée.
+
+## Studio 3D : l'usine à vidéos
+
+Ligne **Mécanique 3D** de bout en bout, sans personne :
+
+1. **Malik** livre des sujets (« comment ça marche » qui font des vues). **Sarah** les note ; sa stratégie est la ligne éditoriale que Clara lit.
+2. **Clara** (`lib/jobs/studio_scripts.js`) écrit le script en anglais : 9 à 13 phrases, 170 à 200 mots (plus d'une minute : TikTok ne paie qu'au-delà), accroche, chiffres à l'écran. Contrôle : longueur, doublons de sujet. Quota par jour et stock en fabrication réglés par le DG (`regler_studio`).
+3. **Oscar** (`lib/jobs/studio_scenes.js`) écrit la scène 3D dans le langage du moteur (`lib/studio/scene.js` : 26 types de pièces, un plan de caméra par phrase, actions, étiquettes). Contrôle : chaque pièce, chaque plan, chaque cible ; refusée, il la corrige dans le même passage.
+4. **Lina** (`lib/jobs/studio_usine.js`, sans IA) lance l'**usine** sur GitHub Actions (`.github/workflows/usine.yml`, gratuit car le dépôt est public) : une fabrication par vidéo et par langue, 12 en même temps au plus, relance au bout de 80 minutes sans nouvelles, arrêt après deux échecs.
+5. **L'usine** (`usine/`) : la voix (Kokoro, 82M, Apache 2.0, sur le processeur), la musique et les bruitages fabriqués (aucun son emprunté), le rendu 3D (three.js dans Chrome sans écran, Vulkan sur le processeur avec lavapipe : environ 0,25 s par image), les sous-titres mot à mot, l'accroche, les étiquettes reliées aux pièces, le son à -14 LUFS, la vignette et six images clés. Durée garantie au-dessus de 61,5 s (pauses élargies, puis voix un peu ralentie). Les fichiers vont dans le stockage privé `studio` de Supabase par liens d'envoi signés.
+6. **Vera** (`lib/jobs/studio_critique.js`) regarde la vignette et les images clés avec le script : publier (7/10 et plus), scène à refaire par Oscar (deux fois au plus) ou refus. Ce qui revient devient une leçon pour Clara ou Oscar.
+7. **Nina** (`lib/jobs/studio_langues.js`) adapte (pas mot à mot) en français, espagnol, portugais du Brésil et hindi : voix phrase par phrase, étiquettes, chiffres, titre, hashtags du pays. L'usine rend chaque langue. La vidéo est **prête**.
+
+La porte de l'usine (`api/usine.js`) est la seule entrée sans session : elle n'accepte que le secret partagé posé par la tour (`HQ_USINE_SECRET`), et ne fait que trois choses (la commande, les liens d'envoi, le compte rendu). Chaque demande porte un jeton : un vieux rendu ne remplace jamais un neuf. L'adresse de la tour est une variable du dépôt (`HQ_TOUR`), jamais une entrée du lancement.
+
+Mise en route (Gestion, Mise en route, Studio) : un jeton GitHub (Actions, Secrets et Variables en écriture sur ce dépôt). La tour pose seule le secret de l'usine et son adresse sur GitHub, puis ses propres variables, et redémarre.
+
+Essai local : `cd usine && npm install && pip install -r requirements.txt`, les deux modèles Kokoro dans `usine/.modeles/`, puis `node produire.js --fichier exemples/clim.json --langue fr --sortie /tmp/clim`.
 
 ## WhatsApp (prêt à brancher)
 
@@ -76,9 +94,10 @@ Les aperçus et les sites des clients vivent dans un projet Vercel PUBLIC sépar
 - `lib/seed.js` : la fondation. `lib/runtime.js` (moteur), `lib/tools.js` (outils et garde-fous), `lib/qualite.js` (contrôle qualité), `lib/ecriture.js` (pôle écriture : charte et variantes en test), `lib/context.js`, `lib/claude.js`, `lib/mail.js` (SMTP, IMAP, DNS), `lib/martinique.js` (communes, téléphones).
 - `lib/sites/` : `atelier.js` (Claude écrit les textes), `modeles.js` (les huit modèles de métier), `donne.js` (la donne de chaque site), `direction.js` (relecture d'Iris), `rendu.js` et `theme.js` (le moteur de pages, voix, icônes), `images.js` et `banque.js` (Léa et ses photos), `juridique.js` (Margot et les mentions légales), `fiche.js` (ce qui manque au client), `photos.js` (lecture du site actuel), `publication.js` (déploiement), `vercel.js`, `stripe.js`, `polices/` (licence OFL).
 - `lib/jobs/` : chasseurs, `enrichir.js`, `demo.js` (Noé), `direction.js` (Iris), `photos.js` (Léa), `juridique.js` (Margot), `livraison.js` (Lucas : paiements, abonnements, domaines, renouvellements), `envoi.js`, `boite.js`, `whatsapp.js` (relève et mesure de la demande).
+- `lib/studio/` : le Studio (`index.js` lignes et réglages, `scene.js` le langage des scènes et sa vérification, `fabrication.js` demandes et comptes rendus de l'usine, `github.js` lancements et secret chiffré, `stockage.js` liens signés, `ecrire.js` réponses structurées, `vue.js` la section Studio). `lib/jobs/studio_*.js` : Clara, Oscar, Lina, Vera, Nina. `api/usine.js` : la porte de l'usine. `usine/` : l'usine (moteur 3D `moteur/`, `voix.py`, `rendre.js`, `produire.js`, `exemples/clim.json`). `assets/tour/studio.js` : la section Studio.
 - `lib/missions.js` : les missions de Louis (états, vérification des codes, écriture dans Vercel). `lib/whatsapp.js` : Kapso. `api/whatsapp.js` : le cron express de WhatsApp.
 - `supabase/hq-schema.sql` : les tables `hq_*` (dont `hq_sites` et `hq_fichiers`) et les fonctions atomiques (compteurs du jour, verrous, essais de la porte, version du mot de passe).
-- `test/sim.js` : simulation complète sans réseau, du prospect au site en ligne (`npm test`). `node test/serve.js` : la tour en local sur un monde simulé (mot de passe local « la tour de test 2026 », `--creation` pour voir la première ouverture).
+- `test/sim.js` : simulation complète sans réseau, du prospect au site en ligne. `test/studio.js` : une vidéo de bout en bout (script, scène, usine, critique, langues). `npm test` lance les deux. `node test/serve.js` : la tour en local sur un monde simulé (mot de passe local « la tour de test 2026 », `--creation` pour voir la première ouverture).
 
 ## Variables Vercel (projet de la tour)
 
@@ -90,6 +109,7 @@ Toutes celles de Novalemo se posent depuis la tour (Missions), sans ouvrir Verce
 - `HQ_VERCEL_TOKEN` : jeton Vercel de l'équipe (hébergement des aperçus et des sites, noms de domaine).
 - `HQ_STRIPE_KEY` : clé secrète Stripe live (liens de paiement, factures, remboursement des doublons). Une clé de test ne vend rien : aucun lien n'est envoyé aux clients et aucun domaine n'est acheté.
 - `HQ_WHATSAPP_KEY` (clé API Kapso), `HQ_WHATSAPP_NUMERO` (identifiant du numéro chez Kapso), `HQ_WHATSAPP_TEL` (numéro affiché). Sans elles, pas de WhatsApp : la demande est seulement mesurée.
+- `HQ_GITHUB_TOKEN` et `HQ_USINE_SECRET` : l'usine du Studio (le jeton se colle dans la tour ; le secret est tiré au hasard et posé par la tour, ici et sur GitHub).
 - `HQ_PEXELS_KEY` : clé API Pexels (gratuite) pour les photos du métier choisies par Léa. Sans elle, seule la petite banque de secours sert, pour quelques métiers ; les autres aperçus partent sans photo.
 - `HQ_ACCES` (empreinte du mot de passe), `HQ_SESSION` (clé des sessions) et `CRON_SECRET` : posés par la porte à la première ouverture, jamais à la main.
 - Optionnels : `HQ_SITES_DOMAINE` (adresse des aperçus sur ton domaine, ex. `apercu.novalemo.fr`, utilisée dès que son CNAME répond), `HQ_SITES_PROJET` (nom du projet public, `novalemo-martinique` par défaut), `GITHUB_TOKEN`, `HQ_MODEL_FAST` / `HQ_MODEL_SMART`.
