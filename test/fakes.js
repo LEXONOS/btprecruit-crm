@@ -88,7 +88,8 @@ function critiqueFausse(body) {
 /* ── le Studio 3D : actualité, accroches, script, relecture, vérification, scène, langues, critique ── */
 // STUDIO.viral : notes successives de Félix ; STUDIO.verifs : verdicts d'Hélène ; STUDIO.scriptsRates : jets de Clara
 // refusés par le contrôle ; STUDIO.consignes : le dernier texte reçu par chaque outil
-const STUDIO = { verdicts: [], viral: [], verifs: [], scenesRatees: 0, scriptsRates: 0, plumeRatee: 0, appels: {}, consignes: {}, systemes: {} };
+// STUDIO.enTexte : listes rendues en texte JSON par le modèle ; STUDIO.coupe : réponse coupée (max_tokens) pour un outil
+const STUDIO = { verdicts: [], viral: [], verifs: [], scenesRatees: 0, scriptsRates: 0, plumeRatee: 0, enTexte: 0, coupe: null, appels: {}, consignes: {}, systemes: {} };
 const texteDe = function (body) { return body.messages.map(function (m) { return typeof m.content === 'string' ? m.content : m.content.map(function (b) { return b.text || ''; }).join('\n'); }).join('\n'); };
 function studio(body) {
   const n = body.tool_choice.name;
@@ -97,6 +98,7 @@ function studio(body) {
   const texte = texteDe(body);
   STUDIO.consignes[n] = texte;
   STUDIO.systemes[n] = body.system.map(function (b) { return b.text; }).join('\n');
+  if (STUDIO.coupe && STUDIO.coupe.outil === n && STUDIO.coupe.n > 0) { STUDIO.coupe.n--; STUDIO.coupe.max = body.max_tokens; return rep([{ type: 'text', text: 'Je commence par écrire tout le raisonnement...' }, tu(n, {})], 'max_tokens', { output_tokens: body.max_tokens }); }
   if (n === 'trouver_accroches') {
     const k = STUDIO.appels[n];
     const familles = ['contradiction', 'chiffre_choc', 'enjeu_cache', 'question_impossible', 'personne_ne_dit', 'defi_regard', 'pov', 'comparaison_absurde'];
@@ -105,7 +107,8 @@ function studio(body) {
   if (n === 'ecrire_script') {
     const beats = ex.script.beats.map(function (b) { return { role: b.role, voix: b.voix, ecran: b.ecran, image: b.image }; });
     if (STUDIO.scriptsRates > 0) { STUDIO.scriptsRates--; return rep([tu('ecrire_script', { titre: 'Trop court', accroche: 'Court', beats: beats.slice(0, 6), boucles: [], description: 'x', commentaire: 'x', hashtags: [] })]); }
-    return rep([tu('ecrire_script', { titre: 'Your AC has never made cold ' + STUDIO.appels[n], accroche: ex.script.accroche, beats: beats, boucles: ex.script.boucles, description: ex.script.description, commentaire: ex.script.commentaire, hashtags: ['howitworks', '#engineering'], sources: ['ASHRAE handbook'], a_verifier: [] })], 'tool_use', { output_tokens: 2400 });
+    const texteJson = STUDIO.enTexte > 0 && STUDIO.enTexte--;
+    return rep([tu('ecrire_script', { titre: 'Your AC has never made cold ' + STUDIO.appels[n], accroche: ex.script.accroche, beats: texteJson ? JSON.stringify(beats) : beats, boucles: texteJson ? JSON.stringify(ex.script.boucles) : ex.script.boucles, description: ex.script.description, commentaire: ex.script.commentaire, hashtags: ['howitworks', '#engineering'], sources: ['ASHRAE handbook'], a_verifier: [] })], 'tool_use', { output_tokens: 2400 });
   }
   if (n === 'juger_script') {
     const v = STUDIO.viral.length ? STUDIO.viral.shift() : 9;

@@ -115,14 +115,17 @@ const C0 = () => ({ items: 0, leads: 0, emails: 0, messages: 0, places: 0 });
   v = await video(v.id);
   assert.strictEqual(v.status, 'reecriture', 'sous le seuil : ' + rf.resume);
   assert.ok(db.tables.hq_knowledge.some((k) => k.agent_id === 'prof_viral' && /événement visuel/.test(k.content)), 'la leçon de Félix est gardée');
+  fakes.STUDIO.enTexte = 1;
   await lancer('scenariste');
   v = await video(v.id);
-  assert.ok(v.status === 'relecture' && v.script.versions === 2, 'version 2');
+  assert.ok(v.status === 'relecture' && v.script.versions === 2 && v.script.beats.length === 16, 'version 2, même quand le modèle rend ses listes en texte JSON');
   assert.ok(/NOTE DE FÉLIX : 6\.5\/10/.test(fakes.STUDIO.consignes.ecrire_script) && /One fluid does \*all\* the work/.test(fakes.STUDIO.consignes.ecrire_script), 'Clara a reçu les corrections de Félix');
   assert.ok(/événement visuel/.test(fakes.STUDIO.systemes.ecrire_script), 'et la règle apprise par Félix');
-  await lancer('prof_viral');
+  fakes.STUDIO.coupe = { outil: 'juger_script', n: 1 };
+  const rf2 = await lancer('prof_viral');
   v = await video(v.id);
-  assert.strictEqual(v.status, 'verification', 'au-dessus du seuil : à la vérification');
+  assert.strictEqual(v.status, 'verification', 'au-dessus du seuil : à la vérification (' + rf2.resume + ')');
+  assert.ok(fakes.STUDIO.coupe.n === 0 && rf2.cout > 0.02, 'la réponse coupée est relancée avec plus de place, et comptée');
   assert.strictEqual(v.script.note_viral, 9);
 
   // 7. Hélène vérifie les faits sur le web et corrige elle-même une approximation
