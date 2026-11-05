@@ -1142,7 +1142,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const fg = await DEMO.fabriquer(db, lg, {});
     const rg = R.rendre(fg.site, { mode: 'apercu' });
     const heroHtml = (rg.files[0].data.match(/<section class="r r-hero-[\s\S]*?<\/section>/) || [''])[0];
-    assert.ok(!fg.site.spec.photos.length && fg.site.spec.da.hero === 'nu' && rg.hero && heroHtml && !/<img\b/.test(heroHtml) && fg.site.spec.compo && fg.site.spec.compo.choix.hero === rg.hero, 'sans photo : un haut de page qui s\'en passe, rangé dans la fiche (' + rg.hero + ')');
+    assert.ok(!fg.site.spec.photos.length && fg.site.spec.da.hero === 'nu' && rg.hero && heroHtml && !/<img\b/.test(heroHtml) && fg.site.spec.compo && fg.site.spec.compo.template && require('../lib/sites/rubriques').VARIANTES[rg.hero].photo !== 'oui', 'sans photo : un template dont l\'ouverture s\'en passe, rangé dans la fiche (' + rg.hero + ')');
     // i. Margot : la recherche d'après le nom ne suffit pas, le client confirme ; ce que la loi exige selon la forme
     assert.ok(fg.site.spec.legal && fg.site.spec.legal.siren === '552100554' && !fg.site.spec.legal.confirme && J.questions(fg.site.spec)[0].cle === 'identite', 'trouvée dans le registre d\'après le nom, à confirmer par le client');
     const manque = F.manque(fg.site.spec).map(function (x) { return x.cle; });
@@ -1679,13 +1679,44 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     for (let k = 0; k < 6; k++) { const sp = Object.assign({}, ex, { nom: 'Clim Voisine ' + k }); const c = RD.contexte({ slug: 'v' + k, spec: sp }, { mode: 'apercu' }).ctx; voisins.push(CO.composer(sp, c, { recents: voisins.slice() })); }
     const sig = voisins.map(CO.signature);
     assert.ok(new Set(sig).size === sig.length, 'six voisins du même métier, six compositions différentes : ' + sig.join(' / '));
-    const autreHero = BR.PAR_RUBRIQUE.hero.find(function (v) { return v.id !== k1.choix.hero && BR.possible(v, ex, cx) && v.photo !== 'non'; });
-    if (autreHero) assert.strictEqual(CO.composer(Object.assign({}, ex, { compo: { choix: { hero: autreHero.id } } }), cx, {}).choix.hero, autreHero.id, 'le haut de page demandé par le constructeur est gardé');
-    const sansPhoto = BR.PAR_RUBRIQUE.hero.find(function (v) { return v.photo === 'non'; });
-    assert.ok(CO.composer(Object.assign({}, ex, { compo: { choix: { hero: sansPhoto.id } } }), cx, {}).choix.hero !== sansPhoto.id, 'une photo est là : un haut de page sans photo ne garde pas sa place');
+    // v3 : le template demandé (constructeur, Louis) est gardé ; une photo là : son ouverture photo ; sans photo : une
+    // ouverture faite pour s'en passer ; jamais une variante retirée (gadget, numéro géant), une page courte, un seul contact
+    assert.strictEqual(CO.composer(Object.assign({}, ex, { compo: { choix: { template: 'galion' } } }), cx, {}).template, 'galion', 'le template demandé est gardé');
+    const kP = CO.composer(Object.assign({}, ex, { compo: { choix: { template: 'pitons' } } }), cx, {});
+    assert.strictEqual(kP.blocs.find(function (b) { return b.rubrique === 'hero'; }).id, 'hero.x-plein', 'une photo est là : le template ouvre sur elle');
     const vide = Object.assign({}, VT.exemple('conseil'));
     const cv = RD.contexte({ slug: 'c', spec: vide }, { mode: 'apercu' }).ctx;
-    assert.strictEqual(BR.VARIANTES[CO.composer(vide, cv, {}).choix.hero].photo, 'non', 'sans aucune photo : un haut de page fait pour s\'en passer');
+    const kV = CO.composer(Object.assign({}, vide, { compo: { choix: { template: 'pitons' } } }), cv, {});
+    assert.ok(BR.VARIANTES[kV.blocs.find(function (b) { return b.rubrique === 'hero'; }).id].photo !== 'oui' && BR.VARIANTES[CO.composer(vide, cv, {}).blocs.find(function (b) { return b.rubrique === 'hero'; }).id].photo !== 'oui', 'sans aucune photo : une ouverture faite pour s\'en passer');
+    const k3 = CO.composer(Object.assign({}, ex, { compo: { choix: { hero: 'hero.fraicheur', contact: 'contact.geant', pied: 'pied.defile' } } }), cx, {});
+    assert.ok(k3.template && k3.blocs.every(function (b) { return BR.VARIANTES[b.id].x && !BR.retiree(b.id); }) && k3.blocs.length <= 9 && k3.blocs.filter(function (b) { return b.rubrique === 'contact'; }).length === 1, 'v3 : un template, ses sections, rien de retiré, un seul contact : ' + k3.blocs.map(function (b) { return b.id; }).join(' '));
+    const hK3 = RD.rendre({ slug: 'k3', spec: Object.assign({}, ex, { compo: k3 }) }, { mode: 'apercu' }).files[0].data;
+    const numero = (hK3.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '').match(/0596 50 10 20/g) || []).length;
+    assert.ok(numero >= 1 && numero <= 4 && !/fond:#0|--fond:#1/.test(hK3), 'le numéro paraît là où il sert, pas sept fois, et la page est claire : ' + numero);
+    assert.ok(VT.exemple('clim').faq.length === 3 && require('../lib/sites/rubriques/outils').faqDe({ faq: [{ q: 'Le devis est payant ?', r: 'Nous vous le dirons au téléphone selon votre demande. Contactez-nous pour en discuter.' }, { q: 'Le week-end ?', r: 'Oui, tous les jours. Appelez-nous pour organiser le passage.' }] }).map(function (x) { return x.r; }).join('|') === 'Oui, tous les jours.', 'une FAQ répond : « appelez-nous » n\'est pas une réponse');
+    // les 40 templates : complets, chacun rendu sans défaut sur chaque fiche d'exemple, jamais un fond sombre
+    const TPL = require('../lib/sites/templates');
+    assert.ok(TPL.TEMPLATES.length >= 40 && new Set(TPL.TEMPLATES.map(function (x) { return x.id; })).size === TPL.TEMPLATES.length, 'quarante templates distincts');
+    const defautsT = [];
+    TPL.TEMPLATES.forEach(function (x) {
+      Object.keys(VT.EXEMPLES).forEach(function (e) {
+        const sp = VT.exemple(e), cx2 = RD.contexte({ slug: 'tpl-' + e, spec: sp }, { mode: 'apercu' }).ctx;
+        const k = CO.composer(sp, cx2, { choix: { template: x.id } });
+        let r;
+        try { r = RD.rendre({ slug: 'tpl-' + e, spec: sp }, { mode: 'apercu', compo: k }); } catch (err) { defautsT.push(x.id + '/' + e + ' : ' + err.message); return; }
+        const html = r.files[0].data, vis = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
+        if (r.erreurs.length) defautsT.push(x.id + '/' + e + ' : ' + r.erreurs.join(' | '));
+        if (k.template !== x.id) defautsT.push(x.id + '/' + e + ' : template non gardé');
+        ['nav', 'hero', 'contact', 'pied'].forEach(function (rb) { if (!k.blocs.some(function (b) { return b.rubrique === rb; })) defautsT.push(x.id + '/' + e + ' : pas de ' + rb); });
+        if (/undefined|NaN|\[object Object\]/.test(vis)) defautsT.push(x.id + '/' + e + ' : texte cassé');
+        if ((vis.match(/<h1\b/g) || []).length !== 1) defautsT.push(x.id + '/' + e + ' : un h1, un seul');
+        if (!/<body class="clair /.test(html) || !new RegExp('\\bk-' + x.style + '\\b').test(html)) defautsT.push(x.id + '/' + e + ' : page sombre ou style absent');
+      });
+    });
+    assert.deepStrictEqual(defautsT.slice(0, 6), [], 'les 40 templates se rendent sur les huit fiches d\'exemple');
+    // l'en-tête est posé sur le haut de page : transparent tant qu'on n'a pas défilé (sinon, sur une photo, son texte blanc
+    // disparaît sur une bande claire)
+    BR.PAR_RUBRIQUE.nav.filter(function (v) { return v.x; }).forEach(function (v) { assert.ok(/\.r\.r-nav-x-[a-z]+\{[^}]*background:transparent/.test(typeof v.css === 'function' ? v.css() : v.css), v.id + ' : en-tête transparent sur le haut de page'); });
     // C. la phase de test : aucun premier email ni relance, rien de rédigé ; les réponses continuent
     await PHs.ecrire(db, 'test', 'sim');
     env = await runtime.charger(db);
@@ -1721,12 +1752,16 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const m1 = await mk('miranda-un', 'Clim Miranda');
     const leSiteM = function (id) { return db.tables.hq_sites.find(function (x) { return x.id === id; }); };
     const passeM = async function () { await PU.ecrireEtat(db, { en_cours: null, a_publier: false }); dus(['critique']); return runtime.cycle({ db: db, agentId: 'critique', secondes: 200 }); };
+    // le modèle le plus fort refuse l'outil imposé (génération 5.5) : Miranda le lui demande en clair, une seule fois refusée
+    fakes.CLAUDE.refusOutil = true;
     fakes.MIRANDA.notes = [6];
-    const hero0 = leSiteM(m1.s.id).spec.compo.choix.hero;
+    const heroDe = function (c) { return (c.blocs.find(function (b) { return b.rubrique === 'hero'; }) || {}).id; };
+    const hero0 = heroDe(leSiteM(m1.s.id).spec.compo);
     await passeM();
     const s1 = leSiteM(m1.s.id);
-    assert.ok(s1.data.critique.verdict === 'a_refaire' && s1.data.critique.note === 6 && s1.version === 2 && s1.spec.compo.choix.hero !== hero0 && (s1.spec.compo.eviter || []).indexOf(hero0) >= 0 && fakes.MIRANDA.derniers[0].images >= 6, 'Miranda refuse un 6 : le haut de page est remplacé, le site republié : ' + JSON.stringify(s1.data.critique.reprise));
+    assert.ok(s1.data.critique.verdict === 'a_refaire' && s1.data.critique.note === 6 && s1.version === 2 && heroDe(s1.spec.compo) !== hero0 && s1.spec.compo.template === leSiteM(m1.s.id).spec.compo.template && (s1.spec.compo.eviter || []).indexOf(hero0) >= 0 && fakes.MIRANDA.derniers[0].images >= 6, 'Miranda refuse un 6 : le haut de page est remplacé, le site republié : ' + JSON.stringify(s1.data.critique.reprise));
     assert.ok(!CR.peutPartir(s1).ok && /pas encore validé/.test(CR.peutPartir(s1).raison), 'pas validé : il ne part pas');
+    assert.ok(fakes.CLAUDE.refus === 1 && fakes.CLAUDE.enClair >= 1 && s1.data.critique.modele === require('../lib/config').MODELS.genius.id, 'outil imposé refusé par le modèle : demandé en clair, le jugement passe, et le refus n\'est payé qu\'une fois : ' + JSON.stringify(fakes.CLAUDE));
     const lucas = db.tables.hq_agents.find(function (a) { return a.id === 'livraison'; });
     assert.ok(lucas && Date.parse(lucas.next_run_at) <= Date.now() + 2 * 60000, 'reprise à publier : Lucas est réveillé, la chaîne ne dort pas');
     const jeton0 = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
@@ -1853,6 +1888,126 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const re11 = db11.tables.hq_leads.find(function (x) { return x.id === la[2].id; });
     assert.ok(st11(2) === 'nouveau' && re11.score === 66 && re11.reason === 'Google Maps : plombier, site faible' && st11(3) === 'ecarte' && db11.tables.hq_agents.find(function (a) { return a.id === 'chasse_maps'; }).cadence_min === 90, 'version 11 : réaudit des écartés jamais écrits (repartis de leur note et de leur raison d\'origine), Jade toutes les 90 minutes : ' + JSON.stringify([re11.score, re11.reason]));
     console.log('Nouveau moteur OK : ' + ctl.variantes + ' variantes contrôlées (' + ctl.rendus + ' rendus), compositions stables et toujours différentes entre voisins, choix du constructeur gardé, phase de test, priorité aux entreprises sans site, adresses devinées écartées, Miranda (regard, refus, reprise, validation, abandon, panne)');
+  }
+  // 33. LE PANNEAU DE L'APERÇU : la page porte sa clé, sans elle rien ne passe ; l'intérêt du prospect monte dans le CRM
+  // sans toucher à son statut ; ses images et ses retouches arrivent chez Emma comme un message vérifié, qu'elle applique ;
+  // « Je le prends » crée le lien Stripe (490 € ou 45 € par mois), le réutilise, et voit un paiement déjà fait ; paiement en
+  // ligne pas prêt : son email, et Emma lui envoie le lien ; payé, plus de panneau de vente
+  {
+    const RT = require('../lib/sites/retours'), API = require('../api/apercu'), PU = require('../lib/sites/publication'), SP = require('../lib/sites/stripe'), VT = require('./vitrine');
+    const jt0 = process.env.HQ_VERCEL_TOKEN, sk0 = process.env.HQ_STRIPE_KEY;
+    process.env.HQ_VERCEL_TOKEN = 'test-vercel'; process.env.HQ_STRIPE_KEY = 'sk_live_simulation';
+    const et0 = await PU.lireEtat(db);
+    if (!et0.hote && !et0.hote_vercel) await PU.ecrireEtat(db, { hote: 'novalemo-martinique.vercel.app' });
+    const lp = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:panneau', source: 'maps', name: 'Clim Panneau', sector: 'climatisation', island: 'MQ', commune: 'Le Robert', email: 'patron@clim-panneau.fr', email_source: 'site', status: 'contacte', score: 60, apercu_etat: 'publie' }))[0];
+    const spP0 = Object.assign(VT.exemple('clim'), { nom: 'Clim Panneau' });
+    require('../lib/jobs/demo').composer(spP0, { compos: [] });
+    const sP = (await db.insert('hq_sites', { lead_id: lp.id, slug: 'clim-panneau-9z8y', status: 'apercu', version: 1, spec: spP0, url_apercu: 'https://novalemo-martinique.vercel.app/a/clim-panneau-9z8y/', published_at: new Date().toISOString(), data: {} }))[0];
+    await db.update('hq_leads', { site_id: sP.id }, { eq: { id: lp.id } });
+    const relP = (await db.insert('hq_outbox', { lead_id: lp.id, to_email: 'patron@clim-panneau.fr', subject: 'Re: x', body: 'y\nSTOP', status: 'pret', kind: 'relance', step: 2 }))[0];
+    const leSiteP = function () { return db.tables.hq_sites.find(function (x) { return x.id === sP.id; }); };
+    const leLeadP = function () { return db.tables.hq_leads.find(function (x) { return x.id === lp.id; }); };
+    // A. la page : le panneau et sa clé tant que ce n'est pas payé ; payé, seulement « commandé »
+    const page = function (st) { return PU.rendreSite(Object.assign({}, leSiteP(), { status: st }), 'apercu', { contactNovalemo: 'louis@novalemo-mq.fr' }).textes[0].data.toString('utf8'); };
+    const hA = page('apercu'), hC = page('commande'), hP = page('paye');
+    const cle = RT.jeton(sP.slug);
+    assert.ok(/data-apercu/.test(hA) && hA.indexOf('data-cle="' + cle + '"') >= 0 && hA.indexOf('data-api="' + RT.api() + '"') >= 0 && /Je le prends/.test(hA) && /490\s€/.test(hA) && /45\s€/.test(hA) && /data-ap-depot/.test(hA) && /data-cle=/.test(hC), 'l\'aperçu porte le panneau (retouches, dépôt des images, deux façons de payer) et sa clé');
+    assert.ok(!/data-apercu/.test(hP) && !/data-ap-dlg/.test(hP) && /Votre site est commandé/.test(hP), 'payé : plus de panneau de vente');
+    const scriptsA = (hA.match(/<script>([\s\S]*?)<\/script>/g) || []).map(function (x) { return x.replace(/^<script\b[^>]*>|<\/script>$/g, ''); });
+    assert.ok(scriptsA.length && scriptsA.join('').indexOf('data-ap-dlg') >= 0 && scriptsA.every(function (c) { try { new (require('vm').Script)(c); return true; } catch (e) { return false; } }), 'le script du panneau est dans la page, et il se lit');
+    assert.ok(!RT.jetonOk(sP.slug, RT.jeton('autre-site-1a2b')) && RT.jetonOk(sP.slug, cle), 'une clé par aperçu');
+    // B. la porte : CORS, clé exigée, rien d'autre que POST
+    const appel = async function (methode, corps) {
+      const res = { statusCode: 0, h: {}, setHeader: function (k, v) { this.h[k.toLowerCase()] = v; }, end: function (x) { this.corps = x ? JSON.parse(x) : null; } };
+      await API({ method: methode, headers: {}, body: corps === undefined ? undefined : JSON.stringify(corps) }, res);
+      return res;
+    };
+    const pre = await appel('OPTIONS');
+    assert.ok(pre.statusCode === 204 && pre.h['access-control-allow-origin'] === '*' && /POST/.test(pre.h['access-control-allow-methods']) && /content-type/.test(pre.h['access-control-allow-headers']), 'la porte s\'ouvre aux aperçus (CORS, sans cookie)');
+    const sansCle = await appel('POST', { site: sP.slug, cle: 'A'.repeat(24), action: 'vu', quoi: 'retouches' });
+    const autreSite = await appel('POST', { site: 'autre-site-1a2b', cle: cle, action: 'vu', quoi: 'retouches' });
+    const inconnue = await appel('POST', { site: sP.slug, cle: cle, action: 'supprimer' });
+    assert.ok(sansCle.statusCode === 403 && autreSite.statusCode === 403 && inconnue.statusCode === 400 && (await appel('GET')).statusCode === 405 && sansCle.h['access-control-allow-origin'] === '*', 'sans la clé de CET aperçu, rien ne passe');
+    // C. son intérêt : ouvrir le panneau, regarder le paiement, choisir ; le statut ne bouge pas, Louis est prévenu une fois
+    const v1 = await appel('POST', { site: sP.slug, cle: cle, action: 'vu', quoi: 'retouches' });
+    assert.ok(v1.statusCode === 200 && leLeadP().data.interet.niveau === 1 && leLeadP().score >= 80 && leLeadP().status === 'contacte', 'il ouvre le panneau : intérêt noté, score monté, statut inchangé (les relances continuent)');
+    await appel('POST', { site: sP.slug, cle: cle, action: 'vu', quoi: 'commande' });
+    await appel('POST', { site: sP.slug, cle: cle, action: 'vu', quoi: 'commande' });
+    await appel('POST', { site: sP.slug, cle: cle, action: 'vu', quoi: 'formule', paiement: 'mensuel' });
+    const notesP = db.tables.hq_messages.filter(function (m) { return m.to_id === 'louis' && /Clim Panneau regarde le paiement/.test(m.subject || ''); });
+    assert.ok(leLeadP().data.interet.niveau === 3 && leLeadP().data.interet.paiement === 'mensuel' && leLeadP().data.interet.fois === 4 && leLeadP().score >= 95 && notesP.length === 1 && leLeadP().status === 'contacte', 'il regarde le paiement puis choisit : la fiche le montre, Louis est prévenu une fois : ' + JSON.stringify(leLeadP().data.interet));
+    const wS = (await world.liste('sites', { limite: 200 })).rows.find(function (x) { return x.id === sP.id; });
+    assert.ok(wS && wS.lead && wS.lead.interet && wS.lead.interet.niveau === 3 && wS.template && !wS.lead.data, 'la tour voit l\'intérêt et le template, rien d\'autre de sa fiche : ' + JSON.stringify(wS && wS.lead));
+    // D. ses images, une par une, puis ses retouches : un message vérifié dans la boîte d'Emma, les images rattachées
+    const img = function (k, nom) { return appel('POST', { site: sP.slug, cle: cle, action: 'image', type: 'image/jpeg', donnees: fakes.jpeg(1600, 1000, 40 + k).toString('base64'), nom: nom }); };
+    const i1 = await img(1, 'atelier.jpg'), i2 = await img(2, 'logo clim.jpg'), i1b = await img(1, 'atelier.jpg');
+    const gif = await appel('POST', { site: sP.slug, cle: cle, action: 'image', type: 'image/gif', donnees: fakes.jpeg(100, 100, 3).toString('base64'), nom: 'x.gif' });
+    const vide = await appel('POST', { site: sP.slug, cle: cle, action: 'image', type: 'image/jpeg', donnees: 'AAAA', nom: 'x.jpg' });
+    assert.ok(i1.corps.id && i2.corps.id && i1b.corps.id === i1.corps.id && gif.statusCode === 400 && vide.statusCode === 400 && db.tables.hq_fichiers.filter(function (f) { return f.site_id === sP.id; }).length === 2, 'images reçues une à une, la même deux fois comptée une fois, format inconnu ou image vide refusés');
+    const sansMail = await appel('POST', { site: sP.slug, cle: cle, action: 'retouches', elements: [{ zone: 'haut', nom: 'Haut de page', demande: 'Mettre ma photo' }] });
+    const rien = await appel('POST', { site: sP.slug, cle: cle, action: 'retouches', email: 'patron@clim-panneau.fr' });
+    assert.ok(sansMail.statusCode === 400 && /email/.test(sansMail.corps.erreur) && rien.statusCode === 400, 'sans email, ou sans rien à changer, rien ne part');
+    const ret = await appel('POST', { site: sP.slug, cle: cle, action: 'retouches', elements: [{ zone: 'haut', nom: 'Haut de page', demande: 'Mettre ma photo d\'atelier en grand' }, { zone: 'contact', nom: 'Contact', demande: 'Ajouter le samedi matin aux horaires' }, { zone: 'pirate', nom: 'X', demande: 'y' }], message: 'Merci pour le site', email: 'Patron@Clim-Panneau.fr', tel: '0696 11 22 33', images: [i1.corps.id, i2.corps.id, 999999], logos: [i2.corps.id] });
+    const ibP = db.tables.hq_inbox.filter(function (x) { return x.lead_id === lp.id && x.data && x.data.canal === 'apercu'; }).pop();
+    const fP = db.tables.hq_fichiers.filter(function (f) { return f.site_id === sP.id; });
+    assert.ok(ret.statusCode === 200 && ret.corps.ok && ibP && ibP.status === 'nouveau' && ibP.kind === 'reponse' && ibP.data.confiance === 'apercu' && ibP.from_email === 'patron@clim-panneau.fr' && ibP.data.elements.length === 2 && /Haut de page : Mettre ma photo d'atelier en grand/.test(ibP.body) && /Contact : Ajouter le samedi matin/.test(ibP.body) && /Merci pour le site/.test(ibP.body) && /0696112233/.test(ibP.body), 'retouches reçues : partie par partie, son message et son téléphone : ' + (ibP && ibP.body));
+    assert.ok(fP.every(function (f) { return f.inbox_id === ibP.id; }) && fP.find(function (f) { return f.id === i2.corps.id; }).role === 'logo' && fP.find(function (f) { return f.id === i1.corps.id; }).role === 'photo' && ibP.data.images.length === 2, 'ses images rattachées à sa demande, son logo marqué comme tel (une image d\'ailleurs ignorée)');
+    assert.ok(leLeadP().status === 'repondu' && db.tables.hq_outbox.find(function (o) { return o.id === relP.id; }).status === 'annule' && db.tables.hq_messages.some(function (m) { return m.to_id === 'louis' && /Retouches demandées sur l'aperçu : Clim Panneau/.test(m.subject || ''); }), 'il a répondu : plus de relance, Louis voit la demande (Emma s\'en occupe)');
+    // E. Emma le voit vérifié, avec ses images, et applique tout d'un coup
+    db.tables.hq_inbox.find(function (x) { return x.id === ibP.id; }).status = 'test-panneau';
+    const vP = (await exE().lister_reponses({ statut: 'test-panneau' })).find(function (x) { return x.id === ibP.id; });
+    assert.ok(vP && vP.canal === 'apercu' && vP.expediteur_verifie === true && vP.son_site_novalemo.images_recues_non_utilisees === 2, 'Emma voit une demande vérifiée, venue du panneau, avec deux images : ' + JSON.stringify(vP && { canal: vP.canal, v: vP.expediteur_verifie, im: vP.son_site_novalemo && vP.son_site_novalemo.images_recues_non_utilisees }));
+    const mP = await exE().modifier_site({ reponse_id: ibP.id, demande: ibP.body, images: 'toutes' });
+    const spP = leSiteP().spec;
+    assert.ok(/site modifié/.test(mP) && spP.logo && spP.logo.fichier_id === i2.corps.id && spP.photos[0].fichier_id === i1.corps.id && db.tables.hq_fichiers.filter(function (f) { return f.site_id === sP.id; }).every(function (f) { return f.utilise; }), 'Emma applique : son logo et sa photo posés sur le site : ' + mP);
+    // F. « Je le prends », paiement en ligne pas prêt (clé de test) : il laisse son email, Emma lui enverra le lien
+    process.env.HQ_STRIPE_KEY = 'sk_test_essai';
+    const nL0 = fakes.STRIPE.liens.length;
+    const att = await appel('POST', { site: sP.slug, cle: cle, action: 'commande', paiement: 'mensuel' });
+    const rap = await appel('POST', { site: sP.slug, cle: cle, action: 'rappel', paiement: 'mensuel', email: 'patron@clim-panneau.fr' });
+    const ibR = db.tables.hq_inbox.filter(function (x) { return x.lead_id === lp.id && /^Je veux ce site/.test(x.subject || ''); }).pop();
+    assert.ok(att.corps.attente && !att.corps.url && fakes.STRIPE.liens.length === nL0 && leSiteP().status === 'apercu' && rap.corps.ok && ibR && ibR.intent === 'interesse' && ibR.data.confiance === 'apercu' && /45 € par mois/.test(ibR.body) && leLeadP().status === 'interesse', 'paiement pas prêt : rien de créé, sa demande arrive chez Emma avec la formule choisie');
+    db.tables.hq_inbox.find(function (x) { return x.id === ibR.id; }).status = 'traite';
+    // G. paiement prêt : le lien Stripe est créé (490 € en une fois, 45 € par mois), réutilisé, et posé sur son site
+    process.env.HQ_STRIPE_KEY = 'sk_live_simulation';
+    const c1 = await appel('POST', { site: sP.slug, cle: cle, action: 'commande', paiement: 'une_fois' });
+    const c2 = await appel('POST', { site: sP.slug, cle: cle, action: 'commande', paiement: 'une_fois' });
+    const c3 = await appel('POST', { site: sP.slug, cle: cle, action: 'commande', paiement: 'mensuel' });
+    const lk1 = fakes.STRIPE.liens.find(function (x) { return x.url === c1.corps.url; }), lk3 = fakes.STRIPE.liens.find(function (x) { return x.url === c3.corps.url; });
+    assert.ok(c1.corps.url && c2.corps.url === c1.corps.url && lk1 && lk3 && lk1 !== lk3 && fakes.STRIPE.liens.length === nL0 + 2 && lk1.montant === 49000 && !lk1.mensuel && lk3.mensuel && lk3.montant === 4500 && lk1.params['metadata[site_id]'] === String(sP.id), 'deux liens au plus, aux prix de la grille, réutilisés : ' + JSON.stringify([c1.corps, c2.corps, c3.corps]));
+    const stP = leSiteP();
+    assert.ok(stP.status === 'commande' && stP.formule === 'essentiel' && Number(stP.montant_eur) === 490 && stP.stripe.url === c1.corps.url && stP.stripe.url_mois === c3.corps.url && SP.liens(stP.stripe).filter(function (x) { return x.origine === 'apercu'; }).length === 2, 'la commande est posée sur son site : Lucas relèvera le paiement comme pour un lien d\'Emma');
+    fakes.payer(lk1.id);
+    const c4 = await appel('POST', { site: sP.slug, cle: cle, action: 'commande', paiement: 'mensuel' });
+    assert.ok(c4.corps.deja && !c4.corps.url && fakes.STRIPE.liens.length === nL0 + 2, 'déjà payé : jamais un second lien');
+    // H. une page restée ouverte après le paiement : sa demande n'est plus vérifiée (rien ne touche au site payé sans son adresse)
+    leSiteP().status = 'paye';
+    const apres = await appel('POST', { site: sP.slug, cle: cle, action: 'retouches', elements: [{ zone: 'contact', nom: 'Contact', demande: 'Changer le numéro' }], email: 'autre@exemple.fr' });
+    const ibA = db.tables.hq_inbox.filter(function (x) { return x.lead_id === lp.id && x.data && x.data.canal === 'apercu'; }).pop();
+    const vu2 = await appel('POST', { site: sP.slug, cle: cle, action: 'vu', quoi: 'commande' });
+    assert.ok(apres.corps.ok && ibA.data.confiance === 'douteux' && vu2.corps.ok && leLeadP().data.interet.fois === 4, 'payé : la demande arrive, non vérifiée ; l\'intérêt ne compte plus');
+    db.tables.hq_inbox.find(function (x) { return x.id === ibA.id; }).status = 'traite';
+    delete fakes.STRIPE.payes[lk1.id];
+    leSiteP().status = 'annule';
+    process.env.HQ_STRIPE_KEY = sk0;
+    if (jt0 === undefined) delete process.env.HQ_VERCEL_TOKEN; else process.env.HQ_VERCEL_TOKEN = jt0;
+    console.log('Panneau de l\'aperçu OK : clé par aperçu, porte CORS, intérêt dans le CRM (statut gardé, Louis prévenu une fois), images une à une, retouches partie par partie chez Emma (vérifiées, appliquées d\'un coup), paiement 490 € ou 45 € par mois (lien créé, réutilisé, déjà payé), paiement pas prêt, page payée');
+  }
+  // 34. LES VOISINS LUS EN BASE : Iris et Noé composent chaque aperçu d'après ceux de sa famille et de sa commune rangés en
+  // base ; leur template doit s'y lire, sinon cinq climaticiens du Lamentin auraient le même site
+  {
+    const DEMO = require('../lib/jobs/demo'), VT = require('./vitrine');
+    const dbV = DB.memory();
+    const vus = [];
+    for (let k = 0; k < 6; k++) {
+      const sp = Object.assign(VT.exemple('clim'), { nom: 'Clim Voisine ' + k });
+      const vs = await DEMO.voisins(dbV, sp, null);
+      DEMO.composer(sp, vs);
+      vus.push(sp.compo.template);
+      await dbV.insert('hq_sites', { lead_id: null, slug: 'clim-voisine-' + k, status: 'apercu', version: 1, spec: sp, data: {} });
+    }
+    assert.ok(new Set(vus).size === vus.length && vus.every(function (t) { return require('../lib/sites/templates').PAR_ID[t].familles.indexOf('atelier') >= 0; }), 'six voisins lus en base : six templates différents, tous faits pour leur métier : ' + vus.join(', '));
+    console.log('Voisins OK : ' + vus.join(', '));
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
