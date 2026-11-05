@@ -117,8 +117,20 @@ function studio(body) {
   }
   return null;
 }
+// les modèles de la génération 5.5 refusent un outil imposé (tool_choice « tool » ou « any ») : on le simule pour le modèle
+// le plus fort (CLAUDE.refusOutil), et l'outil demandé en clair (tool_choice « auto ») est servi comme l'outil imposé
+const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
 function claude(body) {
   appelsClaude++;
+  if (CLAUDE.refusOutil && body.model === require('../lib/config').MODELS.genius.id && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
+    CLAUDE.refus++;
+    return { ok: false, status: 400, json: async function () { return { type: 'error', error: { type: 'invalid_request_error', message: 'tool_choice: type "tool" and "any" are not supported for this model.' } }; } };
+  }
+  if (body.tool_choice && body.tool_choice.type === 'auto' && (body.tools || []).length === 1) {
+    const last = body.messages[body.messages.length - 1];
+    const demande = typeof last.content !== 'string' && last.content.some(function (b) { return b.type === 'text' && new RegExp('appelant l\'outil ' + body.tools[0].name).test(b.text || ''); });
+    if (demande) { CLAUDE.enClair++; body = Object.assign({}, body, { tool_choice: { type: 'tool', name: body.tools[0].name } }); }
+  }
   if (body.tool_choice && ['ecrire_script', 'ecrire_scene', 'adapter_video', 'juger_video'].indexOf(body.tool_choice.name) >= 0) return studio(body);
   if (body.tool_choice && body.tool_choice.name === 'juger_site') return critiqueFausse(body);
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
@@ -414,4 +426,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { STUDIO: STUDIO, appels: function () { return appelsClaude; }, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { STUDIO: STUDIO, appels: function () { return appelsClaude; }, CLAUDE: CLAUDE, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
