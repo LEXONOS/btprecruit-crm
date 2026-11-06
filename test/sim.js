@@ -2009,6 +2009,213 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(new Set(vus).size === vus.length && vus.every(function (t) { return require('../lib/sites/templates').PAR_ID[t].familles.indexOf('atelier') >= 0; }), 'six voisins lus en base : six templates différents, tous faits pour leur métier : ' + vus.join(', '));
     console.log('Voisins OK : ' + vus.join(', '));
   }
+  // 35. L'AUDIT DES APERÇUS (nov. 2026) : un grand titre écrit pour le premier écran (le métier et la commune en sur-titre,
+  // plus jamais la commune en lettres géantes), posé par Iris sur les fiches d'avant ; une photo en haut de page dès qu'il
+  // y en a une ; le haut de page en tuiles qui remplace la section services ; plus d'information répétée ; les listes
+  // rendues en texte JSON relues ; les reprises de Miranda rouvertes quand le moteur change ; les prospects à appeler
+  // traités comme pas encore montrés ; deux voisins du même métier qui gardaient le même template
+  {
+    const A = require('../lib/sites/atelier'), RD = require('../lib/sites/rendu'), CO = require('../lib/sites/composition'), BR = require('../lib/sites/rubriques'), TPL = require('../lib/sites/templates'), CR = require('../lib/jobs/critique'), CL = require('../lib/claude'), DIR = require('../lib/jobs/direction'), PU = require('../lib/sites/publication'), DEMO = require('../lib/jobs/demo');
+    const VT = require('./vitrine');
+    const vis = function (html) { return html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, ''); };
+    const section = function (html, id) { return (html.match(new RegExp('<(section|footer)[^>]*class="r r-' + id.replace('.', '-') + '\\b[\\s\\S]*?</\\1>')) || [''])[0]; };
+    const rendreAvec = function (sp, tpl) { const cx = RD.contexte({ slug: 'audit', spec: sp }, { mode: 'apercu' }).ctx; const k = CO.composer(sp, cx, tpl ? { choix: { template: tpl } } : {}); return { k: k, html: RD.rendre({ slug: 'audit', spec: sp }, { mode: 'apercu', compo: k }).files[0].data }; };
+    // A. le titre : concret et court, ni formule creuse, ni chiffre, ni le nom, ni la commune
+    assert.strictEqual(A.titreDe('votre clim posée et entretenue.', { nom: 'Clim Pro', commune: 'Le Lamentin' }), 'Votre clim posée et entretenue', 'un bon titre passe (majuscule, sans point final)');
+    ['L\'excellence à votre service !', 'Clim Pro, la clim qui dure', 'Le froid frais du Lamentin', 'Dépannage 24h/24 et 7j/7', 'Clim', 'Une climatisation posée proprement et entretenue chaque année chez vous'].forEach(function (t) { assert.strictEqual(A.titreDe(t, { nom: 'Clim Pro', commune: 'Le Lamentin' }), '', 'titre refusé : ' + t); });
+    // B. le premier écran : le titre en grand, le métier et la commune en sur-titre dans le même h1 ; sans titre, le h1
+    // garde le métier et la commune, à taille de titre (plus jamais en lettres géantes)
+    const ex = Object.assign(VT.exemple('clim'), { titre: 'Votre clim posée et entretenue' });
+    const avecT = rendreAvec(ex, 'basalte');
+    const h1 = (vis(avecT.html).match(/<h1\b[\s\S]*?<\/h1>/) || [''])[0];
+    const sur = ((h1.match(/<span class="x-sur x-h1s">([^<]*)<\/span>/) || [])[1] || '').trim();
+    assert.ok(sur && /Lamentin/.test(sur) && /x-h1t/.test(h1) && /posée/.test(h1.split('x-h1t')[1] || '') && !/Votre clim/.test(sur), 'h1 : « ' + sur + ' » en sur-titre, puis le grand titre');
+    const sansT = rendreAvec(Object.assign(VT.exemple('clim'), { titre: '' }), 'basalte');
+    const h1Sans = (vis(sansT.html).match(/<h1\b[\s\S]*?<\/h1>/) || [''])[0];
+    assert.ok(h1Sans && !/x-h1s/.test(h1Sans) && /Lamentin/.test(h1Sans), 'sans titre : le h1 du métier et de la commune, comme avant : ' + h1Sans.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    assert.ok(!Object.keys(BR.VARIANTES).some(function (id) { const v = BR.VARIANTES[id]; return v.x && /\.k3\(/.test(String(v.html || v.rendre || '')); }) && !/\bh\.k3\(/.test(require('fs').readFileSync(require.resolve('../lib/sites/rubriques/x-kit'), 'utf8')), 'plus aucun titre en taille géante dans les sections des templates');
+    // C. une photo d'ambiance, de présentation ou de service monte en haut de page quand il n'y a pas de photo de haut de page
+    const mer = VT.exemple('mer');
+    const seule = function (role) { return Object.assign({}, mer, { photos: mer.photos.filter(function (p) { return p.role === role; }).slice(0, 1) }); };
+    ['bandeau', 'apropos', 'service'].forEach(function (role) { const a = RD.repartir(seule(role)); assert.ok(a.hero && a.hero.role === role, 'la photo « ' + role + ' » monte en haut de page'); });
+    const kB = rendreAvec(seule('bandeau'), 'pitons').k;
+    assert.strictEqual(BR.VARIANTES[kB.blocs.find(function (b) { return b.rubrique === 'hero'; }).id].photo, 'oui', 'une seule photo d\'ambiance : le template ouvre sur elle');
+    // D. le haut de page en tuiles de services remplace la section services ; son ancre reste, le menu y mène
+    const nue = Object.assign(VT.exemple('clim'), { photos: [], photo_ids: [], titre: 'Votre clim posée et entretenue' });
+    const tuiles = TPL.TEMPLATES.map(function (t) { return { t: t.id, r: rendreAvec(nue, t.id) }; }).filter(function (x) { return x.r.k.blocs.some(function (b) { return b.id === 'hero.x-tuiles'; }); });
+    assert.ok(tuiles.length >= 1, 'au moins un template ouvre sur les tuiles de services sans photo');
+    tuiles.forEach(function (x) {
+      assert.ok(!x.r.k.blocs.some(function (b) { return b.rubrique === 'services'; }) && (x.r.html.match(/id="services"/g) || []).length === 1 && /href="[^"]*#services"/.test(x.r.html), x.t + ' : les tuiles tiennent lieu de services (une seule ancre, le menu y mène)');
+    });
+    // E. plus d'information répétée : le pied en colonnes ne redit ni le numéro ni les horaires (le contact les a), la
+    // fiche des engagements ne redit ni les horaires ni les services
+    const piedC = section(avecT.html, 'pied.x-colonnes'), fiche = section(avecT.html, 'apropos.x-faits');
+    assert.ok(piedC && !/0596 50 10 20|0696 11 22 33|tel:|wa\.me|Horaires|07:30|7 h 30/i.test(piedC), 'pied en colonnes : ni numéro, ni WhatsApp, ni horaires');
+    assert.ok(fiche && !/Horaires|07:30|7 h 30/i.test(fiche) && ex.services.every(function (s) { return fiche.indexOf(s.titre) < 0; }), 'fiche des engagements : ni horaires ni services répétés');
+    const lienServices = (avecT.html.match(/<section class="r r-services-x-liste[\s\S]*?<\/section>/) || [''])[0];
+    assert.ok(!/>Appeler</.test(lienServices), 'pas d\'« Appeler » répété sous chaque service');
+    // F. les listes rendues en texte JSON par un modèle à qui l'outil est demandé en clair sont relues selon le schéma
+    const sch = CR.OUTIL.input_schema;
+    const lu = CL.relire({ note: 6, problemes: '[{"zone":"haut de page","gravite":"bloquant","constat":"Vide."}]', actions: '["changer_rubriques"]', resume: '[pas une liste]' }, sch);
+    assert.ok(Array.isArray(lu.problemes) && lu.problemes[0].zone === 'haut de page' && Array.isArray(lu.actions) && lu.resume === '[pas une liste]', 'relecture selon le schéma : listes rendues, textes intacts');
+    process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
+    const leSite = function (id) { return db.tables.hq_sites.find(function (x) { return x.id === id; }); };
+    const passe = async function () { await PU.ecrireEtat(db, { en_cours: null, a_publier: false }); dus(['critique']); return runtime.cycle({ db: db, agentId: 'critique', secondes: 200 }); };
+    const mkA = async function (cle, nom, statut, data) {
+      const l = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:audit:' + cle, source: 'maps', name: nom, sector: 'climatisation', island: 'MQ', commune: 'Le Lamentin', email: cle + '@audit-mq.fr', email_source: 'site', phone: '+596696303030', status: statut || 'a_contacter', score: 80, apercu_etat: 'publie' }))[0];
+      const sp = Object.assign(VT.exemple('clim'), { nom: nom, titre: 'Votre clim posée et entretenue' });
+      DEMO.composer(sp, { compos: [] });
+      const st = (await db.insert('hq_sites', { lead_id: l.id, slug: cle + '-1a2b', status: 'apercu', version: 1, spec: sp, url_apercu: 'https://novalemo-martinique.vercel.app/a/' + cle + '-1a2b/', published_at: new Date().toISOString(), data: data || {} }))[0];
+      await db.update('hq_leads', { site_id: st.id }, { eq: { id: l.id } });
+      return st;
+    };
+    const sJ = await mkA('audit-json', 'Clim Liste Texte', 'a_appeler');
+    const hero0 = sJ.spec.compo.blocs.find(function (b) { return b.rubrique === 'hero'; }).id;
+    fakes.MIRANDA.enTexte = true;
+    fakes.MIRANDA.notes = [6];
+    await passe();
+    fakes.MIRANDA.enTexte = false;
+    const cJ = leSite(sJ.id).data.critique;
+    assert.ok(cJ && cJ.verdict === 'a_refaire' && cJ.problemes.length === 1 && cJ.problemes[0].zone === 'haut de page' && cJ.actions.indexOf('changer_rubriques') >= 0 && cJ.points_forts.length === 0, 'Miranda en texte JSON : ses problèmes sont lus (avant : une liste vide) : ' + JSON.stringify(cJ && cJ.problemes));
+    assert.ok(leSite(sJ.id).version === 2 && (leSite(sJ.id).spec.compo.eviter || []).indexOf(hero0) >= 0, 'et la reprise vise la section qu\'elle a citée (un prospect à appeler se refait comme les autres)');
+    // G. un site abandonné par l'ancienne Miranda : le moteur a changé, elle le rejuge avec de nouvelles reprises
+    const sV = await mkA('audit-ancien', 'Clim Ancien Refus', 'a_contacter', { critique: { v: CR.VERSION - 1, version: 1, note: 5, verdict: 'a_refaire', tours: 3, abandon: true, resume: 'Le premier écran ne repose que sur la commune en lettres énormes.' } });
+    assert.ok(!CR.peutPartir(leSite(sV.id)).ok, 'refusé par l\'ancienne Miranda : il attend son nouveau jugement');
+    fakes.MIRANDA.notes = [6];
+    await passe();
+    const cV = leSite(sV.id).data.critique;
+    assert.ok(cV.v === CR.VERSION && cV.tours === 1 && !cV.abandon && leSite(sV.id).version === 2, 'nouveau moteur : les reprises repartent de zéro (une reprise faite, pas d\'abandon) : ' + JSON.stringify({ v: cV.v, tours: cV.tours, abandon: cV.abandon }));
+    fakes.MIRANDA.notes = [9];
+    await passe();
+    assert.ok(CR.peutPartir(leSite(sV.id)).ok, 'rejugé 9 : il peut partir');
+    // un site dont la composition date de l'ancien moteur : Miranda attend qu'Iris l'ait recomposé (sinon elle jugerait
+    // l'ancien rendu)
+    const sA = await mkA('audit-attend-iris', 'Clim Ancien Moteur', 'a_contacter');
+    sA.spec.compo.v = CO.VERSION_TPL - 1;
+    leSite(sA.id).spec = Object.assign({}, leSite(sA.id).spec, { compo: Object.assign({}, leSite(sA.id).spec.compo, { v: CO.VERSION_TPL - 1 }) });
+    const jugA = fakes.MIRANDA.jugements;
+    const cA = await passe();
+    assert.ok(fakes.MIRANDA.jugements === jugA && !leSite(sA.id).data.critique && /Iris/.test(cA.passages.map(function (p) { return p.resume; }).join(' ')), 'ancien moteur : Miranda attend Iris : ' + cA.passages.map(function (p) { return p.resume; }).join(' | '));
+    leSite(sA.id).status = 'annule';
+    delete process.env.CRON_SECRET;
+    // H. Iris : le grand titre posé sur les fiches d'avant (pas sur un aperçu déjà montré), les prospects à appeler
+    // relus comme pas encore montrés, et deux climaticiens voisins qui gardaient le même template
+    const dbI = DB.memory();
+    const mkI = async function (nom, statut, compo) {
+      const l = (await dbI.insert('hq_leads', { company_id: 'novalemo', dedupe: 'iris:' + nom, source: 'maps', name: nom, sector: 'climatisation', island: 'MQ', commune: 'Le Lamentin', phone: '+596696404040', status: statut, score: 70 }))[0];
+      const sp = Object.assign(VT.exemple('clim'), { nom: nom });
+      delete sp.titre;
+      const cx = RD.contexte({ slug: 'iris', spec: sp }, { mode: 'apercu' }).ctx;
+      sp.compo = Object.assign(CO.composer(sp, cx, { choix: { template: 'basalte' } }), { v: CO.VERSION_TPL - 1 }, compo || {});
+      return (await dbI.insert('hq_sites', { lead_id: l.id, slug: 'iris-' + l.id, status: 'apercu', version: 1, spec: sp, data: {} }))[0];
+    };
+    const i1 = await mkI('Clim Iris Un', 'a_appeler'), i2 = await mkI('Clim Iris Deux', 'a_appeler', { eviter: ['hero.x-fiche', 'tpl:galion'] }), i3 = await mkI('Clim Iris Vue', 'contacte');
+    const titres0 = fakes.CLAUDE.titres || 0;
+    const rI = await DIR.run({ db: dbI });
+    const siteI = function (s) { return dbI.tables.hq_sites.find(function (x) { return x.id === s.id; }); };
+    assert.ok(siteI(i1).spec.titre === 'Votre clim posée et entretenue' && siteI(i2).spec.titre === 'Votre clim posée et entretenue' && !('titre' in siteI(i3).spec) && fakes.CLAUDE.titres === titres0 + 2 && rI.cout > 0 && rI.modele === 'fast', 'Iris pose le grand titre sur les aperçus pas encore montrés (prospects à appeler compris), pas sur celui déjà montré, et compte ce qu\'il coûte : ' + rI.resume);
+    assert.ok(siteI(i1).spec.compo.v === CO.VERSION_TPL && siteI(i1).spec.compo.template === 'basalte' && siteI(i2).spec.compo.template !== 'basalte' && !siteI(i2).spec.compo.eviter && siteI(i1).version === 2 && siteI(i2).version === 2, 'deux climaticiens voisins sur le même template : le plus ancien le garde, l\'autre en change, et ses sections écartées sur l\'ancien rendu ont leur chance : ' + siteI(i2).spec.compo.template);
+    const hI = vis(RD.rendre({ slug: 'iris', spec: siteI(i1).spec }, { mode: 'apercu' }).files[0].data);
+    const h1I = (hI.match(/<h1\b[\s\S]*?<\/h1>/) || [''])[0];
+    assert.ok(/x-h1t/.test(h1I) && /posée et entretenue/.test(h1I.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ')), 'le titre posé par Iris est au premier écran');
+    const rI2 = await DIR.run({ db: dbI });
+    assert.ok(/Rien à relire/.test(rI2.resume) && fakes.CLAUDE.titres === titres0 + 2, 'relu une fois : rien ne se refait au passage suivant (un seul essai de titre par fiche)');
+    // I. un outil de fin qui est la réponse (la fiche de Gaspard, le verdict de Vera) : oublié, il est redemandé une fois ;
+    // coupé par la longueur, le tour est refait avec plus de place ; un agent ordinaire (terminer) n'est jamais relancé
+    const OUTIL_ESSAI = { name: 'fiche_essai', description: 'La fiche.', input_schema: { type: 'object', properties: { sujets: { type: 'array', items: { type: 'string' } } } } };
+    const essai = async function (mode, stop) { fakes.CLAUDE.modeEssai = mode; fakes.CLAUDE.essais = 0; const r = await CL.converse({ tier: 'fast', system: 'Essai', messages: [{ role: 'user', content: 'Fais la fiche.' }], tools: [OUTIL_ESSAI], executors: {}, stopTool: stop || 'fiche_essai', maxSteps: 4, maxTokens: 3000 }); return { r: r, appels: fakes.CLAUDE.essais }; };
+    const eT = await essai('texte'), eL = await essai('long'), eM = await essai('muet'), eR = await essai('muet', 'terminer');
+    assert.ok(eT.r.fin && Array.isArray(eT.r.fin.sujets) && eT.r.fin.sujets.length === 2 && eT.appels === 2 && eT.r.log.some(function (x) { return x.t === 'relance'; }), 'fini sans l\'outil : redemandé une fois, la fiche arrive (liste relue) : ' + JSON.stringify(eT.r.fin));
+    assert.ok(eL.r.fin && eL.r.fin.sujets.length === 2 && eL.appels === 2, 'coupé par la longueur : refait une fois avec plus de place');
+    assert.ok(!eM.r.fin && eM.appels === 2 && !eR.r.fin && eR.appels === 1, 'toujours rien : on s\'arrête après une relance ; un agent ordinaire n\'est pas relancé');
+    fakes.CLAUDE.modeEssai = null;
+    // J. la file : un email rédigé avec l'ancienne offre (590 €, 49 € par mois) ne part jamais, le prospect se réécrit
+    const ENVa = require('../lib/jobs/envoi');
+    const lp = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:audit:prix', source: 'maps', name: 'Ancien Prix', island: 'MQ', email: 'ancien@prix-mq.fr', email_source: 'site', status: 'brouillon', score: 70 }))[0];
+    const op = (await db.insert('hq_outbox', { lead_id: lp.id, company_id: 'novalemo', kind: 'prospection', status: 'pret', to_email: 'ancien@prix-mq.fr', subject: 'Le site de Ancien Prix', body: 'Prix : 590 € en une fois, ou 49 € par mois.\n\nRépondez STOP pour ne plus recevoir de message.' }))[0];
+    const rp = await ENVa.envoyerUn(db, op);
+    assert.ok(!rp.ok && db.tables.hq_outbox.find(function (o) { return o.id === op.id; }).status === 'annule' && /590/.test(db.tables.hq_outbox.find(function (o) { return o.id === op.id; }).error) && db.tables.hq_leads.find(function (l) { return l.id === lp.id; }).status === 'a_contacter', 'ancienne offre : annulé au départ, le prospect revient à écrire');
+    // K. les adresses lues sur les sites : le code collé devant (JSON, entités, adresse du site) disparaît
+    const ND = require('../lib/chasse/nd-moteur');
+    assert.deepStrictEqual(ND.extraireEmails('<script>{"t":"\\u003eavotreservice@gmail.com\\u003c/p\\u003e"}</script><p>www.plomberiedom.comcontact@plomberiedom.com</p> contact&#64;froid.fr', 'plomberiedom.com'), ['contact@plomberiedom.com', 'avotreservice@gmail.com', 'contact@froid.fr'], 'adresses propres : ni « u003e », ni l\'adresse du site collée devant');
+    assert.ok(ND.nettoyerEmail('.comcontact@plomberiedom.com') === 'contact@plomberiedom.com' && ND.nettoyerEmail('jean.dupont@x.fr') === 'jean.dupont@x.fr' && ND.nettoyerEmail('a..b@x.fr') === null, 'une adresse propre ou rien');
+    // L. un nouveau domaine qui a déjà un site passe par l'audit de Marcus (comme une fiche Google Maps)
+    const DOMS = require('../lib/jobs/domaines');
+    const vl = DOMS.versLead('mia-clean.fr', { score: 56, data: { email: { adresse: 'mia@outlook.fr', source: 'site' }, site: { etat: 'site', tels: ['0696000000'] }, signaux: [] } }, '2026-11-05');
+    const vl2 = DOMS.versLead('kaz-mq.fr', { score: 60, data: { email: { adresse: 'kaz@gmail.com', source: 'site' }, site: { etat: 'construction' }, signaux: [] } }, '2026-11-05');
+    assert.ok(vl.status === 'nouveau' && vl.website === 'https://mia-clean.fr' && vl2.status === 'a_contacter', 'nouveau domaine avec un site : audité d\'abord ; en construction : prêt tout de suite');
+    // L2. une entreprise, un prospect : ses agences au même site et ses fiches au même numéro ne sont démarchées qu'une fois,
+    // un STOP vaut pour toutes ; deux entreprises sur le même annuaire restent deux
+    const EN = require('../lib/jobs/enrichir');
+    const dd = EN.doublons([
+      { id: 1, name: 'Plomberie Dom Lézarde', website: 'https://plomberiedom.com/', phone: '+596 596 57 14 80', status: 'nouveau' },
+      { id: 2, name: 'Plomberie Dom Californie', website: 'http://www.plomberiedom.com/', phone: '+596 596 42 55 05', status: 'a_contacter' },
+      { id: 3, name: 'Bleu Rouge', website: 'https://www.bleurouge.fr/agence-plomberie-dom', phone: '0596 57 14 80', status: 'nouveau' },
+      { id: 4, name: 'Merine', website: 'https://www.welinkbuilders.fr/menuisier/merine-1176', phone: '+33 9 74 39 09 92', status: 'nouveau' },
+      { id: 5, name: 'Tesselec', website: 'https://www.welinkbuilders.fr/electricien/tesselec-1102', phone: '+33 7 51 66 08 24', status: 'nouveau' },
+      { id: 6, name: 'Clim Écrite', website: null, phone: '+596 696 11 11 11', status: 'contacte' },
+      { id: 7, name: 'Clim Écrite bis', website: null, phone: '0696 11 11 11', status: 'stop' },
+      { id: 8, name: 'Clim Écrite ter', website: null, phone: '+33 6 96 11 11 11', status: 'a_appeler' },
+      { id: 9, name: 'Sutty Cédric', website: 'https://blog-sans-rapport.wordpress.com/?s=martinique', phone: '+596 696 19 34 55', status: 'a_appeler' },
+      { id: 10, name: 'Auto Moto École BW', website: 'https://blog-sans-rapport.wordpress.com/?s=Martinique', phone: null, status: 'sans_contact' },
+      { id: 11, name: 'Caisse Sécu Schœlcher', website: null, phone: '0820 22 25 55', status: 'a_appeler' },
+      { id: 12, name: 'Mutuelle Ouest', website: null, phone: '+596 820 22 25 55', status: 'a_appeler' },
+      { id: 13, name: 'Antilles Fermetures', website: 'https://antilles-fermetures.com', email: 'contact@antilles-fermetures.com', status: 'a_contacter' },
+      { id: 14, name: 'Dirickx Martinique', website: 'https://antilles-fermetures.com/dirickx', email: 'contact@antilles-fermetures.com', status: 'nouveau' }
+    ], new Set([6]));
+    assert.ok(dd.get(1).garde.id === 2 && dd.get(3).garde.id === 2 && !dd.has(2) && !dd.has(4) && !dd.has(5) && !dd.has(6) && !dd.has(7) && dd.get(8).stop && dd.get(8).stop.id === 7, 'une entreprise, un prospect : ' + JSON.stringify(Array.from(dd.keys())));
+    assert.ok(!dd.has(9) && !dd.has(10) && !dd.has(11) && !dd.has(12) && dd.get(14).garde.id === 13, 'un blog sans rapport ou un standard national ne font pas une entreprise ; la même adresse email, si');
+    // M. les managers : une tâche à un automate est refusée (il ne lit pas les tâches), un rapport à un agent en pause monte
+    // à son chef, la chaîne de production ne se met pas en pause par un manager
+    env = await runtime.charger(db);
+    const victor = env.agents.find(function (a) { return a.id === 'dircom_novalemo'; });
+    const exV = tools.executeurs({ db: db, agent: victor, agents: env.agents, budget: env.budget, compteurs: C0() });
+    const tM = await exV.assigner({ a: 'contacts', titre: 'Trouver 10 emails', consigne: 'Dix emails vérifiés.' });
+    assert.ok(tM.erreur && /automate/.test(tM.erreur) && !db.tables.hq_tasks.some(function (t) { return t.agent_id === 'contacts' && t.title === 'Trouver 10 emails'; }), 'tâche à un automate : refusée, avec quoi faire à la place');
+    const pM = await exV.regler_agent({ agent: 'contacts', actif: false });
+    assert.ok(pM.erreur && db.tables.hq_agents.find(function (a) { return a.id === 'contacts'; }).status !== 'paused', 'la chaîne ne se met pas en pause par un manager');
+    const ana = env.agents.find(function (a) { return a.id === 'emailing'; });
+    const st0 = ana.status; ana.status = 'paused';
+    const rM2 = await exV.rapporter({ a: 'emailing', sujet: 'Email 9', message: 'Prix faux.' });
+    ana.status = st0;
+    assert.ok(/en pause/.test(rM2) && db.tables.hq_messages.some(function (m) { return m.subject === 'Email 9' && m.to_id === ana.parent_id; }), 'rapport à un agent en pause : son chef le reçoit : ' + rM2);
+    // M2. le budget du jour : Emma garde une réserve pour répondre (le reste de Novalemo s'arrête à 85 %, les autres
+    // entreprises à 60 %), et Miranda ne prend jamais plus de la moitié du budget à elle seule
+    const envB = await runtime.charger(db);
+    const agentB = function (id) { return envB.agents.find(function (a) { return a.id === id; }); };
+    envB.budget.jour_usd = 10;
+    const peut = function (dep, id) { envB.depense = dep; return envB.peutDepenser(agentB(id)); };
+    assert.ok(peut(5, 'critique') && peut(5, 'scenariste') && !peut(7, 'scenariste') && peut(8, 'critique') && !peut(9, 'critique') && !peut(9, 'demo') && peut(9, 'reponses') && !peut(10, 'reponses'), 'budget : réserve d\'Emma au-delà de 85 %, les autres entreprises à 60 %');
+    process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
+    await db.insert('hq_runs', { agent_id: 'critique', started_at: new Date().toISOString(), ok: true, cost_usd: 0.6, summary: 'jugements' }, { returning: false });
+    const jugB = fakes.MIRANDA.jugements;
+    const rB = await CR.run({ db: db, budget: { jour_usd: 1 }, peutDepenser: function () { return true; }, limite: Date.now() + 200000, compteurs: C0() });
+    delete process.env.CRON_SECRET;
+    assert.ok(/part du budget/.test(rB.resume) && fakes.MIRANDA.jugements === jugB, 'Miranda : sa moitié du budget prise, elle reprend demain : ' + rB.resume);
+    // N. la version 15 : la file à l'ancienne offre annulée, les adresses mal lues nettoyées, les nouveaux domaines avec un site
+    // audités, les tâches données à des automates closes
+    const db15 = DB.memory();
+    await db15.insert('hq_config', [{ key: 'seed', value: { version: 14 } }, { key: 'budget', value: { jour_usd: 10, emails_jour: 50, apercus_jour: 20, places_jour: 80, envoi_auto: true } }], { returning: false });
+    await runtime.semer(db15);
+    db15.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version = 14;
+    const l15 = await db15.insert('hq_leads', [
+      { company_id: 'novalemo', dedupe: 'v15:prix', source: 'maps', name: 'Radical', island: 'MQ', email: 'radical@gmail.com', email_source: 'site', status: 'brouillon', score: 70 },
+      { company_id: 'novalemo', dedupe: 'v15:u003e', source: 'maps', name: 'A Votre Service', island: 'MQ', email: 'u003eavotreservice@gmail.com', email_source: 'site', status: 'a_contacter', score: 90 },
+      { company_id: 'novalemo', dedupe: 'v15:point', source: 'maps', name: 'Plomberie Dom', island: 'MQ', email: '.comcontact@plomberiedom.com', email_source: 'site', status: 'a_contacter', score: 77 },
+      { company_id: 'novalemo', dedupe: 'v15:dom', source: 'domaines', name: 'Mia-Clean', island: 'MQ', email: 'mia@outlook.fr', email_source: 'site', site_state: 'site', website: 'https://miaclean.fr', status: 'a_contacter', score: 56 },
+      { company_id: 'novalemo', dedupe: 'v15:agence1', source: 'maps', name: 'Clim Cash Lamentin', island: 'MQ', website: 'https://www.climcash-martinique.fr/', phone: '+596 596 39 70 32', status: 'a_appeler', score: 70 },
+      { company_id: 'novalemo', dedupe: 'v15:agence2', source: 'maps', name: 'Clim Cash Ducos', island: 'MQ', website: 'https://www.climcash-martinique.fr/', phone: '+596 596 39 11 25', status: 'a_appeler', score: 72 }
+    ]);
+    const o15 = (await db15.insert('hq_outbox', { lead_id: l15[0].id, company_id: 'novalemo', kind: 'prospection', status: 'pret', to_email: 'radical@gmail.com', subject: 'Le site de Radical', body: 'Prix : 590 € en une fois, ou 49 € par mois.' }))[0];
+    const t15 = (await db15.insert('hq_tasks', { agent_id: 'contacts', from_id: 'dircom_novalemo', title: 'Corriger le lead 315', status: 'a_faire' }))[0];
+    await runtime.semer(db15);
+    const L15 = function (k) { return db15.tables.hq_leads.find(function (x) { return x.id === l15[k].id; }); };
+    assert.ok(db15.tables.hq_outbox.find(function (o) { return o.id === o15.id; }).status === 'annule' && L15(0).status === 'a_contacter', 'v15 : l\'email à l\'ancienne offre est annulé, le prospect se réécrit');
+    assert.ok(L15(1).email === 'avotreservice@gmail.com' && L15(2).email === 'contact@plomberiedom.com' && L15(3).status === 'nouveau', 'v15 : adresses nettoyées, nouveau domaine avec un site renvoyé à l\'audit : ' + JSON.stringify([L15(1).email, L15(2).email, L15(3).status]));
+    assert.ok(L15(4).status === 'a_appeler' && L15(5).status === 'ecarte' && /Clim Cash Lamentin/.test(L15(5).reason), 'v15 : deux agences de la même entreprise, une seule démarchée');
+    assert.ok(db15.tables.hq_tasks.find(function (t) { return t.id === t15.id; }).status === 'fait' && db15.tables.hq_messages.some(function (m) { return m.from_id === 'da' && /refont/.test(m.subject) && /ancienne offre/.test(m.body); }) && db15.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version === require('../lib/config').SEED_VERSION, 'v15 : tâche d\'automate close, Louis prévenu par Iris');
+    console.log('Audit des aperçus OK : grand titre (règles, sur-titre du métier et de la commune, posé par Iris), photo en haut de page, tuiles de services, rien de répété, listes relues, reprises rouvertes, prospects à appeler refaits, voisins sur le même template séparés, outil de fin redemandé, ancienne offre bloquée, adresses propres, nouveaux domaines audités, une entreprise un prospect, managers (automates, pauses), réserve d\'Emma et part de Miranda, version 15');
+  }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
   console.log('Pilote automatique OK :', fakes.VERCEL.deploiements.length, 'déploiements,', fakes.STRIPE.liens.length, 'lien(s) de paiement, domaine', site.domaine, ', CA', w.compteurs.ca_eur, '€');

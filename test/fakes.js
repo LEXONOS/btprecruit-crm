@@ -19,6 +19,7 @@ function ficheSite(faits, mauvaise) {
   const nom = (faits.nom || 'Entreprise').replace(/\s+(sarl|sas)$/i, '');
   return {
     nom: nom, activite: 'Climatisation et froid', metier: 'Climatisation',
+    titre: mauvaise ? 'L\'excellence à votre service !' : 'Votre clim posée et entretenue',
     accroche: mauvaise ? 'Votre confort, notre priorité absolue depuis toujours.' : 'Pose, entretien et dépannage de climatiseurs pour les maisons et les commerces.',
     objectif: 'devis', cta: 'Demander un devis', ton: 'franc', titre_services: '',
     services: [
@@ -66,7 +67,9 @@ function vision(body) {
 }
 // Miranda : le faux regard (captures) et le faux jugement ; MIRANDA.notes donne les notes successives à rendre
 // pages : ce que sert un aperçu en ligne (son HTML, ou 404) quand Miranda vérifie sa version avant de le regarder
-const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, illisible: false, derniers: [], pages: {} };
+// enTexte : le modèle rend ses listes en texte JSON (« "problemes": "[{...}]" »), comme les modèles 5.5 à qui l'outil est
+// demandé en clair
+const MIRANDA = { notes: [], regards: 0, jugements: 0, panne: false, illisible: false, enTexte: false, derniers: [], pages: {} };
 function regardFaux(opts) {
   MIRANDA.regards++;
   if (MIRANDA.panne) return { ok: false, status: 500, json: async function () { return { ok: false, error: 'navigateur indisponible' }; } };
@@ -83,7 +86,8 @@ function critiqueFausse(body) {
   MIRANDA.derniers.push({ hero: hero, services: services, images: body.messages[0].content.filter(function (b) { return b.type === 'image'; }).length });
   const note = MIRANDA.notes.length ? MIRANDA.notes.shift() : 8.5;
   const ok = note >= 8;
-  return rep([tu('juger_site', { note: note, verdict: ok ? 'valide' : 'a_refaire', resume: ok ? 'Un premier écran fort, une photo juste, tout se lit sur téléphone.' : 'Le haut de page est fade et le titre se perd sur la photo.', points_forts: ok ? ['premier écran'] : [], problemes: ok ? [] : [{ zone: 'haut de page', gravite: 'bloquant', constat: 'Le titre se lit mal sur la photo.', variante: hero }], actions: ok ? [] : ['changer_rubriques'] })], 'tool_use', { input_tokens: 9000, output_tokens: 500 });
+  const liste = function (x) { return MIRANDA.enTexte ? JSON.stringify(x) : x; };
+  return rep([tu('juger_site', { note: note, verdict: ok ? 'valide' : 'a_refaire', resume: ok ? 'Un premier écran fort, une photo juste, tout se lit sur téléphone.' : 'Le haut de page est fade et le titre se perd sur la photo.', points_forts: liste(ok ? ['premier écran'] : []), problemes: liste(ok ? [] : [{ zone: 'haut de page', gravite: 'bloquant', constat: 'Le titre se lit mal sur la photo.', variante: hero }]), actions: liste(ok ? [] : ['changer_rubriques']) })], 'tool_use', { input_tokens: 9000, output_tokens: 500 });
 }
 /* ── le Studio 3D : actualité, accroches, script, relecture, vérification, scène, langues, critique ── */
 // STUDIO.viral : notes successives de Félix ; STUDIO.verifs : verdicts d'Hélène ; STUDIO.scriptsRates : jets de Clara
@@ -163,6 +167,7 @@ function studioWeb(body) {
 // les modèles de la génération 5.5 refusent un outil imposé (tool_choice « tool » ou « any ») : on le simule pour le modèle
 // le plus fort (CLAUDE.refusOutil), et l'outil demandé en clair (tool_choice « auto ») est servi comme l'outil imposé
 const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
+const OUVERTURES = { n: 0 };
 function claude(body) {
   appelsClaude++;
   if (CLAUDE.refusOutil && body.model === require('../lib/config').MODELS.genius.id && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
@@ -174,9 +179,20 @@ function claude(body) {
     const demande = typeof last.content !== 'string' && last.content.some(function (b) { return b.type === 'text' && new RegExp('appelant l\'outil ' + body.tools[0].name).test(b.text || ''); });
     if (demande) { CLAUDE.enClair++; body = Object.assign({}, body, { tool_choice: { type: 'tool', name: body.tools[0].name } }); }
   }
+  // un outil de fin exigé (fiche_essai) : le modèle l'oublie (texte seul) ou se fait couper par la longueur
+  if ((body.tools || []).some(function (t) { return t.name === 'fiche_essai'; })) {
+    CLAUDE.essais = (CLAUDE.essais || 0) + 1;
+    const der = body.messages[body.messages.length - 1];
+    const txt = typeof der.content === 'string' ? der.content : der.content.map(function (b) { return b.text || ''; }).join(' ');
+    if (CLAUDE.modeEssai === 'texte' && !/Appelle maintenant l'outil fiche_essai/.test(txt)) return rep([{ type: 'text', text: 'Voici ce que j\'ai trouvé : deux sujets.' }], 'end_turn');
+    if (CLAUDE.modeEssai === 'long' && body.max_tokens < 5000) return rep([{ type: 'text', text: 'Je commence la fiche.' }, { type: 'tool_use', id: 'tu_coupe', name: 'fiche_essai', input: {} }], 'max_tokens');
+    if (CLAUDE.modeEssai === 'muet') return rep([{ type: 'text', text: 'Rien de plus.' }], 'end_turn');
+    return rep([tu('fiche_essai', { sujets: '["a","b"]' })], 'tool_use');
+  }
   if (body.tool_choice && ['trouver_accroches', 'ecrire_script', 'juger_script', 'ecrire_scene', 'adapter_video', 'ecrire_francais', 'juger_video'].indexOf(body.tool_choice.name) >= 0) return studio(body);
   if ((!body.tool_choice || body.tool_choice.type === 'auto') && Array.isArray(body.tools) && body.tools.some(function (t) { return t.name === 'fiche_actu' || t.name === 'verdict_faits'; })) return studioWeb(body);
   if (body.tool_choice && body.tool_choice.name === 'juger_site') return critiqueFausse(body);
+  if (body.tool_choice && body.tool_choice.name === 'titre_site') { CLAUDE.titres = (CLAUDE.titres || 0) + 1; return rep([tu('titre_site', { titre: /Plomb/i.test(JSON.stringify(body.messages)) ? 'Des fuites réparées proprement' : 'Votre clim posée et entretenue' })], 'tool_use', { input_tokens: 400, output_tokens: 20 }); }
   if (body.tool_choice && body.tool_choice.name === 'ecrire_site') return atelier(body);
   if (body.tool_choice && body.tool_choice.name === 'noter_photos') return vision(body);
   const sys = body.system.map(function (b) { return b.text; }).join('\n');
@@ -199,7 +215,9 @@ function claude(body) {
       const lien = /^https?:/.test(String(l.apercu || '')) ? l.apercu : null;
       // une ouverture propre à chacun (le contrôle refuse la même première phrase que dans un email récent)
       const m = String(l.metier || l.secteur || 'votre métier').toLowerCase(), ou = l.commune ? 'à ' + l.commune : 'en Martinique';
-      // (huit ouvertures, une par place dans le lot : deux emails d'un même lot ne commencent jamais pareil)
+      // (huit ouvertures tournées sur toute la simulation, puis la même avec un mot de plus : deux emails ne commencent
+      // jamais pareil, quel que soit l'ordre des numéros de prospects, qui dépend des agents passés en parallèle)
+      const tour = OUVERTURES.n++;
       const ouverture = [
         'En cherchant ' + m + ' ' + ou + ', je suis tombé sur ' + l.nom + ', mais pas sur un site.',
         l.nom + ' apparaît sur Google pour ' + m + ' ' + ou + ', sans site derrière.',
@@ -209,7 +227,7 @@ function claude(body) {
         'Quand on tape ' + m + ' ' + ou + ', on trouve ' + l.nom + ' mais rien pour découvrir vos services.',
         l.nom + ' a de bons avis pour ' + m + ' ' + ou + ', il ne manque qu\'un site pour les montrer.',
         'Pour ' + m + ' ' + ou + ', ' + l.nom + ' sort sur Google, mais sans site à visiter.'
-      ][(k + (r[0] ? r[0].id : 0)) % 8];
+      ][tour % 8].replace(/\.$/, ['.', ', je l\'ai vu ce matin.', ', je l\'ai vu cette semaine.', ', je l\'ai remarqué hier.', ', je l\'ai vu en passant.', ', je l\'ai noté aujourd\'hui.'][Math.floor(tour / 8) % 6]);
       return { lead_id: l.id, objet: 'Le site de ' + l.nom, angle: lien ? 'apercu' : 'conformite', corps: 'Bonjour,\n\n' + ouverture + '\n\n' + (lien ? 'J\'ai préparé un aperçu de ce que pourrait être le vôtre : ' + lien + '\n\n' : 'Je peux vous préparer un aperçu gratuit de votre futur site.\n\n') + 'Tout est inclus : la création, la mise en ligne sur votre nom de domaine et l\'hébergement la première année. Le site vous appartient, sans abonnement obligatoire, et tout reste modifiable : textes, photos, couleurs.\n\nJe le mets en ligne pour vous ?\n\nLouis\nNovalemo, sites internet en Martinique' };
     }) }), tu('terminer', { resume: Math.min(6, r.length) + ' emails.' })]);
   }
