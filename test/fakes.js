@@ -51,17 +51,24 @@ function atelier(body) {
 
 // Les vignettes portent leur adresse (voir imageFausse) : le faux regard reconnaît la photo et la juge comme le ferait Léa.
 // photo n°…0 : un visage (recalée) ; n°…4 : un logo lisible (recalée) ; n°…5 : hors sujet ; les autres : justes et nettes
-const VISION = { appels: 0, vues: [], panne: false };
+// Pixabay : les vignettes « pb-<id> » ; places(id, codes) : à quelles places Léa dit que la photo irait (sinon rien n'est dit)
+const VISION = { appels: 0, vues: [], panne: false, places: null };
 function vision(body) {
   VISION.appels++;
   if (VISION.panne) return { ok: false, status: 400, json: async function () { return { error: { message: 'requête refusée' } }; } };
   const blocs = body.messages[0].content.filter(function (b) { return b.type === 'image'; });
+  const codes = ((body.messages[0].content[0].text || '').match(/^(H|A|B|S\d) = /gm) || []).map(function (x) { return x.slice(0, -3); });
   const notes = blocs.map(function (b, k) {
     const txt = Buffer.from(b.source.data, 'base64').toString('latin1');
-    const id = Number((txt.match(/pexels-photo-(\d+)/) || [])[1] || 0);
+    // les photos prises sur le site de l'entreprise (servies par l'aperçu, img/p<n>) : 700 + n (p4 un logo, p5 hors sujet)
+    const sienne = txt.match(/\/img\/p(\d+)\./);
+    const id = sienne ? 700 + Number(sienne[1]) : Number((txt.match(/pexels-photo-(\d+)/) || txt.match(/pb-(\d+)/) || [])[1] || 0);
     VISION.vues.push(id);
     const f = id % 10;
-    return { n: k + 1, pertinence: f === 5 ? 3 : 8, qualite: 8, visage: f === 0, texte: f === 4, hors_lieu: false };
+    // les photos Pixabay un peu mieux notées : elles gagnent des places quand les deux banques sont branchées
+    const n = { n: k + 1, description: 'Scène de métier n° ' + id + ', nette et lumineuse', pertinence: f === 5 ? 3 : 8, qualite: /pb-\d+/.test(txt) && f !== 2 ? 9 : 8, visage: f === 0, texte: f === 4, hors_lieu: false };
+    if (VISION.places) n.convient = VISION.places(id, codes);
+    return n;
   });
   return rep([tu('noter_photos', { notes: notes })], 'tool_use', { input_tokens: 400 + 120 * blocs.length, output_tokens: 300 });
 }
@@ -430,6 +437,43 @@ function pexels(url, opts) {
   const photos = [0, 1, 2, 3, 4, 5].map(function (k) { const id = base * 10 + k; return { id: id, width: 6000, height: 4000, url: 'https://www.pexels.com/photo/' + id + '/', photographer: 'Photographe ' + k, photographer_url: 'https://www.pexels.com/@p' + k, alt: k === 0 ? 'Smiling man fixing an air conditioner' : 'Close up of ' + q, src: { original: 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg' } }; });
   return { ok: true, status: 200, json: async function () { return { photos: photos, total_results: 6 }; } };
 }
+// La réponse en flux (server-sent events), découpée en petits morceaux qui coupent les lignes n'importe où, comme sur le
+// réseau ; « FLUX_MUET » dans le système : le flux s'ouvre puis ne dit plus rien
+async function enFlux(r, corps) {
+  CLAUDE.flux = (CLAUDE.flux || 0) + 1;
+  const sys = (corps.system || []).map(function (b) { return b.text || ''; }).join(' ');
+  if (/FLUX_MUET/.test(sys)) return { ok: true, status: 200, body: new ReadableStream({ start: function (c) { c.enqueue(new TextEncoder().encode('event: ping\ndata: {"type":"ping"}\n\n')); } }) };
+  const d = await r.json();
+  const u = d.usage || {};
+  const ev = [{ type: 'message_start', message: { id: 'msg_flux', type: 'message', role: 'assistant', model: corps.model, content: [], stop_reason: null, usage: { input_tokens: u.input_tokens || 0, cache_read_input_tokens: u.cache_read_input_tokens || 0, cache_creation_input_tokens: u.cache_creation_input_tokens || 0, output_tokens: 1 } } }];
+  (d.content || []).forEach(function (b, i) {
+    if (b.type === 'tool_use') {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } });
+      const j = JSON.stringify(b.input || {});
+      for (let k = 0; k < j.length; k += 23) ev.push({ type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: j.slice(k, k + 23) } });
+    } else {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'text', text: '' } });
+      const t = b.text || '';
+      for (let k = 0; k < t.length; k += 17) ev.push({ type: 'content_block_delta', index: i, delta: { type: 'text_delta', text: t.slice(k, k + 17) } });
+    }
+    ev.push({ type: 'content_block_stop', index: i });
+  });
+  ev.push({ type: 'message_delta', delta: { stop_reason: d.stop_reason }, usage: { output_tokens: u.output_tokens || 0 } });
+  ev.push({ type: 'message_stop' });
+  const octets = new TextEncoder().encode(ev.map(function (e) { return 'event: ' + e.type + '\ndata: ' + JSON.stringify(e) + '\n\n'; }).join(''));
+  let pos = 0;
+  return { ok: true, status: 200, body: new ReadableStream({ pull: function (c) { if (pos >= octets.length) { c.close(); return; } c.enqueue(octets.slice(pos, pos + 41)); pos += 41; } }) };
+}
+const PIXABAY = { recherches: [], refus: false };
+function pixabay(url) {
+  const u = new URL(url);
+  if (PIXABAY.refus || u.searchParams.get('key') === 'mauvaise') return { ok: false, status: 400, json: async function () { return {}; }, text: async function () { return '[ERROR 400] Invalid or missing API key'; } };
+  const q = u.searchParams.get('q') || '';
+  PIXABAY.recherches.push(q);
+  const base = Array.from(q).reduce(function (t, c) { return (t * 37 + c.charCodeAt(0)) % 90000; }, 11) + 20000;
+  const hits = [0, 1, 2, 3, 4, 5].map(function (k) { const id = base * 10 + k; return { id: id, pageURL: 'https://pixabay.com/photos/' + id + '/', tags: k === 0 ? 'man, worker, smiling' : q.split(' ').join(', '), webformatURL: 'https://pixabay.com/get/pb-' + id + '_640.jpg', largeImageURL: 'https://pixabay.com/get/pb-' + id + '_1280.jpg', imageWidth: 5000, imageHeight: 3333, user: 'Auteur' + k, user_id: 100 + k }; });
+  return { ok: true, status: 200, json: async function () { return { total: 6, totalHits: 6, hits: hits }; } };
+}
 function imageFausse(url, l, h) { const b = jpeg(l, h, Array.from(url).reduce(function (t, c) { return (t * 31 + c.charCodeAt(0)) % 251; }, 7), url); return { ok: true, status: 200, url: url, headers: { get: function (x) { return /content-type/i.test(x) ? 'image/jpeg' : /content-length/i.test(x) ? String(b.length) : null; } }, arrayBuffer: async function () { return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } }; }
 
 global.fetch = async function (url, opts) {
@@ -438,9 +482,13 @@ global.fetch = async function (url, opts) {
   if (MIRANDA.pages[url] !== undefined) { const pg = MIRANDA.pages[url]; return pg === 404 ? { ok: false, status: 404, text: async function () { return 'introuvable'; } } : { ok: true, status: 200, url: url, text: async function () { return pg; } }; }
   if (url.indexOf('api.pexels.com') >= 0) return pexels(url, opts);
   if (url.indexOf('images.pexels.com') >= 0) return imageFausse(url, 1920, 1280);
+  // les photos d'une entreprise, servies par son aperçu : p1 assez grande pour le haut de page, les autres plus petites
+  if (/\.vercel\.app\/a\/[a-z0-9-]+\/img\/p\d+\./.test(url)) { const n = Number(url.match(/img\/p(\d+)\./)[1]); return imageFausse(url, n === 1 ? 1600 : 900, n === 1 ? 1000 : 600); }
+  if (url.indexOf('pixabay.com/api') >= 0) return pixabay(url);
+  if (url.indexOf('pixabay.com/get/') >= 0) return imageFausse(url, /_640/.test(url) ? 640 : 1280, /_640/.test(url) ? 427 : 853);
   if (url.indexOf('picsum.photos') >= 0) return imageFausse(url, 1920, 1280);
   if (url.indexOf('api.kapso.ai') >= 0) return kapso(url, opts);
-  if (url.indexOf('api.anthropic.com') >= 0) return claude(JSON.parse(opts.body));
+  if (url.indexOf('api.anthropic.com') >= 0) { const corps = JSON.parse(opts.body); const r = await claude(corps); return corps.stream && r && r.ok ? enFlux(r, corps) : r; }
   if (url.indexOf('api.vercel.com') >= 0) return vercel(url, opts);
   if (url.indexOf('api.stripe.com') >= 0) return stripe(url, opts);
   if (url.indexOf('places.googleapis.com') >= 0) {
@@ -488,4 +536,4 @@ global.fetch = async function (url, opts) {
 };
 const FAUX_EN_LIGNE = new Set();
 
-module.exports = { STUDIO: STUDIO, appels: function () { return appelsClaude; }, CLAUDE: CLAUDE, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };
+module.exports = { STUDIO: STUDIO, appels: function () { return appelsClaude; }, CLAUDE: CLAUDE, MIRANDA: MIRANDA, VISION: VISION, PEXELS: PEXELS, PIXABAY: PIXABAY, VERCEL: VERCEL, STRIPE: STRIPE, KAPSO: KAPSO, recuWhatsApp: recuWhatsApp, payer: payer, mois: mois, FAUX_EN_LIGNE: FAUX_EN_LIGNE, EMMA: EMMA, jpeg: jpeg };

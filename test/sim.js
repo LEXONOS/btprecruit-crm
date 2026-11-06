@@ -99,8 +99,10 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const ex = tools.executeurs({ db: db, agent: dg, agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
   assert.ok(/Louis/.test(await ex.decider({ proposition_id: pr[0].id, decision: 'valider', note: 'ok' })), 'une dépense part chez Louis');
   assert.ok((await ex.assigner({ a: 'dg_novalemo', titre: 'x', consigne: 'y' })).erreur, 'un DG ne commande pas un autre DG');
-  env.depense = 0.7 * env.budget.jour_usd;
-  assert.ok(env.peutDepenser({ company_id: 'novalemo' }) && !env.peutDepenser({ company_id: 'ecom' }), 'budget serré : Novalemo passe en premier');
+  // chaque entreprise dans sa part du jour (Novalemo la plus grande), aucune ne prend celle des autres
+  const pl = env.budget.jour_usd;
+  env.depense = 0.6 * pl; env.depenseSociete = { novalemo: 0.5 * pl, ecom: 0.1 * pl, studio3d: 0 };
+  assert.ok(env.peutDepenser({ id: 'demo', company_id: 'novalemo' }) && !env.peutDepenser({ id: 'veille_ecom', company_id: 'ecom' }) && env.peutDepenser({ id: 'scenariste', company_id: 'studio3d' }), 'budget : chaque entreprise dans sa part, Novalemo la plus grande, le Studio garde la sienne');
 
   // 6. la boîte d'envoi (pilote automatique)
   process.env.HQ_MAIL_USER = 'louis@novalemo-mq.fr'; process.env.HQ_MAIL_PASS = 'secret-de-test';
@@ -1126,7 +1128,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(fakes.PEXELS.recherches.indexOf('modern air conditioner living room') >= 0 && fakes.PEXELS.recherches.indexOf('air conditioner installation') >= 0 && fakes.PEXELS.recherches.every(function (q) { return !IM.PERSONNES.test(q); }) && fp.site.data.photos.v === IM.VERSION && fp.site.data.photos.notes.recalees > 0, 'recherches tirées des textes, aucune personne : ' + fakes.PEXELS.recherches.join(', '));
     const ap = R.rendre(fp.site, { mode: 'apercu', contactNovalemo: 'louis@novalemo-mq.fr' });
     const ml = ap.files.find(function (f) { return /mentions-legales/.test(f.file); }).data;
-    assert.ok(/photo de <a[^>]+>Photographe \d<\/a> sur <a[^>]+>Pexels<\/a>/.test(ml) && /Photos d'illustration/.test(ap.files[0].data) && /<img src="[^"]+i1\.jpg"[^>]* alt=""/.test(ap.files[0].data) && ap.hero && require('../lib/sites/rubriques').VARIANTES[ap.hero].photo !== 'non' && /<section class="r r-hero-[\s\S]*?<img src="[^"]+\.jpg"/.test(ap.files[0].data), 'crédits dans les mentions légales, bandeau honnête, aucune fausse description, une photo en haut : ' + ap.hero);
+    assert.ok(/photo de <a[^>]+>Photographe \d<\/a> sur <a[^>]+>Pexels<\/a>/.test(ml) && /Photos d'illustration/.test(ap.files[0].data) && /<img src="[^"]+i1\.jpg"[^>]* alt="Scène de métier n° \d+, nette et lumineuse"/.test(ap.files[0].data) && ap.hero && require('../lib/sites/rubriques').VARIANTES[ap.hero].photo !== 'non' && /<section class="r r-hero-[\s\S]*?<img src="[^"]+\.jpg"/.test(ap.files[0].data), 'crédits dans les mentions légales, bandeau honnête, la description neutre de Léa en texte alternatif, une photo en haut : ' + ap.hero);
     assert.ok(fp.site.data.revue && fp.site.data.revue.relu && sp.da.v === 3 && /Mes%20horaires/.test(ap.files[0].data) && /Nom%20officiel%20de%20mon%20entreprise/.test(ap.files[0].data), 'relu par Iris ; « Je veux ce site » demande aussi le nom officiel');
     // g. un voisin du même métier, même commune : d'autres photos, un autre site
     const lp2 = await prospect('pexels2', 'Clim Ducos Services', 'climatisation', 'Ducos', { phone: '+596 696 55 33 22' });
@@ -2184,8 +2186,8 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const envB = await runtime.charger(db);
     const agentB = function (id) { return envB.agents.find(function (a) { return a.id === id; }); };
     envB.budget.jour_usd = 10;
-    const peut = function (dep, id) { envB.depense = dep; return envB.peutDepenser(agentB(id)); };
-    assert.ok(peut(5, 'critique') && peut(5, 'scenariste') && !peut(7, 'scenariste') && peut(8, 'critique') && !peut(9, 'critique') && !peut(9, 'demo') && peut(9, 'reponses') && !peut(10, 'reponses'), 'budget : réserve d\'Emma au-delà de 85 %, les autres entreprises à 60 %');
+    const peut = function (total, nova, studio, id) { envB.depense = total; envB.depenseSociete = { novalemo: nova, studio3d: studio }; return envB.peutDepenser(agentB(id)); };
+    assert.ok(peut(5, 5, 0, 'critique') && peut(8, 6, 2, 'scenariste') && !peut(8, 5, 3, 'scenariste') && !peut(7, 6.5, 0.5, 'critique') && !peut(7, 6.5, 0.5, 'demo') && peut(7, 6.5, 0.5, 'reponses') && !peut(9.2, 6, 2, 'critique') && !peut(9.2, 6, 2, 'scenariste') && peut(9.2, 6.5, 2.7, 'reponses') && !peut(10, 7, 3, 'reponses'), 'budget : Novalemo 65 %, Studio 30 %, les derniers 10 % du jour à Emma');
     process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
     await db.insert('hq_runs', { agent_id: 'critique', started_at: new Date().toISOString(), ok: true, cost_usd: 0.6, summary: 'jugements' }, { returning: false });
     const jugB = fakes.MIRANDA.jugements;
@@ -2215,7 +2217,144 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(L15(4).status === 'a_appeler' && L15(5).status === 'ecarte' && /Clim Cash Lamentin/.test(L15(5).reason), 'v15 : deux agences de la même entreprise, une seule démarchée');
     assert.ok(db15.tables.hq_tasks.find(function (t) { return t.id === t15.id; }).status === 'fait' && db15.tables.hq_messages.some(function (m) { return m.from_id === 'da' && /refont/.test(m.subject) && /ancienne offre/.test(m.body); }) && db15.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version === require('../lib/config').SEED_VERSION, 'v15 : tâche d\'automate close, Louis prévenu par Iris');
     console.log('Audit des aperçus OK : grand titre (règles, sur-titre du métier et de la commune, posé par Iris), photo en haut de page, tuiles de services, rien de répété, listes relues, reprises rouvertes, prospects à appeler refaits, voisins sur le même template séparés, outil de fin redemandé, ancienne offre bloquée, adresses propres, nouveaux domaines audités, une entreprise un prospect, managers (automates, pauses), réserve d\'Emma et part de Miranda, version 15');
+  }  // 36. LÉA DÉCRIT ET RANGE SES PHOTOS (nov. 2026) : deux banques (Pexels et Pixabay) cherchées ensemble, chaque photo
+  // décrite (sa description devient le texte alternatif), rangée à la place qu'elle sert le mieux d'après ce qu'elle montre,
+  // un second tour quand il manque le haut de page, des recherches par métier revues
+  {
+    const IM = require('../lib/sites/images'), T = require('../lib/sites/theme'), MI = require('../lib/missions');
+    const sv = [{ titre: 'Installation', texte: 'Split ou gainable, posé proprement.', photo: 'air conditioner installation' }, { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés.', photo: 'air conditioner filter cleaning' }, { titre: 'Dépannage', texte: 'On cherche la cause avant de réparer.' }];
+    const clim = { v: 3, nom: 'Clim Décrite', activite: 'Climatisation', metier: 'Climatisation', secteur: 'climatisation', commune: 'Ducos', photo_hero: 'modern air conditioner living room', services: sv, contact: { tel: '+596696123400' } };
+    process.env.HQ_PEXELS_KEY = 'pexels-test'; process.env.HQ_PIXABAY_KEY = 'pixabay-test';
+    // a. les deux banques cherchées, leurs photos mêlées et regardées ensemble ; chaque photo posée porte sa description
+    fakes.PEXELS.recherches.length = 0; fakes.PIXABAY.recherches.length = 0;
+    const r1 = await IM.choisir(clim, {});
+    assert.ok(fakes.PEXELS.recherches.length && fakes.PIXABAY.recherches.length && r1.photos.length >= 4 && r1.photos.every(function (p) { return /^Scène de métier n° \d+/.test(p.desc); }) && r1.notes.banques.join(',') === 'Pexels,Pixabay' && r1.photos.some(function (p) { return p.credit.source === 'Pixabay'; }) && ['pixabay', 'banques'].indexOf(r1.source) >= 0 && r1.notes.regardees > 24, 'deux banques cherchées et regardées ensemble, la meilleure photo gagne, chaque photo décrite : ' + r1.photos.map(function (p) { return p.role + ':' + p.credit.id; }).join(' '));
+    assert.ok(r1.photos.every(function (p) { const f = Number(p.credit.id.slice(2)) % 10; return f !== 0 && f !== 4 && f !== 5; }), 'visages, logos et hors-sujet recalés dans les deux banques');
+    // b. rangée d'après ce qu'elle montre : le service sans recherche à lui (Dépannage) reçoit la photo que Léa a vue pour lui
+    fakes.VISION.places = function (id) { return id % 10 === 3 ? ['S3'] : ['H', 'A', 'B']; };
+    const r2 = await IM.choisir(clim, {});
+    fakes.VISION.places = null;
+    const dep = r2.photos.find(function (p) { return p.role === 'service' && p.pour === 2; });
+    assert.ok(dep && Number(dep.credit.id.slice(2)) % 10 === 3 && r2.photos.some(function (p) { return p.role === 'hero'; }), 'une photo cherchée pour le haut de page mais qui montre le dépannage va au dépannage : ' + r2.photos.map(function (p) { return p.role + (p.pour !== undefined ? p.pour : '') + ':' + p.credit.id; }).join(' '));
+    // c. rien ne va au haut de page au premier regard : second tour, avec les autres recherches du métier
+    const v0 = fakes.VISION.appels;
+    fakes.PEXELS.recherches.length = 0;
+    fakes.VISION.places = function () { return fakes.VISION.appels === v0 + 1 ? ['S1'] : ['H', 'A', 'B']; };
+    const r3 = await IM.choisir(clim, {});
+    fakes.VISION.places = null;
+    assert.ok(fakes.VISION.appels === v0 + 2 && r3.photos.some(function (p) { return p.role === 'hero'; }) && fakes.PEXELS.recherches.indexOf('air conditioning unit installation') >= 0, 'second tour : un haut de page trouvé avec une autre recherche du métier : ' + fakes.PEXELS.recherches.join(', '));
+    // d. Pixabay refuse sa clé : Pexels continue seul, la raison est notée
+    fakes.PIXABAY.refus = true;
+    const r4 = await IM.choisir(clim, {});
+    fakes.PIXABAY.refus = false;
+    assert.ok(r4.photos.length >= 3 && r4.photos.every(function (p) { return p.credit.source === 'Pexels'; }) && /Pixabay/.test(r4.erreur || ''), 'une banque en panne, l\'autre suffit : ' + r4.erreur);
+    // e. la clé Pixabay est essayée avant d'être enregistrée (Mise en route, étape facultative)
+    const jx0 = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
+    assert.ok(/clé Pixabay refusée/.test((await MI.enregistrer({ HQ_PIXABAY_KEY: 'mauvaise' })).erreur || ''), 'clé Pixabay refusée avec la raison');
+    const okX = await MI.enregistrer({ HQ_PIXABAY_KEY: 'bonne-cle-pixabay' });
+    if (jx0 === undefined) delete process.env.HQ_VERCEL_TOKEN; else process.env.HQ_VERCEL_TOKEN = jx0;
+    assert.ok(okX.ok && okX.enregistre.indexOf('HQ_PIXABAY_KEY') >= 0, 'clé Pixabay essayée puis enregistrée : ' + JSON.stringify(okX));
+    const etatM = await MI.etat(db);
+    const ph2 = etatM.missions.find(function (m) { return m.id === 'photos2'; });
+    assert.ok(ph2 && ph2.etapes[0].fait && etatM.missions.find(function (m) { return m.id === 'brancher'; }).etapes.find(function (e) { return e.id === 'photos'; }).fait, 'mise en route : Pexels fait, Pixabay en étape facultative');
+    delete process.env.HQ_PIXABAY_KEY;
+    // f. les recherches par métier : la location de matériel n'est plus une location de vacances, la finance a ses bureaux
+    const lm = T.pourMetier('location de matériel'), fi = T.pourMetier('Courtage, services financiers'), ag = T.pourMetier('Agriculture, élevage'), lv = T.pourMetier('Location de voitures');
+    assert.ok(lm.objectif === 'devis' && /equipment|excavator/.test(lm.photos.join(' ')) && /office|documents/.test(fi.photos.join(' ')) && /farm|plantation/.test(ag.photos.join(' ')) && /car/.test(lv.photos[0]) && T.pourMetier('climatisation').photos.length === 5 && Object.keys({}).length === 0, 'recherches par métier revues');
+    assert.ok(IM.places(clim).reserve.length >= 1 && IM.places(clim).every(function (p) { return p.requetes.every(function (q) { return !IM.PERSONNES.test(q); }); }), 'une réserve de recherches pour le second tour, jamais de personnes');
+    console.log('Photos OK : deux banques mêlées, chaque photo décrite (texte alternatif), rangée d\'après ce qu\'elle montre, second tour, une banque en panne n\'arrête rien, clé Pixabay en mise en route, recherches par métier revues');
+  }  // 37. LES VIDÉOS ET LA CHAÎNE (nov. 2026) : une longue réponse (la scène 3D d'Oscar) arrive en flux, morceau par morceau,
+  // au lieu de buter sur le délai d'une requête ; un flux muet est abandonné ; Victor règle la rotation de Jade (et rien
+  // d'autre chez un automate) ; Marcus réveille Noé ; Louis qui lance l'envoi réveille Chloé (pas Ana, en pause)
+  {
+    const CL = require('../lib/claude');
+    const outilEssai = { name: 'fiche_essai', description: 'La fiche.', input_schema: { type: 'object', properties: { sujets: { type: 'array', items: { type: 'string' } } } } };
+    const corps = { model: 'claude-sonnet-5-5', max_tokens: 9000, system: [{ type: 'text', text: 'Essai du flux.' }], messages: [{ role: 'user', content: 'La fiche, longue.' }], tools: [outilEssai] };
+    fakes.CLAUDE.modeEssai = null;
+    const f0 = fakes.CLAUDE.flux || 0;
+    const rf = await CL.appel(corps, 1, { flux: true });
+    const rs = await CL.appel(corps, 1);
+    const bF = rf.data.content.find(function (b) { return b.type === 'tool_use'; }), bS = rs.data.content.find(function (b) { return b.type === 'tool_use'; });
+    assert.ok(rf.ok && (fakes.CLAUDE.flux || 0) === f0 + 1 && bF && JSON.stringify(bF.input) === JSON.stringify(bS.input) && Array.isArray(bF.input.sujets) && rf.data.stop_reason === rs.data.stop_reason && rf.data.usage.input_tokens === rs.data.usage.input_tokens && rf.data.usage.output_tokens === rs.data.usage.output_tokens, 'en flux, la même réponse qu\'en un bloc (outil recollé morceau par morceau, consommation comprise) : ' + JSON.stringify(bF && bF.input));
+    const muet = Object.assign({}, corps, { system: [{ type: 'text', text: 'FLUX_MUET' }] });
+    const t0 = Date.now();
+    let refus = null;
+    try { await CL.appel(muet, 1, { flux: true, silence: 150 }); } catch (e) { refus = e; }
+    assert.ok(refus && /muette/.test(refus.message) && Date.now() - t0 < 3000, 'un flux qui se tait est abandonné (puis réessayé par l\'appelant) : ' + (refus && refus.message));
+    // Victor règle la rotation de Jade, jamais sa cadence ni sa marche
+    env = await runtime.charger(db);
+    const vic = env.agents.find(function (a) { return a.id === 'dircom_novalemo'; });
+    const exVic = tools.executeurs({ db: db, agent: vic, agents: env.agents, budget: env.budget, compteurs: C0() });
+    const okJ = await exVic.regler_agent({ agent: 'chasse_maps', consigne_strategie: 'Métiers : climatisation, électricien\nZones : Le Lamentin, Ducos' });
+    const koJ = await exVic.regler_agent({ agent: 'chasse_maps', cadence_min: 1440, consigne_strategie: 'Métiers : plombier' });
+    const jade = db.tables.hq_agents.find(function (a) { return a.id === 'chasse_maps'; });
+    assert.ok(okJ === 'réglé' && /Zones : Le Lamentin, Ducos/.test(jade.playbook) && koJ.erreur && /consigne_strategie seule/.test(koJ.erreur) && jade.cadence_min !== 1440, 'la rotation de Jade se règle par une consigne, sa cadence non');
+    // Louis lance l'envoi : l'ordre va à Chloé, réveillée tout de suite (Ana, en pause, ne le lirait pas)
+    const chloe = db.tables.hq_agents.find(function (a) { return a.id === 'redacteur'; });
+    chloe.next_run_at = new Date(Date.now() + 5 * 3600000).toISOString();
+    const PHx = require('../lib/sites/phase');
+    const phase0 = (await PHx.lire(db)).phase;
+    await agir('phase_sites', { phase: 'envoi' });
+    assert.ok(Date.parse(chloe.next_run_at) <= Date.now() + 2 * 60000 && db.tables.hq_messages.some(function (m) { return m.to_id === 'redacteur' && /lance l'envoi/.test(m.subject); }), 'l\'envoi lancé réveille Chloé');
+    await PHx.ecrire(db, phase0, 'test');
+    console.log('Vidéos et chaîne OK : longues réponses en flux (outil recollé, consommation exacte), flux muet abandonné, rotation de Jade réglable par Victor (pas sa cadence), Chloé réveillée par le lancement de l\'envoi');
+  }  // 38. CE QUE MIRANDA RELEVAIT SUR TOUS LES SITES (6 nov. 2026, 0 aperçu validé sur 60) : la note Google montrée une fois,
+  // des numéros de section qui se suivent, la phrase du contact fidèle aux moyens de joindre, la grande tuile du bento avec
+  // sa photo, les réponses de la FAQ ouvertes, ni code Google dans l'adresse ni +33 devant un numéro de Martinique, aucun
+  // texte coupé ; Léa regarde aussi les photos prises sur le site de l'entreprise
+  {
+    const RD = require('../lib/sites/rendu'), BR = require('../lib/sites/rubriques'), CO = require('../lib/sites/composition'), AT = require('../lib/sites/atelier'), CR = require('../lib/jobs/critique'), MQ = require('../lib/martinique'), IM = require('../lib/sites/images');
+    const ph = function (k, role, extra) { return Object.assign({ fichier: 'i' + k + '.jpg', sha: 'sha' + k, taille: 1000, l: 1920, h: 1280, alt: 'Climatiseur mural n° ' + k, role: role, credit: { id: 'px90' + k, source: 'Pexels', auteur: 'A', page: 'https://www.pexels.com/photo/' + k } }, extra || {}); };
+    const specD = { v: 3, nom: 'Clim Défauts', activite: 'Climatisation', metier: 'Climatisation', secteur: 'climatisation', commune: 'Ducos', titre: 'Votre clim posée et entretenue', accroche: 'Pose et entretien de climatiseurs pour les maisons du centre.', objectif: 'devis', appel: 'Une clim à poser ou à réparer en urgence ce s…',
+      services: [{ titre: 'Installation', texte: 'Split ou gainable, posé proprement.' }, { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés.' }, { titre: 'Dépannage', texte: 'On cherche la cause avant de réparer.' }],
+      atouts: [{ titre: 'Ponctuel', texte: 'On vient à l\'heure dite.' }, { titre: 'Propre', texte: 'Chantier laissé net.' }, { titre: 'Clair', texte: 'Le prix avant les travaux.' }],
+      faq: [{ q: 'Vous venez à Ducos ?', r: 'Oui, et dans tout le centre.' }, { q: 'Un devis prend combien de temps ?', r: 'Nous passons dans la semaine.' }, { q: 'Vous entretenez toutes les marques ?', r: 'Oui, les grandes marques de split.' }],
+      a_propos: 'Clim Défauts pose et entretient des climatiseurs à Ducos.', google: { note: 4.7, avis: 53 },
+      contact: { tel: '+33596716670', adresse: 'JX76+HFQ, Ducos 97224, Martinique', maps: 'https://maps.google.com/?cid=1', horaires: ['Lundi : 07:30 – 17:00', 'Mardi : 07:30 – 17:00'] },
+      photos: [ph(1, 'hero'), ph(2, 'service', { pour: 0, pour_titre: 'installation' }), ph(3, 'apropos')] };
+    const compoD = { v: CO.VERSION_TPL, template: 'basalte', style: 'chantier', ambiance: 'franc', boutons: 'plein', mouvement: 'nette', fond: null, transition: null, numeros: { services: '01', apropos: '02', avis: '03', faq: '04', contact: '05' },
+      blocs: [{ id: 'nav.x-barre', surface: 'fond', rubrique: 'nav' }, { id: 'hero.x-split', surface: 'fond', rubrique: 'hero' }, { id: 'services.x-bento', surface: 'fond', rubrique: 'services' }, { id: 'apropos.x-faits', surface: 'surface', rubrique: 'apropos' }, { id: 'avis.x-ligne', surface: 'teinte', rubrique: 'avis' }, { id: 'faq.x-colonnes', surface: 'fond', rubrique: 'faq' }, { id: 'contact.x-colonnes', surface: 'surface', rubrique: 'contact' }, { id: 'pied.x-simple', surface: 'fond', rubrique: 'pied' }] };
+    const rD = RD.rendre({ slug: 'clim-defauts', spec: specD, version: 1 }, { mode: 'apercu', compo: compoD });
+    const hD = rD.files.find(function (f) { return /clim-defauts\/index\.html$/.test(f.file); }).data;
+    const corpsD = hD.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '').replace(/<head>[\s\S]*?<\/head>/, '');
+    assert.ok((corpsD.match(/53 (avis|clients)/g) || []).length === 1 && !/r-avis-x-ligne/.test(hD) && /class="xs-b"/.test(hD), 'la note Google une seule fois (la pastille du haut de page), la bande d\'avis se retire : ' + (corpsD.match(/53 (avis|clients)/g) || []).length);
+    const nums = (corpsD.match(/(\d{2}) — /g) || []).map(function (x) { return x.slice(0, 2); });
+    assert.ok(nums.length >= 3 && nums.every(function (n, k) { return Number(n) === k + 1; }), 'les numéros des sections se suivent (la bande d\'avis retirée n\'en prend pas) : ' + nums.join(' '));
+    const cols = (hD.match(/<span class="xco-n">(\d+)<\/span>/g) || []).map(function (x) { return x.replace(/\D/g, ''); });
+    assert.ok(cols.join(',') === '01,02', 'les colonnes du contact numérotées à la suite (pas d\'email : Appeler 01, Nous trouver 02) : ' + cols.join(','));
+    assert.ok(/Pour un devis, appelez-nous\./.test(hD) && !/avec plaisir|écrivez-nous/.test(hD), 'la phrase du contact dit ce qu\'on peut faire (un fixe seul : appeler), sans formule');
+    assert.ok((hD.match(/<details class="xqi" open/g) || []).length === 3, 'trois questions : toutes les réponses ouvertes');
+    assert.ok(!/JX76\+HFQ/.test(hD) && /Ducos 97224/.test(hD) && /tel:\+596596716670/.test(hD) && /0596 71 66 70/.test(hD) && !/\+33596/.test(hD), 'adresse sans code Google, numéro de Martinique en +596 (l\'appel compose le bon numéro)');
+    assert.ok(!/urgence ce s/.test(hD) && /class="xbe-i g ph"/.test(hD), 'un texte coupé par l\'ancien moteur ne s\'affiche plus ; la grande tuile du bento porte une photo');
+    const sansPh = Object.assign({}, specD, { photos: [] });
+    assert.ok(!BR.possible(BR.VARIANTES['services.x-bento'], sansPh, RD.contexte({ slug: 'x', spec: sansPh }, { mode: 'apercu' }).ctx) && BR.possible(BR.VARIANTES['services.x-bento'], specD, RD.contexte({ slug: 'x', spec: specD }, { mode: 'apercu' }).ctx), 'sans photo, pas de bento (sa grande tuile restait vide)');
+    assert.ok(MQ.e164('+33 6 96 12 34 56') === '+596696123456' && MQ.mobile('+33696123456') && MQ.e164('+33 6 12 34 56 78') === '+33612345678' && MQ.sansPlusCode('H24F+FJ2, Ducos 97224') === 'Ducos 97224', 'numéros des outre-mer écrits en +33 remis à leur indicatif (la métropole reste en +33), code Google retiré');
+    // l'atelier ne coupe plus rien au milieu d'un mot
+    const fA = AT.nettoyer({ nom: 'Kit Service', activite: 'Électricité', metier: 'Électricien', titre: 'Votre courant sûr et aux normes', accroche: 'Installation et dépannage électrique pour les maisons et les commerces.', appel: 'Un problème électrique ou une installation à faire ?', a_propos: 'Kit Service intervient chez les particuliers et les professionnels. Installation, mise aux normes, dépannage : nous travaillons proprement et nous expliquons chaque intervention avant de commencer. Nous intervenons dans tout le centre de la Martinique, avec un devis clair et un suivi après les travaux pour être sûrs que tout fonctionne bien chez vous.', services: [{ titre: 'Installation électrique', texte: 'Tableaux, prises, éclairage.' }] }, { name: 'Kit Service', sector: 'électricien', commune: 'Le Lamentin' }, { commune: 'Le Lamentin' });
+    assert.ok(fA.appel === 'Un problème électrique ou une installation à faire ?' && /commencer\.$/.test(fA.a_propos) && !/…/.test(JSON.stringify(fA)), 'atelier : la question du contact entière, la présentation arrêtée à sa dernière phrase entière : ' + fA.a_propos.slice(-40));
+    // Léa regarde les photos prises sur le site de l'entreprise : le logo (p4) et la photo hors sujet (p5) sortent, les
+    // bonnes restent décrites, la grande devant pour le haut de page ; deux bonnes suffisent, pas de banque
+    process.env.HQ_PEXELS_KEY = 'pexels-test';
+    const sienne = function (n, l, h) { return { fichier: 'p' + n + '.jpg', sha: 'sh' + n, taille: 1000, l: l, h: h, alt: 'Clim Siennes', source: 'https://clim-siennes.fr/photo' + n + '.jpg' }; };
+    const leadS = (await db.insert('hq_leads', { name: 'Clim Siennes', status: 'a_contacter', commune: 'Ducos', sector: 'climatisation' }))[0];
+    const siteS = (await db.insert('hq_sites', { lead_id: leadS.id, slug: 'clim-siennes', status: 'apercu', version: 1, url_apercu: 'https://novalemo-martinique.vercel.app/a/clim-siennes/', spec: Object.assign({}, specD, { nom: 'Clim Siennes', photos: [sienne(4, 1400, 900), sienne(2, 900, 600), sienne(5, 1200, 800), sienne(1, 1600, 1000)] }), data: {} }))[0];
+    const vis0 = fakes.VISION.appels;
+    const jxL = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
+    const rL = await require('../lib/jobs/photos').run({ db: db, peutDepenser: function () { return true; }, limite: Date.now() + 200000 });
+    if (jxL === undefined) delete process.env.HQ_VERCEL_TOKEN; else process.env.HQ_VERCEL_TOKEN = jxL;
+    const apres = db.tables.hq_sites.find(function (x) { return x.id === siteS.id; });
+    const sp = apres.spec.photos.filter(function (p) { return !p.credit; });
+    assert.ok(fakes.VISION.appels > vis0 && sp.map(function (p) { return p.fichier; }).join(',') === 'p1.jpg,p2.jpg' && sp[0].hero === true && sp[1].hero === false && sp.every(function (p) { return /^Scène de métier n° 70\d/.test(p.alt) && p.vu === IM.VERSION; }) && apres.version === 2, 'ses photos regardées : p1 (grande) devant pour le haut de page, p2 gardée, décrites : ' + sp.map(function (p) { return p.fichier + ':' + p.hero; }).join(' ') + ' / ' + rL.resume);
+    assert.ok((apres.spec.photos_ecartees || []).map(function (x) { return x.fichier + ':' + x.raison; }).join(',') === 'p4.jpg:texte ou logo,p5.jpg:hors sujet (3/10)' && !apres.spec.photos.some(function (p) { return p.credit; }) && apres.data.photos.v === IM.VERSION && apres.data.photos.source === 'site', 'le logo et la photo hors sujet sortent de la fiche (raison notée), deux bonnes photos à lui : pas de banque : ' + JSON.stringify(apres.spec.photos_ecartees) + ' / ' + JSON.stringify(apres.data.photos));
+    const rS = RD.rendre({ slug: 'clim-siennes', spec: apres.spec, version: 2 }, { mode: 'apercu' });
+    assert.ok(/img\/p1\.jpg/.test(rS.files[0].data) && !/img\/p4\.jpg|img\/p5\.jpg/.test(rS.files[0].data), 'le site montre ses bonnes photos, jamais celles écartées');
+    const petite = RD.repartir({ photos: [Object.assign(sienne(2, 900, 600), { hero: false }), ph(1, 'hero')] });
+    assert.ok(petite.hero && petite.hero.fichier === 'i1.jpg' && petite.apropos.fichier === 'p2.jpg', 'une petite photo à lui ne porte pas le haut de page (pixelisée) : elle sert plus bas');
+    assert.ok(CR.VERSION === 4, 'Miranda v4 : tout est rejugé avec de nouvelles reprises');
+    console.log('Défauts relevés par Miranda OK : note Google une fois, numéros qui se suivent, phrase du contact fidèle, bento avec sa photo, FAQ ouverte, adresse et numéro propres, aucun texte coupé, photos de l\'entreprise regardées par Léa, Miranda v4');
   }
+
+
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
   console.log('Pilote automatique OK :', fakes.VERCEL.deploiements.length, 'déploiements,', fakes.STRIPE.liens.length, 'lien(s) de paiement, domaine', site.domaine, ', CA', w.compteurs.ca_eur, '€');

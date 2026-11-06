@@ -51,19 +51,24 @@ const tableau = {
       '<div>' + chiffre('Chaque mois', eur(c.mrr_eur || 0), pluriel(c.abonnes || 0, 'abonnement')) + '</div>' +
       '<div>' + chiffre('Sites en ligne', nb(c.en_ligne), pluriel(c.commandes || 0, 'commande') + ' en cours') + '</div>' +
       '<div>' + chiffre('Coût de l\'IA', usd(j.cost_usd), 'aujourd\'hui, sur ' + usd(b.jour_usd) + (c.clients ? '<br>' + usd(coutTotal / Math.max(1, c.clients)) + ' par vente' : '')) + '</div></div>';
-    // la chaîne Novalemo, du prospect au site en ligne : chaque maillon dit qui le tient
+    // la chaîne Novalemo dans l'ordre où le travail passe de main en main : chaque maillon dit qui le tient, et ce qui
+    // l'arrête quand il est arrêté
+    const test = S.m.phase === 'test';
     const etapes = [
-      ['Prospects', c.prospects, 'trouvés par ' + [nom('chasse_maps'), nom('chasse_domaines'), nom('chasse_registre')].join(', ')],
-      ['Contactés', c.envoyes, 'emails de ' + nom('redacteur') + ' et ' + nom('relanceur')],
-      ['Réponses', (c.reponses || 0) + (c.interesses || 0), 'lues par ' + nom('reponses')],
-      ['Aperçus', c.apercus, 'fabriqués par ' + nom('demo')],
-      ['Commandes', c.commandes, 'paiement envoyé'],
-      ['En ligne', c.en_ligne, 'livrés par ' + nom('livraison')]
+      ['Trouvés', c.prospects, nom('chasse_maps') + ', ' + nom('chasse_domaines') + ' et ' + nom('chasse_registre') + ' cherchent les entreprises'],
+      ['Joignables', c.joignables, nom('contacts') + ' vérifie le site, trouve l\'email ou le numéro, écarte les doublons'],
+      ['Aperçus', c.apercus, nom('demo') + ' écrit le site, ' + nom('photos') + ' pose les photos, ' + nom('da') + ' le met en page, ' + nom('livraison') + ' le publie'],
+      ['Validés', c.valides, nom('critique') + ' le regarde comme un client : 8/10 au moins, sinon elle le fait refaire'],
+      ['Contactés', c.envoyes, test ? 'envoi gelé : les sites sont en test (Ventes, « Lancer l\'envoi »)' : nom('redacteur') + ' écrit le premier email avec l\'aperçu, ' + nom('relanceur') + ' relance'],
+      ['Réponses', (c.reponses || 0) + (c.interesses || 0), nom('reponses') + ' répond, retouche le site, envoie le paiement'],
+      ['Commandes', c.commandes, 'paiement envoyé, en attente'],
+      ['En ligne', c.en_ligne, nom('livraison') + ' met le site en ligne sur son domaine']
     ];
-    h += '<div class="carte" style="margin-top:14px"><h2 class="carte-t">La chaîne Novalemo<small>du prospect au site en ligne</small></h2><div class="chaine">' + etapes.map((e, i) => {
+    h += '<div class="carte" style="margin-top:14px"><h2 class="carte-t">La chaîne Novalemo<small>de l\'entreprise trouvée au site en ligne, dans l\'ordre</small></h2><div class="chaine">' + etapes.map((e, i) => {
       const v = Number(e[1] || 0), av = i ? Number(etapes[i - 1][1] || 0) : v;
       const pct = i === 0 ? (v ? 100 : 0) : av ? Math.min(100, Math.round(v / av * 100)) : 0;
-      return '<div class="maillon' + (i === 5 && v ? ' vif' : '') + '"><small>' + esc(e[0]) + '</small><b>' + nb(v) + '</b><div class="jauge"><i style="width:' + pct + '%"></i></div><span title="' + esc(e[2]) + '">' + (i ? (av ? pct + ' % de l\'étape d\'avant' : esc(e[2])) : esc(e[2])) + '</span></div>';
+      const arret = i === 4 && test;
+      return '<div class="maillon' + (i === 7 && v ? ' vif' : '') + (arret ? ' arrete' : '') + '"><small>' + esc((i + 1) + '. ' + e[0]) + '</small><b>' + nb(v) + '</b><div class="jauge"><i style="width:' + pct + '%"></i></div><span>' + esc(e[2]) + '</span></div>';
     }).join('') + '</div></div>';
     // deux colonnes : la machine et le fil ; ce qui t'attend et qui travaille
     const pourToi = [];
@@ -318,8 +323,10 @@ const couts = {
     const j = S.m.jour || {}, b = S.m.budget || {}, hist = S.m.historique || [];
     const sept = hist.slice(-7).reduce((s, x) => s + Number(x.cost_usd || 0), 0), quatorze = hist.reduce((s, x) => s + Number(x.cost_usd || 0), 0);
     const pct = b.jour_usd ? Math.min(100, Number(j.cost_usd || 0) / Number(b.jour_usd) * 100) : 0;
-    let h = tete('Coûts et budget', 'Le plafond du jour est respecté par tous les agents, au centime près. Novalemo passe en premier quand il se resserre.');
+    let h = tete('Coûts et budget', 'Le plafond du jour est respecté par tous les agents, au centime près. Chaque entreprise a sa part du jour, aucune ne prend celle des autres, et Emma garde toujours de quoi répondre aux prospects.');
     h += '<div class="grille g4"><div class="carte">' + chiffre('Aujourd\'hui', usd(j.cost_usd), 'sur un plafond de ' + usd(b.jour_usd)) + '<div class="jauge' + (pct > 85 ? ' chaude' : '') + '" style="margin-top:12px"><i style="width:' + pct.toFixed(0) + '%"></i></div></div><div class="carte">' + chiffre('7 jours', usd(sept)) + '</div><div class="carte">' + chiffre('14 jours', usd(quatorze)) + '</div><div class="carte">' + chiffre('Passages aujourd\'hui', nb(j.runs)) + '</div></div>';
+    const soc = (b.societes || []).filter((x) => x.depense || x.part >= 0.2);
+    if (soc.length) h += '<div class="carte" style="margin-top:14px"><h2 class="carte-t">Les parts du jour<small>ce que chaque entreprise a pris de sa part</small></h2><div class="lignes">' + soc.map((x) => { const plafond = Number(b.jour_usd || 0) * x.part, p = plafond ? Math.min(100, x.depense / plafond * 100) : 0; return '<div class="ligne"><span class="l-c"><b>' + esc(x.nom) + '</b><span>' + usd(x.depense) + ' sur ' + usd(plafond) + ' (' + Math.round(x.part * 100) + ' % du plafond)</span><div class="jauge' + (p > 90 ? ' chaude' : '') + '" style="margin-top:6px"><i style="width:' + p.toFixed(0) + '%"></i></div></span></div>'; }).join('') + '</div></div>';
     h += '<div class="carte" style="margin-top:14px"><h2 class="carte-t">Jour par jour<small>14 jours</small></h2>' + courbe(hist, 1100) + '</div>';
     const top = S.m.agents.filter((a) => a.stats && a.stats.runs).sort((a, b) => (b.stats.cout || 0) - (a.stats.cout || 0)).slice(0, 16);
     h += '<div class="grille g2" style="margin-top:14px;align-items:start"><div class="carte"><h2 class="carte-t">Qui coûte, qui produit<small>depuis le début</small></h2>' + (top.length ? '<div class="defile"><table class="tableau"><thead><tr><th>Agent</th><th class="d">Passages</th><th class="d">Coût</th><th class="d">Produits</th></tr></thead><tbody>' + top.map((a) => '<tr><td><a href="#" data-agent="' + esc(a.id) + '">' + esc(a.name) + '</a><small>' + esc(a.title) + '</small></td><td class="d num">' + a.stats.runs + '</td><td class="d num">' + usd(a.stats.cout) + '</td><td class="d num">' + (a.stats.produit || 0) + '</td></tr>').join('') + '</tbody></table></div>' : vide('Pas encore de passages', 'Les chiffres arrivent avec les premiers cycles.')) + '</div>';
