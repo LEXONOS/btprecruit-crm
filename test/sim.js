@@ -1126,7 +1126,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(fakes.PEXELS.recherches.indexOf('modern air conditioner living room') >= 0 && fakes.PEXELS.recherches.indexOf('air conditioner installation') >= 0 && fakes.PEXELS.recherches.every(function (q) { return !IM.PERSONNES.test(q); }) && fp.site.data.photos.v === IM.VERSION && fp.site.data.photos.notes.recalees > 0, 'recherches tirées des textes, aucune personne : ' + fakes.PEXELS.recherches.join(', '));
     const ap = R.rendre(fp.site, { mode: 'apercu', contactNovalemo: 'louis@novalemo-mq.fr' });
     const ml = ap.files.find(function (f) { return /mentions-legales/.test(f.file); }).data;
-    assert.ok(/photo de <a[^>]+>Photographe \d<\/a> sur <a[^>]+>Pexels<\/a>/.test(ml) && /Photos d'illustration/.test(ap.files[0].data) && /<img src="[^"]+i1\.jpg"[^>]* alt=""/.test(ap.files[0].data) && ap.hero && require('../lib/sites/rubriques').VARIANTES[ap.hero].photo !== 'non' && /<section class="r r-hero-[\s\S]*?<img src="[^"]+\.jpg"/.test(ap.files[0].data), 'crédits dans les mentions légales, bandeau honnête, aucune fausse description, une photo en haut : ' + ap.hero);
+    assert.ok(/photo de <a[^>]+>Photographe \d<\/a> sur <a[^>]+>Pexels<\/a>/.test(ml) && /Photos d'illustration/.test(ap.files[0].data) && /<img src="[^"]+i1\.jpg"[^>]* alt="Scène de métier n° \d+, nette et lumineuse"/.test(ap.files[0].data) && ap.hero && require('../lib/sites/rubriques').VARIANTES[ap.hero].photo !== 'non' && /<section class="r r-hero-[\s\S]*?<img src="[^"]+\.jpg"/.test(ap.files[0].data), 'crédits dans les mentions légales, bandeau honnête, la description neutre de Léa en texte alternatif, une photo en haut : ' + ap.hero);
     assert.ok(fp.site.data.revue && fp.site.data.revue.relu && sp.da.v === 3 && /Mes%20horaires/.test(ap.files[0].data) && /Nom%20officiel%20de%20mon%20entreprise/.test(ap.files[0].data), 'relu par Iris ; « Je veux ce site » demande aussi le nom officiel');
     // g. un voisin du même métier, même commune : d'autres photos, un autre site
     const lp2 = await prospect('pexels2', 'Clim Ducos Services', 'climatisation', 'Ducos', { phone: '+596 696 55 33 22' });
@@ -2215,7 +2215,54 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(L15(4).status === 'a_appeler' && L15(5).status === 'ecarte' && /Clim Cash Lamentin/.test(L15(5).reason), 'v15 : deux agences de la même entreprise, une seule démarchée');
     assert.ok(db15.tables.hq_tasks.find(function (t) { return t.id === t15.id; }).status === 'fait' && db15.tables.hq_messages.some(function (m) { return m.from_id === 'da' && /refont/.test(m.subject) && /ancienne offre/.test(m.body); }) && db15.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version === require('../lib/config').SEED_VERSION, 'v15 : tâche d\'automate close, Louis prévenu par Iris');
     console.log('Audit des aperçus OK : grand titre (règles, sur-titre du métier et de la commune, posé par Iris), photo en haut de page, tuiles de services, rien de répété, listes relues, reprises rouvertes, prospects à appeler refaits, voisins sur le même template séparés, outil de fin redemandé, ancienne offre bloquée, adresses propres, nouveaux domaines audités, une entreprise un prospect, managers (automates, pauses), réserve d\'Emma et part de Miranda, version 15');
+  }  // 36. LÉA DÉCRIT ET RANGE SES PHOTOS (nov. 2026) : deux banques (Pexels et Pixabay) cherchées ensemble, chaque photo
+  // décrite (sa description devient le texte alternatif), rangée à la place qu'elle sert le mieux d'après ce qu'elle montre,
+  // un second tour quand il manque le haut de page, des recherches par métier revues
+  {
+    const IM = require('../lib/sites/images'), T = require('../lib/sites/theme'), MI = require('../lib/missions');
+    const sv = [{ titre: 'Installation', texte: 'Split ou gainable, posé proprement.', photo: 'air conditioner installation' }, { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés.', photo: 'air conditioner filter cleaning' }, { titre: 'Dépannage', texte: 'On cherche la cause avant de réparer.' }];
+    const clim = { v: 3, nom: 'Clim Décrite', activite: 'Climatisation', metier: 'Climatisation', secteur: 'climatisation', commune: 'Ducos', photo_hero: 'modern air conditioner living room', services: sv, contact: { tel: '+596696123400' } };
+    process.env.HQ_PEXELS_KEY = 'pexels-test'; process.env.HQ_PIXABAY_KEY = 'pixabay-test';
+    // a. les deux banques cherchées, leurs photos mêlées et regardées ensemble ; chaque photo posée porte sa description
+    fakes.PEXELS.recherches.length = 0; fakes.PIXABAY.recherches.length = 0;
+    const r1 = await IM.choisir(clim, {});
+    assert.ok(fakes.PEXELS.recherches.length && fakes.PIXABAY.recherches.length && r1.photos.length >= 4 && r1.photos.every(function (p) { return /^Scène de métier n° \d+/.test(p.desc); }) && r1.notes.banques.join(',') === 'Pexels,Pixabay' && r1.photos.some(function (p) { return p.credit.source === 'Pixabay'; }) && ['pixabay', 'banques'].indexOf(r1.source) >= 0 && r1.notes.regardees > 24, 'deux banques cherchées et regardées ensemble, la meilleure photo gagne, chaque photo décrite : ' + r1.photos.map(function (p) { return p.role + ':' + p.credit.id; }).join(' '));
+    assert.ok(r1.photos.every(function (p) { const f = Number(p.credit.id.slice(2)) % 10; return f !== 0 && f !== 4 && f !== 5; }), 'visages, logos et hors-sujet recalés dans les deux banques');
+    // b. rangée d'après ce qu'elle montre : le service sans recherche à lui (Dépannage) reçoit la photo que Léa a vue pour lui
+    fakes.VISION.places = function (id) { return id % 10 === 3 ? ['S3'] : ['H', 'A', 'B']; };
+    const r2 = await IM.choisir(clim, {});
+    fakes.VISION.places = null;
+    const dep = r2.photos.find(function (p) { return p.role === 'service' && p.pour === 2; });
+    assert.ok(dep && Number(dep.credit.id.slice(2)) % 10 === 3 && r2.photos.some(function (p) { return p.role === 'hero'; }), 'une photo cherchée pour le haut de page mais qui montre le dépannage va au dépannage : ' + r2.photos.map(function (p) { return p.role + (p.pour !== undefined ? p.pour : '') + ':' + p.credit.id; }).join(' '));
+    // c. rien ne va au haut de page au premier regard : second tour, avec les autres recherches du métier
+    const v0 = fakes.VISION.appels;
+    fakes.PEXELS.recherches.length = 0;
+    fakes.VISION.places = function () { return fakes.VISION.appels === v0 + 1 ? ['S1'] : ['H', 'A', 'B']; };
+    const r3 = await IM.choisir(clim, {});
+    fakes.VISION.places = null;
+    assert.ok(fakes.VISION.appels === v0 + 2 && r3.photos.some(function (p) { return p.role === 'hero'; }) && fakes.PEXELS.recherches.indexOf('air conditioning unit installation') >= 0, 'second tour : un haut de page trouvé avec une autre recherche du métier : ' + fakes.PEXELS.recherches.join(', '));
+    // d. Pixabay refuse sa clé : Pexels continue seul, la raison est notée
+    fakes.PIXABAY.refus = true;
+    const r4 = await IM.choisir(clim, {});
+    fakes.PIXABAY.refus = false;
+    assert.ok(r4.photos.length >= 3 && r4.photos.every(function (p) { return p.credit.source === 'Pexels'; }) && /Pixabay/.test(r4.erreur || ''), 'une banque en panne, l\'autre suffit : ' + r4.erreur);
+    // e. la clé Pixabay est essayée avant d'être enregistrée (Mise en route, étape facultative)
+    const jx0 = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
+    assert.ok(/clé Pixabay refusée/.test((await MI.enregistrer({ HQ_PIXABAY_KEY: 'mauvaise' })).erreur || ''), 'clé Pixabay refusée avec la raison');
+    const okX = await MI.enregistrer({ HQ_PIXABAY_KEY: 'bonne-cle-pixabay' });
+    if (jx0 === undefined) delete process.env.HQ_VERCEL_TOKEN; else process.env.HQ_VERCEL_TOKEN = jx0;
+    assert.ok(okX.ok && okX.enregistre.indexOf('HQ_PIXABAY_KEY') >= 0, 'clé Pixabay essayée puis enregistrée : ' + JSON.stringify(okX));
+    const etatM = await MI.etat(db);
+    const ph2 = etatM.missions.find(function (m) { return m.id === 'photos2'; });
+    assert.ok(ph2 && ph2.etapes[0].fait && etatM.missions.find(function (m) { return m.id === 'brancher'; }).etapes.find(function (e) { return e.id === 'photos'; }).fait, 'mise en route : Pexels fait, Pixabay en étape facultative');
+    delete process.env.HQ_PIXABAY_KEY;
+    // f. les recherches par métier : la location de matériel n'est plus une location de vacances, la finance a ses bureaux
+    const lm = T.pourMetier('location de matériel'), fi = T.pourMetier('Courtage, services financiers'), ag = T.pourMetier('Agriculture, élevage'), lv = T.pourMetier('Location de voitures');
+    assert.ok(lm.objectif === 'devis' && /equipment|excavator/.test(lm.photos.join(' ')) && /office|documents/.test(fi.photos.join(' ')) && /farm|plantation/.test(ag.photos.join(' ')) && /car/.test(lv.photos[0]) && T.pourMetier('climatisation').photos.length === 5 && Object.keys({}).length === 0, 'recherches par métier revues');
+    assert.ok(IM.places(clim).reserve.length >= 1 && IM.places(clim).every(function (p) { return p.requetes.every(function (q) { return !IM.PERSONNES.test(q); }); }), 'une réserve de recherches pour le second tour, jamais de personnes');
+    console.log('Photos OK : deux banques mêlées, chaque photo décrite (texte alternatif), rangée d\'après ce qu\'elle montre, second tour, une banque en panne n\'arrête rien, clé Pixabay en mise en route, recherches par métier revues');
   }
+
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
   console.log('Pilote automatique OK :', fakes.VERCEL.deploiements.length, 'déploiements,', fakes.STRIPE.liens.length, 'lien(s) de paiement, domaine', site.domaine, ', CA', w.compteurs.ca_eur, '€');
