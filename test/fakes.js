@@ -218,6 +218,9 @@ function claude(body) {
     if (!toolResult) return rep([tu('lister_leads', { statut: 'a_contacter', pret: true, limite: 5 })]);
     const r = dernierResultat(last);
     if (!Array.isArray(r)) return rep([tu('terminer', { resume: 'Emails écrits.' })]);
+    // six emails dans 3 000 jetons : la réponse est coupée au milieu de l'outil (vu en production le 6 nov.)
+    if (CLAUDE.chloeCoupe > 0) { CLAUDE.chloeCoupe--; CLAUDE.chloePremier = body.max_tokens; return rep([{ type: 'tool_use', id: 'tu_coupe_chloe', name: 'rediger_emails', input: {} }], 'max_tokens', { output_tokens: 600 }); }
+    if (CLAUDE.chloeCoupe !== undefined) CLAUDE.chloeMax = body.max_tokens;
     return rep([tu('rediger_emails', { emails: r.slice(0, 6).map(function (l, k) {
       const lien = /^https?:/.test(String(l.apercu || '')) ? l.apercu : null;
       // une ouverture propre à chacun (le contrôle refuse la même première phrase que dans un email récent)

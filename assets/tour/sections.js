@@ -339,7 +339,7 @@ const couts = {
   apres(el) { el.querySelectorAll('[data-bascule]').forEach((x) => x.addEventListener('click', () => x.classList.toggle('on'))); }
 };
 function champ(id, label, v, min, max, pas) { return '<label class="champ"><span>' + esc(label) + '</span><input class="saisie num" id="' + id + '" type="number" min="' + min + '" max="' + max + '" step="' + pas + '" value="' + esc(v) + '"></label>'; }
-action('budgetEnregistrer', (b) => { if (garde()) occupe(b, async () => { await envoyer({ op: 'budget', jour_usd: $('#bJour').value, recherches_jour: $('#bRech').value, places_jour: $('#bPlaces').value, emails_jour: $('#bMails').value, apercus_jour: $('#bApercus').value, domaine_max_usd: $('#bDomaine').value, note_envoi: $('#bNote').value, envoi_auto: $('#bAuto').classList.contains('on') }); toast('Plafonds enregistrés.', 'ok'); await rafraichir(); }); });
+action('budgetEnregistrer', (b) => { if (garde()) occupe(b, async () => { const r = await envoyer({ op: 'budget', jour_usd: $('#bJour').value, recherches_jour: $('#bRech').value, places_jour: $('#bPlaces').value, emails_jour: $('#bMails').value, apercus_jour: $('#bApercus').value, domaine_max_usd: $('#bDomaine').value, note_envoi: $('#bNote').value, envoi_auto: $('#bAuto').classList.contains('on') }); toast(r && r.reveilles && r.reveilles.length ? 'Plafonds enregistrés : ' + nom('redacteur') + ', ' + nom('critique') + ' et les autres repartent tout de suite.' : 'Plafonds enregistrés.', 'ok'); await rafraichir(); }); });
 
 /* ── la veille et les fiches des autres entreprises ── */
 const veille = {
