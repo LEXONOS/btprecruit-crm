@@ -2298,6 +2298,60 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(Date.parse(chloe.next_run_at) <= Date.now() + 2 * 60000 && db.tables.hq_messages.some(function (m) { return m.to_id === 'redacteur' && /lance l'envoi/.test(m.subject); }), 'l\'envoi lancé réveille Chloé');
     await PHx.ecrire(db, phase0, 'test');
     console.log('Vidéos et chaîne OK : longues réponses en flux (outil recollé, consommation exacte), flux muet abandonné, rotation de Jade réglable par Victor (pas sa cadence), Chloé réveillée par le lancement de l\'envoi');
+  }  // 38. CE QUE MIRANDA RELEVAIT SUR TOUS LES SITES (6 nov. 2026, 0 aperçu validé sur 60) : la note Google montrée une fois,
+  // des numéros de section qui se suivent, la phrase du contact fidèle aux moyens de joindre, la grande tuile du bento avec
+  // sa photo, les réponses de la FAQ ouvertes, ni code Google dans l'adresse ni +33 devant un numéro de Martinique, aucun
+  // texte coupé ; Léa regarde aussi les photos prises sur le site de l'entreprise
+  {
+    const RD = require('../lib/sites/rendu'), BR = require('../lib/sites/rubriques'), CO = require('../lib/sites/composition'), AT = require('../lib/sites/atelier'), CR = require('../lib/jobs/critique'), MQ = require('../lib/martinique'), IM = require('../lib/sites/images');
+    const ph = function (k, role, extra) { return Object.assign({ fichier: 'i' + k + '.jpg', sha: 'sha' + k, taille: 1000, l: 1920, h: 1280, alt: 'Climatiseur mural n° ' + k, role: role, credit: { id: 'px90' + k, source: 'Pexels', auteur: 'A', page: 'https://www.pexels.com/photo/' + k } }, extra || {}); };
+    const specD = { v: 3, nom: 'Clim Défauts', activite: 'Climatisation', metier: 'Climatisation', secteur: 'climatisation', commune: 'Ducos', titre: 'Votre clim posée et entretenue', accroche: 'Pose et entretien de climatiseurs pour les maisons du centre.', objectif: 'devis', appel: 'Une clim à poser ou à réparer en urgence ce s…',
+      services: [{ titre: 'Installation', texte: 'Split ou gainable, posé proprement.' }, { titre: 'Entretien', texte: 'Filtres et évacuation nettoyés.' }, { titre: 'Dépannage', texte: 'On cherche la cause avant de réparer.' }],
+      atouts: [{ titre: 'Ponctuel', texte: 'On vient à l\'heure dite.' }, { titre: 'Propre', texte: 'Chantier laissé net.' }, { titre: 'Clair', texte: 'Le prix avant les travaux.' }],
+      faq: [{ q: 'Vous venez à Ducos ?', r: 'Oui, et dans tout le centre.' }, { q: 'Un devis prend combien de temps ?', r: 'Nous passons dans la semaine.' }, { q: 'Vous entretenez toutes les marques ?', r: 'Oui, les grandes marques de split.' }],
+      a_propos: 'Clim Défauts pose et entretient des climatiseurs à Ducos.', google: { note: 4.7, avis: 53 },
+      contact: { tel: '+33596716670', adresse: 'JX76+HFQ, Ducos 97224, Martinique', maps: 'https://maps.google.com/?cid=1', horaires: ['Lundi : 07:30 – 17:00', 'Mardi : 07:30 – 17:00'] },
+      photos: [ph(1, 'hero'), ph(2, 'service', { pour: 0, pour_titre: 'installation' }), ph(3, 'apropos')] };
+    const compoD = { v: CO.VERSION_TPL, template: 'basalte', style: 'chantier', ambiance: 'franc', boutons: 'plein', mouvement: 'nette', fond: null, transition: null, numeros: { services: '01', apropos: '02', avis: '03', faq: '04', contact: '05' },
+      blocs: [{ id: 'nav.x-barre', surface: 'fond', rubrique: 'nav' }, { id: 'hero.x-split', surface: 'fond', rubrique: 'hero' }, { id: 'services.x-bento', surface: 'fond', rubrique: 'services' }, { id: 'apropos.x-faits', surface: 'surface', rubrique: 'apropos' }, { id: 'avis.x-ligne', surface: 'teinte', rubrique: 'avis' }, { id: 'faq.x-colonnes', surface: 'fond', rubrique: 'faq' }, { id: 'contact.x-colonnes', surface: 'surface', rubrique: 'contact' }, { id: 'pied.x-simple', surface: 'fond', rubrique: 'pied' }] };
+    const rD = RD.rendre({ slug: 'clim-defauts', spec: specD, version: 1 }, { mode: 'apercu', compo: compoD });
+    const hD = rD.files.find(function (f) { return /clim-defauts\/index\.html$/.test(f.file); }).data;
+    const corpsD = hD.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '').replace(/<head>[\s\S]*?<\/head>/, '');
+    assert.ok((corpsD.match(/53 (avis|clients)/g) || []).length === 1 && !/r-avis-x-ligne/.test(hD) && /class="xs-b"/.test(hD), 'la note Google une seule fois (la pastille du haut de page), la bande d\'avis se retire : ' + (corpsD.match(/53 (avis|clients)/g) || []).length);
+    const nums = (corpsD.match(/(\d{2}) — /g) || []).map(function (x) { return x.slice(0, 2); });
+    assert.ok(nums.length >= 3 && nums.every(function (n, k) { return Number(n) === k + 1; }), 'les numéros des sections se suivent (la bande d\'avis retirée n\'en prend pas) : ' + nums.join(' '));
+    const cols = (hD.match(/<span class="xco-n">(\d+)<\/span>/g) || []).map(function (x) { return x.replace(/\D/g, ''); });
+    assert.ok(cols.join(',') === '01,02', 'les colonnes du contact numérotées à la suite (pas d\'email : Appeler 01, Nous trouver 02) : ' + cols.join(','));
+    assert.ok(/Pour un devis, appelez-nous\./.test(hD) && !/avec plaisir|écrivez-nous/.test(hD), 'la phrase du contact dit ce qu\'on peut faire (un fixe seul : appeler), sans formule');
+    assert.ok((hD.match(/<details class="xqi" open/g) || []).length === 3, 'trois questions : toutes les réponses ouvertes');
+    assert.ok(!/JX76\+HFQ/.test(hD) && /Ducos 97224/.test(hD) && /tel:\+596596716670/.test(hD) && /0596 71 66 70/.test(hD) && !/\+33596/.test(hD), 'adresse sans code Google, numéro de Martinique en +596 (l\'appel compose le bon numéro)');
+    assert.ok(!/urgence ce s/.test(hD) && /class="xbe-i g ph"/.test(hD), 'un texte coupé par l\'ancien moteur ne s\'affiche plus ; la grande tuile du bento porte une photo');
+    const sansPh = Object.assign({}, specD, { photos: [] });
+    assert.ok(!BR.possible(BR.VARIANTES['services.x-bento'], sansPh, RD.contexte({ slug: 'x', spec: sansPh }, { mode: 'apercu' }).ctx) && BR.possible(BR.VARIANTES['services.x-bento'], specD, RD.contexte({ slug: 'x', spec: specD }, { mode: 'apercu' }).ctx), 'sans photo, pas de bento (sa grande tuile restait vide)');
+    assert.ok(MQ.e164('+33 6 96 12 34 56') === '+596696123456' && MQ.mobile('+33696123456') && MQ.e164('+33 6 12 34 56 78') === '+33612345678' && MQ.sansPlusCode('H24F+FJ2, Ducos 97224') === 'Ducos 97224', 'numéros des outre-mer écrits en +33 remis à leur indicatif (la métropole reste en +33), code Google retiré');
+    // l'atelier ne coupe plus rien au milieu d'un mot
+    const fA = AT.nettoyer({ nom: 'Kit Service', activite: 'Électricité', metier: 'Électricien', titre: 'Votre courant sûr et aux normes', accroche: 'Installation et dépannage électrique pour les maisons et les commerces.', appel: 'Un problème électrique ou une installation à faire ?', a_propos: 'Kit Service intervient chez les particuliers et les professionnels. Installation, mise aux normes, dépannage : nous travaillons proprement et nous expliquons chaque intervention avant de commencer. Nous intervenons dans tout le centre de la Martinique, avec un devis clair et un suivi après les travaux pour être sûrs que tout fonctionne bien chez vous.', services: [{ titre: 'Installation électrique', texte: 'Tableaux, prises, éclairage.' }] }, { name: 'Kit Service', sector: 'électricien', commune: 'Le Lamentin' }, { commune: 'Le Lamentin' });
+    assert.ok(fA.appel === 'Un problème électrique ou une installation à faire ?' && /commencer\.$/.test(fA.a_propos) && !/…/.test(JSON.stringify(fA)), 'atelier : la question du contact entière, la présentation arrêtée à sa dernière phrase entière : ' + fA.a_propos.slice(-40));
+    // Léa regarde les photos prises sur le site de l'entreprise : le logo (p4) et la photo hors sujet (p5) sortent, les
+    // bonnes restent décrites, la grande devant pour le haut de page ; deux bonnes suffisent, pas de banque
+    process.env.HQ_PEXELS_KEY = 'pexels-test';
+    const sienne = function (n, l, h) { return { fichier: 'p' + n + '.jpg', sha: 'sh' + n, taille: 1000, l: l, h: h, alt: 'Clim Siennes', source: 'https://clim-siennes.fr/photo' + n + '.jpg' }; };
+    const leadS = (await db.insert('hq_leads', { name: 'Clim Siennes', status: 'a_contacter', commune: 'Ducos', sector: 'climatisation' }))[0];
+    const siteS = (await db.insert('hq_sites', { lead_id: leadS.id, slug: 'clim-siennes', status: 'apercu', version: 1, url_apercu: 'https://novalemo-martinique.vercel.app/a/clim-siennes/', spec: Object.assign({}, specD, { nom: 'Clim Siennes', photos: [sienne(4, 1400, 900), sienne(2, 900, 600), sienne(5, 1200, 800), sienne(1, 1600, 1000)] }), data: {} }))[0];
+    const vis0 = fakes.VISION.appels;
+    const jxL = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
+    const rL = await require('../lib/jobs/photos').run({ db: db, peutDepenser: function () { return true; }, limite: Date.now() + 200000 });
+    if (jxL === undefined) delete process.env.HQ_VERCEL_TOKEN; else process.env.HQ_VERCEL_TOKEN = jxL;
+    const apres = db.tables.hq_sites.find(function (x) { return x.id === siteS.id; });
+    const sp = apres.spec.photos.filter(function (p) { return !p.credit; });
+    assert.ok(fakes.VISION.appels > vis0 && sp.map(function (p) { return p.fichier; }).join(',') === 'p1.jpg,p2.jpg' && sp[0].hero === true && sp[1].hero === false && sp.every(function (p) { return /^Scène de métier n° 70\d/.test(p.alt) && p.vu === IM.VERSION; }) && apres.version === 2, 'ses photos regardées : p1 (grande) devant pour le haut de page, p2 gardée, décrites : ' + sp.map(function (p) { return p.fichier + ':' + p.hero; }).join(' ') + ' / ' + rL.resume);
+    assert.ok((apres.spec.photos_ecartees || []).map(function (x) { return x.fichier + ':' + x.raison; }).join(',') === 'p4.jpg:texte ou logo,p5.jpg:hors sujet (3/10)' && !apres.spec.photos.some(function (p) { return p.credit; }) && apres.data.photos.v === IM.VERSION && apres.data.photos.source === 'site', 'le logo et la photo hors sujet sortent de la fiche (raison notée), deux bonnes photos à lui : pas de banque : ' + JSON.stringify(apres.spec.photos_ecartees) + ' / ' + JSON.stringify(apres.data.photos));
+    const rS = RD.rendre({ slug: 'clim-siennes', spec: apres.spec, version: 2 }, { mode: 'apercu' });
+    assert.ok(/img\/p1\.jpg/.test(rS.files[0].data) && !/img\/p4\.jpg|img\/p5\.jpg/.test(rS.files[0].data), 'le site montre ses bonnes photos, jamais celles écartées');
+    const petite = RD.repartir({ photos: [Object.assign(sienne(2, 900, 600), { hero: false }), ph(1, 'hero')] });
+    assert.ok(petite.hero && petite.hero.fichier === 'i1.jpg' && petite.apropos.fichier === 'p2.jpg', 'une petite photo à lui ne porte pas le haut de page (pixelisée) : elle sert plus bas');
+    assert.ok(CR.VERSION === 4, 'Miranda v4 : tout est rejugé avec de nouvelles reprises');
+    console.log('Défauts relevés par Miranda OK : note Google une fois, numéros qui se suivent, phrase du contact fidèle, bento avec sa photo, FAQ ouverte, adresse et numéro propres, aucun texte coupé, photos de l\'entreprise regardées par Léa, Miranda v4');
   }
 
 

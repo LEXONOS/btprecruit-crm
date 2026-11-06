@@ -60,7 +60,9 @@ function vision(body) {
   const codes = ((body.messages[0].content[0].text || '').match(/^(H|A|B|S\d) = /gm) || []).map(function (x) { return x.slice(0, -3); });
   const notes = blocs.map(function (b, k) {
     const txt = Buffer.from(b.source.data, 'base64').toString('latin1');
-    const id = Number((txt.match(/pexels-photo-(\d+)/) || txt.match(/pb-(\d+)/) || [])[1] || 0);
+    // les photos prises sur le site de l'entreprise (servies par l'aperçu, img/p<n>) : 700 + n (p4 un logo, p5 hors sujet)
+    const sienne = txt.match(/\/img\/p(\d+)\./);
+    const id = sienne ? 700 + Number(sienne[1]) : Number((txt.match(/pexels-photo-(\d+)/) || txt.match(/pb-(\d+)/) || [])[1] || 0);
     VISION.vues.push(id);
     const f = id % 10;
     // les photos Pixabay un peu mieux notées : elles gagnent des places quand les deux banques sont branchées
@@ -480,6 +482,8 @@ global.fetch = async function (url, opts) {
   if (MIRANDA.pages[url] !== undefined) { const pg = MIRANDA.pages[url]; return pg === 404 ? { ok: false, status: 404, text: async function () { return 'introuvable'; } } : { ok: true, status: 200, url: url, text: async function () { return pg; } }; }
   if (url.indexOf('api.pexels.com') >= 0) return pexels(url, opts);
   if (url.indexOf('images.pexels.com') >= 0) return imageFausse(url, 1920, 1280);
+  // les photos d'une entreprise, servies par son aperçu : p1 assez grande pour le haut de page, les autres plus petites
+  if (/\.vercel\.app\/a\/[a-z0-9-]+\/img\/p\d+\./.test(url)) { const n = Number(url.match(/img\/p(\d+)\./)[1]); return imageFausse(url, n === 1 ? 1600 : 900, n === 1 ? 1000 : 600); }
   if (url.indexOf('pixabay.com/api') >= 0) return pixabay(url);
   if (url.indexOf('pixabay.com/get/') >= 0) return imageFausse(url, /_640/.test(url) ? 640 : 1280, /_640/.test(url) ? 427 : 853);
   if (url.indexOf('picsum.photos') >= 0) return imageFausse(url, 1920, 1280);
