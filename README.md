@@ -22,7 +22,7 @@ Derrière une porte : le mot de passe de Louis.
 
 - Le cron Vercel appelle `/api/tick` toutes les 15 minutes. Les agents dont c'est l'heure passent : soit un travail automatique (chasse, enrichissement, aperçus, mise en ligne, contrôle des coûts), soit Claude avec des outils.
 - Hiérarchie réelle : un agent ne commande que ses équipes ; RH et directeurs donnent leur avis sur les propositions ; DG et PDG tranchent ; ce qui coûte de l'argent hors budget, crée un compte, touche à la loi ou lance une entreprise va à Louis. Les automates de la chaîne (chasseurs, Marcus, Noé, Iris, Léa, Miranda, Lucas...) suivent leur programme : un manager ne leur donne pas de tâche (ils ne les lisent pas) et ne les met pas en pause (seul Louis, depuis la tour) ; un rapport adressé à un agent en pause monte à son chef.
-- Argent : plafond IA par jour (1,50 $ par défaut) respecté au centime ; quand il se resserre, Novalemo passe en premier (les autres entreprises s'arrêtent à 60 %).
+- Argent : plafond IA par jour (1,50 $ par défaut) respecté au centime ; quand il se resserre, Novalemo passe en premier (les autres entreprises s'arrêtent à 60 %), et dans Novalemo Emma garde une réserve pour répondre aux prospects (le reste s'arrête à 85 %) ; Miranda ne prend jamais plus de la moitié du budget du jour à elle seule.
 
 ## Novalemo en pilote automatique (Martinique)
 

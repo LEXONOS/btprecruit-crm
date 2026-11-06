@@ -2163,6 +2163,19 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const rM2 = await exV.rapporter({ a: 'emailing', sujet: 'Email 9', message: 'Prix faux.' });
     ana.status = st0;
     assert.ok(/en pause/.test(rM2) && db.tables.hq_messages.some(function (m) { return m.subject === 'Email 9' && m.to_id === ana.parent_id; }), 'rapport à un agent en pause : son chef le reçoit : ' + rM2);
+    // M2. le budget du jour : Emma garde une réserve pour répondre (le reste de Novalemo s'arrête à 85 %, les autres
+    // entreprises à 60 %), et Miranda ne prend jamais plus de la moitié du budget à elle seule
+    const envB = await runtime.charger(db);
+    const agentB = function (id) { return envB.agents.find(function (a) { return a.id === id; }); };
+    envB.budget.jour_usd = 10;
+    const peut = function (dep, id) { envB.depense = dep; return envB.peutDepenser(agentB(id)); };
+    assert.ok(peut(5, 'critique') && peut(5, 'scenariste') && !peut(7, 'scenariste') && peut(8, 'critique') && !peut(9, 'critique') && !peut(9, 'demo') && peut(9, 'reponses') && !peut(10, 'reponses'), 'budget : réserve d\'Emma au-delà de 85 %, les autres entreprises à 60 %');
+    process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
+    await db.insert('hq_runs', { agent_id: 'critique', started_at: new Date().toISOString(), ok: true, cost_usd: 0.6, summary: 'jugements' }, { returning: false });
+    const jugB = fakes.MIRANDA.jugements;
+    const rB = await CR.run({ db: db, budget: { jour_usd: 1 }, peutDepenser: function () { return true; }, limite: Date.now() + 200000, compteurs: C0() });
+    delete process.env.CRON_SECRET;
+    assert.ok(/part du budget/.test(rB.resume) && fakes.MIRANDA.jugements === jugB, 'Miranda : sa moitié du budget prise, elle reprend demain : ' + rB.resume);
     // N. la version 15 : la file à l'ancienne offre annulée, les adresses mal lues nettoyées, les nouveaux domaines avec un site
     // audités, les tâches données à des automates closes
     const db15 = DB.memory();
@@ -2185,7 +2198,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(L15(1).email === 'avotreservice@gmail.com' && L15(2).email === 'contact@plomberiedom.com' && L15(3).status === 'nouveau', 'v15 : adresses nettoyées, nouveau domaine avec un site renvoyé à l\'audit : ' + JSON.stringify([L15(1).email, L15(2).email, L15(3).status]));
     assert.ok(L15(4).status === 'a_appeler' && L15(5).status === 'ecarte' && /Clim Cash Lamentin/.test(L15(5).reason), 'v15 : deux agences de la même entreprise, une seule démarchée');
     assert.ok(db15.tables.hq_tasks.find(function (t) { return t.id === t15.id; }).status === 'fait' && db15.tables.hq_messages.some(function (m) { return m.from_id === 'da' && /refont/.test(m.subject) && /ancienne offre/.test(m.body); }) && db15.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version === require('../lib/config').SEED_VERSION, 'v15 : tâche d\'automate close, Louis prévenu par Iris');
-    console.log('Audit des aperçus OK : grand titre (règles, sur-titre du métier et de la commune, posé par Iris), photo en haut de page, tuiles de services, rien de répété, listes relues, reprises rouvertes, prospects à appeler refaits, voisins sur le même template séparés, outil de fin redemandé, ancienne offre bloquée, adresses propres, nouveaux domaines audités, une entreprise un prospect, managers (automates, pauses), version 15');
+    console.log('Audit des aperçus OK : grand titre (règles, sur-titre du métier et de la commune, posé par Iris), photo en haut de page, tuiles de services, rien de répété, listes relues, reprises rouvertes, prospects à appeler refaits, voisins sur le même template séparés, outil de fin redemandé, ancienne offre bloquée, adresses propres, nouveaux domaines audités, une entreprise un prospect, managers (automates, pauses), réserve d\'Emma et part de Miranda, version 15');
   }
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
