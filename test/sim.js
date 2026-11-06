@@ -2088,6 +2088,15 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     fakes.MIRANDA.notes = [9];
     await passe();
     assert.ok(CR.peutPartir(leSite(sV.id)).ok, 'rejugé 9 : il peut partir');
+    // un site dont la composition date de l'ancien moteur : Miranda attend qu'Iris l'ait recomposé (sinon elle jugerait
+    // l'ancien rendu)
+    const sA = await mkA('audit-attend-iris', 'Clim Ancien Moteur', 'a_contacter');
+    sA.spec.compo.v = CO.VERSION_TPL - 1;
+    leSite(sA.id).spec = Object.assign({}, leSite(sA.id).spec, { compo: Object.assign({}, leSite(sA.id).spec.compo, { v: CO.VERSION_TPL - 1 }) });
+    const jugA = fakes.MIRANDA.jugements;
+    const cA = await passe();
+    assert.ok(fakes.MIRANDA.jugements === jugA && !leSite(sA.id).data.critique && /Iris/.test(cA.passages.map(function (p) { return p.resume; }).join(' ')), 'ancien moteur : Miranda attend Iris : ' + cA.passages.map(function (p) { return p.resume; }).join(' | '));
+    leSite(sA.id).status = 'annule';
     delete process.env.CRON_SECRET;
     // H. Iris : le grand titre posé sur les fiches d'avant (pas sur un aperçu déjà montré), les prospects à appeler
     // relus comme pas encore montrés, et deux climaticiens voisins qui gardaient le même template
