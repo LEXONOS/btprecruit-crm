@@ -2146,9 +2146,16 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
       { id: 5, name: 'Tesselec', website: 'https://www.welinkbuilders.fr/electricien/tesselec-1102', phone: '+33 7 51 66 08 24', status: 'nouveau' },
       { id: 6, name: 'Clim Écrite', website: null, phone: '+596 696 11 11 11', status: 'contacte' },
       { id: 7, name: 'Clim Écrite bis', website: null, phone: '0696 11 11 11', status: 'stop' },
-      { id: 8, name: 'Clim Écrite ter', website: null, phone: '+33 6 96 11 11 11', status: 'a_appeler' }
+      { id: 8, name: 'Clim Écrite ter', website: null, phone: '+33 6 96 11 11 11', status: 'a_appeler' },
+      { id: 9, name: 'Sutty Cédric', website: 'https://blog-sans-rapport.wordpress.com/?s=martinique', phone: '+596 696 19 34 55', status: 'a_appeler' },
+      { id: 10, name: 'Auto Moto École BW', website: 'https://blog-sans-rapport.wordpress.com/?s=Martinique', phone: null, status: 'sans_contact' },
+      { id: 11, name: 'Caisse Sécu Schœlcher', website: null, phone: '0820 22 25 55', status: 'a_appeler' },
+      { id: 12, name: 'Mutuelle Ouest', website: null, phone: '+596 820 22 25 55', status: 'a_appeler' },
+      { id: 13, name: 'Antilles Fermetures', website: 'https://antilles-fermetures.com', email: 'contact@antilles-fermetures.com', status: 'a_contacter' },
+      { id: 14, name: 'Dirickx Martinique', website: 'https://antilles-fermetures.com/dirickx', email: 'contact@antilles-fermetures.com', status: 'nouveau' }
     ], new Set([6]));
     assert.ok(dd.get(1).garde.id === 2 && dd.get(3).garde.id === 2 && !dd.has(2) && !dd.has(4) && !dd.has(5) && !dd.has(6) && !dd.has(7) && dd.get(8).stop && dd.get(8).stop.id === 7, 'une entreprise, un prospect : ' + JSON.stringify(Array.from(dd.keys())));
+    assert.ok(!dd.has(9) && !dd.has(10) && !dd.has(11) && !dd.has(12) && dd.get(14).garde.id === 13, 'un blog sans rapport ou un standard national ne font pas une entreprise ; la même adresse email, si');
     // M. les managers : une tâche à un automate est refusée (il ne lit pas les tâches), un rapport à un agent en pause monte
     // à son chef, la chaîne de production ne se met pas en pause par un manager
     env = await runtime.charger(db);
