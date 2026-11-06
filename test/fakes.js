@@ -167,6 +167,7 @@ function studioWeb(body) {
 // les modèles de la génération 5.5 refusent un outil imposé (tool_choice « tool » ou « any ») : on le simule pour le modèle
 // le plus fort (CLAUDE.refusOutil), et l'outil demandé en clair (tool_choice « auto ») est servi comme l'outil imposé
 const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
+const OUVERTURES = { n: 0 };
 function claude(body) {
   appelsClaude++;
   if (CLAUDE.refusOutil && body.model === require('../lib/config').MODELS.genius.id && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
@@ -214,7 +215,9 @@ function claude(body) {
       const lien = /^https?:/.test(String(l.apercu || '')) ? l.apercu : null;
       // une ouverture propre à chacun (le contrôle refuse la même première phrase que dans un email récent)
       const m = String(l.metier || l.secteur || 'votre métier').toLowerCase(), ou = l.commune ? 'à ' + l.commune : 'en Martinique';
-      // (huit ouvertures, une par place dans le lot : deux emails d'un même lot ne commencent jamais pareil)
+      // (huit ouvertures tournées sur toute la simulation, puis la même avec un mot de plus : deux emails ne commencent
+      // jamais pareil, quel que soit l'ordre des numéros de prospects, qui dépend des agents passés en parallèle)
+      const tour = OUVERTURES.n++;
       const ouverture = [
         'En cherchant ' + m + ' ' + ou + ', je suis tombé sur ' + l.nom + ', mais pas sur un site.',
         l.nom + ' apparaît sur Google pour ' + m + ' ' + ou + ', sans site derrière.',
@@ -224,7 +227,7 @@ function claude(body) {
         'Quand on tape ' + m + ' ' + ou + ', on trouve ' + l.nom + ' mais rien pour découvrir vos services.',
         l.nom + ' a de bons avis pour ' + m + ' ' + ou + ', il ne manque qu\'un site pour les montrer.',
         'Pour ' + m + ' ' + ou + ', ' + l.nom + ' sort sur Google, mais sans site à visiter.'
-      ][(k + (r[0] ? r[0].id : 0)) % 8];
+      ][tour % 8].replace(/\.$/, ['.', ', je l\'ai vu ce matin.', ', je l\'ai vu cette semaine.', ', je l\'ai remarqué hier.', ', je l\'ai vu en passant.', ', je l\'ai noté aujourd\'hui.'][Math.floor(tour / 8) % 6]);
       return { lead_id: l.id, objet: 'Le site de ' + l.nom, angle: lien ? 'apercu' : 'conformite', corps: 'Bonjour,\n\n' + ouverture + '\n\n' + (lien ? 'J\'ai préparé un aperçu de ce que pourrait être le vôtre : ' + lien + '\n\n' : 'Je peux vous préparer un aperçu gratuit de votre futur site.\n\n') + 'Tout est inclus : la création, la mise en ligne sur votre nom de domaine et l\'hébergement la première année. Le site vous appartient, sans abonnement obligatoire, et tout reste modifiable : textes, photos, couleurs.\n\nJe le mets en ligne pour vous ?\n\nLouis\nNovalemo, sites internet en Martinique' };
     }) }), tu('terminer', { resume: Math.min(6, r.length) + ' emails.' })]);
   }
