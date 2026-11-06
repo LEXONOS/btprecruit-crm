@@ -435,6 +435,33 @@ function pexels(url, opts) {
   const photos = [0, 1, 2, 3, 4, 5].map(function (k) { const id = base * 10 + k; return { id: id, width: 6000, height: 4000, url: 'https://www.pexels.com/photo/' + id + '/', photographer: 'Photographe ' + k, photographer_url: 'https://www.pexels.com/@p' + k, alt: k === 0 ? 'Smiling man fixing an air conditioner' : 'Close up of ' + q, src: { original: 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg' } }; });
   return { ok: true, status: 200, json: async function () { return { photos: photos, total_results: 6 }; } };
 }
+// La réponse en flux (server-sent events), découpée en petits morceaux qui coupent les lignes n'importe où, comme sur le
+// réseau ; « FLUX_MUET » dans le système : le flux s'ouvre puis ne dit plus rien
+async function enFlux(r, corps) {
+  CLAUDE.flux = (CLAUDE.flux || 0) + 1;
+  const sys = (corps.system || []).map(function (b) { return b.text || ''; }).join(' ');
+  if (/FLUX_MUET/.test(sys)) return { ok: true, status: 200, body: new ReadableStream({ start: function (c) { c.enqueue(new TextEncoder().encode('event: ping\ndata: {"type":"ping"}\n\n')); } }) };
+  const d = await r.json();
+  const u = d.usage || {};
+  const ev = [{ type: 'message_start', message: { id: 'msg_flux', type: 'message', role: 'assistant', model: corps.model, content: [], stop_reason: null, usage: { input_tokens: u.input_tokens || 0, cache_read_input_tokens: u.cache_read_input_tokens || 0, cache_creation_input_tokens: u.cache_creation_input_tokens || 0, output_tokens: 1 } } }];
+  (d.content || []).forEach(function (b, i) {
+    if (b.type === 'tool_use') {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } });
+      const j = JSON.stringify(b.input || {});
+      for (let k = 0; k < j.length; k += 23) ev.push({ type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: j.slice(k, k + 23) } });
+    } else {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'text', text: '' } });
+      const t = b.text || '';
+      for (let k = 0; k < t.length; k += 17) ev.push({ type: 'content_block_delta', index: i, delta: { type: 'text_delta', text: t.slice(k, k + 17) } });
+    }
+    ev.push({ type: 'content_block_stop', index: i });
+  });
+  ev.push({ type: 'message_delta', delta: { stop_reason: d.stop_reason }, usage: { output_tokens: u.output_tokens || 0 } });
+  ev.push({ type: 'message_stop' });
+  const octets = new TextEncoder().encode(ev.map(function (e) { return 'event: ' + e.type + '\ndata: ' + JSON.stringify(e) + '\n\n'; }).join(''));
+  let pos = 0;
+  return { ok: true, status: 200, body: new ReadableStream({ pull: function (c) { if (pos >= octets.length) { c.close(); return; } c.enqueue(octets.slice(pos, pos + 41)); pos += 41; } }) };
+}
 const PIXABAY = { recherches: [], refus: false };
 function pixabay(url) {
   const u = new URL(url);
@@ -457,7 +484,7 @@ global.fetch = async function (url, opts) {
   if (url.indexOf('pixabay.com/get/') >= 0) return imageFausse(url, /_640/.test(url) ? 640 : 1280, /_640/.test(url) ? 427 : 853);
   if (url.indexOf('picsum.photos') >= 0) return imageFausse(url, 1920, 1280);
   if (url.indexOf('api.kapso.ai') >= 0) return kapso(url, opts);
-  if (url.indexOf('api.anthropic.com') >= 0) return claude(JSON.parse(opts.body));
+  if (url.indexOf('api.anthropic.com') >= 0) { const corps = JSON.parse(opts.body); const r = await claude(corps); return corps.stream && r && r.ok ? enFlux(r, corps) : r; }
   if (url.indexOf('api.vercel.com') >= 0) return vercel(url, opts);
   if (url.indexOf('api.stripe.com') >= 0) return stripe(url, opts);
   if (url.indexOf('places.googleapis.com') >= 0) {

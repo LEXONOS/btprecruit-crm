@@ -263,14 +263,18 @@ body.perf-basse .verre, body.perf-basse .barre, body.perf-basse .menu-compte { b
 .argent > div { padding: 20px 20px 22px; }
 .argent > div + div { border-left: 1px solid var(--ligne); }
 
-/* la chaîne Novalemo : du prospect au site en ligne */
-.chaine { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; margin-top: 4px; }
+/* la chaîne Novalemo : de l'entreprise trouvée au site en ligne, dans l'ordre (huit maillons, quatre par ligne) */
+.chaine { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 10px; margin-top: 4px; }
+.maillon:nth-child(4n)::after { display: none; }
+.maillon:nth-child(4n) { margin-right: 0; }
 .maillon { position: relative; padding: 14px 14px 12px; border-radius: 14px; background: var(--surface-2); margin-right: 10px; min-width: 0; }
 .maillon:last-child { margin-right: 0; }
 .maillon:not(:last-child)::after { content: ''; position: absolute; right: -10px; top: 50%; width: 10px; height: 2px; background: var(--ligne-2); }
 .maillon b { display: block; font-size: 24px; font-weight: 650; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .maillon small { display: block; font-size: 12.5px; font-weight: 550; color: var(--encre-2); }
-.maillon span { display: block; font-size: 11.5px; color: var(--pale); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.maillon span { display: block; font-size: 11.5px; line-height: 1.4; color: var(--pale); margin-top: 6px; }
+.maillon.arrete { background: var(--attention-pale, #fff4e0); }
+.maillon.arrete span { color: var(--encre-2); }
 .maillon .jauge { margin-top: 10px; }
 .maillon.vif { background: var(--cobalt-pale); }
 .maillon.vif b { color: var(--cobalt-encre); }
@@ -457,7 +461,11 @@ details.repli[open] summary::before { content: '– '; }
   .argent > div:nth-child(n+3) { border-top: 1px solid var(--ligne); }
   .chiffre b { font-size: 24px; }
   .chiffre.grand b { font-size: 30px; }
-  .chaine { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; }
+  .chaine { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .maillon:nth-child(4n) { margin-right: 10px; }
+  .maillon:nth-child(2n) { margin-right: 0; }
+  .maillon:nth-child(4n)::after { display: block; }
+  .maillon:nth-child(2n)::after { display: none; }
   .maillon:nth-child(3n) { margin-right: 0; }
   .maillon:nth-child(3n)::after { display: none; }
   .route { grid-template-columns: 1fr; }

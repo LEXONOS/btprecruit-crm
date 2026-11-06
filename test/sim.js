@@ -99,8 +99,10 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const ex = tools.executeurs({ db: db, agent: dg, agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
   assert.ok(/Louis/.test(await ex.decider({ proposition_id: pr[0].id, decision: 'valider', note: 'ok' })), 'une dépense part chez Louis');
   assert.ok((await ex.assigner({ a: 'dg_novalemo', titre: 'x', consigne: 'y' })).erreur, 'un DG ne commande pas un autre DG');
-  env.depense = 0.7 * env.budget.jour_usd;
-  assert.ok(env.peutDepenser({ company_id: 'novalemo' }) && !env.peutDepenser({ company_id: 'ecom' }), 'budget serré : Novalemo passe en premier');
+  // chaque entreprise dans sa part du jour (Novalemo la plus grande), aucune ne prend celle des autres
+  const pl = env.budget.jour_usd;
+  env.depense = 0.6 * pl; env.depenseSociete = { novalemo: 0.5 * pl, ecom: 0.1 * pl, studio3d: 0 };
+  assert.ok(env.peutDepenser({ id: 'demo', company_id: 'novalemo' }) && !env.peutDepenser({ id: 'veille_ecom', company_id: 'ecom' }) && env.peutDepenser({ id: 'scenariste', company_id: 'studio3d' }), 'budget : chaque entreprise dans sa part, Novalemo la plus grande, le Studio garde la sienne');
 
   // 6. la boîte d'envoi (pilote automatique)
   process.env.HQ_MAIL_USER = 'louis@novalemo-mq.fr'; process.env.HQ_MAIL_PASS = 'secret-de-test';
@@ -2184,8 +2186,8 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const envB = await runtime.charger(db);
     const agentB = function (id) { return envB.agents.find(function (a) { return a.id === id; }); };
     envB.budget.jour_usd = 10;
-    const peut = function (dep, id) { envB.depense = dep; return envB.peutDepenser(agentB(id)); };
-    assert.ok(peut(5, 'critique') && peut(5, 'scenariste') && !peut(7, 'scenariste') && peut(8, 'critique') && !peut(9, 'critique') && !peut(9, 'demo') && peut(9, 'reponses') && !peut(10, 'reponses'), 'budget : réserve d\'Emma au-delà de 85 %, les autres entreprises à 60 %');
+    const peut = function (total, nova, studio, id) { envB.depense = total; envB.depenseSociete = { novalemo: nova, studio3d: studio }; return envB.peutDepenser(agentB(id)); };
+    assert.ok(peut(5, 5, 0, 'critique') && peut(8, 6, 2, 'scenariste') && !peut(8, 5, 3, 'scenariste') && !peut(7, 6.5, 0.5, 'critique') && !peut(7, 6.5, 0.5, 'demo') && peut(7, 6.5, 0.5, 'reponses') && !peut(9.2, 6, 2, 'critique') && !peut(9.2, 6, 2, 'scenariste') && peut(9.2, 6.5, 2.7, 'reponses') && !peut(10, 7, 3, 'reponses'), 'budget : Novalemo 65 %, Studio 30 %, les derniers 10 % du jour à Emma');
     process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
     await db.insert('hq_runs', { agent_id: 'critique', started_at: new Date().toISOString(), ok: true, cost_usd: 0.6, summary: 'jugements' }, { returning: false });
     const jugB = fakes.MIRANDA.jugements;
@@ -2261,7 +2263,43 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(lm.objectif === 'devis' && /equipment|excavator/.test(lm.photos.join(' ')) && /office|documents/.test(fi.photos.join(' ')) && /farm|plantation/.test(ag.photos.join(' ')) && /car/.test(lv.photos[0]) && T.pourMetier('climatisation').photos.length === 5 && Object.keys({}).length === 0, 'recherches par métier revues');
     assert.ok(IM.places(clim).reserve.length >= 1 && IM.places(clim).every(function (p) { return p.requetes.every(function (q) { return !IM.PERSONNES.test(q); }); }), 'une réserve de recherches pour le second tour, jamais de personnes');
     console.log('Photos OK : deux banques mêlées, chaque photo décrite (texte alternatif), rangée d\'après ce qu\'elle montre, second tour, une banque en panne n\'arrête rien, clé Pixabay en mise en route, recherches par métier revues');
+  }  // 37. LES VIDÉOS ET LA CHAÎNE (nov. 2026) : une longue réponse (la scène 3D d'Oscar) arrive en flux, morceau par morceau,
+  // au lieu de buter sur le délai d'une requête ; un flux muet est abandonné ; Victor règle la rotation de Jade (et rien
+  // d'autre chez un automate) ; Marcus réveille Noé ; Louis qui lance l'envoi réveille Chloé (pas Ana, en pause)
+  {
+    const CL = require('../lib/claude');
+    const outilEssai = { name: 'fiche_essai', description: 'La fiche.', input_schema: { type: 'object', properties: { sujets: { type: 'array', items: { type: 'string' } } } } };
+    const corps = { model: 'claude-sonnet-5-5', max_tokens: 9000, system: [{ type: 'text', text: 'Essai du flux.' }], messages: [{ role: 'user', content: 'La fiche, longue.' }], tools: [outilEssai] };
+    fakes.CLAUDE.modeEssai = null;
+    const f0 = fakes.CLAUDE.flux || 0;
+    const rf = await CL.appel(corps, 1, { flux: true });
+    const rs = await CL.appel(corps, 1);
+    const bF = rf.data.content.find(function (b) { return b.type === 'tool_use'; }), bS = rs.data.content.find(function (b) { return b.type === 'tool_use'; });
+    assert.ok(rf.ok && (fakes.CLAUDE.flux || 0) === f0 + 1 && bF && JSON.stringify(bF.input) === JSON.stringify(bS.input) && Array.isArray(bF.input.sujets) && rf.data.stop_reason === rs.data.stop_reason && rf.data.usage.input_tokens === rs.data.usage.input_tokens && rf.data.usage.output_tokens === rs.data.usage.output_tokens, 'en flux, la même réponse qu\'en un bloc (outil recollé morceau par morceau, consommation comprise) : ' + JSON.stringify(bF && bF.input));
+    const muet = Object.assign({}, corps, { system: [{ type: 'text', text: 'FLUX_MUET' }] });
+    const t0 = Date.now();
+    let refus = null;
+    try { await CL.appel(muet, 1, { flux: true, silence: 150 }); } catch (e) { refus = e; }
+    assert.ok(refus && /muette/.test(refus.message) && Date.now() - t0 < 3000, 'un flux qui se tait est abandonné (puis réessayé par l\'appelant) : ' + (refus && refus.message));
+    // Victor règle la rotation de Jade, jamais sa cadence ni sa marche
+    env = await runtime.charger(db);
+    const vic = env.agents.find(function (a) { return a.id === 'dircom_novalemo'; });
+    const exVic = tools.executeurs({ db: db, agent: vic, agents: env.agents, budget: env.budget, compteurs: C0() });
+    const okJ = await exVic.regler_agent({ agent: 'chasse_maps', consigne_strategie: 'Métiers : climatisation, électricien\nZones : Le Lamentin, Ducos' });
+    const koJ = await exVic.regler_agent({ agent: 'chasse_maps', cadence_min: 1440, consigne_strategie: 'Métiers : plombier' });
+    const jade = db.tables.hq_agents.find(function (a) { return a.id === 'chasse_maps'; });
+    assert.ok(okJ === 'réglé' && /Zones : Le Lamentin, Ducos/.test(jade.playbook) && koJ.erreur && /consigne_strategie seule/.test(koJ.erreur) && jade.cadence_min !== 1440, 'la rotation de Jade se règle par une consigne, sa cadence non');
+    // Louis lance l'envoi : l'ordre va à Chloé, réveillée tout de suite (Ana, en pause, ne le lirait pas)
+    const chloe = db.tables.hq_agents.find(function (a) { return a.id === 'redacteur'; });
+    chloe.next_run_at = new Date(Date.now() + 5 * 3600000).toISOString();
+    const PHx = require('../lib/sites/phase');
+    const phase0 = (await PHx.lire(db)).phase;
+    await agir('phase_sites', { phase: 'envoi' });
+    assert.ok(Date.parse(chloe.next_run_at) <= Date.now() + 2 * 60000 && db.tables.hq_messages.some(function (m) { return m.to_id === 'redacteur' && /lance l'envoi/.test(m.subject); }), 'l\'envoi lancé réveille Chloé');
+    await PHx.ecrire(db, phase0, 'test');
+    console.log('Vidéos et chaîne OK : longues réponses en flux (outil recollé, consommation exacte), flux muet abandonné, rotation de Jade réglable par Victor (pas sa cadence), Chloé réveillée par le lancement de l\'envoi');
   }
+
 
   console.log('Garde-fous OK : ancien lien payé, doubles paiements, paiement de test, domaine raté, STOP (objet compris), usurpation (en-têtes), réessais, aperçu expiré, zone, liens nus, pagination, 70 commandes, 35 DNS en attente, Wix, agents en parallèle, retouches, verrous, achat sans réponse, domaines, clé de test, panne Stripe, commandes closes');
   }
