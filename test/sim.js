@@ -190,9 +190,13 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   let dep = fakes.VERCEL.deploiements[fakes.VERCEL.deploiements.length - 1];
   const chemins = dep.files.map(function (f) { return f.file; });
   assert.ok(chemins.indexOf('a/' + site.slug + '/index.html') >= 0 && chemins.indexOf('a/' + site.slug + '/mentions-legales/index.html') >= 0 && chemins.indexOf('_f/inter.woff2') >= 0 && chemins.indexOf('_n/cgv/index.html') >= 0 && chemins.indexOf('vercel.json') >= 0 && chemins.some(function (c) { return /\/img\/p1\.jpg$/.test(c); }), 'déploiement complet');
-  // Chloé écrit avec le lien, le contrôle vérifie qu'il y est
+  // Chloé écrit avec le lien, le contrôle vérifie qu'il y est ; sa première réponse est coupée par la longueur en plein
+  // outil (vu en production le 6 nov. : six emails dans 3 000 jetons, rien d'écrit) : le tour est refait avec plus de place
+  fakes.CLAUDE.chloeCoupe = 1;
   dus(['redacteur']);
   await runtime.cycle({ db: db, agentId: 'redacteur', secondes: 200 });
+  assert.ok(fakes.CLAUDE.chloeCoupe === 0 && fakes.CLAUDE.chloePremier === 7000 && fakes.CLAUDE.chloeMax > fakes.CLAUDE.chloePremier, 'Chloé a la place d\'écrire tout le lot (7 000 jetons), et une réponse coupée en plein outil est refaite avec plus de place (' + fakes.CLAUDE.chloePremier + ' puis ' + fakes.CLAUDE.chloeMax + ')');
+  delete fakes.CLAUDE.chloeCoupe;
   let oc = db.tables.hq_outbox.find(function (o) { return o.lead_id === lc.id && o.kind === 'prospection'; });
   assert.ok(oc && oc.status === 'pret' && oc.body.indexOf(l3.apercu_url) >= 0, 'premier email avec le lien de l\'aperçu : ' + JSON.stringify({ oc: oc && { st: oc.status, lien: oc.body.indexOf(l3.apercu_url) }, lead: { id: lc.id, st: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).status, score: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).score }, prets: db.tables.hq_leads.filter(function (l) { return l.status === 'a_contacter' && ['publie', 'echec'].indexOf(l.apercu_etat) >= 0; }).map(function (l) { return l.id + ':' + l.score; }), boite: db.tables.hq_outbox.filter(function (o) { return o.kind === 'prospection'; }).map(function (o) { return o.lead_id + ':' + o.status; }) }));
   const sansLien = await exC.rediger_emails({ emails: [{ lead_id: lc.id, objet: 'x', corps: 'y' }] });
@@ -2367,6 +2371,15 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await agir('budget', { note_envoi: '6.7' });
     assert.ok(db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value.note_envoi === 6.5, 'le seuil d\'envoi se règle depuis la tour, au demi-point');
     await agir('budget', { note_envoi: '6' });
+    // le plafond du jour relevé depuis la tour : Chloé (et ceux que le budget avait mis en pause) repart tout de suite
+    const jour0 = db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value.jour_usd;
+    db.tables.hq_agents.filter(function (a) { return a.id === 'redacteur' || a.id === 'critique'; }).forEach(function (a) { a.next_run_at = new Date(Date.now() + 15 * 3600000).toISOString(); });
+    const rB = await agir('budget', { jour_usd: String(jour0 + 5) });
+    const chB = db.tables.hq_agents.find(function (a) { return a.id === 'redacteur'; }), miB = db.tables.hq_agents.find(function (a) { return a.id === 'critique'; });
+    assert.ok(rB.reveilles && rB.reveilles.indexOf('redacteur') >= 0 && Date.parse(chB.next_run_at) <= Date.now() + 2 * 60000 && Date.parse(miB.next_run_at) <= Date.now() + 3 * 60000, 'plafond relevé : Chloé et Miranda repartent tout de suite au lieu d\'attendre minuit');
+    chB.next_run_at = new Date(Date.now() + 15 * 3600000).toISOString();
+    const rB2 = await agir('budget', { jour_usd: String(jour0) });
+    assert.ok(!rB2.reveilles.length && Date.parse(chB.next_run_at) > Date.now() + 3600000, 'plafond baissé : personne n\'est réveillé');
     // un aperçu prêt chez un prospect à écrire : ni Miranda ni Léa n'y touchent avant son premier email
     const lP = (await db.insert('hq_leads', { company_id: 'novalemo', dedupe: 'test:pret', source: 'maps', name: 'Clim Prête', sector: 'climatisation', island: 'MQ', commune: 'Ducos', email: 'clim@prete-mq.fr', email_source: 'site', status: 'a_contacter', score: 80, apercu_etat: 'publie' }))[0];
     const spP = Object.assign(require('./vitrine').exemple('clim'), { nom: 'Clim Prête' });
