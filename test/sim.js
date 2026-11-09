@@ -3,6 +3,7 @@
 // Lance : node test/sim.js
 'use strict';
 process.env.HQ_TOUR_PROJET = 'prj_tour'; process.env.HQ_TOUR_EQUIPE = 'team_test';
+process.env.HQ_AGENTS_ACTIFS = 'tous'; // la simulation complète fait tourner tout le groupe (la liste réduite a son essai : test/garde.js)
 process.env.HQ_LOCAL = '1';            // le cron sans secret ne passe qu'en local déclaré
 process.env.ANTHROPIC_API_KEY = 'test';
 process.env.GOOGLE_MAPS_API_KEY = 'test';
@@ -99,10 +100,10 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const ex = tools.executeurs({ db: db, agent: dg, agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
   assert.ok(/Louis/.test(await ex.decider({ proposition_id: pr[0].id, decision: 'valider', note: 'ok' })), 'une dépense part chez Louis');
   assert.ok((await ex.assigner({ a: 'dg_novalemo', titre: 'x', consigne: 'y' })).erreur, 'un DG ne commande pas un autre DG');
-  // chaque entreprise dans sa part du jour (Novalemo la plus grande), aucune ne prend celle des autres
+  // depuis le 9 nov. 2026, Novalemo a tout le budget du jour ; le Studio n'a plus de part, les autres presque rien
   const pl = env.budget.jour_usd;
   env.depense = 0.6 * pl; env.depenseSociete = { novalemo: 0.5 * pl, ecom: 0.1 * pl, studio3d: 0 };
-  assert.ok(env.peutDepenser({ id: 'demo', company_id: 'novalemo' }) && !env.peutDepenser({ id: 'veille_ecom', company_id: 'ecom' }) && env.peutDepenser({ id: 'scenariste', company_id: 'studio3d' }), 'budget : chaque entreprise dans sa part, Novalemo la plus grande, le Studio garde la sienne');
+  assert.ok(env.peutDepenser({ id: 'demo', company_id: 'novalemo' }) && !env.peutDepenser({ id: 'veille_ecom', company_id: 'ecom' }) && !env.peutDepenser({ id: 'scenariste', company_id: 'studio3d' }), 'budget : Novalemo a tout le budget, le Studio et les autres n\'en ont plus');
 
   // 6. la boîte d'envoi (pilote automatique)
   process.env.HQ_MAIL_USER = 'louis@novalemo-mq.fr'; process.env.HQ_MAIL_PASS = 'secret-de-test';
@@ -1758,8 +1759,9 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const m1 = await mk('miranda-un', 'Clim Miranda');
     const leSiteM = function (id) { return db.tables.hq_sites.find(function (x) { return x.id === id; }); };
     const passeM = async function () { await PU.ecrireEtat(db, { en_cours: null, a_publier: false }); dus(['critique']); return runtime.cycle({ db: db, agentId: 'critique', secondes: 200 }); };
-    // le modèle le plus fort refuse l'outil imposé (génération 5.5) : Miranda le lui demande en clair, une seule fois refusée
-    fakes.CLAUDE.refusOutil = true;
+    // le modèle refuse l'outil imposé (génération 5.5) : Miranda le lui demande en clair, une seule fois refusée (Miranda
+    // juge sur Sonnet depuis le 9 nov. 2026)
+    fakes.CLAUDE.refusOutil = true; fakes.CLAUDE.modeleRefus = require('../lib/config').MODELS.smart.id;
     fakes.MIRANDA.notes = [5];
     const heroDe = function (c) { return (c.blocs.find(function (b) { return b.rubrique === 'hero'; }) || {}).id; };
     const hero0 = heroDe(leSiteM(m1.s.id).spec.compo);
@@ -1767,7 +1769,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const s1 = leSiteM(m1.s.id);
     assert.ok(s1.data.critique.verdict === 'a_refaire' && s1.data.critique.note === 5 && s1.version === 2 && heroDe(s1.spec.compo) !== hero0 && s1.spec.compo.template === leSiteM(m1.s.id).spec.compo.template && (s1.spec.compo.eviter || []).indexOf(hero0) >= 0 && fakes.MIRANDA.derniers[0].images >= 6, 'Miranda refuse un 5 : le haut de page est remplacé, le site republié : ' + JSON.stringify(s1.data.critique.reprise));
     assert.ok(!CR.peutPartir(s1).ok && /5\/10, sous le seuil/.test(CR.peutPartir(s1).raison), '5/10, sous le seuil d\'envoi : il ne part pas');
-    assert.ok(fakes.CLAUDE.refus === 1 && fakes.CLAUDE.enClair >= 1 && s1.data.critique.modele === require('../lib/config').MODELS.genius.id, 'outil imposé refusé par le modèle : demandé en clair, le jugement passe, et le refus n\'est payé qu\'une fois : ' + JSON.stringify(fakes.CLAUDE));
+    assert.ok(fakes.CLAUDE.refus === 1 && fakes.CLAUDE.enClair >= 1 && s1.data.critique.modele === require('../lib/config').MODELS.smart.id, 'outil imposé refusé par le modèle : demandé en clair, le jugement passe, et le refus n\'est payé qu\'une fois : ' + JSON.stringify(fakes.CLAUDE));
     const lucas = db.tables.hq_agents.find(function (a) { return a.id === 'livraison'; });
     assert.ok(lucas && Date.parse(lucas.next_run_at) <= Date.now() + 2 * 60000, 'reprise à publier : Lucas est réveillé, la chaîne ne dort pas');
     const jeton0 = process.env.HQ_VERCEL_TOKEN; process.env.HQ_VERCEL_TOKEN = 'test-vercel';
@@ -1778,10 +1780,11 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await passeM();
     assert.ok(leSiteM(m1.s.id).data.critique.verdict === 'valide' && leSiteM(m1.s.id).data.critique.version === 2 && CR.peutPartir(leSiteM(m1.s.id)).ok, 'reprise jugée 8,5 : validé, il peut partir');
     const m2 = await mk('miranda-deux', 'Froid Exigeant');
-    fakes.MIRANDA.notes = [4, 4, 4];
-    await passeM(); await passeM(); await passeM();
+    // une seule reprise depuis le 9 nov. 2026 : deux fois sous le seuil, il est laissé
+    fakes.MIRANDA.notes = [4, 4];
+    await passeM(); await passeM();
     const s2 = leSiteM(m2.s.id);
-    assert.ok(s2.data.critique.abandon && s2.data.critique.tours === 3 && !CR.peutPartir(s2).ok && /sous le seuil/.test(CR.peutPartir(s2).raison), 'trois fois sous le seuil d\'envoi : laissé, il ne part pas, Louis voit pourquoi');
+    assert.ok(s2.data.critique.abandon && s2.data.critique.tours === 2 && !CR.peutPartir(s2).ok && /sous le seuil/.test(CR.peutPartir(s2).raison), 'deux fois sous le seuil d\'envoi : laissé, il ne part pas, Louis voit pourquoi');
     // la tour : la phase et les verdicts
     const tb = await PHs.tableau(db);
     assert.ok(tb.phase === 'envoi' && tb.sites.some(function (x) { return x.id === m1.s.id && x.critique && x.critique.verdict === 'valide'; }), 'la tour montre les verdicts de Miranda');
@@ -1818,13 +1821,14 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(g4 && /illisibles/.test(g4.erreur || '') && fakes.MIRANDA.jugements === jug0 && !CR.peutPartir(leSiteM(m4.s.id)).ok, 'captures illisibles : rien envoyé au jugement, essai noté, le site attend : ' + JSON.stringify(g4));
     fakes.MIRANDA.illisible = false;
     leSiteM(m4.s.id).data.regard.attendre_jusqua = new Date(Date.now() + 3600000).toISOString();
-    // un site déjà montré au prospect n'est jamais refait par Miranda : son avis est gardé, le site ne bouge pas
+    // un site déjà montré au prospect n'est jamais refait par Miranda ; depuis le 9 nov. 2026 il n'est même plus jugé
+    // (seuls les aperçus qui vont partir par email le sont) : rien n'est dépensé, le site ne bouge pas
     const m5 = await mk('miranda-cinq', 'Clim Montrée');
     await db.update('hq_leads', { status: 'contacte' }, { eq: { id: m5.l.id } });
     fakes.MIRANDA.notes = [5];
-    const v5 = leSiteM(m5.s.id).version;
+    const v5 = leSiteM(m5.s.id).version, jug5 = fakes.MIRANDA.jugements;
     await passeM();
-    assert.ok(leSiteM(m5.s.id).data.critique && leSiteM(m5.s.id).data.critique.montre && leSiteM(m5.s.id).version === v5, 'déjà montré : avis gardé, site inchangé');
+    assert.ok(!leSiteM(m5.s.id).data.critique && leSiteM(m5.s.id).version === v5 && fakes.MIRANDA.jugements === jug5, 'déjà montré : pas jugé, site inchangé, rien dépensé');
     // un prospect qu'on ne joindra plus (écarté, sans contact) : Miranda ne regarde pas son site, rien n'est dépensé
     const m6 = await mk('miranda-six', 'Clim Injoignable');
     await db.update('hq_leads', { status: 'sans_contact' }, { eq: { id: m6.l.id } });
@@ -2076,15 +2080,16 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
       await db.update('hq_leads', { site_id: st.id }, { eq: { id: l.id } });
       return st;
     };
-    const sJ = await mkA('audit-json', 'Clim Liste Texte', 'a_appeler');
+    // (depuis le 9 nov. 2026, seuls les aperçus qui vont partir par email sont jugés : un prospect à contacter, sous le seuil)
+    const sJ = await mkA('audit-json', 'Clim Liste Texte', 'a_contacter');
     const hero0 = sJ.spec.compo.blocs.find(function (b) { return b.rubrique === 'hero'; }).id;
     fakes.MIRANDA.enTexte = true;
-    fakes.MIRANDA.notes = [6];
+    fakes.MIRANDA.notes = [5];
     await passe();
     fakes.MIRANDA.enTexte = false;
     const cJ = leSite(sJ.id).data.critique;
     assert.ok(cJ && cJ.verdict === 'a_refaire' && cJ.problemes.length === 1 && cJ.problemes[0].zone === 'haut de page' && cJ.actions.indexOf('changer_rubriques') >= 0 && cJ.points_forts.length === 0, 'Miranda en texte JSON : ses problèmes sont lus (avant : une liste vide) : ' + JSON.stringify(cJ && cJ.problemes));
-    assert.ok(leSite(sJ.id).version === 2 && (leSite(sJ.id).spec.compo.eviter || []).indexOf(hero0) >= 0, 'et la reprise vise la section qu\'elle a citée (un prospect à appeler se refait comme les autres)');
+    assert.ok(leSite(sJ.id).version === 2 && (leSite(sJ.id).spec.compo.eviter || []).indexOf(hero0) >= 0, 'et la reprise vise la section qu\'elle a citée');
     // G. un site abandonné par l'ancienne Miranda : le moteur a changé, elle le rejuge avec de nouvelles reprises
     const sV = await mkA('audit-ancien', 'Clim Ancien Refus', 'a_contacter', { critique: { v: CR.VERSION - 1, version: 1, note: 5, verdict: 'a_refaire', tours: 3, abandon: true, resume: 'Le premier écran ne repose que sur la commune en lettres énormes.' } });
     assert.ok(!CR.peutPartir(leSite(sV.id)).ok, 'refusé par l\'ancienne Miranda : il attend son nouveau jugement');
@@ -2192,7 +2197,8 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     const agentB = function (id) { return envB.agents.find(function (a) { return a.id === id; }); };
     envB.budget.jour_usd = 10;
     const peut = function (total, nova, studio, id) { envB.depense = total; envB.depenseSociete = { novalemo: nova, studio3d: studio }; return envB.peutDepenser(agentB(id)); };
-    assert.ok(peut(5, 5, 0, 'critique') && peut(8, 6, 2, 'scenariste') && !peut(8, 5, 3, 'scenariste') && !peut(7, 6.5, 0.5, 'critique') && !peut(7, 6.5, 0.5, 'demo') && peut(7, 6.5, 0.5, 'reponses') && !peut(9.2, 6, 2, 'critique') && !peut(9.2, 6, 2, 'scenariste') && peut(9.2, 6.5, 2.7, 'reponses') && !peut(10, 7, 3, 'reponses'), 'budget : Novalemo 65 %, Studio 30 %, les derniers 10 % du jour à Emma');
+    // depuis le 9 nov. 2026 : Novalemo a tout le budget jusqu'à 90 %, le Studio plus rien, les derniers 10 % à Emma
+    assert.ok(peut(5, 5, 0, 'critique') && !peut(8, 6, 2, 'scenariste') && peut(8.5, 8.5, 0, 'demo') && !peut(9.2, 9.2, 0, 'critique') && !peut(9.2, 9.2, 0, 'demo') && peut(9.2, 9.2, 0, 'reponses') && !peut(10, 10, 0, 'reponses'), 'budget : Novalemo jusqu\'à 90 %, le Studio plus rien, les derniers 10 % du jour à Emma');
     process.env.CRON_SECRET = 'secret-du-cron-de-test-0123456789';
     await db.insert('hq_runs', { agent_id: 'critique', started_at: new Date().toISOString(), ok: true, cost_usd: 0.6, summary: 'jugements' }, { returning: false });
     const jugB = fakes.MIRANDA.jugements;
