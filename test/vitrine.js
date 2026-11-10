@@ -2,7 +2,8 @@
 // sur des fiches d'exemple (huit métiers), avec de vraies polices et des photos (PHOTOS_DIR, sinon des images de
 // remplacement). node test/vitrine.js --port=8793 [--photos=/chemin]
 //   /                         la liste
-//   /site/<exemple>           le site complet de l'exemple (?essai=2 pour un autre tirage, ?force=hero.voile,services.cartes)
+//   /site/<exemple>           le site complet de l'exemple (?essai=2 pour un autre tirage, ?template=mangrove,
+//                             ?decoupe=vague, ?force=hero.x-arche,services.x-cartes)
 //   /variante/<id>/<exemple>  l'en-tête, la variante seule (?surface=champ&fond=grain) et le pied
 'use strict';
 const http = require('http');
@@ -116,7 +117,14 @@ function rendrePage(chemin, q) {
   const opts = { mode: 'apercu', optimiseur: false, racineImg: '/img/', base: '/site/' + nom + '/', contactNovalemo: 'louis@novalemo.fr' };
   const x = R.contexte(site, opts);
   let compo = C.composer(x.spec, x.ctx, { essai: Number(q.get('essai') || 0) });
-  if (q.get('force')) { const ch = {}; q.get('force').split(',').forEach(function (id) { const v = B.VARIANTES[id]; if (v) ch[v.rubrique] = id; }); compo = C.composer(x.spec, x.ctx, { essai: Number(q.get('essai') || 0), choix: ch }); }
+  // ?template=mangrove, ?decoupe=vague (ou aucune), ?force=hero.x-galets,services.x-arches (sections du template forcées)
+  if (q.get('force') || q.get('template') || q.get('decoupe')) {
+    const ch = {};
+    if (q.get('template')) ch.template = q.get('template');
+    if (q.get('decoupe')) ch.decoupe = q.get('decoupe');
+    compo = C.composer(x.spec, x.ctx, { essai: Number(q.get('essai') || 0), choix: ch });
+    (q.get('force') || '').split(',').forEach(function (id) { const v = B.VARIANTES[id]; if (!v) return; const b = compo.blocs.find(function (z) { return z.rubrique === v.rubrique; }); if (b) b.id = id; });
+  }
   if (m2) {
     const v = B.VARIANTES[m2[1]];
     if (!v) return '<p>Variante inconnue</p>';
