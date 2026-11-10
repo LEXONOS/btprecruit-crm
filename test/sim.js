@@ -1720,6 +1720,47 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
       });
     });
     assert.deepStrictEqual(defautsT.slice(0, 6), [], 'les 40 templates se rendent sur les huit fiches d\'exemple');
+    // les découpes (planche de Louis) : la forme du template, entre deux fonds différents dont le dessous est une couleur,
+    // deux au plus, seulement là où elle tient ; dessinée sur la page avec sa feuille ; « aucune » et la critique (dc:forme)
+    // l'enlèvent ; jamais avec les panneaux, qui détachent déjà chaque section
+    const DCm = require('../lib/sites/rubriques/decoupes');
+    const B0 = function (id) { return 'r-' + id.replace(/\./g, '-') + ' '; };
+    assert.ok(DCm.IDS.length === 18 && DCm.IDS.every(function (id) { const x = DCm.svg(id); return /^<svg viewBox="0 0 1440 \d+"/.test(x) && /<(path|circle)\b/.test(x) && !/NaN|undefined/.test(x); }) && Object.keys(DCm.MARGES).every(function (id) { return BR.VARIANTES[id]; }), 'dix-huit découpes dessinées, les marges mesurées sont celles de vraies sections');
+    const defautsD = [];
+    let poseesD = 0;
+    TPL.TEMPLATES.filter(function (x) { return x.decoupe || x.panneaux; }).forEach(function (x) {
+      Object.keys(VT.EXEMPLES).forEach(function (e) {
+        const sp = VT.exemple(e), cx2 = RD.contexte({ slug: 'dc-' + e, spec: sp }, { mode: 'apercu' }).ctx;
+        const k = CO.composer(sp, cx2, { choix: { template: x.id } });
+        const avec = k.blocs.filter(function (b) { return b.dc; });
+        if (avec.length > 2) defautsD.push(x.id + '/' + e + ' : plus de deux découpes');
+        if (x.panneaux && avec.length) defautsD.push(x.id + '/' + e + ' : découpe avec des panneaux');
+        avec.forEach(function (b) { const a = k.blocs[k.blocs.indexOf(b) - 1]; if (b.dc !== x.decoupe.forme || !DCm.possible(b.dc, a.surface, b.surface) || !DCm.tient(b.dc, a.id)) defautsD.push(x.id + '/' + e + ' : découpe mal posée sous ' + a.id); });
+        const rD = RD.rendre({ slug: 'dc-' + e, spec: sp }, { mode: 'apercu', compo: k }), html = rD.files[0].data;
+        // (une section qui ne se rend pas, la note déjà montrée plus haut, passe sa découpe à la suivante, si elle y tient)
+        const dessinees = html.match(/<div class="dc dc-[a-z-]+( dc-inv)?" aria-hidden="true" style="color:var\(--[a-z]+\)"><svg /g) || [];
+        poseesD += dessinees.length;
+        if (dessinees.length > 2 || (dessinees.length && (x.panneaux || html.indexOf('.dc-' + x.decoupe.forme + '{--dc-h:') < 0 || !/<\/section><div class="dc /.test(html)))) defautsD.push(x.id + '/' + e + ' : découpe mal dessinée (' + dessinees.length + ')');
+        const rendue = function (b) { return new RegExp('<section class="r ' + B0(b.id)).test(html); };
+        if (avec.some(function (b) { return rendue(b) && rendue(k.blocs[k.blocs.indexOf(b) - 1]); }) && !dessinees.length) defautsD.push(x.id + '/' + e + ' : découpe prévue entre deux sections rendues, et perdue');
+        if (x.panneaux && !/<body class="[^"]*\bpn\b/.test(html)) defautsD.push(x.id + '/' + e + ' : panneaux absents');
+        const kA = CO.composer(sp, cx2, { choix: { template: x.id, decoupe: 'aucune' } }), kE = CO.composer(sp, cx2, { choix: { template: x.id }, eviter: ['dc:' + (x.decoupe && x.decoupe.forme)] });
+        if (kA.blocs.some(function (b) { return b.dc; }) || kE.blocs.some(function (b) { return b.dc; })) defautsD.push(x.id + '/' + e + ' : découpe refusée mais posée');
+      });
+    });
+    assert.deepStrictEqual(defautsD.slice(0, 6), [], 'les découpes des templates : bien posées, dessinées, retirables');
+    assert.ok(poseesD >= 60, 'les templates à découpe en posent vraiment (' + poseesD + ')');
+    // le constructeur peut demander une forme qui raconte le métier (des gouttes pour un glacier), même sur un template sans découpe
+    const exG = VT.exemple('table'), cxG = RD.contexte({ slug: 'dc-g', spec: exG }, { mode: 'apercu' }).ctx;
+    const kG = CO.composer(exG, cxG, { choix: { template: 'colombo', decoupe: 'gouttes' } });
+    assert.ok(kG.blocs.some(function (b) { return b.dc === 'gouttes'; }) && kG.choix.decoupe === 'gouttes' && /class="dc dc-gouttes/.test(RD.rendre({ slug: 'dc-g', spec: exG }, { mode: 'apercu', compo: kG }).files[0].data), 'une découpe demandée par le constructeur est posée et gardée dans le choix');
+    // les grilles du bento : une aire rectangulaire par photo, plus le titre
+    const GR = require('../lib/sites/rubriques/x-formes').GRILLES;
+    Object.keys(GR).forEach(function (n) {
+      const rangs = GR[n].aires.map(function (l) { return l.split(' '); }), lettres = Array.from(new Set([].concat.apply([], rangs)));
+      const rect = function (l) { const c = []; rangs.forEach(function (r, y) { r.forEach(function (x, xx) { if (x === l) c.push([xx, y]); }); }); const xs = c.map(function (q) { return q[0]; }), ys = c.map(function (q) { return q[1]; }); return (Math.max.apply(null, xs) - Math.min.apply(null, xs) + 1) * (Math.max.apply(null, ys) - Math.min.apply(null, ys) + 1) === c.length; };
+      assert.ok(rangs.every(function (r) { return r.length === GR[n].col; }) && lettres.length === Number(n) + 1 && lettres.every(rect), 'bento de ' + n + ' photos : une aire rectangulaire par tuile');
+    });
     // l'en-tête est posé sur le haut de page : transparent tant qu'on n'a pas défilé (sinon, sur une photo, son texte blanc
     // disparaît sur une bande claire)
     BR.PAR_RUBRIQUE.nav.filter(function (v) { return v.x; }).forEach(function (v) { assert.ok(/\.r\.r-nav-x-[a-z]+\{[^}]*background:transparent/.test(typeof v.css === 'function' ? v.css() : v.css), v.id + ' : en-tête transparent sur le haut de page'); });
@@ -1894,7 +1935,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     assert.ok(ph11(0).v === 0 && !ph11(0).rien && ph11(1).rien === 'déjà montré au prospect' && ph11(1).v === IM.VERSION, 'version 11 : l\'aperçu du prospect à appeler est repris par Léa, celui déjà montré ne bouge pas');
     const re11 = db11.tables.hq_leads.find(function (x) { return x.id === la[2].id; });
     assert.ok(st11(2) === 'nouveau' && re11.score === 66 && re11.reason === 'Google Maps : plombier, site faible' && st11(3) === 'ecarte' && db11.tables.hq_agents.find(function (a) { return a.id === 'chasse_maps'; }).cadence_min === 90, 'version 11 : réaudit des écartés jamais écrits (repartis de leur note et de leur raison d\'origine), Jade toutes les 90 minutes : ' + JSON.stringify([re11.score, re11.reason]));
-    console.log('Nouveau moteur OK : ' + ctl.variantes + ' variantes contrôlées (' + ctl.rendus + ' rendus), compositions stables et toujours différentes entre voisins, choix du constructeur gardé, phase de test, priorité aux entreprises sans site, adresses devinées écartées, Miranda (regard, refus, reprise, validation, abandon, panne)');
+    console.log('Nouveau moteur OK : ' + ctl.variantes + ' variantes contrôlées (' + ctl.rendus + ' rendus), ' + TPL.TEMPLATES.length + ' templates, découpes posées et retirables, panneaux, compositions stables et toujours différentes entre voisins, choix du constructeur gardé, phase de test, priorité aux entreprises sans site, adresses devinées écartées, Miranda (regard, refus, reprise, validation, abandon, panne)');
   }
   // 33. LE PANNEAU DE L'APERÇU : la page porte sa clé, sans elle rien ne passe ; l'intérêt du prospect monte dans le CRM
   // sans toucher à son statut ; ses images et ses retouches arrivent chez Emma comme un message vérifié, qu'elle applique ;
