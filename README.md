@@ -7,6 +7,20 @@ Une entreprise entièrement faite d'agents IA, organisée comme une vraie socié
 
 Derrière une porte : le mot de passe de Louis.
 
+## Depuis le 9 novembre 2026 : seulement Novalemo
+
+En 5 jours, la tour a dépensé 88 $ d'IA pour 16 emails envoyés et aucune vente. Trois causes : Oscar (scènes 3D) relancé toutes les 30 minutes et coupé à chaque fois par la limite de 5 minutes de la fonction (environ 20 $ par jour que la tour ne voyait pas, puisqu'elle ne comptait un passage qu'à sa fin) ; Miranda qui jugeait sur Opus des aperçus que personne ne recevait ; et 103 aperçus fabriqués pour une boîte qui n'envoie que quelques emails par jour. Ce qui a changé :
+
+- **Seule la chaîne Novalemo travaille** (`ACTIFS` dans `lib/config.js`) : chasse, Marcus, Margot, Noé, Iris, Léa, Miranda, Lucas, Lina, Chloé, Yanis, Emma, Camille. Tous les autres agents sont en pause, rien n'est supprimé. Pour en rallumer : les ajouter à `ACTIFS`, ou `HQ_AGENTS_ACTIFS` dans Vercel (`tous` pour revenir à l'ancien fonctionnement).
+- **La garde** (`lib/garde.js`) : chaque appel à Claude, d'où qu'il vienne, est compté au prix du modèle réellement appelé et écrit au compteur du jour au moment où il est payé. Deux plafonds, 1 $ par jour et 25 $ par mois par défaut (réglables dans la tour : Coûts, Les plafonds) : chaque appel réserve d'avance ce qu'il peut coûter au plus, et ne part pas s'il pourrait dépasser l'un ou l'autre, ni s'il ne peut pas finir avant la coupure de la fonction. Un appel coupé en route (réponse en flux interrompue, délai dépassé) est compté à son prix maximum : il a été payé. Plafond du mois atteint : plus rien ne part jusqu'au 1er, Louis est prévenu une fois. Repère : la chaîne Novalemo coûte environ 0,13 $ par prospect (son aperçu, son jugement, son email, sa relance), soit 7 à 8 prospects par jour pour 1 $.
+- **Un agent coupé deux fois de suite** en plein passage est mis en pause, et Louis est prévenu.
+- **Miranda juge sur Sonnet**, seulement les aperçus qui vont partir par email, avec une reprise au plus.
+- **Noé fabrique au rythme des envois** : seulement pour un prospect dont l'adresse a été lue sur son site, et quand le stock d'aperçus prêts (30 au plus) baisse.
+- **La chasse s'arrête** quand 40 prospects attendent déjà leur email.
+- **La boîte** ne compte plus les rebonds des vieilles adresses devinées (interdites à froid depuis la version 9) : ce sont eux qui l'avaient mise en pause le 9 novembre.
+
+Essai : `node test/garde.js`.
+
 ## Le groupe au départ
 
 - **Direction du Groupe** : Maximilien (PDG), Inès (DRH), Hugo (développement), Camille (contrôle de gestion).
@@ -22,7 +36,7 @@ Derrière une porte : le mot de passe de Louis.
 
 - Le cron Vercel appelle `/api/tick` toutes les 15 minutes. Les agents dont c'est l'heure passent : soit un travail automatique (chasse, enrichissement, aperçus, mise en ligne, contrôle des coûts), soit Claude avec des outils.
 - Hiérarchie réelle : un agent ne commande que ses équipes ; RH et directeurs donnent leur avis sur les propositions ; DG et PDG tranchent ; ce qui coûte de l'argent hors budget, crée un compte, touche à la loi ou lance une entreprise va à Louis. Les automates de la chaîne (chasseurs, Marcus, Noé, Iris, Léa, Miranda, Lucas...) suivent leur programme : un manager ne leur donne pas de tâche (ils ne les lisent pas) et ne les met pas en pause (seul Louis, depuis la tour) ; un rapport adressé à un agent en pause monte à son chef.
-- Argent : plafond IA par jour (1,50 $ par défaut) respecté au centime ; chaque entreprise a sa part du jour, comptée sur ce qu'elle dépense elle-même (Novalemo 65 %, Studio 3D 30 %, les autres 8 % chacune, réglable par `parts` dans la configuration du budget), aucune ne prend celle des autres ; les derniers 10 % du jour restent à Emma pour répondre aux prospects ; Miranda ne prend jamais plus de la moitié du budget du jour à elle seule. Les longues réponses (une scène 3D, un script) arrivent en flux, dans le temps qu'il reste au passage.
+- Argent : plafonds IA par jour (1 $) et par mois (25 $) comptés appel par appel par la garde ; chaque entreprise a sa part du jour, comptée sur ce qu'elle dépense elle-même (depuis le 9 nov. 2026 : Novalemo 100 %, Studio 3D 0, les autres 5 % chacune, réglable par `parts` dans la configuration du budget), aucune ne prend celle des autres ; les derniers 10 % du jour restent à Emma pour répondre aux prospects ; Miranda ne prend jamais plus de la moitié du budget du jour à elle seule. Les longues réponses (une scène 3D, un script) arrivent en flux, dans le temps qu'il reste au passage.
 
 ## Novalemo en pilote automatique (Martinique)
 

@@ -177,7 +177,7 @@ const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
 const OUVERTURES = { n: 0 };
 function claude(body) {
   appelsClaude++;
-  if (CLAUDE.refusOutil && body.model === require('../lib/config').MODELS.genius.id && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
+  if (CLAUDE.refusOutil && body.model === (CLAUDE.modeleRefus || require('../lib/config').MODELS.genius.id) && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
     CLAUDE.refus++;
     return { ok: false, status: 400, json: async function () { return { type: 'error', error: { type: 'invalid_request_error', message: 'tool_choice: type "tool" and "any" are not supported for this model.' } }; } };
   }

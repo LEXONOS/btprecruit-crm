@@ -3,6 +3,7 @@
 // Lance : node test/studio.js
 'use strict';
 process.env.HQ_TOUR_PROJET = 'prj_tour'; process.env.HQ_TOUR_EQUIPE = 'team_test';
+process.env.HQ_AGENTS_ACTIFS = 'tous'; // le Studio est en pause dans la tour depuis le 9 nov. 2026, mais son moteur reste essayé
 process.env.HQ_LOCAL = '1';
 process.env.ANTHROPIC_API_KEY = 'test';
 delete process.env.HQ_SUPABASE_KEY; delete process.env.HQ_GITHUB_TOKEN; delete process.env.HQ_USINE_SECRET;
