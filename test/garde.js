@@ -118,15 +118,25 @@ const appelSimple = function () { return claude.converse({ tier: 'smart', system
   const autres = db.tables.hq_agents.filter(function (a) { return config.ACTIFS.indexOf(a.id) < 0 && a.kind !== 'attente' && a.status !== 'attente'; });
   assert.ok(actifsEnPause.length === 0 && autres.length > 0 && autres.every(function (a) { return a.status === 'paused'; }), 'tous les autres agents sont en pause, aucun de la chaîne');
   const bud = db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value;
-  assert.ok(bud.jour_usd === 2 && !bud.parts, 'le plafond passe de 10 $ à 2 $, les parts retirées');
+  assert.ok(bud.jour_usd === 1 && bud.mois_usd === 25 && !bud.parts && bud.mois_depuis === jourGP(), 'le plafond passe de 10 $ à 1 $ par jour, 25 $ par mois compté à partir d\'aujourd\'hui, les parts retirées : ' + JSON.stringify(bud));
   assert.strictEqual(db.tables.hq_agents.find(function (x) { return x.id === 'critique'; }).model, 'smart', 'Miranda passe sur Sonnet');
   const bt = await BX.lireEtat(db);
   assert.ok(!bt.pause && bt.reprise_at, 'la boîte reprend : ses rebonds venaient des adresses devinées');
   const c = await BX.rebondsComptes(db, debut);
   assert.ok(c.envoyes === 10 && c.durs === 0 && c.ignores === 5, 'recomptés sans les adresses devinées : 10 envois, 0 rebond : ' + JSON.stringify(c));
   const note = (db.tables.hq_messages || []).find(function (m) { return m.to_id === 'louis' && /ne fait plus que Novalemo/.test(m.subject || ''); });
-  assert.ok(note && /2 \$/.test(note.body) && /reprend/.test(note.body), 'Louis est prévenu de tout : ' + (note && note.body));
-  console.log('Migration 19 OK :', autres.length, 'agents en pause, plafond 2 $, Miranda sur Sonnet, boîte relancée');
+  assert.ok(note && /1 \$ par jour/.test(note.body) && /25 \$ par mois/.test(note.body) && /reprend/.test(note.body), 'Louis est prévenu de tout : ' + (note && note.body));
+  console.log('Migration 19 OK :', autres.length, 'agents en pause, 1 $ par jour et 25 $ par mois, Miranda sur Sonnet, boîte relancée');
+
+  // 7 bis. un plafond plus bas choisi par Louis est gardé par la migration
+  db = base();
+  await runtime.semer(db);
+  db.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version = 18;
+  db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value = Object.assign({}, config.BUDGET_DEFAUT, { jour_usd: 0.5, mois_usd: 12 });
+  await runtime.semer(db);
+  const bas = db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value;
+  assert.ok(bas.jour_usd === 0.5 && bas.mois_usd === 12, 'plafonds plus bas gardés : ' + JSON.stringify(bas));
+  console.log('Migration 19 OK : un plafond plus bas choisi par Louis reste le sien');
 
   // 8. une boîte vraiment abîmée reste en pause, même recomptée
   db = base();
@@ -141,6 +151,78 @@ const appelSimple = function () { return claude.converse({ tier: 'smart', system
   await runtime.semer(db);
   assert.ok((await BX.lireEtat(db)).pause, 'de vrais rebonds (3 sur 15 adresses lues sur les sites) : la boîte reste en pause');
   console.log('Boîte OK : de vrais rebonds la laissent en pause');
+
+  // 9. le plafond du mois : au-delà, plus rien ne part, même un jour neuf
+  db = base();
+  await db.upsert('hq_config', { key: 'budget', value: Object.assign({}, config.BUDGET_DEFAUT, { jour_usd: 5, mois_usd: 3 }) }, { onConflict: 'key' });
+  await db.rpc('hq_bump', { p_day: jourGP(), p_cost: 3, p_runs: 0, p_searches: 0, p_places: 0, p_leads: 0, p_emails: 0, p_items: 0 });
+  let refusMois = null;
+  try { await appelSimple(); } catch (e) { refusMois = e; }
+  assert.ok(refusMois && refusMois.budget && refusMois.mois && /du mois/.test(refusMois.message), 'au plafond du mois : l\'appel ne part pas : ' + (refusMois && refusMois.message));
+  // les jours d'avant, du même mois, comptent aussi (sauf le 1er, qui n'a pas de veille dans le mois)
+  db = base();
+  await db.upsert('hq_config', { key: 'budget', value: Object.assign({}, config.BUDGET_DEFAUT, { jour_usd: 5, mois_usd: 3 }) }, { onConflict: 'key' });
+  const hier = jourGP(new Date(Date.now() - 86400000));
+  if (hier.slice(0, 7) === jourGP().slice(0, 7)) {
+    await db.rpc('hq_bump', { p_day: hier, p_cost: 3.2, p_runs: 0, p_searches: 0, p_places: 0, p_leads: 0, p_emails: 0, p_items: 0 });
+    let r2 = null;
+    try { await appelSimple(); } catch (e) { r2 = e; }
+    assert.ok(r2 && r2.mois, 'la veille compte dans le mois : ' + (r2 && r2.message));
+    // sauf si la garde a pris la main aujourd'hui : ce que l'ancienne tour a dépensé avant ne compte pas
+    await db.update('hq_config', { value: Object.assign({}, config.BUDGET_DEFAUT, { jour_usd: 5, mois_usd: 3, mois_depuis: jourGP() }) }, { eq: { key: 'budget' } });
+    garde.oublier();
+    const r3 = await appelSimple();
+    assert.ok(r3.cout > 0, 'mois compté depuis la mise en route : l\'appel part');
+  }
+  console.log('Plafond du mois OK :', refusMois.message);
+
+  // 10. chaque appel réserve d'avance ce qu'il peut coûter : deux appels en même temps ne passent pas ensemble au-dessus
+  db = base();
+  await db.upsert('hq_config', { key: 'budget', value: Object.assign({}, config.BUDGET_DEFAUT, { jour_usd: 0.15, mois_usd: 25 }) }, { onConflict: 'key' });
+  const gros = { model: config.MODELS.smart.id, max_tokens: 10000, system: 'test', messages: [{ role: 'user', content: 'Bonjour' }] };
+  const estGros = garde.estimer(gros);
+  assert.ok(estGros > 0.09 && estGros < 0.12, 'un appel de 10 000 jetons de réponse sur Sonnet peut coûter 0,10 $ : ' + estGros);
+  const j1 = await garde.avant(gros);
+  let j2 = null, refusR = null;
+  try { j2 = await garde.avant(gros); } catch (e) { refusR = e; }
+  assert.ok(!j2 && refusR && refusR.budget, 'le deuxième appel ne part pas tant que le premier peut encore coûter : ' + (refusR && refusR.message));
+  garde.liberer(j1);
+  const j3 = await garde.avant(gros);
+  assert.ok(j3 && Math.abs(garde.reserve() - estGros) < 1e-9, 'la réservation rendue, l\'appel suivant part');
+  // un appel coupé en route (flux interrompu, délai dépassé) est compté à son prix maximum, jamais oublié
+  await garde.perdu(j3);
+  assert.ok(Math.abs(jour(db).cost_usd - estGros) < 1e-9 && garde.reserve() === 0, 'appel coupé : compté au prix maximum : ' + jour(db).cost_usd);
+  console.log('Réservation OK : un appel à', estGros.toFixed(3), '$ au plus réservé, un appel coupé compté à ce prix');
+
+  // 11. Haiku 5.5 coûte cinq fois plus au-delà de 100 000 jetons lus : compté au bon prix
+  assert.ok(garde.prixDe('claude-haiku-5-5', 1000).in === 0.10 && garde.prixDe('claude-haiku-5-5', 150000).in === 0.5, 'Haiku 5.5 : deux paliers');
+  const cLong = garde.coutReponse('claude-haiku-5-5', { input_tokens: 150000, output_tokens: 1000 });
+  assert.ok(Math.abs(cLong - (150000 * 0.5 + 1000 * 2.5) / 1e6) < 1e-12, 'long appel Haiku au palier haut : ' + cLong);
+  console.log('Prix OK : Haiku au-delà de 100 000 jetons compté', cLong.toFixed(4), '$');
+
+  // 12. le plafond du mois atteint en plein cycle : les agents attendent le 1er, Louis est prévenu une seule fois
+  db = base();
+  await runtime.semer(db);
+  await db.upsert('hq_config', { key: 'budget', value: Object.assign({}, config.BUDGET_DEFAUT, { jour_usd: 5, mois_usd: 1 }) }, { onConflict: 'key' });
+  await db.rpc('hq_bump', { p_day: jourGP(), p_cost: 1, p_runs: 0, p_searches: 0, p_places: 0, p_leads: 0, p_emails: 0, p_items: 0 });
+  garde.oublier();
+  const lignes12 = [];
+  for (let k = 0; k < 3; k++) lignes12.push({ company_id: 'novalemo', dedupe: 'test:mois:' + k, source: 'maps', name: 'Mois ' + k, island: 'MQ', email: 'mo' + k + '@mois-mq.fr', email_source: 'site', status: 'a_contacter', score: 80 });
+  await db.insert('hq_leads', lignes12, { returning: false });
+  db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
+  const c12 = await runtime.cycle({ db: db, secondes: 250 });
+  const arretes = c12.passages.filter(function (x) { return /mois atteint/.test(x.resume || ''); });
+  assert.ok(arretes.length > 0, 'au moins un agent arrêté par le plafond du mois : ' + c12.passages.map(function (x) { return x.id + ' : ' + x.resume; }).join(' | '));
+  const premier = db.tables.hq_agents.find(function (a) { return a.id === arretes[0].id; });
+  const jj = jourGP().split('-').map(Number);
+  const attendu = Date.UTC(jj[1] === 12 ? jj[0] + 1 : jj[0], jj[1] === 12 ? 0 : jj[1], 1, 10, 0, 0);
+  assert.ok(Math.abs(Date.parse(premier.next_run_at) - attendu) < 5 * 60000, 'il repasse le 1er du mois à 6 h : ' + premier.next_run_at);
+  db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente' && a.status !== 'paused') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
+  await runtime.cycle({ db: db, secondes: 250 });
+  const alertes = (db.tables.hq_messages || []).filter(function (x) { return x.to_id === 'louis' && x.subject === 'Plafond IA du mois atteint'; });
+  assert.ok(alertes.length === 1, 'Louis est prévenu une seule fois : ' + alertes.length);
+  assert.ok(jour(db).cost_usd === 1, 'rien de plus dépensé : ' + jour(db).cost_usd);
+  console.log('Mois OK :', arretes.length, 'agent(s) arrêtés jusqu\'au 1er, Louis prévenu une fois, 0 $ de plus');
 
   console.log('Garde OK. Tout est vert en', ((Date.now() - t0) / 1000).toFixed(1), 's');
 })().catch(function (e) { console.error('ÉCHEC :', e); process.exit(1); });

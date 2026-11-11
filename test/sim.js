@@ -28,6 +28,9 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   // 1. fondation
   const s = await runtime.semer(db);
   assert.ok(s.seme, 'la fondation doit se faire');
+  // toute la simulation tient dans une seule journée, avec tout le groupe sur des appels factices : de la place dans ses
+  // plafonds (les plafonds réels, 1 $ par jour et 25 $ par mois, ont leur essai : test/garde.js)
+  await db.update('hq_config', { value: Object.assign({}, db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value, { jour_usd: 20, mois_usd: 500 }) }, { eq: { key: 'budget' } });
   assert.strictEqual(db.tables.hq_agents.length, require('../lib/seed').AGENTS.length);
   assert.ok(db.tables.hq_agents.every(function (a) { return a.parent_id === null ? a.id === 'pdg' : true; }), 'tout le monde a un chef sauf le PDG');
   assert.ok(db.tables.hq_agents.some(function (a) { return a.id === 'livraison' && a.kind === 'job'; }) && db.tables.hq_agents.find(function (a) { return a.id === 'demo'; }).kind === 'job', 'Noé et Lucas travaillent');
@@ -1660,7 +1663,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     await db3.insert('hq_agents', { id: 'reponses', company_id: 'novalemo', parent_id: 'emailing', name: 'Emma', title: 'x', tier: 'agent', kind: 'llm', model: 'smart', mission: 'x', charter: 'x', playbook: 'ma stratégie à moi', tools: [], cadence_min: 60, status: 'idle', seat: 1 }, { returning: false });
     const s3 = await runtime.semer(db3);
     const b3 = db3.tables.hq_config.find(function (c) { return c.key === 'budget'; }).value, emma3 = db3.tables.hq_agents.find(function (a) { return a.id === 'reponses'; });
-    assert.ok(s3.seme && b3.emails_jour === 50 && b3.apercus_jour === 15 && b3.jour_usd === 2 && /assistante IA/.test(emma3.playbook) && /assistante IA/.test(emma3.charter) && db3.tables.hq_agents.some(function (a) { return a.id === 'plume'; }) && db3.tables.hq_messages.some(function (m) { return m.to_id === 'louis' && m.subject === 'Plafonds relevés' && /25 à 50/.test(m.body) && !/aperçus/.test(m.body); }), 'version 8 : plafond par défaut relevé (Louis prévenu), celui de Louis gardé, stratégie d\'Emma à jour, Colette recrutée : ' + JSON.stringify(b3));
+    assert.ok(s3.seme && b3.emails_jour === 50 && b3.apercus_jour === 15 && b3.jour_usd === 1 && b3.mois_usd === 25 && /assistante IA/.test(emma3.playbook) && /assistante IA/.test(emma3.charter) && db3.tables.hq_agents.some(function (a) { return a.id === 'plume'; }) && db3.tables.hq_messages.some(function (m) { return m.to_id === 'louis' && m.subject === 'Plafonds relevés' && /25 à 50/.test(m.body) && !/aperçus/.test(m.body); }), 'version 8 : plafond par défaut relevé (Louis prévenu), celui de Louis gardé, version 19 : 1 $ par jour et 25 $ par mois au plus, stratégie d\'Emma à jour, Colette recrutée : ' + JSON.stringify(b3));
     // J. le retour de Louis sur un email va à la rédactrice et au pôle écriture
     await agir('email', { id: oV.id, retour: 'Trop long : va plus vite au lien.' });
     assert.ok(db.tables.hq_messages.some(function (m) { return m.from_id === 'louis' && m.to_id === 'plume' && /plus vite au lien/.test(m.body || ''); }) && db.tables.hq_knowledge.some(function (k) { return k.agent_id === 'redacteur' && /plus vite au lien/.test(k.content || ''); }), 'le retour de Louis : une règle pour Chloé, et Colette prévenue pour la charte');
