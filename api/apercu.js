@@ -1,7 +1,7 @@
-// Le panneau des aperçus parle ici : retouches et images du prospect, signal d'intérêt, commande (490 € ou 45 € par
-// mois). Les aperçus vivent sur un autre domaine (le projet des sites) : la porte est ouverte à tous les domaines
+// Le panneau des aperçus parle ici : retouches et images du prospect, ses changements faits lui-même sur la page
+// (« Modifier moi-même »), signal d'intérêt, commande (99 €, en une fois). Les aperçus vivent sur un autre domaine (le projet des sites) : la porte est ouverte à tous les domaines
 // (CORS), sans cookie ; c'est la clé de chaque aperçu (HMAC du slug, lib/sites/retours.js) qui décide de tout.
-// POST { site, cle, action: image | retouches | vu | commande | rappel, ... } → { ok, ... } ou { erreur }
+// POST { site, cle, action: image | retouches | edition | vu | commande | rappel, ... } → { ok, ... } ou { erreur }
 'use strict';
 
 function corps(req) {

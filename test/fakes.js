@@ -177,6 +177,8 @@ const CLAUDE = { refusOutil: false, refus: 0, enClair: 0 };
 const OUVERTURES = { n: 0 };
 function claude(body) {
   appelsClaude++;
+  // le compte à sa limite de dépense (vu le 12 nov. 2026) : l'API refuse tout, rien n'est facturé
+  if (CLAUDE.limiteCompte) return { ok: false, status: 400, json: async function () { return { type: 'error', error: { type: 'invalid_request_error', message: 'You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.' } }; } };
   if (CLAUDE.refusOutil && body.model === (CLAUDE.modeleRefus || require('../lib/config').MODELS.genius.id) && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) {
     CLAUDE.refus++;
     return { ok: false, status: 400, json: async function () { return { type: 'error', error: { type: 'invalid_request_error', message: 'tool_choice: type "tool" and "any" are not supported for this model.' } }; } };
