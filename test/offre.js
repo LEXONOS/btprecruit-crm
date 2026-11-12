@@ -83,6 +83,10 @@ const AGRESSIF = /moche|horrible|obsol[eè]te|d[ée]pass[ée]|amende|375 ?000|75
   assert.ok(/maintenant à 99 €, en une fois et sans abonnement/.test(r1) && r1.indexOf('Voir votre site : ' + url) >= 0 && /STOP/.test(r1) && !AGRESSIF.test(r1), 'relance de l\'ancien message : le nouveau prix');
   assert.ok(/au cas où mon premier message serait passé à la trappe/.test(r2) && /99 € en une fois/.test(r2) && /STOP/.test(r2) && !AGRESSIF.test(r2), 'relance du message de Louis : un rappel');
   console.log('Relance OK : nouveau prix pour l\'ancien message, rappel pour le nouveau');
+  // la version WhatsApp ou SMS (envoyée par Louis lui-même) : courte, le lien en clair, une sortie
+  const wa = A.whatsapp({ id: 31, name: 'LA CLEAN’IK DETAILING', commune: 'Fort-de-France', site_state: 'reseau', data: { google: { avis: 65, note: 5 } } }, null, url);
+  assert.ok(wa.indexOf(url) >= 0 && /99 € en une fois/.test(wa) && /65 avis/.test(wa) && /à part vos réseaux/.test(wa) && /Pas intéressé \?/.test(wa) && !AGRESSIF.test(wa) && wa.length < 800, 'message WhatsApp : ' + wa);
+  assert.ok(/La Clean’ik Detailing/.test(wa) && A.nomDe({ name: "D'ALU SERVICES" }) === "D'Alu Services", 'les capitales : ' + A.nomDe({ name: 'LA CLEAN’IK DETAILING' }) + ' / ' + A.nomDe({ name: "D'ALU SERVICES" }));
 
   // 5. Chloé en automatique : seulement un prospect de Martinique, adresse lue, aperçu publié et passé ; jamais d'IA
   let db = base();
