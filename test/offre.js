@@ -53,6 +53,7 @@ const AGRESSIF = /moche|horrible|obsol[eè]te|d[ée]pass[ée]|amende|375 ?000|75
   // une note basse ne se cite pas ; peu d'avis non plus
   const bas = A.premier({ id: 12, name: 'Garage du Nord', commune: 'Le Lorrain', site_state: 'aucun', data: { google: { avis: 23, note: 3.2 } } }, null, url);
   assert.ok(!/3,2|23 avis/.test(bas.corps) && /Je suis tombé sur Garage du Nord|En regardant les entreprises à Le Lorrain/.test(bas.corps), 'une note basse n\'est pas citée');
+  assert.ok(/entreprises au Robert/.test(A.premier({ id: 41, name: 'Pronova', commune: 'Le Robert', site_state: 'ancien', website: 'pronova.fr' }, null, url).corps) && !/à Le /.test(A.premier({ id: 42, name: 'Clim Sud', commune: 'Le Marin', site_state: 'aucun', data: { google: { avis: 9, note: 4.6 } } }, null, url).corps), 'au Robert, jamais « à Le Robert »');
   const peu = A.premier({ id: 13, name: 'Taxi Ti Punch', site_state: 'reseau', data: { google: { avis: 3, note: 5 } } }, null, url);
   assert.ok(!/3 avis/.test(peu.corps) && /à part vos réseaux/.test(peu.corps), 'trois avis ne se citent pas ; une page de réseau social n\'est pas un site');
   // il a déjà un site : jamais un mot contre, « une version plus récente »
