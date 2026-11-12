@@ -209,6 +209,8 @@ const appelSimple = function () { return claude.converse({ tier: 'smart', system
   const lignes12 = [];
   for (let k = 0; k < 3; k++) lignes12.push({ company_id: 'novalemo', dedupe: 'test:mois:' + k, source: 'maps', name: 'Mois ' + k, island: 'MQ', email: 'mo' + k + '@mois-mq.fr', email_source: 'site', status: 'a_contacter', score: 80 });
   await db.insert('hq_leads', lignes12, { returning: false });
+  // Chloé écrit sans IA depuis le 12 nov. 2026 : c'est Emma, avec une réponse à traiter, qui bute sur le plafond
+  await db.insert('hq_inbox', { message_id: '<mois@test.mq>', from_email: 'mo0@mois-mq.fr', subject: 'Re: votre site', body: 'Combien ça coûte ?', kind: 'reponse', status: 'nouveau', received_at: new Date().toISOString() }, { returning: false });
   db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
   const c12 = await runtime.cycle({ db: db, secondes: 250 });
   const arretes = c12.passages.filter(function (x) { return /mois atteint/.test(x.resume || ''); });

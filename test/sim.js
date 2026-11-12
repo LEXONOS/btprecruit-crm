@@ -8,6 +8,15 @@ process.env.HQ_LOCAL = '1';            // le cron sans secret ne passe qu'en loc
 process.env.ANTHROPIC_API_KEY = 'test';
 process.env.GOOGLE_MAPS_API_KEY = 'test';
 delete process.env.HQ_SUPABASE_KEY; delete process.env.HQ_VERCEL_TOKEN; delete process.env.VERCEL_TOKEN; delete process.env.HQ_STRIPE_KEY; delete process.env.STRIPE_SECRET_KEY;
+// La simulation complète rejoue la grille d'avant le 12 nov. 2026 (Essentiel 490 € ou 45 € par mois, Vitrine, Signature,
+// Menu QR) : le code sait toujours vendre plusieurs formules et au mois si la grille les remet (anciennes commandes, essais).
+// La grille du jour (99 € en une fois, une seule offre) et le message de Louis ont leur propre essai : test/offre.js.
+require('../lib/config').NOVALEMO.grille = {
+  essentiel: { nom: 'Essentiel', prix: 490, mois: 45, quoi: 'site d\'une page, complet, sur votre nom de domaine' },
+  vitrine: { nom: 'Vitrine', prix: 990, mois: 89, quoi: 'site de plusieurs pages (accueil, services, à propos, contact), le plus choisi' },
+  signature: { nom: 'Signature', prix: 1390, mois: 119, quoi: 'site complet avec une page par service, pensé pour Google' },
+  menu: { nom: 'Menu QR', prix: 250, quoi: 'carte en ligne avec QR code pour la restauration' }
+};
 
 const assert = require('assert');
 const fakes = require('./fakes');
@@ -57,14 +66,15 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const maps = require('../lib/jobs/maps');
   assert.ok(maps.lignes('climatisation | Guadeloupe\nMétiers : clim\nZones : Le Lamentin').every(function (x) { return x.zone !== 'Guadeloupe'; }), 'une rotation hors Martinique est ignorée');
 
-  // 3. deuxième cycle : la rédactrice a des contacts (sans hébergement branché : emails sans aperçu)
+  // 3. deuxième cycle : la rédactrice a des contacts, mais aucun aperçu publié (hébergement pas branché). Depuis le
+  // 12 nov. 2026, Chloé écrit le message de Louis (lib/accroche.js) avec le lien de SON aperçu : sans aperçu, rien
   dus(['redacteur', 'contacts']);
+  const appelsC2 = fakes.appels();
   const c2 = await runtime.cycle({ db: db, secondes: 250 });
   c2.passages.forEach(function (p) { if (/Chloé|Marcus/.test(p.nom)) console.log('  -', p.nom.padEnd(11), p.ok ? 'ok ' : 'ERR', p.saute ? '(sauté)' : '', '|', p.resume.slice(0, 140)); });
   let outbox = db.tables.hq_outbox || [];
-  console.log('Emails :', outbox.length, outbox[0] ? '| ' + outbox[0].subject + ' -> ' + outbox[0].to_email : '');
-  assert.ok(outbox.length >= 1, 'au moins un email');
-  assert.ok(outbox.every(function (o) { return /STOP/.test(o.body) && o.status === 'pret'; }), 'pilote automatique : STOP présent, email en file sans Louis');
+  assert.ok(!outbox.some(function (o) { return o.kind === 'prospection'; }), 'pas d\'aperçu publié : aucun premier email');
+  assert.ok(c2.passages.some(function (p) { return /Chloé/.test(p.nom) && /pas encore publiés/.test(p.resume); }), 'Chloé attend les aperçus');
 
   // le contrôle qualité remplace Louis
   let env = await runtime.charger(db);
@@ -75,6 +85,11 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   assert.ok(/REFUSÉ/.test(refus) && /450/.test(refus) && /appel/.test(refus) && /modifiable/.test(refus), 'prix hors grille, mot creux, remise, appel et site modifiable non dit : refusés : ' + refus);
   const gp = (await db.insert('hq_leads', { dedupe: 'test:gp', source: 'web', name: 'Garage Gwada', island: 'GP', email: 'a@gwada.fr', status: 'a_contacter', score: 70 }))[0];
   assert.ok(/hors zone/.test(await exC.rediger_emails({ emails: [{ lead_id: gp.id, objet: 'x', corps: 'y' }] })), 'Guadeloupe refusée à la rédaction');
+  const okA = await exC.rediger_emails({ emails: [{ lead_id: autre.id, objet: 'Le site de ' + autre.name, corps: 'Bonjour,\n\nJe suis tombé sur ' + autre.name + ' en cherchant des entreprises en Martinique. Je peux vous préparer un aperçu de votre futur site, et le mettre en ligne sur votre nom de domaine avec l\'hébergement inclus la première année. Le site vous appartient, sans abonnement obligatoire, et tout reste modifiable.\n\nJe vous le prépare ?\n\nLouis\nNovalemo, sites internet en Martinique' }] });
+  assert.ok(/ok/.test(okA), 'un email écrit à la main passe le contrôle : ' + okA);
+  outbox = db.tables.hq_outbox || [];
+  console.log('Emails :', outbox.length, outbox[0] ? '| ' + outbox[0].subject + ' -> ' + outbox[0].to_email : '');
+  assert.ok(outbox.length >= 1 && outbox.every(function (o) { return /STOP/.test(o.body) && o.status === 'pret'; }), 'pilote automatique : STOP présent, email en file sans Louis');
   const ajout = await tools.executeurs({ db: db, agent: env.agents.find(function (a) { return a.id === 'partenaires'; }), agents: env.agents, budget: env.budget, compteurs: C0() }).ajouter_leads({ leads: [{ nom: 'Cabinet X', commune: 'Pointe-à-Pitre', source_url: 'https://x.fr' }, { nom: 'Cabinet Y', commune: 'Schœlcher', email: 'contact@cabinety.fr', source_url: 'https://y.fr' }] });
   assert.ok(/1 prospect\(s\) ajouté\(s\)/.test(ajout) && /hors Martinique/.test(ajout), 'les prescripteurs hors Martinique sont refusés : ' + ajout);
   // mode manuel : Louis coupe le pilote, les emails attendent sa validation
@@ -194,15 +209,13 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   let dep = fakes.VERCEL.deploiements[fakes.VERCEL.deploiements.length - 1];
   const chemins = dep.files.map(function (f) { return f.file; });
   assert.ok(chemins.indexOf('a/' + site.slug + '/index.html') >= 0 && chemins.indexOf('a/' + site.slug + '/mentions-legales/index.html') >= 0 && chemins.indexOf('_f/inter.woff2') >= 0 && chemins.indexOf('_n/cgv/index.html') >= 0 && chemins.indexOf('vercel.json') >= 0 && chemins.some(function (c) { return /\/img\/p1\.jpg$/.test(c); }), 'déploiement complet');
-  // Chloé écrit avec le lien, le contrôle vérifie qu'il y est ; sa première réponse est coupée par la longueur en plein
-  // outil (vu en production le 6 nov. : six emails dans 3 000 jetons, rien d'écrit) : le tour est refait avec plus de place
-  fakes.CLAUDE.chloeCoupe = 1;
+  // Chloé écrit le message de Louis avec le lien de l'aperçu, sans appeler Claude (12 nov. 2026)
+  const appelsC7 = fakes.appels();
   dus(['redacteur']);
   await runtime.cycle({ db: db, agentId: 'redacteur', secondes: 200 });
-  assert.ok(fakes.CLAUDE.chloeCoupe === 0 && fakes.CLAUDE.chloePremier === 7000 && fakes.CLAUDE.chloeMax > fakes.CLAUDE.chloePremier, 'Chloé a la place d\'écrire tout le lot (7 000 jetons), et une réponse coupée en plein outil est refaite avec plus de place (' + fakes.CLAUDE.chloePremier + ' puis ' + fakes.CLAUDE.chloeMax + ')');
-  delete fakes.CLAUDE.chloeCoupe;
+  assert.strictEqual(fakes.appels(), appelsC7, 'Chloé écrit sans appel à Claude');
   let oc = db.tables.hq_outbox.find(function (o) { return o.lead_id === lc.id && o.kind === 'prospection'; });
-  assert.ok(oc && oc.status === 'pret' && oc.body.indexOf(l3.apercu_url) >= 0, 'premier email avec le lien de l\'aperçu : ' + JSON.stringify({ oc: oc && { st: oc.status, lien: oc.body.indexOf(l3.apercu_url) }, lead: { id: lc.id, st: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).status, score: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).score }, prets: db.tables.hq_leads.filter(function (l) { return l.status === 'a_contacter' && ['publie', 'echec'].indexOf(l.apercu_etat) >= 0; }).map(function (l) { return l.id + ':' + l.score; }), boite: db.tables.hq_outbox.filter(function (o) { return o.kind === 'prospection'; }).map(function (o) { return o.lead_id + ':' + o.status; }) }));
+  assert.ok(oc && oc.status === 'pret' && oc.body.indexOf(l3.apercu_url) >= 0 && /^v:L /.test(oc.angle) && /Voir votre site : https/.test(oc.body) && /modifiable/.test(oc.body), 'premier email (le message de Louis) avec le lien de l\'aperçu : ' + JSON.stringify({ oc: oc && { st: oc.status, lien: oc.body.indexOf(l3.apercu_url) }, lead: { id: lc.id, st: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).status, score: db.tables.hq_leads.find(function (l) { return l.id === lc.id; }).score }, prets: db.tables.hq_leads.filter(function (l) { return l.status === 'a_contacter' && ['publie', 'echec'].indexOf(l.apercu_etat) >= 0; }).map(function (l) { return l.id + ':' + l.score; }), boite: db.tables.hq_outbox.filter(function (o) { return o.kind === 'prospection'; }).map(function (o) { return o.lead_id + ':' + o.status; }) }));
   const sansLien = await exC.rediger_emails({ emails: [{ lead_id: lc.id, objet: 'x', corps: 'y' }] });
   assert.ok(/déjà un email/.test(sansLien), 'un seul premier email');
   env = await runtime.charger(db);
@@ -298,7 +311,7 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   assert.ok(db.tables.hq_inbox.some(function (x) { return x.message_id === '<veux@gmail.com>' && x.lead_id === autre.id; }), 'bouton « Je veux ce site » rattaché au prospect');
   // un aperçu oublié expire au bout de 30 jours
   db.tables.hq_sites.filter(function (x) { return x.lead_id === autre.id; }).forEach(function (x) { x.published_at = new Date(Date.now() - 40 * 86400000).toISOString(); });
-  db.tables.hq_leads.find(function (l) { return l.id === autre.id; }).status = 'contacte';
+  Object.assign(db.tables.hq_leads.find(function (l) { return l.id === autre.id; }), { status: 'contacte', contacted_at: new Date(Date.now() - 40 * 86400000).toISOString() });   // contacté il y a plus de 30 jours
   db.tables.hq_config = db.tables.hq_config.filter(function (c) { return c.key !== 'expiration'; });   // la passe d'expiration tourne toutes les 3 h
   dus(['livraison']);
   const cX = await runtime.cycle({ db: db, agentId: 'livraison', secondes: 200 });
@@ -1536,13 +1549,13 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
     for (let id = 1; id <= 40; id++) { const v = E.variantePour({ id: id }, ec0); rep0[v.id] = (rep0[v.id] || 0) + 1; assert.strictEqual(E.variantePour({ id: id }, ec0).id, v.id, 'même prospect, même variante'); }
     assert.ok(rep0.A >= 12 && rep0.B >= 12, 'variantes réparties : ' + JSON.stringify(rep0));
     assert.ok(E.idDeAngle('v:A facebook') === 'A' && E.idDeAngle('v:AB') === 'AB' && !E.idDeAngle('apercu') && E.angleDe('B', 'v:A refonte') === 'v:B refonte', 'variante notée dans l\'angle de l\'email');
-    // B. ceux qui écrivent reçoivent la charte ; la rédactrice, les consignes des variantes ; les autres, rien
+    // B. ceux qui écrivent avec l'IA reçoivent la charte (Emma) ; les autres, rien. Chloé n'écrit plus avec l'IA depuis le
+    // 12 nov. 2026 (le message de Louis, lib/accroche.js, noté « v:L » pour les résultats) : elle n'a plus de contexte
     env = await runtime.charger(db);
     const ag = function (id) { return env.agents.find(function (a) { return a.id === id; }); };
-    const cChloe = await CTX.construire(db, ag('redacteur'), env.agents, env.companies, null);
     const cEmma = await CTX.construire(db, ag('reponses'), env.agents, env.companies, null);
     const cTheo = await CTX.construire(db, ag('analyste'), env.agents, env.companies, null);
-    assert.ok(/CHARTE D'ÉCRITURE/.test(cChloe.system) && /LES MESSAGES EN TEST/.test(cChloe.user) && /CHARTE D'ÉCRITURE/.test(cEmma.system) && !/LES MESSAGES EN TEST/.test(cEmma.user) && !/CHARTE D'ÉCRITURE/.test(cTheo.system), 'la charte pour ceux qui écrivent, les variantes pour la rédactrice');
+    assert.ok(ag('redacteur').kind === 'job' && ag('redacteur').job === 'ecrire' && ag('relanceur').kind === 'job' && ag('relanceur').job === 'relancer' && /CHARTE D'ÉCRITURE/.test(cEmma.system) && !/LES MESSAGES EN TEST/.test(cEmma.user) && !/CHARTE D'ÉCRITURE/.test(cTheo.system) && E.idDeAngle('v:L sans_site') === 'L', 'la charte pour ceux qui écrivent avec l\'IA ; Chloé et Yanis en automatique, leurs emails comptés sous la variante L');
     assert.ok(ag('plume') && ag('plume').parent_id === 'emailing' && /assistante IA de Louis/.test(ag('reponses').charter), 'Colette au pôle écriture, Emma se présente comme l\'assistante IA de Louis');
     // C. la variante suit le prospect jusqu'à l'email
     const exR = tools.executeurs({ db: db, agent: ag('redacteur'), agents: env.agents, budget: env.budget, compteurs: C0(), lirePage: async function () { return {}; } });
