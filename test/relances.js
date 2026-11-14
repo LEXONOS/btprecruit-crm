@@ -82,7 +82,13 @@ const tous = function (db) { db.tables.hq_agents.forEach(function (a) { if (a.ki
   db.tables.hq_config.find(function (x) { return x.key === 'seed'; }).value.version = 20;
   const yanis = db.tables.hq_agents.find(function (a) { return a.id === 'relanceur'; });
   yanis.charter = 'ancienne fiche'; yanis.playbook = 'Une relance au plus, à J+4.';
+  // Miranda et Noé mis en pause à la main avant le déploiement (pour arrêter la dépense), Léa en pause pour une autre raison
+  const ag = function (id) { return db.tables.hq_agents.find(function (a) { return a.id === id; }); };
+  Object.assign(ag('critique'), { status: 'paused', current_task: RT.PAUSE_RELANCE });
+  Object.assign(ag('demo'), { status: 'paused', current_task: RT.PAUSE_RELANCE });
+  Object.assign(ag('photos'), { status: 'paused', current_task: 'Mis en pause par Louis' });
   const sm = await RT.semer(db);
+  assert.ok(ag('critique').status === 'idle' && ag('demo').status === 'idle' && ag('photos').status === 'paused', 'la pause à la main du 14 nov. passe au réglage de la fabrication ; une autre pause reste');
   assert.ok(sm.seme, 'la migration passe');
   const y2 = db.tables.hq_agents.find(function (a) { return a.id === 'relanceur'; });
   assert.ok(/trois relances au plus/.test(y2.charter) && /J\+15/.test(y2.playbook), 'Yanis : trois relances, J+3, J+8, J+15');
