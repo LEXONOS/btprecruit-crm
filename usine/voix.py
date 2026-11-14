@@ -1,17 +1,23 @@
-"""La voix et le son du Studio 3D.
+"""La voix et le son du Studio 3D et du studio des créatrices.
 
 Lit une commande JSON sur l'entrée standard :
   { "langue": "en-us", "voix": "af_heart", "vitesse": 1.0, "segments": ["...", "..."],
     "sortie": "/dossier", "modele": "kokoro-v1.0.onnx", "voix_fichier": "voices-v1.0.bin",
-    "debut": 0.25, "ecart": 0.3, "fin": 0.9, "musique": true, "ambiance": "calme", "graine": 7 }
+    "debut": 0.25, "ecart": 0.3, "fin": 0.9, "musique": true, "ambiance": "calme", "graine": 7,
+    "moteur": "kokoro", "piper": "de_DE-thorsten-medium", "piper_dir": "/dossier/des/voix" }
   ambiance : calme (par défaut), energie, mystere ou aucune
+  moteur : kokoro (par défaut) ou piper (la voix « piper », téléchargée dans piper_dir si elle n'y est pas)
 Écrit dans le dossier de sortie :
   voix.wav    la voix seule, chaque segment posé à sa place sur la ligne de temps
   son.wav     la voix, la musique d'ambiance et les bruitages, mixés
-  temps.json  { "duree": s, "segments": [ { "debut", "fin", "mots": [ { "m", "t0", "t1" } ] } ] }
+  temps.json  { "duree": s, "segments": [ { "debut", "fin", "mots": [ { "m", "t0", "t1", "o" } ] } ] }
+              (o : la position du mot dans la phrase, en caractères ; pour le chinois et le japonais, écrits sans espaces)
 
-La voix : Kokoro (82M, licence Apache 2.0), qui tourne sur le processeur, en anglais, français, espagnol, portugais,
-italien, hindi, japonais et chinois. La musique et les bruitages sont fabriqués ici (aucun son emprunté).
+Les voix, gratuites et sur le processeur :
+  Kokoro (82M, licence Apache 2.0) : anglais, français, espagnol, portugais, italien, hindi ; chinois et japonais avec
+  la transcription de misaki (pinyin, kana), celle sur laquelle les voix de Kokoro ont appris
+  Piper (licence MIT, voix de rhasspy/piper-voices) : une vingtaine d'autres langues
+La musique et les bruitages sont fabriqués ici (aucun son emprunté).
 """
 import json
 import re
@@ -50,19 +56,143 @@ def poids(mot):
     return 1.6 + lettres, pause
 
 
-def mots_chronometres(texte, debut, duree):
-    mots = [m for m in re.split(r"\s+", texte.strip()) if m]
+CJK = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+PONCT_CJK = "。！？…，、；：,.!?;:）)」』】》〉”’"
+
+
+def poids_cjk(mot):
+    """Chinois et japonais : un caractère, une syllabe (environ) ; les lettres latines comptent moins."""
+    n = len(CJK.findall(mot))
+    latin = len(re.sub(r"[^\w]", "", CJK.sub("", mot), flags=re.UNICODE))
+    pause = 0
+    if re.search(r"[。！？!?…]$", mot):
+        pause = 3.2
+    elif re.search(r"[，、；：,;:]$", mot):
+        pause = 1.8
+    return 0.4 + n + latin / 3.0, pause
+
+
+def jetons(texte, langue):
+    """Les mots d'une phrase écrite sans espaces, avec leur position (en caractères), pour les sous-titres mot à mot.
+    Chinois : jieba ; japonais : fugashi. Les petits mots qui s'appuient sur le précédent (particules, auxiliaires,
+    suffixes, ponctuation) lui restent collés : 知ってた？ / タコには / 心臓が, 知道吗？ / 蓝色的。
+    Les autres langues : None (les espaces suffisent)."""
+    if langue in ("cmn", "zh"):
+        import jieba
+        import jieba.posseg as pseg
+        jieba.setLogLevel(60)
+        brut = [(w.word, w.flag in ("y", "uj", "ul", "uz", "ug", "uv", "ud", "u", "e") or w.flag == "x") for w in pseg.cut(texte)]
+    elif langue == "ja":
+        from fugashi import Tagger
+        brut = []
+        avant = ""
+        for w in Tagger()(texte):
+            p = w.feature.pos1 or ""
+            collant = p in ("助詞", "助動詞", "接尾辞", "補助記号") or (p == "名詞" and w.feature.pos2 == "数詞" and avant == "数詞")
+            avant = w.feature.pos2 if p == "名詞" else ""
+            brut.append((w.surface, collant))
+    else:
+        return None
+    out = []
+    pos = 0
+    for w, collant in brut:
+        w = w.strip()
+        if not w:
+            continue
+        i = texte.find(w, pos)
+        if i < 0:
+            continue
+        pos = i + len(w)
+        if out and (collant or all(c in PONCT_CJK for c in w)) and i == out[-1]["o"] + len(out[-1]["m"]):
+            out[-1]["m"] += w
+            continue
+        out.append({"m": w, "o": i})
+    return out
+
+
+def mots_chronometres(texte, debut, duree, langue=""):
+    js = jetons(texte, langue)
+    if js is None:
+        mots, pos = [], 0
+        for m in re.split(r"\s+", texte.strip()):
+            if not m:
+                continue
+            i = texte.find(m, pos)
+            pos = i + len(m)
+            mots.append({"m": m, "o": i})
+        ps = [poids(x["m"]) for x in mots]
+    else:
+        mots = js
+        ps = [poids_cjk(x["m"]) for x in mots]
     if not mots:
         return []
-    ps = [poids(m) for m in mots]
     total = sum(p + q for p, q in ps) - ps[-1][1]
     t = debut
     out = []
-    for i, (m, (p, q)) in enumerate(zip(mots, ps)):
+    for i, (x, (p, q)) in enumerate(zip(mots, ps)):
         d = duree * p / total
-        out.append({"m": m, "t0": round(t, 3), "t1": round(t + d, 3)})
+        out.append({"m": x["m"], "t0": round(t, 3), "t1": round(t + d, 3), "o": x["o"]})
         t += d + (duree * q / total if i < len(mots) - 1 else 0)
     return out
+
+
+def reechantillonner(x, de, vers):
+    """D'une fréquence à l'autre (la voix Piper parle souvent à 22 050 Hz, le reste du son est à 24 000 Hz)."""
+    if de == vers or len(x) == 0:
+        return x.astype(np.float32)
+    n = int(round(len(x) * vers / de))
+    return np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
+
+
+def moteur_kokoro(c):
+    """Kokoro : le texte directement, ou pour le chinois et le japonais la transcription de misaki."""
+    from kokoro_onnx import Kokoro
+    k = Kokoro(c.get("modele", "kokoro-v1.0.onnx"), c.get("voix_fichier", "voices-v1.0.bin"))
+    langue = c.get("langue", "en-us")
+    voix = c.get("voix", "af_heart")
+    g2p = None
+    if langue in ("cmn", "zh"):
+        from misaki import zh
+        g2p = zh.ZHG2P()
+    elif langue == "ja":
+        from misaki import ja
+        g2p = ja.JAG2P()
+
+    def dire(texte, vitesse):
+        if g2p is not None:
+            r = g2p(texte)
+            ph = r[0] if isinstance(r, tuple) else r
+            s, sr = k.create(ph, voice=voix, speed=vitesse, is_phonemes=True)
+        else:
+            s, sr = k.create(texte, voice=voix, speed=vitesse, lang=langue)
+        return reechantillonner(np.asarray(s, dtype=np.float32), sr, SR)
+    return dire
+
+
+def moteur_piper(c):
+    """Piper : une voix par langue, téléchargée une fois (environ 60 Mo) dans piper_dir."""
+    from pathlib import Path
+    from piper import PiperVoice, SynthesisConfig
+    nom = str(c["piper"])
+    if not re.match(r"^[a-z]{2,3}_[A-Z]{2}-[a-z0-9_]+-(x_low|low|medium|high)$", nom):
+        raise SystemExit("voix Piper inattendue : %s" % nom)
+    dossier = Path(c.get("piper_dir") or "piper")
+    dossier.mkdir(parents=True, exist_ok=True)
+    modele = dossier / (nom + ".onnx")
+    if not modele.exists() or modele.stat().st_size < 1_000_000 or not (dossier / (nom + ".onnx.json")).exists():
+        from piper.download_voices import download_voice
+        download_voice(nom, dossier)
+    v = PiperVoice.load(str(modele))
+    base = float(v.config.length_scale or 1.0)
+
+    def dire(texte, vitesse):
+        cfg = SynthesisConfig(length_scale=base / max(0.5, vitesse))
+        morceaux = [ch.audio_int16_array for ch in v.synthesize(texte, syn_config=cfg)]
+        if not morceaux:
+            return np.zeros(int(0.3 * SR), dtype=np.float32)
+        x = np.concatenate(morceaux).astype(np.float32) / 32768.0
+        return reechantillonner(x, int(v.config.sample_rate), SR)
+    return dire
 
 
 def enveloppe(n, attaque, relache):
@@ -175,8 +305,10 @@ def main():
     c = lire()
     sortie = c.get("sortie", ".")
     os.makedirs(sortie, exist_ok=True)
-    from kokoro_onnx import Kokoro
-    k = Kokoro(c.get("modele", "kokoro-v1.0.onnx"), c.get("voix_fichier", "voices-v1.0.bin"))
+    dire = moteur_piper(c) if c.get("moteur") == "piper" else moteur_kokoro(c)
+    langue = "" if c.get("moteur") == "piper" else c.get("langue", "")
+    if c.get("cjk"):
+        langue = c.get("cjk")
     debut, ecart, fin = float(c.get("debut", 0.25)), float(c.get("ecart", 0.3)), float(c.get("fin", 0.9))
     duree_min = float(c.get("duree_min", 0) or 0)
     vitesse = float(c.get("vitesse", 1.0))
@@ -188,10 +320,7 @@ def main():
             if not texte:
                 out.append(np.zeros(int(0.6 * SR), dtype=np.float32))
                 continue
-            s, sr = k.create(texte, voice=c.get("voix", "af_heart"), speed=v, lang=c.get("langue", "en-us"))
-            if sr != SR:
-                raise SystemExit("fréquence inattendue : %s" % sr)
-            out.append(rogner(np.asarray(s, dtype=np.float32)))
+            out.append(rogner(dire(texte, v)))
         return out
 
     morceaux = synthese(vitesse)
@@ -211,7 +340,7 @@ def main():
     segments = []
     for texte, m in zip(c["segments"], morceaux):
         d = len(m) / SR
-        segments.append({"debut": round(t, 3), "fin": round(t + d, 3), "mots": mots_chronometres(texte or "", t, d)})
+        segments.append({"debut": round(t, 3), "fin": round(t + d, 3), "mots": mots_chronometres((texte or "").strip(), t, d, langue)})
         t += d + ecart
     duree = round(t - ecart + fin, 3)
     n = int(duree * SR) + 1

@@ -12,6 +12,7 @@ const F = require('../lib/createurs/fabrication');
 const P = require('../lib/createurs/publication');
 const IM = require('../lib/createurs/images');
 const CH = require('../lib/createurs/chaine');
+const B = require('../lib/createurs/bible');
 const G = require('../lib/studio/github');
 const ST = require('../lib/studio/stockage');
 const { open } = require('../lib/db');
@@ -24,6 +25,7 @@ const okId = (x) => /^\d{1,12}$/.test(String(x || ''));
 function catalogue() {
   return {
     langues: Object.fromEntries(Object.keys(C.LANGUES).map((l) => [l, { nom: C.LANGUES[l].nom, voix: C.LANGUES[l].voix, defaut: C.LANGUES[l].defaut, vitesse: C.LANGUES[l].vitesse }])),
+    naturelles: C.NATURELLES, modeles: Object.fromEntries(Object.keys(B.MODELES).map((k) => [k, { nom: B.MODELES[k].nom, court: B.MODELES[k].court, exemple: B.MODELES[k].exemple }])),
     roles: C.ROLES, ordre: C.ORDRE_ROLES, plateformes: C.PLATEFORMES, musiques: C.MUSIQUES, qualites: C.QUALITES, statuts: C.STATUTS, automatiques: C.AUTOMATIQUES, garde_jours: C.GARDE_JOURS,
     images: IM.branche(), usine: G.branche(), coffre: SEC.disponible()
   };
@@ -143,7 +145,7 @@ async function action(req, res, db, b) {
   }
   if (op === 'creer') {
     const idee = b.idee_id ? (c.idees || []).find((x) => x.id === String(b.idee_id)) : null;
-    const r = await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style });
+    const r = await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, modele: b.modele });
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
     return json(res, 200, { ok: true, video: await vueVideo(db, r.video) });
   }

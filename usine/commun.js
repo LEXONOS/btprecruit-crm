@@ -32,16 +32,29 @@ function motsForts(voix) {
   }).filter((x) => x.m);
 }
 
+// chinois et japonais (écrits sans espaces) : le texte sans étoiles, et pour chaque caractère s'il est dans un mot fort
+function fortsCJK(voix) {
+  let ouvert = false, texte = '';
+  const forts = [];
+  String(voix || '').replace(/\s+/g, ' ').trim().split('').forEach((ch) => {
+    if (ch === '*') { ouvert = !ouvert; return; }
+    texte += ch;
+    forts.push(ouvert);
+  });
+  return { texte: texte.trim(), forts };
+}
+
 function horodatage(x) {
   const ms = Math.max(0, Math.round(x * 1000));
   const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + ',' + String(ms % 1000).padStart(3, '0');
 }
-function srt(segments) {
+function srt(segments, sep) {
   let n = 0, out = '';
+  const s = sep == null ? ' ' : sep;
   segments.forEach((sg) => {
     const mots = sg.mots || [];
-    for (let i = 0; i < mots.length; i += 7) { const g = mots.slice(i, i + 7); out += (++n) + '\n' + horodatage(g[0].t0) + ' --> ' + horodatage(g[g.length - 1].t1) + '\n' + g.map((m) => m.m).join(' ') + '\n\n'; }
+    for (let i = 0; i < mots.length; i += 7) { const g = mots.slice(i, i + 7); out += (++n) + '\n' + horodatage(g[0].t0) + ' --> ' + horodatage(g[g.length - 1].t1) + '\n' + g.map((m) => m.m).join(s) + '\n\n'; }
   });
   return out;
 }
@@ -78,4 +91,4 @@ async function televerser(url, fichier, type) {
   }
 }
 
-module.exports = { journal, lancer, motsForts, srt, horodatage, tour, televerser };
+module.exports = { journal, lancer, motsForts, fortsCJK, srt, horodatage, tour, televerser };

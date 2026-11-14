@@ -153,6 +153,7 @@ textarea.saisie { height: auto; min-height: 110px; padding: 11px 13px; resize: v
 .menu-compte button, .menu-compte a { display: flex; width: 100%; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 9px; font-size: 13.5px; color: var(--encre); text-decoration: none; }
 .menu-compte button:hover, .menu-compte a:hover { background: var(--surface-3); }
 .menu-compte hr { border: 0; border-top: 1px solid var(--ligne); margin: 5px 4px; }
+.menu-compte svg { width: 17px; height: 17px; flex: none; color: var(--doux); }
 
 /* ── la ville ── */
 .ville { position: fixed; inset: 0; background: radial-gradient(130% 100% at 50% 28%, var(--ciel-haut) 0%, var(--ciel-bas) 100%); }

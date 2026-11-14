@@ -1,5 +1,5 @@
 // L'usine du studio des créatrices : monte une vidéo verticale (1080 x 1920, 30 images/s) dans une langue, de bout en bout.
-//   1. la voix (Kokoro, voix.py) et la musique d'ambiance choisie, chronométrées phrase par phrase et mot par mot
+//   1. la voix (Kokoro ou Piper, voix.py) et la musique d'ambiance choisie, chronométrées phrase par phrase et mot par mot
 //   2. le fond : pour chaque phrase, la vidéo d'illustration choisie par la réalisatrice (banque libre de droits, Pexels),
 //      recadrée en vertical et coupée à la durée de la phrase ; sans vidéo (style « texte », ou rien de trouvé), un fond
 //      en dégradé animé aux couleurs de la créatrice
@@ -14,13 +14,23 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { journal, lancer, motsForts, srt, tour, televerser } = require('./commun');
+const { journal, lancer, motsForts, fortsCJK, srt, tour, televerser } = require('./commun');
 
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 const L = 1080, H = 1920, FPS = 30;
 const POLICES = path.join(__dirname, 'polices');
 const POLICE = 'Poppins ExtraBold';
+const PYTHON = process.env.PYTHON || 'python3';
+// la police des textes selon l'écriture : Poppins (latin, devanagari), Noto Sans (cyrillique, grec, vietnamien), Noto
+// Sans Arabic (arabe, persan), toutes dans polices/ ; Noto Sans CJK pour le chinois et le japonais (installée sur l'usine)
+const POLICES_LANGUE = {
+  ru: 'Noto Sans ExtraBold', uk: 'Noto Sans ExtraBold', el: 'Noto Sans ExtraBold', vi: 'Noto Sans ExtraBold',
+  ar: 'Noto Sans Arabic ExtBd', fa: 'Noto Sans Arabic ExtBd', zh: 'Noto Sans CJK SC', ja: 'Noto Sans CJK JP'
+};
+const policeDe = (langue) => POLICES_LANGUE[langue] || POLICE;
+const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+const longueur = (s) => Array.from(String(s || '')).length;
 // les vidéos d'illustration ne viennent que des banques libres de droits (jamais une autre adresse)
 const HOTES = /^(videos\.pexels\.com|player\.vimeo\.com|cdn\.pixabay\.com)$/;
 const MAX_CLIP = 80 * 1048576;
@@ -37,21 +47,48 @@ function melange(a, b, t) {
 function clair(c) { const h = hex(c, 'FFFFFF'); const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16); return (0.299 * r + 0.587 * g + 0.114 * b) > 150; }
 
 /* ── 1. la voix ── */
-async function voix(cmd, sortie, forts) {
+// chinois ou japonais : écrits sans espaces (voix.py les découpe en mots)
+const cjkDe = (cmd) => ((cmd.voix || {}).cjk ? (cmd.langue === 'ja' ? 'ja' : 'zh') : '');
+
+// ce que la voix demande en plus selon la langue, installé une fois si l'usine ne l'a pas encore (Piper pour une
+// vingtaine de langues, misaki pour écrire le chinois et le japonais comme les voix de Kokoro les lisent)
+async function dependances(cmd) {
   const v = cmd.voix || {};
+  const besoins = [];
+  if (v.moteur === 'piper') besoins.push(['import piper', 'piper-tts==1.8.0']);
+  if (cjkDe(cmd) === 'zh') besoins.push(['from misaki import zh; import jieba', 'misaki[zh]==0.7.4']);
+  if (cjkDe(cmd) === 'ja') besoins.push(['from misaki import ja; import fugashi', 'misaki[ja]==0.7.4']);
+  for (const [essai, paquet] of besoins) {
+    const deja = await lancer(PYTHON, ['-c', essai]).then(() => true, () => false);
+    if (deja) continue;
+    journal(cmd.langue, 'installation de ' + paquet);
+    await lancer(PYTHON, ['-m', 'pip', 'install', '-q', '--disable-pip-version-check', paquet]);
+  }
+}
+
+async function voix(cmd, sortie, beats) {
+  const v = cmd.voix || {};
+  const cjk = cjkDe(cmd);
   const modeles = process.env.KOKORO_DIR || path.join(__dirname, '.modeles');
+  // les mots forts (*mot*) : par position du mot (langues à espaces) ou par caractère (chinois, japonais)
+  const forts = beats.map((b) => (cjk ? fortsCJK(b.voix) : motsForts(b.voix)));
   const commande = {
+    moteur: v.moteur === 'piper' ? 'piper' : 'kokoro', piper: v.piper || null, piper_dir: process.env.PIPER_DIR || path.join(__dirname, '.piper'), cjk,
     langue: v.kokoro || 'fr-fr', voix: v.voix || 'ff_siwis', vitesse: v.vitesse || 1.0,
-    segments: forts.map((f) => f.map((x) => x.m).join(' ')), sortie,
+    segments: forts.map((f) => (cjk ? f.texte : f.map((x) => x.m).join(' '))), sortie,
     modele: path.join(modeles, 'kokoro-v1.0.onnx'), voix_fichier: path.join(modeles, 'voices-v1.0.bin'),
     debut: 0.25, ecart: 0.28, fin: 0.9, duree_min: Number((cmd.format || {}).duree_min) || 0,
     musique: (cmd.plan || {}).musique !== 'aucune', ambiance: (cmd.plan || {}).musique || 'calme', graine: Number((cmd.video || {}).id) || 7,
     etiquettes: []
   };
-  const res = await lancer(process.env.PYTHON || 'python3', [path.join(__dirname, 'voix.py')], JSON.stringify(commande));
-  journal(cmd.langue, 'voix', res.trim());
+  await dependances(cmd);
+  const res = await lancer(PYTHON, [path.join(__dirname, 'voix.py')], JSON.stringify(commande));
+  journal(cmd.langue, 'voix', commande.moteur, res.trim().split('\n').pop());
   const temps = JSON.parse(fs.readFileSync(path.join(sortie, 'temps.json'), 'utf8'));
-  temps.segments.forEach((sg, i) => (sg.mots || []).forEach((m, j) => { if (forts[i] && forts[i][j] && forts[i][j].fort) m.fort = true; }));
+  temps.segments.forEach((sg, i) => (sg.mots || []).forEach((m, j) => {
+    if (cjk) { const f = forts[i].forts; for (let k = m.o; k < m.o + m.m.length; k++) if (f[k]) { m.fort = true; break; } }
+    else if (forts[i] && forts[i][j] && forts[i][j].fort) m.fort = true;
+  }));
   return temps;
 }
 
@@ -143,8 +180,21 @@ async function fond(cmd, sortie, temps) {
 /* ── 3. les textes (sous-titres ASS, rendus par libass dans ffmpeg) ── */
 const t = (x) => { const cs = Math.max(0, Math.round(x * 100)); const h = Math.floor(cs / 360000), m = Math.floor(cs / 6000) % 60, s = Math.floor(cs / 100) % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '.' + String(cs % 100).padStart(2, '0'); };
 const echapper = (s) => String(s || '').replace(/\\/g, '').replace(/[{}]/g, '').replace(/\n/g, ' ');
-// une ligne de texte coupée en lignes d'environ n caractères (\N), sans couper un mot
-function couper(s, n) {
+// une ligne de texte coupée en lignes d'environ n caractères (\N), sans couper un mot ; en chinois et en japonais,
+// tous les n caractères, sans commencer une ligne par une ponctuation
+function couper(s, n, cjk) {
+  if (cjk) {
+    const c = Array.from(String(s || '').replace(/\s+/g, ''));
+    const out = [];
+    let cur = '';
+    c.forEach((ch, i) => {
+      cur += ch;
+      const suivant = c[i + 1];
+      if (longueur(cur) >= n && suivant && !/[。！？，、；：…)）」』】》”’!?,.]/.test(suivant)) { out.push(cur); cur = ''; }
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
   const mots = String(s || '').split(/\s+/).filter(Boolean);
   const lignes = [];
   let cur = '';
@@ -152,12 +202,15 @@ function couper(s, n) {
   if (cur) lignes.push(cur);
   return lignes;
 }
-// la largeur approximative d'un texte en Poppins ExtraBold (0,62 em par caractère en moyenne)
-const largeur = (s, taille) => String(s || '').length * taille * 0.62;
+// la largeur approximative d'un texte (0,62 em par caractère en moyenne, 1 em pour un caractère chinois ou japonais)
+const largeur = (s, taille) => Array.from(String(s || '')).reduce((a, ch) => a + (CJK.test(ch) || /[。！？，、]/.test(ch) ? 1 : 0.62), 0) * taille;
 
 function sousTitres(cmd, temps) {
   const plan = cmd.plan || {};
   const texte = plan.style === 'texte';
+  const cjk = !!cjkDe(cmd);
+  const sep = cjk ? '' : ' ';
+  const POLICE = policeDe(cmd.langue);
   const accent = plan.couleur || '#FFD400';
   const surAccent = clair(accent) ? '#111111' : '#FFFFFF';
   // le mot qui s'allume : la couleur de la créatrice, éclaircie si elle est sombre (elle doit se lire sur tout fond)
@@ -179,35 +232,36 @@ function sousTitres(cmd, temps) {
   // l'accroche, pendant les premières secondes (ou la première phrase si elle est plus longue)
   const acc = String((cmd.texte && cmd.texte.accroche) || '').replace(/\*/g, '').trim();
   const finAccroche = segs.length ? Math.max(2.6, Math.min(4.2, segs[0].fin + 0.3)) : 2.6;
-  if (acc) ev.push('Dialogue: 2,' + t(0.05) + ',' + t(finAccroche) + ',Accroche,,0,0,0,,{\\fad(120,160)\\t(0,180,\\fscx104\\fscy104)\\t(180,320,\\fscx100\\fscy100)}' + couper(echapper(acc), 18).join('\\N'));
+  if (acc) ev.push('Dialogue: 2,' + t(0.05) + ',' + t(finAccroche) + ',Accroche,,0,0,0,,{\\fad(120,160)\\t(0,180,\\fscx104\\fscy104)\\t(180,320,\\fscx100\\fscy100)}' + couper(echapper(acc), cjk ? 10 : 18, cjk).join('\\N'));
   // le texte court de chaque phrase (pas sur la première : l'accroche y est)
   beats.forEach((b, i) => {
     const e = String((b && b.ecran) || '').replace(/\*/g, '').trim();
     if (!e || !fen[i] || (i === 0 && acc)) return;
     const debut = Math.max(fen[i].debut, i === 1 && acc ? finAccroche : fen[i].debut);
     if (fen[i].fin - debut < 0.6) return;
-    ev.push('Dialogue: 1,' + t(debut + 0.05) + ',' + t(fen[i].fin) + ',Ecran,,0,0,0,,{\\fad(100,120)}' + couper(echapper(e), 24).join('\\N'));
+    ev.push('Dialogue: 1,' + t(debut + 0.05) + ',' + t(fen[i].fin) + ',Ecran,,0,0,0,,{\\fad(100,120)}' + couper(echapper(e), cjk ? 13 : 24, cjk).join('\\N'));
   });
   // les sous-titres mot à mot : des groupes courts ; le mot dit s'allume (couleur et petit saut), les mots forts restent
   // dans la couleur pendant tout le groupe
   // clips : trois mots au plus sur une ligne ; texte : quatre mots au plus sur deux lignes
-  const parGroupe = texte ? 4 : 3, maxCar = texte ? 26 : 16, maxLigne = texte ? 13 : 99;
+  // chinois et japonais : en caractères (un caractère y est à peu près aussi large que haut)
+  const parGroupe = texte ? 4 : 3, maxCar = cjk ? (texte ? 12 : 8) : (texte ? 26 : 16), maxLigne = cjk ? (texte ? 7 : 99) : (texte ? 13 : 99);
   segs.forEach((sg) => {
     const mots = (sg.mots || []).filter((m) => m && m.m);
     const groupes = [];
     let g = [];
     mots.forEach((m) => {
-      const longueur = g.map((x) => x.m).join(' ').length + (g.length ? 1 : 0) + m.m.length;
-      if (g.length && (g.length >= parGroupe || longueur > maxCar)) { groupes.push(g); g = []; }
+      const n = longueur(g.map((x) => x.m).join(sep)) + (g.length ? sep.length : 0) + longueur(m.m);
+      if (g.length && (g.length >= parGroupe || n > maxCar)) { groupes.push(g); g = []; }
       g.push(m);
-      if (/[.!?…]$/.test(m.m)) { groupes.push(g); g = []; }
+      if (/[.!?…。！？]$/.test(m.m)) { groupes.push(g); g = []; }
     });
     if (g.length) groupes.push(g);
     groupes.forEach((gr, gi) => {
       const finGroupe = gi < groupes.length - 1 ? groupes[gi + 1][0].t0 : Math.min(sg.fin + 0.25, gr[gr.length - 1].t1 + 0.4);
-      const brut = gr.map((x) => x.m).join(' ');
+      const brut = gr.map((x) => x.m).join(sep);
       // un groupe trop large pour l'écran : la taille baisse (jamais un mot qui sort de l'image)
-      const dispo = L - 2 * marge, lignes = texte ? couper(brut, maxLigne) : [brut];
+      const dispo = L - 2 * marge, lignes = texte ? couper(brut, maxLigne, cjk) : [brut];
       const plusLong = lignes.reduce((a, l) => Math.max(a, largeur(l, taille)), 0);
       const fs = plusLong > dispo ? Math.floor(taille * dispo / plusLong) : null;
       gr.forEach((m, k) => {
@@ -216,8 +270,8 @@ function sousTitres(cmd, temps) {
         let n = 0;
         const morceaux = gr.map((x, j) => {
           const mot = echapper(x.m);
-          const coupe = texte && j > 0 && n + x.m.length + 1 > maxLigne ? '\\N' : (j > 0 ? ' ' : '');
-          n = coupe === '\\N' ? x.m.length : n + x.m.length + (j > 0 ? 1 : 0);
+          const coupe = texte && j > 0 && n + longueur(x.m) + sep.length > maxLigne ? '\\N' : (j > 0 ? sep : '');
+          n = coupe === '\\N' ? longueur(x.m) : n + longueur(x.m) + (j > 0 ? sep.length : 0);
           if (j === k) return coupe + '{\\c' + ass(surligne) + '\\t(0,70,\\fscx114\\fscy114)\\t(70,150,\\fscx100\\fscy100)}' + mot + '{\\c' + ass('#FFFFFF') + '}';
           if (x.fort) return coupe + '{\\c' + ass(surligne) + '}' + mot + '{\\c' + ass('#FFFFFF') + '}';
           return coupe + mot;
@@ -238,8 +292,7 @@ async function monter(cmd, sortie) {
   const beats = ((cmd.texte && cmd.texte.beats) || []).filter((b) => b && String(b.voix || '').trim());
   if (beats.length < 2) throw new Error('script trop court : ' + beats.length + ' phrase(s)');
   const c = Object.assign({}, cmd, { texte: Object.assign({}, cmd.texte, { beats }) });
-  const forts = beats.map((b) => motsForts(b.voix));
-  const temps = await voix(c, sortie, forts);
+  const temps = await voix(c, sortie, beats);
   const f = await fond(c, sortie, temps);
   const sous = path.join(sortie, 'textes.ass');
   fs.writeFileSync(sous, sousTitres(c, temps));
@@ -251,7 +304,7 @@ async function monter(cmd, sortie) {
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-shortest', '-movflags', '+faststart', finale]);
   const vignette = path.join(sortie, 'vignette.jpg');
   await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-ss', String(Math.min(1.4, Math.max(0.6, temps.duree / 3))), '-i', finale, '-frames:v', '1', '-q:v', '3', vignette]);
-  fs.writeFileSync(path.join(sortie, 'sous-titres.srt'), srt(temps.segments));
+  fs.writeFileSync(path.join(sortie, 'sous-titres.srt'), srt(temps.segments, cjkDe(c) ? '' : ' '));
   try { fs.unlinkSync(f.fichier); } catch (e) { /* déjà parti */ }
   const taille = fs.statSync(finale).size;
   journal(cmd.langue, 'vidéo prête', (taille / 1048576).toFixed(1) + ' Mo', temps.duree + ' s', Math.round((Date.now() - t0) / 1000) + ' s au total');
@@ -287,4 +340,4 @@ async function principal() {
 
 if (require.main === module) principal().catch((e) => { console.error('[montage] échec :', e.message || e); process.exit(1); });
 
-module.exports = { monter, sousTitres, fenetres, couper, ass, hex, HOTES };
+module.exports = { monter, sousTitres, fenetres, couper, ass, hex, HOTES, policeDe };
