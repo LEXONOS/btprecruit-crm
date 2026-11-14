@@ -1,7 +1,8 @@
 # Le montage du studio des créatrices : la tour lance un montage par vidéo et par langue (lib/createurs/fabrication.js).
-# Chaque montage : la voix (Kokoro) et la musique, les vidéos d'illustration (Pexels) recadrées en vertical, les
-# sous-titres mot à mot (police Poppins, dans le dépôt), le son à -14 LUFS, puis l'envoi des fichiers dans le stockage
-# de la tour et le compte rendu. Ni Chrome ni 3D : quelques minutes par vidéo.
+# Chaque montage : la voix (Kokoro, ou Piper pour une vingtaine de langues) et la musique, les vidéos d'illustration
+# (Pexels) recadrées en vertical, les sous-titres mot à mot (polices Poppins et Noto dans le dépôt, Noto CJK pour le
+# chinois et le japonais), le son à -14 LUFS, puis l'envoi des fichiers dans le stockage de la tour et le compte rendu.
+# Ni Chrome ni 3D : quelques minutes par vidéo. Les paquets propres à une langue (Piper, misaki) s'installent au besoin.
 # Comme l'usine du Studio : le seul secret (HQ_USINE_SECRET) est posé par la tour et masqué par GitHub ; l'adresse de
 # la tour (HQ_TOUR) est une variable du dépôt, jamais une entrée du lancement.
 name: Montage du studio des créatrices
@@ -14,8 +15,12 @@ on:
         description: "Numéro de la vidéo"
         required: true
       langue:
-        description: "Langue (fr, en, es, pt, it, hi)"
+        description: "Langue (code à deux lettres : fr, en, de, zh, ja...)"
         required: true
+      voix:
+        description: "Voix Piper (vide pour Kokoro), pour garder la voix en cache"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -31,11 +36,13 @@ jobs:
     env:
       VIDEO: ${{ inputs.video }}
       LANGUE: ${{ inputs.langue }}
+      VOIX: ${{ inputs.voix }}
     steps:
       - name: Vérifier la demande
         run: |
           [[ "$VIDEO" =~ ^[0-9]{1,12}$ ]] || { echo "numéro de vidéo invalide"; exit 1; }
           [[ "$LANGUE" =~ ^[a-z]{2}$ ]] || { echo "langue invalide"; exit 1; }
+          [[ -z "$VOIX" || "$VOIX" =~ ^[a-z]{2,3}_[A-Z]{2}-[a-z0-9_]+-(x_low|low|medium|high)$ ]] || { echo "voix invalide"; exit 1; }
 
       - uses: actions/checkout@v4
         with:
@@ -52,10 +59,12 @@ jobs:
           cache: pip
           cache-dependency-path: usine/requirements.txt
 
-      - name: Outils (ffmpeg avec libass)
+      - name: Outils (ffmpeg avec libass ; police chinoise et japonaise au besoin)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
+          paquets="ffmpeg"
+          [[ "$LANGUE" == "zh" || "$LANGUE" == "ja" ]] && paquets="$paquets fonts-noto-cjk"
+          sudo apt-get install -y -qq --no-install-recommends $paquets > /dev/null
           ffmpeg -hide_banner -filters | grep -q " subtitles " || { echo "ffmpeg sans sous-titres"; exit 1; }
 
       - name: Modèles de voix (en cache)
@@ -70,6 +79,13 @@ jobs:
           base=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0
           [ -s kokoro-v1.0.onnx ] || curl -fsSL -o kokoro-v1.0.onnx "$base/kokoro-v1.0.onnx"
           [ -s voices-v1.0.bin ] || curl -fsSL -o voices-v1.0.bin "$base/voices-v1.0.bin"
+
+      - name: Voix Piper (en cache)
+        if: inputs.voix != ''
+        uses: actions/cache@v4
+        with:
+          path: usine/.piper
+          key: piper-${{ inputs.voix }}
 
       - name: Dépendances de la voix
         run: pip install -q -r usine/requirements.txt

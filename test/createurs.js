@@ -52,8 +52,8 @@ CL.forcer(async (url, o) => {
   if (CLAUDE.sansCredit) return repJson(400, { error: { message: 'Your credit balance is too low to access the Anthropic API.' } });
   if (body.max_tokens === 1) return repJson(200, { content: [{ type: 'text', text: 'o' }], usage: { input_tokens: 8, output_tokens: 1 } });
   const outil = body.tools[0].name;
-  CLAUDE.appels.push({ outil, model: body.model, max_tokens: body.max_tokens });
   const prompt = typeof body.messages[0].content === 'string' ? body.messages[0].content : JSON.stringify(body.messages[0].content);
+  CLAUDE.appels.push({ outil, model: body.model, max_tokens: body.max_tokens, prompt });
   let input;
   if (outil === 'proposer_idees') input = { idees: [1, 2, 3, 4, 5].map((i) => ({ titre: 'Idée ' + i + ' sur le ciel', accroche: 'Accroche ' + i, angle: 'Angle ' + i, pourquoi: 'Parce que ' + i })) };
   else if (outil === 'ecrire_script') input = scriptFaux(9, !!body.tools[0].input_schema.properties.beats.items.properties.visuel, CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').length);
@@ -437,6 +437,47 @@ async function jusqua(id, statuts, n) {
   const fen = M.fenetres(temps);
   assert.strictEqual(fen[0].debut, 0); assert.ok(Math.abs(fen[fen.length - 1].fin - 6.2) < 1e-9, 'les fenêtres couvrent toute la vidéo');
   assert.ok(M.HOTES.test('videos.pexels.com') && !M.HOTES.test('evil.com'), 'l\'usine ne télécharge que dans les banques libres');
+
+  // 21. les langues : 28 langues, deux moteurs de voix ; le chinois et le japonais coupent leurs sous-titres par mots
+  assert.ok(Object.keys(C.LANGUES).length >= 25, 'plus de vingt-cinq langues');
+  const vDe = C.voixDe(C.reglagesDe({}), 'de');
+  assert.strictEqual(vDe.moteur, 'piper'); assert.ok(/^de_DE-[a-z0-9_]+-(x_low|low|medium|high)$/.test(vDe.piper), 'une voix Piper allemande');
+  assert.strictEqual(C.voixDe(C.reglagesDe({}), 'fr').moteur, 'kokoro');
+  assert.strictEqual(C.voixDe(C.reglagesDe({ reglages: { voix: { fr: 'piper:fr_FR-tom-medium' } } }), 'fr').piper, 'fr_FR-tom-medium', 'une voix Piper pour le français aussi');
+  assert.strictEqual(C.voixDe(C.reglagesDe({ reglages: { voix: { fr: 'piper:../../etc' } } }), 'fr').voix, 'ff_siwis', 'une voix inconnue est refusée');
+  Object.keys(C.LANGUES).forEach((l) => C.LANGUES[l].voix.forEach((v) => { if (/^piper:/.test(v[0])) assert.ok(/^piper:[a-z]{2,3}_[A-Z]{2}-[a-z0-9_]+-(x_low|low|medium|high)$/.test(v[0]), 'nom de voix Piper : ' + v[0]); }));
+  assert.ok(C.voixDe(C.reglagesDe({}), 'zh').cjk && C.voixDe(C.reglagesDe({}), 'ja').cjk, 'chinois et japonais : sans espaces');
+  const tz = { duree: 3, segments: [{ debut: 0.2, fin: 2.6, mots: [{ m: '你', t0: 0.2, t1: 0.4, o: 0 }, { m: '知道吗？', t0: 0.4, t1: 1.0, o: 1 }, { m: '天空', t0: 1.1, t1: 1.5, o: 5, fort: true }, { m: '其实', t0: 1.5, t1: 1.9, o: 7 }, { m: '不是', t0: 1.9, t1: 2.2, o: 9 }, { m: '蓝色的。', t0: 2.2, t1: 2.6, o: 11 }] }] };
+  const assZ = M.sousTitres({ langue: 'zh', voix: { cjk: true }, texte: { accroche: '天空其实不是蓝色的', beats: [{ voix: 'x', ecran: '天空' }] }, plan: { style: 'clips', couleur: '#8B5CF6' } }, tz);
+  assert.ok(assZ.includes('Style: Sous,Noto Sans CJK SC'), 'la police chinoise');
+  assert.ok(!/Dialogue: 0,[^\n]*,Sous,,0,0,0,,[^\n]*你 知/.test(assZ), 'pas d\'espace entre les mots chinois');
+  assert.strictEqual(M.policeDe('ru'), 'Noto Sans ExtraBold'); assert.strictEqual(M.policeDe('ar'), 'Noto Sans Arabic ExtBd'); assert.strictEqual(M.policeDe('de'), 'Poppins ExtraBold');
+  assert.deepStrictEqual(M.couper('知道吗？章鱼有三颗心脏。', 6, true).map((x) => Array.from(x).length).slice(0, 1), [6], 'le chinois se coupe tous les n caractères');
+  assert.ok(!/^[。！？，]/.test(M.couper('一二三四五六。七八', 6, true)[1] || ''), 'jamais une ligne qui commence par une ponctuation');
+
+  // 22. les modèles de vidéo et l'apparence : le modèle va jusqu'à la plume, le thème accepte jour, nuit, auto
+  const avantM = CLAUDE.appels.length;
+  const rm = await api('POST', { op: 'creer', sujet: 'Les 3 animaux qui ne dorment presque jamais', modele: 'top3', langues: ['fr'] });
+  assert.strictEqual(rm.code, 200, 'une vidéo avec un modèle : ' + JSON.stringify(rm.d));
+  assert.strictEqual((await db.one('hq_crea_videos', { eq: { id: rm.d.video.id } })).plan.modele, 'top3');
+  await api('POST', { op: 'avancer', id: rm.d.video.id });
+  const appelM = CLAUDE.appels.slice(avantM).find((x) => x.outil === 'ecrire_script');
+  assert.ok(appelM && /Top 3/.test(appelM.prompt), 'la plume reçoit le modèle');
+  const rx = await api('POST', { op: 'creer', sujet: 'Un sujet', modele: 'inexistant', langues: ['fr'] });
+  if (rx.code === 200) assert.ok(!(await db.one('hq_crea_videos', { eq: { id: rx.d.video.id } })).plan.modele, 'un modèle inconnu est ignoré');
+  const rt = await api('POST', { op: 'reglages', reglages: { theme: { mode: 'sombre', ville: false }, visite_faite: true } });
+  assert.strictEqual(rt.d.moi.reglages.theme.mode, 'nuit', 'l\'ancien « sombre » devient la nuit'); assert.strictEqual(rt.d.moi.reglages.theme.ville, false); assert.strictEqual(rt.d.moi.reglages.visite_faite, true);
+  const cat = (await api('GET', { op: 'etat' })).d.catalogue;
+  assert.ok(cat.modeles.top3 && cat.modeles.top3.nom === 'Top 3' && !cat.modeles.top3.structure, 'le catalogue montre les modèles, pas leurs consignes');
+  assert.ok(Array.isArray(cat.naturelles) && cat.naturelles.indexOf('fr') >= 0);
+
+  // 23. la page et la ville se lisent (pas d'erreur de syntaxe dans les fichiers du navigateur)
+  const { execFileSync } = require('child_process');
+  const fs = require('fs'), os = require('os'), path = require('path');
+  execFileSync(process.execPath, ['--check', path.join(__dirname, '../assets/studio/app.js')]);
+  const tmp = path.join(os.tmpdir(), 'ville-' + process.pid + '.mjs');
+  fs.copyFileSync(path.join(__dirname, '../assets/studio/ville.js'), tmp);
+  try { execFileSync(process.execPath, ['--check', tmp]); } finally { fs.unlinkSync(tmp); }
 
   console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication).');
 })().catch((e) => { console.error(e); process.exit(1); });
