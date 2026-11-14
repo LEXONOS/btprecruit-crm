@@ -7,13 +7,23 @@ Une entreprise entièrement faite d'agents IA, organisée comme une vraie socié
 
 Derrière une porte : le mot de passe de Louis.
 
+## Depuis le 14 novembre 2026 : le mode relance
+
+Bilan au 14 nov. : 1 267 entreprises trouvées en Martinique, 110 aperçus fabriqués, 48 premiers emails et 4 relances partis, aucune réponse, aucune vente, environ 100 $ d'IA (dont 24 $ pour Miranda et 10 $ pour un Studio qui n'a jamais rendu une vidéo). Louis : « on a largement assez de sites faits et envoyés, il faut les relancer maintenant », sans coûter des centaines d'euros. Ce qui change :
+
+- **La fabrication est en pause** (`budget.fabrication`, `FABRICATION` dans `lib/config.js`) : ni chasse, ni nouveaux aperçus, ni photos, ni mise en page, ni jugement de Miranda. Chloé envoie le premier email aux prospects dont l'aperçu est déjà prêt, Yanis relance, Emma répond, Lucas encaisse et met en ligne. Presque plus aucun coût d'IA. Rallumable dans Gestion, Coûts et budget, « Fabriquer de nouveaux aperçus ».
+- **Trois relances au plus** (`lib/jobs/relancer.js`, `relance()` dans `lib/accroche.js`, `NOVALEMO.relances`), écrites par le code, dans le même fil : à J+3 le lien remis (la nouvelle du prix à 99 € pour qui avait reçu l'ancien message), à J+8 une question simple (« il vous plaît, ou je change quelque chose ? », « non merci » suffit pour ne plus rien recevoir), à J+15 le dernier message avec la date où l'aperçu est retiré. Jamais deux relances en attente, trois jours au moins entre deux, rien après une réponse ou un STOP.
+- **L'aperçu vraiment ouvert** : le panneau envoie un signal après un geste (défiler, toucher), au moins quatre secondes après l'ouverture, jamais depuis la tour (`?tour=1`) ni pour un robot qui charge la page. La fiche du prospect le garde (`data.vues`), son score monte, Louis est prévenu la première fois avec le numéro : c'est le moment d'appeler. La chaîne de la tour compte ceux qui ont ouvert leur aperçu. Le moteur des sites passe en `v3-templates-99-vu` : tous les aperçus sont republiés avec ce panneau.
+
+Essai : `node test/relances.js`.
+
 ## Depuis le 12 novembre 2026 : un site à 99 €, le message de Louis
 
 Une semaine, environ 100 $ d'IA, 13 emails arrivés et aucune réponse. Les causes : un premier email qui critiquait le site du prospect (et parlait d'amende) avant de lui montrer quoi que ce soit ; un lien brut en vercel.app ; un prix de 490 € ; et peu d'adresses, parce qu'une entreprise sans site publie rarement un email (les adresses devinées revenaient en rebond). Ce qui a changé :
 
 - **Une seule offre** (`NOVALEMO.grille` dans `lib/config.js`) : le site d'une page à 99 € en une fois, sans abonnement, nom de domaine et hébergement compris la première année (puis 25 € par an). Fait avec l'aide de l'IA, et on le dit. Plus gros (plusieurs pages, réservation, boutique) : Studio Novalem, sur devis (`NOVALEMO.studio`). Un email ou un lien à un autre prix ne part pas. Le code sait encore vendre plusieurs formules ou au mois si la grille les remet (la simulation complète rejoue l'ancienne grille).
 - **Le message de Louis, écrit par le code** (`lib/accroche.js`, zéro appel à l'IA) : ce qu'il a vu (son nom, sa commune, ses avis Google s'ils sont bons, pas de site ou un site qui mérite une version plus récente), l'aperçu fait d'avance derrière les mots « Voir votre site » (version HTML, sans image ni traceur), tout modifiable en bas de la page, 99 €, Studio Novalem, une question, Louis, STOP. Jamais de critique ni d'amende.
-- **Chloé et Yanis en automatique** (`lib/jobs/ecrire.js`, `lib/jobs/relancer.js`) : un premier email seulement avec l'aperçu publié et passé par Miranda ; une seule relance quatre jours après, dans le même fil, à qui n'a rien dit (ceux qui avaient reçu l'ancien message apprennent le nouveau prix).
+- **Chloé et Yanis en automatique** (`lib/jobs/ecrire.js`, `lib/jobs/relancer.js`) : un premier email seulement avec l'aperçu publié et passé par Miranda ; les relances dans le même fil, à qui n'a rien dit (ceux qui avaient reçu l'ancien message apprennent le nouveau prix ; trois relances depuis le 14 nov.).
 - **« Modifier moi-même »** (`lib/sites/edition.js`, panneau de l'aperçu) : le prospect touche un texte et l'écrit autrement, ou « Changer la photo » ; il laisse son email, c'est posé dans la fiche, Lucas republie, Louis est prévenu (c'est le signal le plus fort). Jamais ses coordonnées ni ses horaires. Le panneau n'a plus qu'une offre, déjà choisie.
 - **Le compte Anthropic à sa limite de dépense** : la garde le retient (un seul appel d'essai par demi-heure), aucun aperçu n'est plus « raté » pour ça, et chaque réponse de prospect arrive chez Louis en « À toi de répondre » tant qu'Emma ne peut pas écrire.
 - **L'adresse des aperçus** : `HQ_SITES_DOMAINE` (ex. apercu.novalemo.fr, un CNAME vers cname.vercel-dns.com) est vérifiée toute seule toutes les 30 minutes ; les emails passent dessus dès qu'elle répond.

@@ -59,7 +59,7 @@ const tableau = {
       ['Joignables', c.joignables, nom('contacts') + ' vérifie le site, trouve l\'email ou le numéro, écarte les doublons'],
       ['Aperçus', c.apercus, nom('demo') + ' écrit le site, ' + nom('photos') + ' pose les photos, ' + nom('da') + ' le met en page, ' + nom('livraison') + ' le publie'],
       ['Prêts à partir', c.valides, nom('critique') + ' le note comme un client : il part dès 6/10, et elle le fait refaire pour le monter à 8'],
-      ['Contactés', c.envoyes, test ? 'envoi gelé : les sites sont en test (Ventes, « Lancer l\'envoi »)' : nom('redacteur') + ' écrit le premier email avec l\'aperçu, ' + nom('relanceur') + ' relance'],
+      ['Contactés', c.envoyes, test ? 'envoi gelé : les sites sont en test (Ventes, « Lancer l\'envoi »)' : nom('redacteur') + ' écrit le premier email avec l\'aperçu, ' + nom('relanceur') + ' relance trois fois au plus' + (c.ouverts ? ' ; ' + pluriel(c.ouverts, 'prospect') + ' ont ouvert leur aperçu' : '')],
       ['Réponses', (c.reponses || 0) + (c.interesses || 0), nom('reponses') + ' répond, retouche le site, envoie le paiement'],
       ['Commandes', c.commandes, 'paiement envoyé, en attente'],
       ['En ligne', c.en_ligne, nom('livraison') + ' met le site en ligne sur son domaine']
@@ -334,13 +334,14 @@ const couts = {
     h += '<div class="carte"><h2 class="carte-t">Les plafonds</h2>' +
       champ('bJour', 'Plafond de l\'IA par jour (dollars)', b.jour_usd, 0, 50, 0.25) + champ('bMois', 'Plafond de l\'IA par mois (dollars)', b.mois_usd, 0, 500, 1) + champ('bRech', 'Recherches web par jour (1 centime chacune)', b.recherches_jour, 0, 500, 1) + champ('bPlaces', 'Recherches Google Maps par jour', b.places_jour, 0, 500, 1) + champ('bMails', 'Emails envoyés par jour, au plus', b.emails_jour, 0, 200, 1) + champ('bApercus', 'Aperçus fabriqués par jour (3 centimes environ)', b.apercus_jour, 0, 60, 1) + champ('bDomaine', 'Prix maximum d\'un nom de domaine (dollars)', b.domaine_max_usd, 5, 80, 1) + champ('bNote', 'Note de ' + nom('critique') + ' pour qu\'un aperçu parte (sur 10)', b.note_envoi || 6, 1, 10, 0.5) +
       '<div class="reglage"><div><b>Pilote automatique</b><span>Emails, réponses, commandes et mises en ligne partent seuls, après le contrôle qualité.</span></div><button class="interrupteur' + (b.envoi_auto ? ' on' : '') + '" id="bAuto" data-bascule aria-label="Pilote automatique"></button></div>' +
+      '<div class="reglage"><div><b>Fabriquer de nouveaux aperçus</b><span>Coupé : la tour envoie et relance les aperçus déjà faits, sans chercher de nouvelles entreprises ni fabriquer de sites (presque aucun coût d\'IA). Allumé : chasse, aperçus, photos et jugement repartent.</span></div><button class="interrupteur' + (b.fabrication ? ' on' : '') + '" id="bFab" data-bascule aria-label="Fabriquer de nouveaux aperçus"></button></div>' +
       '<div class="ligne-actions" style="margin-top:14px"><button class="btn btn-primaire" data-act="budgetEnregistrer">Enregistrer</button></div></div></div>';
     return h;
   },
   apres(el) { el.querySelectorAll('[data-bascule]').forEach((x) => x.addEventListener('click', () => x.classList.toggle('on'))); }
 };
 function champ(id, label, v, min, max, pas) { return '<label class="champ"><span>' + esc(label) + '</span><input class="saisie num" id="' + id + '" type="number" min="' + min + '" max="' + max + '" step="' + pas + '" value="' + esc(v) + '"></label>'; }
-action('budgetEnregistrer', (b) => { if (garde()) occupe(b, async () => { const r = await envoyer({ op: 'budget', jour_usd: $('#bJour').value, mois_usd: $('#bMois').value, recherches_jour: $('#bRech').value, places_jour: $('#bPlaces').value, emails_jour: $('#bMails').value, apercus_jour: $('#bApercus').value, domaine_max_usd: $('#bDomaine').value, note_envoi: $('#bNote').value, envoi_auto: $('#bAuto').classList.contains('on') }); toast(r && r.reveilles && r.reveilles.length ? 'Plafonds enregistrés : ' + nom('redacteur') + ', ' + nom('critique') + ' et les autres repartent tout de suite.' : 'Plafonds enregistrés.', 'ok'); await rafraichir(); }); });
+action('budgetEnregistrer', (b) => { if (garde()) occupe(b, async () => { const r = await envoyer({ op: 'budget', jour_usd: $('#bJour').value, mois_usd: $('#bMois').value, recherches_jour: $('#bRech').value, places_jour: $('#bPlaces').value, emails_jour: $('#bMails').value, apercus_jour: $('#bApercus').value, domaine_max_usd: $('#bDomaine').value, note_envoi: $('#bNote').value, envoi_auto: $('#bAuto').classList.contains('on'), fabrication: $('#bFab').classList.contains('on') }); toast(r && r.reveilles && r.reveilles.length ? 'Plafonds enregistrés : ' + nom('redacteur') + ', ' + nom('critique') + ' et les autres repartent tout de suite.' : 'Plafonds enregistrés.', 'ok'); await rafraichir(); }); });
 
 /* ── la veille et les fiches des autres entreprises ── */
 const veille = {

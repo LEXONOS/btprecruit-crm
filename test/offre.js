@@ -136,7 +136,8 @@ const AGRESSIF = /moche|horrible|obsol[eè]te|d[ée]pass[ée]|amende|375 ?000|75
   await require('../lib/sites/phase').ecrire(db, 'envoi', 'louis');
   console.log('Chloé OK : message de Louis avec son lien, sans IA, jamais une adresse devinée, hors zone, STOP, doublon ou aperçu disparu');
 
-  // 6. Yanis en automatique : une relance, quatre jours après, à qui n'a rien dit ; l'ancien message apprend le prix
+  // 6. Yanis en automatique (14 nov. 2026) : trois relances au plus, J+3, J+8, J+15, dans le même fil, à qui n'a rien dit ;
+  // l'ancien message apprend le prix à la première ; jamais deux qui attendent, trois jours au moins entre deux
   const premier = async function (l, jours, angle) {
     await db.update('hq_leads', { status: 'contacte' }, { eq: { id: l.id } });
     return (await db.insert('hq_outbox', { lead_id: l.id, to_email: l.email, subject: 'Le site de ' + l.name, body: 'x', step: 1, angle: angle, status: 'envoye', kind: 'prospection', sent_at: il(jours), message_id: '<hq.' + l.id + '.abc@novalemo.fr>' }))[0];
@@ -146,7 +147,7 @@ const AGRESSIF = /moche|horrible|obsol[eè]te|d[ée]pass[ée]|amende|375 ?000|75
   const repondu = await leadSite(22, { name: 'Répondu SARL', email: 'c@repondu-mq.fr' });
   const recent = await leadSite(23, { name: 'Récent SARL', email: 'd@recent-mq.fr' });
   const pv = await premier(vieux, 5, 'v:A apercu');
-  await premier(nouveau, 6, 'v:L site');
+  const pn = await premier(nouveau, 6, 'v:L site');
   await premier(repondu, 5, 'v:L sans_site');
   await db.insert('hq_inbox', { lead_id: repondu.id, from_email: repondu.email, subject: 'Re: x', body: 'Merci, pas pour l\'instant.', kind: 'reponse', status: 'traite', received_at: il(1) }, { returning: false });
   await premier(recent, 2, 'v:L sans_site');
@@ -154,12 +155,32 @@ const AGRESSIF = /moche|horrible|obsol[eè]te|d[ée]pass[ée]|amende|375 ?000|75
   const y1 = await RELANCER.run({ db: db, budget: budget, agent: { id: 'relanceur' }, compteurs: {} });
   assert.strictEqual(fakes.appels(), appels1, 'Yanis n\'appelle jamais Claude');
   const rv = ob(vieux.id).find(function (o) { return o.kind === 'relance'; }), rn = ob(nouveau.id).find(function (o) { return o.kind === 'relance'; });
-  assert.ok(rv && rv.angle === 'relance 99' && /maintenant à 99 €/.test(rv.body) && rv.step === 2 && rv.in_reply_to === pv.message_id && rv.subject === 'Re: ' + pv.subject && rv.status === 'pret', 'l\'ancien message (490 €) : la relance annonce 99 €, dans le même fil');
-  assert.ok(rn && rn.angle === 'v:L relance' && /au cas où/.test(rn.body), 'le message de Louis : un simple rappel');
-  assert.ok(!ob(repondu.id).some(function (o) { return o.kind === 'relance'; }) && !ob(recent.id).some(function (o) { return o.kind === 'relance'; }), 'jamais à qui a répondu, jamais avant quatre jours');
+  assert.ok(rv && rv.angle === 'relance 99' && /maintenant à 99 €/.test(rv.body) && rv.step === 2 && rv.in_reply_to === pv.message_id && rv.subject === 'Re: ' + pv.subject && rv.status === 'pret', 'l\'ancien message (490 €) : la première relance annonce 99 €, dans le même fil');
+  assert.ok(rn && rn.angle === 'v:L relance 1' && /au cas où/.test(rn.body) && !AGRESSIF.test(rn.body), 'le message de Louis : un simple rappel');
+  assert.ok(!ob(repondu.id).some(function (o) { return o.kind === 'relance'; }) && !ob(recent.id).some(function (o) { return o.kind === 'relance'; }), 'jamais à qui a répondu, jamais avant trois jours');
   const y2 = await RELANCER.run({ db: db, budget: budget, agent: { id: 'relanceur' }, compteurs: {} });
-  assert.ok(y1.produit === 2 && y2.produit === 0, 'une seule relance au total : ' + y1.resume + ' / ' + y2.resume);
-  console.log('Yanis OK : une relance à J+4 dans le même fil, nouveau prix pour l\'ancien message, jamais à qui a répondu');
+  assert.ok(y1.produit === 2 && y2.produit === 0, 'jamais deux relances qui attendent : ' + y1.resume + ' / ' + y2.resume);
+  // la première est partie il y a 3 jours, le premier email date de 9 jours : la deuxième (J+8), une question simple
+  const passer = async function (o, envoye, premierIl) { await db.update('hq_outbox', { status: 'envoye', sent_at: il(envoye) }, { eq: { id: o.id } }); if (premierIl != null) await db.update('hq_outbox', { sent_at: il(premierIl) }, { eq: { id: pn.id } }); };
+  await passer(rn, 1, 9);
+  const y3 = await RELANCER.run({ db: db, budget: budget, agent: { id: 'relanceur' }, compteurs: {} });
+  assert.ok(!ob(nouveau.id).some(function (o) { return o.kind === 'relance' && o.step === 3; }), 'trois jours au moins entre deux relances : ' + y3.resume);
+  await passer(rn, 3);
+  await RELANCER.run({ db: db, budget: budget, agent: { id: 'relanceur' }, compteurs: {} });
+  const r2b = ob(nouveau.id).find(function (o) { return o.kind === 'relance' && o.step === 3; });
+  assert.ok(r2b && r2b.angle === 'v:L relance 2' && /le site vous plaît, ou je change quelque chose/.test(r2b.body) && /non merci/.test(r2b.body) && r2b.in_reply_to === pn.message_id, 'la deuxième : une question simple, dans le même fil');
+  // la troisième (J+15) : le dernier message, avec la date où l'aperçu est retiré
+  await passer(r2b, 3, 16);
+  await RELANCER.run({ db: db, budget: budget, agent: { id: 'relanceur' }, compteurs: {} });
+  const r3 = ob(nouveau.id).find(function (o) { return o.kind === 'relance' && o.step === 4; });
+  assert.ok(r3 && r3.angle === 'v:L relance 3' && /Dernier message de ma part/.test(r3.body) && /reste en ligne jusqu'au \d{1,2}(er)? [a-zéû]+, ensuite je le retire/.test(r3.body) && /répondez « oui »/.test(r3.body) && !AGRESSIF.test(r3.body), 'la troisième : le dernier message, avec sa date');
+  await passer(r3, 3, 30);
+  const y6 = await RELANCER.run({ db: db, budget: budget, agent: { id: 'relanceur' }, compteurs: {} });
+  assert.strictEqual(ob(nouveau.id).filter(function (o) { return o.kind === 'relance'; }).length, 3, 'trois relances au plus : ' + y6.resume);
+  // la règle seule : J+3, J+8, J+15, rien entre, rien après
+  const S = RELANCER.suivante, j0 = { sent_at: il(20) };
+  assert.ok(S(j0, []).numero === 1 && S({ sent_at: il(2) }, []).attente && S(j0, [{ status: 'pret' }]).attente && S(j0, [{ status: 'envoye', sent_at: il(5) }]).numero === 2 && S({ sent_at: il(7) }, [{ status: 'envoye', sent_at: il(4) }]).attente && S(j0, [{ status: 'annule' }]).numero === 1 && S(j0, [1, 2, 3].map(function () { return { status: 'envoye', sent_at: il(5) }; })).fini, 'la règle des trois relances');
+  console.log('Yanis OK : trois relances (J+3, J+8, J+15) dans le même fil, nouveau prix pour l\'ancien message, jamais deux en attente, jamais à qui a répondu');
 
   // 7. l'envoi : la version HTML part avec la version texte, le lien sur les mots ; jamais sans STOP
   process.env.HQ_MAIL_USER = 'louis@novalemo.fr'; process.env.HQ_MAIL_PASS = 'secret-de-test';
