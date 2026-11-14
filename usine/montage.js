@@ -247,7 +247,7 @@ async function monter(cmd, sortie) {
   const chemin = (p) => p.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'");
   await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-i', f.fichier, '-i', path.join(sortie, 'son.wav'),
     '-filter_complex', "[0:v]subtitles='" + chemin(sous) + "':fontsdir='" + chemin(POLICES) + "'[v];[1:a]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]",
-    '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-maxrate', '7M', '-bufsize', '14M', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+    '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-shortest', '-movflags', '+faststart', finale]);
   const vignette = path.join(sortie, 'vignette.jpg');
   await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-ss', String(Math.min(1.4, Math.max(0.6, temps.duree / 3))), '-i', finale, '-frames:v', '1', '-q:v', '3', vignette]);
