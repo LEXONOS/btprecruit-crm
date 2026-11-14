@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/sim.js && node test/studio.js && node test/garde.js && node test/offre.js && node test/relances.js"
+    "test": "node test/sim.js && node test/studio.js && node test/garde.js && node test/offre.js && node test/relances.js && node test/createurs.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "153.0.0",

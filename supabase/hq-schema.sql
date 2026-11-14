@@ -486,3 +486,84 @@ alter table public.hq_videos enable row level security;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('studio', 'studio', false, 209715200, array['video/mp4', 'image/jpeg', 'application/x-subrip', 'text/plain'])
 on conflict (id) do nothing;
+
+-- ───────────────────────── STUDIO DES CRÉATRICES ─────────────────────────
+-- Les amies de Louis qui font des vidéos TikTok et YouTube avec leur propre équipe d'agents (/studio). Chacune a son
+-- compte (mot de passe scrypt, sessions révocables par génération), ses réglages, son équipe (prénoms, couleurs,
+-- consignes), ses clés chiffrées (Claude, upload-post : AES-256-GCM, la clé de chiffrement n'est jamais en base) et
+-- ses dépenses du jour comptées avant chaque appel (elle paie avec sa clé, dans le budget qu'elle choisit).
+-- Ses vidéos sont rangées dans le stockage « studio », sous crea/<compte>/<vidéo>/<langue>/.
+create table if not exists public.hq_createurs (
+  id bigint generated always as identity primary key,
+  identifiant text not null unique check (identifiant ~ '^[a-z0-9][a-z0-9._-]{2,31}$'),
+  prenom text not null,
+  statut text not null default 'invitee' check (statut in ('invitee', 'active', 'suspendue')),
+  mdp text,                                        -- empreinte scrypt, jamais le mot de passe
+  gen int not null default 0,                      -- +1 : toutes ses sessions se ferment
+  invitation text,                                 -- sha256 du code d'invitation (le lien n'est jamais gardé)
+  invitation_expire timestamptz,
+  reglages jsonb not null default '{}'::jsonb,     -- chaîne, langues, format, style, voix, budget, pilote, thème
+  equipe jsonb not null default '{}'::jsonb,       -- { idees: { prenom, couleur, consignes }, ... }
+  secrets jsonb not null default '{}'::jsonb,      -- { claude: { v, iv, tag, ct, fin, k }, uploadpost: {...} } chiffrés
+  couts jsonb not null default '{}'::jsonb,        -- { jours: { 'AAAA-MM-JJ': usd }, mois: { 'AAAA-MM': usd }, total }
+  journal jsonb not null default '[]'::jsonb,      -- les derniers événements de son compte
+  idees jsonb not null default '[]'::jsonb,        -- les dernières idées proposées par son équipe (pas encore choisies)
+  derniere_connexion timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.hq_createurs enable row level security;
+
+create table if not exists public.hq_crea_videos (
+  id bigint generated always as identity primary key,
+  createur_id bigint not null references public.hq_createurs (id) on delete cascade,
+  status text not null default 'ecriture',         -- ecriture | relecture | langues | realisation | fabrication | prete | publication | publiee | echec | archivee
+  sujet text,                                      -- l'idée telle qu'elle l'a donnée (ou choisie)
+  titre text,
+  langue_source text not null default 'fr',
+  langues text[] not null default '{}',
+  idee jsonb not null default '{}'::jsonb,         -- l'idée retenue (titre, angle, accroche)
+  script jsonb not null default '{}'::jsonb,       -- accroche, beats [{ voix, ecran, visuel }], titre, description, hashtags
+  critique jsonb not null default '{}'::jsonb,     -- la note de la critique, ses corrections, les réécritures
+  traductions jsonb not null default '{}'::jsonb,  -- { en: { titre, accroche, beats, description, hashtags } }
+  plan jsonb not null default '{}'::jsonb,         -- style, couleur, musique, clips par phrase, crédits
+  rendus jsonb not null default '{}'::jsonb,       -- { fr: { etat, jeton, essais, fichiers, duree, erreur } }
+  publication jsonb not null default '{}'::jsonb,  -- { fr: { tiktok: { etat, requete, lien, erreur }, youtube: {...} } }
+  etape jsonb not null default '{}'::jsonb,        -- ce qui se passe maintenant (quoi, depuis, erreur, attendre_jusqu)
+  cout_usd numeric(10,4) not null default 0,
+  auto boolean not null default false,             -- lancée par le pilote automatique
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists hq_crea_videos_createur on public.hq_crea_videos (createur_id, created_at desc);
+create index if not exists hq_crea_videos_status on public.hq_crea_videos (status, updated_at);
+alter table public.hq_crea_videos enable row level security;
+
+-- La dépense d'une créatrice, réservée AVANT chaque appel à Claude (au prix maximum de l'appel) puis ajustée au prix
+-- réel : une seule instruction, verrou de ligne ; refusée si elle dépasse son plafond du jour.
+create or replace function public.hq_crea_cout(p_id bigint, p_jour text, p_mois text, p_delta numeric, p_plafond numeric default null)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare c jsonb; j numeric; m numeric; t numeric; garde jsonb;
+begin
+  select couts into c from public.hq_createurs where id = p_id for update;
+  if not found then return jsonb_build_object('ok', false, 'raison', 'compte inconnu'); end if;
+  c := coalesce(c, '{}'::jsonb);
+  j := coalesce((c->'jours'->>p_jour)::numeric, 0);
+  m := coalesce((c->'mois'->>p_mois)::numeric, 0);
+  t := coalesce((c->>'total')::numeric, 0);
+  if p_delta > 0 and p_plafond is not null and j + p_delta > p_plafond then
+    return jsonb_build_object('ok', false, 'jour', j, 'plafond', p_plafond);
+  end if;
+  j := greatest(0, j + p_delta); m := greatest(0, m + p_delta); t := greatest(0, t + p_delta);
+  select coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb) into garde
+    from jsonb_each(coalesce(c->'jours', '{}'::jsonb)) e where e.key >= to_char(now() - interval '45 days', 'YYYY-MM-DD');
+  c := c || jsonb_build_object('jours', garde || jsonb_build_object(p_jour, round(j, 6)),
+                               'mois', coalesce(c->'mois', '{}'::jsonb) || jsonb_build_object(p_mois, round(m, 6)),
+                               'total', round(t, 6));
+  update public.hq_createurs set couts = c, updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', true, 'jour', j, 'mois', m, 'total', t);
+end;
+$$;
+revoke all on function public.hq_crea_cout(bigint, text, text, numeric, numeric) from public, anon, authenticated;
+grant execute on function public.hq_crea_cout(bigint, text, text, numeric, numeric) to service_role;

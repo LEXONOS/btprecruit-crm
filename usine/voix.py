@@ -3,7 +3,8 @@
 Lit une commande JSON sur l'entrée standard :
   { "langue": "en-us", "voix": "af_heart", "vitesse": 1.0, "segments": ["...", "..."],
     "sortie": "/dossier", "modele": "kokoro-v1.0.onnx", "voix_fichier": "voices-v1.0.bin",
-    "debut": 0.25, "ecart": 0.3, "fin": 0.9, "musique": true, "graine": 7 }
+    "debut": 0.25, "ecart": 0.3, "fin": 0.9, "musique": true, "ambiance": "calme", "graine": 7 }
+  ambiance : calme (par défaut), energie, mystere ou aucune
 Écrit dans le dossier de sortie :
   voix.wav    la voix seule, chaque segment posé à sa place sur la ligne de temps
   son.wav     la voix, la musique d'ambiance et les bruitages, mixés
@@ -75,8 +76,34 @@ def enveloppe(n, attaque, relache):
     return e
 
 
-def musique(n, graine):
-    """Une nappe douce, en accords qui changent toutes les 4 secondes environ, très en dessous de la voix."""
+def batterie(n, tempo, graine):
+    """Une pulsation légère (grosse caisse sur les temps, charleston sur les contretemps), pour l'ambiance « énergie »."""
+    rng = np.random.default_rng(graine + 11)
+    out = np.zeros(n, dtype=np.float32)
+    temps = 60.0 / tempo
+    nk = int(0.22 * SR)
+    tk = np.arange(nk) / SR
+    kick = (np.sin(2 * np.pi * (45 + 75 * np.exp(-tk * 28)) * tk) * np.exp(-tk * 11)).astype(np.float32)
+    nh = int(0.05 * SR)
+    hat = rng.standard_normal(nh).astype(np.float32)
+    hat = np.diff(np.concatenate([[0.0], hat])).astype(np.float32) * np.exp(-np.arange(nh) / SR * 70).astype(np.float32)
+    k = 0
+    while True:
+        i = int(k * temps * SR)
+        if i >= n:
+            break
+        out[i:i + nk] += kick[: max(0, n - i)] * 0.9
+        j = int((k + 0.5) * temps * SR)
+        if j < n:
+            out[j:j + nh] += hat[: max(0, n - j)] * 0.35
+        k += 1
+    return out
+
+
+def musique(n, graine, ambiance="calme"):
+    """La musique d'ambiance, très en dessous de la voix. calme : une nappe douce en accords qui changent toutes les
+    4 secondes environ ; energie : la même nappe plus claire, avec une pulsation ; mystere : des accords mineurs graves
+    qui respirent lentement."""
     rng = np.random.default_rng(graine)
     duree = n / SR
     t = np.arange(n) / SR
@@ -88,7 +115,11 @@ def musique(n, graine):
         [[196.0, 233.08, 293.66, 349.23], [155.56, 196.0, 233.08, 311.13], [174.61, 220.0, 261.63, 349.23], [146.83, 185.0, 220.0, 293.66]],
     ]
     accords = progressions[int(rng.integers(len(progressions)))]
-    duree_accord = 4.2
+    if ambiance == "mystere":
+        accords = [[110.0, 130.81, 164.81, 220.0], [98.0, 116.54, 146.83, 196.0], [103.83, 123.47, 155.56, 207.65], [92.5, 110.0, 138.59, 185.0]]
+    elif ambiance == "energie":
+        accords = [[f * 1.5 for f in a] for a in accords]
+    duree_accord = 4.2 if ambiance != "energie" else 2.2
     for k in range(int(np.ceil(duree / duree_accord))):
         d0 = int(k * duree_accord * SR)
         d1 = min(n, int((k + 1) * duree_accord * SR) + int(0.8 * SR))
@@ -104,7 +135,14 @@ def musique(n, graine):
         out[d0:d1] += seg
     # basse lente et respiration
     out += 0.35 * np.sin(2 * np.pi * 55 * t).astype(np.float32) * (0.6 + 0.4 * np.sin(2 * np.pi * t / 8)).astype(np.float32)
+    if ambiance == "mystere":
+        out *= (0.75 + 0.25 * np.sin(2 * np.pi * t / 3.1)).astype(np.float32)
     out /= max(1e-6, np.max(np.abs(out)))
+    if ambiance == "energie":
+        b = batterie(n, 112, graine)
+        out = out * 0.75 + b / max(1e-6, np.max(np.abs(b))) * 0.7
+        out /= max(1e-6, np.max(np.abs(out)))
+        return out * 0.075
     return out * 0.055
 
 
@@ -185,8 +223,9 @@ def main():
     voix = voix / pic * 0.89
     sf.write(os.path.join(sortie, "voix.wav"), voix, SR)
     son = voix.copy()
-    if c.get("musique", True):
-        son += musique(len(son), int(c.get("graine", 7)))
+    ambiance = str(c.get("ambiance", "calme") or "calme")
+    if c.get("musique", True) and ambiance != "aucune":
+        son += musique(len(son), int(c.get("graine", 7)), ambiance)
         for i, s in enumerate(segments[1:], start=1):
             w = souffle(0.55, i)
             j = max(0, int((s["debut"] - 0.42) * SR))
