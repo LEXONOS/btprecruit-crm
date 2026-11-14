@@ -26,6 +26,26 @@ function carteUsine(d) {
     (enCours ? '<p style="margin:10px 0 0;font-size:12.5px;color:var(--doux)">' + pluriel(enCours, 'fabrication') + ' en cours (10 à 15 minutes chacune).</p>' : '') + '</div>';
 }
 
+// Les créatrices : les amies de Louis qui font leurs vidéos dans leur propre studio (/studio), avec leur clé Claude.
+// Louis crée le compte et leur envoie le lien d'invitation ; il voit leur activité et leurs dépenses, jamais leurs clés.
+let lienInvitation = null;
+const lienDe = (code) => location.origin + '/studio#invitation=' + code;
+function carteCreatrices(d) {
+  const L = d.createurs || [];
+  const etat = (c) => c.statut === 'suspendue' ? '<span class="pastille attention">En pause</span>' : c.statut === 'invitee' ? '<span class="pastille nu">Invitée</span>' : '<span class="pastille ok">Active</span>';
+  let h = '<div class="carte" style="margin-bottom:14px"><h2 class="carte-t">Les créatrices<small>leur studio : ' + esc(location.host) + '/studio</small></h2>' +
+    '<p style="margin:0 0 12px;color:var(--encre-2);font-size:13px">Chacune a son espace pour créer ses vidéos TikTok et YouTube avec sa propre équipe, de l\'idée à la publication. Elle paie avec sa clé Claude, dans le budget du jour qu\'elle choisit ; le montage, les images et le stockage passent par la tour.</p>';
+  if (lienInvitation) {
+    h += '<div class="barre-pilote" style="margin-bottom:12px"><div><b>Lien pour ' + esc(lienInvitation.prenom) + ' (identifiant : ' + esc(lienInvitation.identifiant) + ')</b><span style="word-break:break-all">' + esc(lienDe(lienInvitation.code)) + '</span><span>Valable 7 jours, une seule fois. Envoie-le lui par message : elle y choisit son mot de passe.</span></div><button class="btn btn-primaire btn-petit" data-act="creaCopier">' + ico('copier') + 'Copier le lien</button></div>';
+  }
+  h += L.length ? '<div class="studio-fab">' + L.map((c) => '<div style="display:block;padding:10px 0;border-top:1px solid var(--ligne)"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' + etat(c) + '<b>' + esc(c.prenom) + '</b><small style="color:var(--doux)">' + esc(c.identifiant) + (c.chaine ? ', ' + esc(c.chaine) : '') + '</small></div>' +
+    '<p style="margin:6px 0;font-size:12.5px;color:var(--doux)">' + esc([pluriel(c.videos.total, 'vidéo'), c.videos.en_cours ? c.videos.en_cours + ' en route' : '', c.videos.publiees ? c.videos.publiees + ' publiée(s)' : '', 'ce mois : ' + usd(c.depense.mois) + ' sur sa clé', c.claude ? 'clé Claude branchée' : 'pas encore de clé Claude', c.uploadpost ? 'publication automatique' : '', c.pilote ? 'pilote automatique' : '', c.derniere_connexion ? 'vue ' + depuis(c.derniere_connexion) : 'jamais connectée'].filter(Boolean).join(', ')) + '</p>' +
+    '<div class="ligne-actions"><button class="btn btn-second btn-petit" data-act="creaLien" data-id="' + c.id + '">' + (c.statut === 'invitee' ? 'Refaire le lien d\'invitation' : 'Lien de nouveau mot de passe') + '</button>' +
+    (c.statut === 'suspendue' ? '<button class="btn btn-second btn-petit" data-act="creaStatut" data-statut="active" data-id="' + c.id + '">Réactiver</button>' : '<button class="btn btn-second btn-petit" data-act="creaStatut" data-statut="suspendue" data-id="' + c.id + '">Mettre en pause</button>') +
+    '<button class="btn btn-danger btn-petit" data-act="creaSupprimer" data-id="' + c.id + '" data-nom="' + esc(c.prenom) + '">Supprimer</button></div></div>').join('') + '</div>' : '<p style="margin:0 0 10px;color:var(--doux);font-size:13px">Aucun compte pour l\'instant.</p>';
+  return h + '<div class="ligne-actions" style="margin-top:10px"><button class="btn btn-primaire btn-petit" data-act="creaCreer">Ajouter une créatrice</button></div></div>';
+}
+
 function carteLignes(d) {
   const L = d.lignes || {}, R = d.reglages || {}, noms = d.langues || {};
   return '<div class="grille studio-lignes">' + Object.keys(L).map((k) => {
@@ -75,6 +95,7 @@ const studio = {
     const total = Object.keys(c).reduce((s, k) => s + c[k], 0);
     let h = tete('Studio 3D', 'Les vidéos se font seules. La salle d\'écriture : ' + nom('actu_studio') + ' suit l\'actualité, ' + nom('accrocheur') + ' trouve les accroches, ' + nom('scenariste') + ' écrit, ' + nom('prof_viral') + ' juge la viralité, ' + nom('verif_studio') + ' vérifie les faits. La fabrication : ' + nom('animateur') + ' monte la 3D, l\'usine rend, ' + nom('critique_video') + ' juge, ' + nom('plume_fr') + ' écrit en français, ' + nom('localisation') + ' adapte le reste. ' + (total ? pluriel(total, 'vidéo') + ', ' + usd(d.cout_total) + ' d\'IA en tout.' : ''));
     if (demo()) return h + vide('La base n\'est pas encore branchée', 'La mise en route d\'abord.', '<button class="btn btn-primaire btn-petit" style="margin-top:10px" data-aller="gestion/route">Mise en route</button>');
+    h += carteCreatrices(d);
     h += carteUsine(d);
     h += carteLignes(d);
     const filtres = [['', 'Tout'], ['prete', 'Prêtes'], ['critique', 'À juger'], ['langues', 'Langues'], ['ecriture', 'En écriture'], ['script', 'À monter'], ['refuse', 'Refusées'], ['echec', 'Échecs']];
@@ -91,6 +112,28 @@ action('studioVideo', async (b, d) => {
   const l = libelles[d.faire];
   if (!l || !(await dialogue({ titre: l[0], texte: l[1], ok: l[2], danger: d.faire === 'refuser' }))) return;
   occupe(b, async () => { await envoyer({ op: 'studio_video', id: Number(d.id), faire: d.faire }); toast('C\'est noté.', 'ok'); recharger(); });
+});
+action('creaCreer', async (b) => {
+  const prenom = await dialogue({ titre: 'Ajouter une créatrice', texte: 'Son identifiant est tiré de son prénom ; tu reçois ensuite le lien d\'invitation à lui envoyer.', saisie: 'Son prénom', ok: 'Créer le compte' });
+  if (!prenom) return;
+  occupe(b, async () => { const r = await envoyer({ op: 'crea_creer', prenom }); lienInvitation = { code: r.code, prenom: r.prenom, identifiant: r.identifiant }; toast('Compte créé : copie le lien et envoie-le lui.', 'ok'); recharger(); });
+});
+action('creaLien', async (b, d) => {
+  if (!(await dialogue({ titre: 'Faire un nouveau lien ?', texte: 'L\'ancien lien ne marche plus. Avec le nouveau, elle choisit un nouveau mot de passe (ses vidéos et ses réglages restent).', ok: 'Nouveau lien' }))) return;
+  occupe(b, async () => { const r = await envoyer({ op: 'crea_lien', id: Number(d.id) }); lienInvitation = { code: r.code, prenom: r.prenom, identifiant: r.identifiant }; toast('Nouveau lien prêt.', 'ok'); recharger(); });
+});
+action('creaStatut', async (b, d) => {
+  const pause = d.statut === 'suspendue';
+  if (pause && !(await dialogue({ titre: 'Mettre ce compte en pause ?', texte: 'Elle est déconnectée et son équipe s\'arrête jusqu\'à ce que tu le réactives.', ok: 'Mettre en pause' }))) return;
+  occupe(b, async () => { await envoyer({ op: 'crea_statut', id: Number(d.id), statut: d.statut }); toast(pause ? 'Compte en pause.' : 'Compte réactivé.', 'ok'); recharger(); });
+});
+action('creaSupprimer', async (b, d) => {
+  if (!(await dialogue({ titre: 'Supprimer le compte de ' + d.nom + ' ?', texte: 'Ses vidéos, ses réglages et ses clés sont effacés pour de bon.', ok: 'Supprimer', danger: true }))) return;
+  occupe(b, async () => { await envoyer({ op: 'crea_supprimer', id: Number(d.id) }); lienInvitation = null; toast('Compte supprimé.', 'ok'); recharger(); });
+});
+action('creaCopier', () => {
+  if (!lienInvitation) return;
+  navigator.clipboard.writeText(lienDe(lienInvitation.code)).then(() => toast('Lien copié.', 'ok'), () => toast('Copie impossible : sélectionne le lien à la main.', 'err'));
 });
 action('studioRythme', async (b, d) => {
   const v = window.prompt('Vidéos par jour pour cette ligne (0 = pause) :', d.v || '2');

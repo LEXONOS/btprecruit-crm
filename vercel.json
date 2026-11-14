@@ -26,6 +26,9 @@
     },
     "api/apercu.js": {
       "maxDuration": 30
+    },
+    "api/studio.js": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -35,6 +38,10 @@
     },
     {
       "path": "/api/whatsapp",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/studio",
       "schedule": "*/5 * * * *"
     }
   ],
@@ -104,12 +111,30 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://fbmzlfrwxrzflfkazvmn.supabase.co; media-src 'self' https://fbmzlfrwxrzflfkazvmn.supabase.co; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://fbmzlfrwxrzflfkazvmn.supabase.co; media-src 'self' https://fbmzlfrwxrzflfkazvmn.supabase.co; font-src 'self'; connect-src 'self' https://fbmzlfrwxrzflfkazvmn.supabase.co; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
         }
       ]
     },
     {
       "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/studio",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/studio/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -134,6 +159,12 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/studio",
+      "destination": "/studio.html"
     }
   ]
 }

@@ -1,0 +1,56 @@
+{
+  "langue": "fr",
+  "video": {
+    "id": 1,
+    "titre": "Pourquoi le ciel est bleu",
+    "createur": "essai"
+  },
+  "voix": {
+    "kokoro": "fr-fr",
+    "voix": "ff_siwis",
+    "vitesse": 1.05
+  },
+  "texte": {
+    "accroche": "Le ciel n'est pas vraiment bleu",
+    "beats": [
+      {
+        "voix": "Le ciel n'est pas *vraiment* bleu. Et la raison va te surprendre.",
+        "ecran": "Le ciel n'est pas bleu"
+      },
+      {
+        "voix": "La lumière du soleil contient *toutes* les couleurs.",
+        "ecran": "Toutes les couleurs"
+      },
+      {
+        "voix": "En traversant l'air, le bleu rebondit beaucoup plus que le rouge.",
+        "ecran": "Le bleu rebondit"
+      },
+      {
+        "voix": "Ce rebond, les savants l'appellent la *diffusion de Rayleigh*.",
+        "ecran": "Diffusion de Rayleigh"
+      },
+      {
+        "voix": "Alors pourquoi pas violet ? Parce que nos yeux le voient *très mal*.",
+        "ecran": "Et le violet ?"
+      },
+      {
+        "voix": "Le soir, la lumière traverse plus d'air, et seul le rouge arrive jusqu'à toi.",
+        "ecran": "Le coucher de soleil"
+      },
+      {
+        "voix": "Abonne-toi pour la suite : demain, pourquoi la mer est salée.",
+        "ecran": "Demain : la mer"
+      }
+    ]
+  },
+  "plan": {
+    "style": "texte",
+    "couleur": "#FF5A8A",
+    "musique": "calme",
+    "clips": []
+  },
+  "format": {
+    "duree_min": 0
+  },
+  "_note": "En local, un clip peut être un fichier de la machine : \"clips\": [{ \"fichier\": \"/chemin/clip.mp4\" }, null, ...] avec \"style\": \"clips\". Sur l'usine, seulement des adresses Pexels choisies par la tour."
+}

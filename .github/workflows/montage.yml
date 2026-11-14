@@ -1,0 +1,82 @@
+# Le montage du studio des créatrices : la tour lance un montage par vidéo et par langue (lib/createurs/fabrication.js).
+# Chaque montage : la voix (Kokoro) et la musique, les vidéos d'illustration (Pexels) recadrées en vertical, les
+# sous-titres mot à mot (police Poppins, dans le dépôt), le son à -14 LUFS, puis l'envoi des fichiers dans le stockage
+# de la tour et le compte rendu. Ni Chrome ni 3D : quelques minutes par vidéo.
+# Comme l'usine du Studio : le seul secret (HQ_USINE_SECRET) est posé par la tour et masqué par GitHub ; l'adresse de
+# la tour (HQ_TOUR) est une variable du dépôt, jamais une entrée du lancement.
+name: Montage du studio des créatrices
+run-name: "Montage ${{ inputs.video }} (${{ inputs.langue }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      video:
+        description: "Numéro de la vidéo"
+        required: true
+      langue:
+        description: "Langue (fr, en, es, pt, it, hi)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: montage-${{ inputs.video }}-${{ inputs.langue }}
+  cancel-in-progress: true
+
+jobs:
+  monter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      VIDEO: ${{ inputs.video }}
+      LANGUE: ${{ inputs.langue }}
+    steps:
+      - name: Vérifier la demande
+        run: |
+          [[ "$VIDEO" =~ ^[0-9]{1,12}$ ]] || { echo "numéro de vidéo invalide"; exit 1; }
+          [[ "$LANGUE" =~ ^[a-z]{2}$ ]] || { echo "langue invalide"; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: usine
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: usine/requirements.txt
+
+      - name: Outils (ffmpeg avec libass)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
+          ffmpeg -hide_banner -filters | grep -q " subtitles " || { echo "ffmpeg sans sous-titres"; exit 1; }
+
+      - name: Modèles de voix (en cache)
+        uses: actions/cache@v4
+        with:
+          path: usine/.modeles
+          key: kokoro-v1.0
+
+      - name: Télécharger les modèles s'ils manquent
+        run: |
+          mkdir -p usine/.modeles && cd usine/.modeles
+          base=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0
+          [ -s kokoro-v1.0.onnx ] || curl -fsSL -o kokoro-v1.0.onnx "$base/kokoro-v1.0.onnx"
+          [ -s voices-v1.0.bin ] || curl -fsSL -o voices-v1.0.bin "$base/voices-v1.0.bin"
+
+      - name: Dépendances de la voix
+        run: pip install -q -r usine/requirements.txt
+
+      - name: Monter
+        working-directory: usine
+        env:
+          HQ_TOUR: ${{ vars.HQ_TOUR }}
+          HQ_USINE_SECRET: ${{ secrets.HQ_USINE_SECRET }}
+        run: node montage.js --video "$VIDEO" --langue "$LANGUE"
