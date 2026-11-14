@@ -38,8 +38,9 @@ const dus = function (ids) { db.tables.hq_agents.forEach(function (a) { if (ids.
   const s = await runtime.semer(db);
   assert.ok(s.seme, 'la fondation doit se faire');
   // toute la simulation tient dans une seule journée, avec tout le groupe sur des appels factices : de la place dans ses
-  // plafonds (les plafonds réels, 1 $ par jour et 25 $ par mois, ont leur essai : test/garde.js)
-  await db.update('hq_config', { value: Object.assign({}, db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value, { jour_usd: 20, mois_usd: 500 }) }, { eq: { key: 'budget' } });
+  // plafonds (les plafonds réels, 1 $ par jour et 25 $ par mois, ont leur essai : test/garde.js), et la fabrication
+  // allumée (toute la chaîne, du prospect au site en ligne ; sa pause a son essai : test/relances.js)
+  await db.update('hq_config', { value: Object.assign({}, db.tables.hq_config.find(function (x) { return x.key === 'budget'; }).value, { jour_usd: 20, mois_usd: 500, fabrication: true }) }, { eq: { key: 'budget' } });
   assert.strictEqual(db.tables.hq_agents.length, require('../lib/seed').AGENTS.length);
   assert.ok(db.tables.hq_agents.every(function (a) { return a.parent_id === null ? a.id === 'pdg' : true; }), 'tout le monde a un chef sauf le PDG');
   assert.ok(db.tables.hq_agents.some(function (a) { return a.id === 'livraison' && a.kind === 'job'; }) && db.tables.hq_agents.find(function (a) { return a.id === 'demo'; }).kind === 'job', 'Noé et Lucas travaillent');

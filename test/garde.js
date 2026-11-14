@@ -19,6 +19,8 @@ const garde = require('../lib/garde');
 const claude = require('../lib/claude');
 
 function base() { const db = DB.memory(); DB.forcer(db); garde.oublier(); return db; }
+// la fabrication allumée (chasse, aperçus, jugement) : ces essais parlent d'elle ; sa pause a son essai (test/relances.js)
+const fabriquer = function (db) { const b = (db.tables.hq_config || []).find(function (x) { return x.key === 'budget'; }); if (b) b.value = Object.assign({}, b.value, { fabrication: true }); };
 const jour = function (db) { return (db.tables.hq_daily || []).find(function (x) { return x.day === jourGP(); }) || { cost_usd: 0 }; };
 const appelSimple = function () { return claude.converse({ tier: 'smart', system: 'test', messages: [{ role: 'user', content: 'Bonjour' }], maxSteps: 1, maxTokens: 100 }); };
 
@@ -57,6 +59,7 @@ const appelSimple = function () { return claude.converse({ tier: 'smart', system
   const runtime = require('../lib/runtime');
   db = base();
   await runtime.semer(db);
+  fabriquer(db);
   db.tables.hq_agents.forEach(function (a) { if (a.kind !== 'attente') a.next_run_at = new Date(Date.now() - 60000).toISOString(); });
   const c1 = await runtime.cycle({ db: db, secondes: 250 });
   const ids = c1.passages.map(function (p) { return p.id; });
@@ -87,6 +90,7 @@ const appelSimple = function () { return claude.converse({ tier: 'smart', system
   // 6. la chasse s'arrête quand 40 prospects attendent déjà leur email
   db = base();
   await runtime.semer(db);
+  fabriquer(db);
   const lignes = [];
   for (let k = 0; k < 40; k++) lignes.push({ company_id: 'novalemo', dedupe: 'test:reserve:' + k, source: 'maps', name: 'Réserve ' + k, island: 'MQ', email: 'r' + k + '@reserve-mq.fr', email_source: 'site', status: 'a_contacter', score: 70 });
   await db.insert('hq_leads', lignes, { returning: false });
