@@ -104,7 +104,7 @@ async function action(req, res, db, b) {
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
     // la clé nettoyée (ce qu'elle a collé peut traîner des espaces ou du texte autour) et, pour une clé personnelle sans
     // espace de travail, l'espace trouvé (pas un secret : il est rangé à côté)
-    const secrets = Object.assign({}, c.secrets || {}, { claude: Object.assign(SEC.chiffrer(r.cle, 'claude:' + c.id), { etat: r.credit === false ? 'credit' : 'ok', message: r.avertissement || null, espace: r.espace || null }) });
+    const secrets = Object.assign({}, c.secrets || {}, { claude: Object.assign(SEC.chiffrer(r.cle, 'claude:' + c.id), { etat: r.credit === false ? 'credit' : 'ok', message: r.avertissement || null, espace: r.espace || null, porteur: !!r.porteur }) });
     c = await majCreateur(db, c, { secrets }, ['Clé Claude branchée', 'se termine par ' + r.cle.slice(-4)]);
     return json(res, 200, { ok: true, avertissement: r.avertissement || null, moi: C.moi(c) });
   }
