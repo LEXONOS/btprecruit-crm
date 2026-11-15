@@ -34,7 +34,9 @@ const M = require('../usine/montage');
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 /* ── Claude simulé ── */
-const CLAUDE = { appels: [], refusee: false, sansCredit: false, notes: [6.2, 8.6], cles: [] };
+const CLAUDE = { appels: [], refusee: false, sansCredit: false, notes: [6.2, 8.6], cles: [], espaces: [] };
+// une clé personnelle liée à aucun espace de travail : chaque demande doit nommer l'espace (sauf la liste des espaces)
+const SANS_ESPACE = { type: 'error', error: { type: 'invalid_request_error', message: 'This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use. Add the header, or use an API key that is scoped to a workspace.' } };
 let nTool = 0;
 const repJson = (code, d) => ({ ok: code < 300, status: code, json: async () => d, text: async () => JSON.stringify(d) });
 function scriptFaux(beatsN, avecImages, version, ia) {
@@ -49,7 +51,11 @@ function scriptFaux(beatsN, avecImages, version, ia) {
   }, ia ? { direction: 'A grey fluffy flamingo chick with big curious eyes, pastel pink salt lake, golden light "always"' } : {});
 }
 CL.forcer(async (url, o) => {
-  if (/\/models/.test(url)) return CLAUDE.refusee ? repJson(401, { error: { message: 'invalid x-api-key' } }) : repJson(200, { data: [] });
+  const sansEspace = /sans-espace/.test(o.headers['x-api-key']) && !o.headers['anthropic-workspace-id'];
+  if (/\/organizations\/workspaces/.test(url)) return repJson(200, { data: [{ id: 'wrkspc_01Projet', type: 'workspace', name: 'Projet', archived_at: null }, { id: 'wrkspc_01Default', type: 'workspace', name: 'Default Workspace', archived_at: null }], has_more: false });
+  if (/\/models/.test(url)) return CLAUDE.refusee ? repJson(401, { error: { message: 'invalid x-api-key' } }) : sansEspace ? repJson(400, SANS_ESPACE) : repJson(200, { data: [] });
+  if (sansEspace) return repJson(400, SANS_ESPACE);
+  CLAUDE.espaces.push(o.headers['anthropic-workspace-id'] || null);
   const body = JSON.parse(o.body);
   CLAUDE.cles.push(o.headers['x-api-key']);
   if (CLAUDE.refusee) return repJson(401, { error: { message: 'invalid x-api-key' } });
@@ -673,6 +679,30 @@ async function jusqua(id, statuts, n) {
       assert.strictEqual(sonde(b2), '1080,1920,90', 'la vidéo IA de 2 s tient les 3 s de sa phrase');
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   }
+
+  // 25. les clés collées depuis un téléphone : la clé seule est gardée (espaces, retour à la ligne, caractères
+  //     invisibles, texte autour) ; chaque refus dit exactement pourquoi ; une clé personnelle sans espace de travail
+  //     trouve le sien toute seule, et chaque demande le nomme
+  const vraie = 'sk-ant-api03-' + 'Ab1_'.repeat(23) + 'xAA';
+  assert.strictEqual(CL.lireCle('Ma clé : ' + vraie.slice(0, 40) + '\u200b\n ' + vraie.slice(40) + '.').cle, vraie, 'la clé seule, sans ce qui traînait autour');
+  assert.strictEqual(CL.lireCle(vraie.replace(/-/g, '\u2011')).cle, vraie, 'des tirets insécables redeviennent des traits d\'union');
+  assert.ok(/version raccourcie/.test(CL.lireCle('sk-ant-api03-R2D...igAA').erreur), 'la clé raccourcie de la liste des clés');
+  assert.ok(/jeton de connexion/.test(CL.lireCle('sk-ant-oat01-' + 'x'.repeat(80)).erreur), 'un jeton de Claude Code n\'est pas une clé d\'API');
+  assert.ok(/20 caractères, commence par « bovq… »/.test(CL.lireCle('bovqi3-fujpu7-hYmzaf').erreur), 'un mot de passe proposé par le téléphone : on dit ce qui a été collé');
+  assert.ok(/incomplète/.test(CL.lireCle('sk-ant-api03-abcdef').erreur));
+  r = await api('POST', { op: 'cle_claude', cle: 'bovqi3-fujpu7-hYmzaf' });
+  assert.strictEqual(r.code, 400); assert.ok(/n'est pas une clé Claude/.test(r.d.erreur));
+  const cleSansEspace = 'sk-ant-api03-sans-espace-' + 'Zz9-'.repeat(20) + 'qAA';
+  r = await api('POST', { op: 'cle_claude', cle: '  ' + cleSansEspace.slice(0, 50) + '\n' + cleSansEspace.slice(50) + '  ' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.moi.connexions.claude.fin, 'qAA'.padStart(4, '-'));
+  milaDb = await db.one('hq_createurs', { eq: { id: mila.id } });
+  assert.strictEqual(milaDb.secrets.claude.espace, 'wrkspc_01Default', 'l\'espace par défaut, trouvé tout seul');
+  assert.strictEqual(CL.lireCle(SEC.dechiffrer(milaDb.secrets.claude, 'claude:' + mila.id)).cle, cleSansEspace, 'la clé rangée est la clé nettoyée');
+  await api('POST', { op: 'reglages', reglages: { budget_jour: 5 } });
+  r = await api('POST', { op: 'idees', theme: 'les flamants' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(CLAUDE.espaces[CLAUDE.espaces.length - 1], 'wrkspc_01Default', 'chaque demande nomme l\'espace de la clé');
+  const fal2 = await FAL.essayerCle('  Key 7c1f2a90-4be3-4f60-9d1e-1a2b3c4d5e6f:\u200b0f9e8d7c6b5a49382716abcdef012345\n');
+  assert.strictEqual(fal2.cle, CLE_FAL, 'la clé fal aussi, nettoyée');
 
   console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal).');
 })().catch((e) => { console.error(e); process.exit(1); });

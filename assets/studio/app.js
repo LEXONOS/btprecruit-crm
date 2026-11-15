@@ -1023,9 +1023,9 @@
       '<ol class="tuto"><li><b>Crée ton compte Claude pour les applications</b><p>Sur platform.claude.com, inscris-toi avec ton e-mail. C\'est un compte à part de l\'application Claude.</p>' + l('https://platform.claude.com', 'Ouvrir platform.claude.com') + '</li>' +
       '<li><b>Ajoute un peu de crédit</b><p>Settings, puis Billing, puis Buy credits : 5 $ suffisent pour commencer. Laisse le rechargement automatique désactivé.</p>' + l('https://platform.claude.com/settings/billing', 'Ouvrir Billing') + '</li>' +
       '<li><b>Fixe une limite de dépense</b><p>Settings, puis Limits : une limite par mois (10 $ par exemple). Ton compte ne pourra jamais la dépasser.</p>' + l('https://platform.claude.com/settings/limits', 'Ouvrir Limits') + '</li>' +
-      '<li><b>Crée ta clé</b><p>Settings, puis API keys, puis Create key. Appelle-la « Studio », puis copie-la : elle commence par <code>sk-ant-api</code> et ne s\'affiche qu\'une fois.</p>' + l('https://platform.claude.com/settings/keys', 'Ouvrir API keys') + '</li>' +
-      '<li><b>Colle-la ici</b><p>Le studio vérifie qu\'elle marche et qu\'il te reste du crédit, puis la range chiffrée. Elle ne s\'affiche plus jamais en entier.</p>' +
-      '<form data-form="cleClaude" style="margin-top:10px"><input type="password" name="cle" autocomplete="off" spellcheck="false" placeholder="sk-ant-api03-…" required><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button>' + (cl.branchee ? '<button class="btn discret" type="button" data-a="cleClaudeRetirer">Retirer ma clé</button>' : '') + '</div></form></li>' +
+      '<li><b>Crée ta clé</b><p>Settings, puis API keys, puis Create key. Appelle-la « Studio » et choisis l\'expiration « Never » (sinon elle s\'arrête toute seule au bout de quelques jours). Laisse le reste tel quel. Copie-la tout de suite avec le bouton de copie : elle commence par <code>sk-ant-api</code>, fait une centaine de caractères et ne s\'affiche qu\'une fois.</p>' + l('https://platform.claude.com/settings/keys', 'Ouvrir API keys') + '</li>' +
+      '<li><b>Colle-la ici</b><p>Le studio vérifie qu\'elle marche et qu\'il te reste du crédit, puis la range chiffrée. Elle ne s\'affiche plus jamais en entier. Si quelque chose ne va pas, le message dit exactement quoi.</p>' +
+      '<form data-form="cleClaude" style="margin-top:10px"><input type="text" name="cle" class="champ-cle" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" placeholder="sk-ant-api03-…" required><p class="erreur-cle" role="alert" hidden></p><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button>' + (cl.branchee ? '<button class="btn discret" type="button" data-a="cleClaudeRetirer">Retirer ma clé</button>' : '') + '</div></form></li>' +
       '<li><b>Choisis ton budget du jour</b><p>Dans <a href="#reglages/budget">Budget</a> : arrivée au plafond, ton équipe s\'arrête jusqu\'au lendemain.</p></li></ol></div>';
     const fal = S.moi.connexions.fal || { branchee: false };
     const ia = S.cat.ia || IA_VIDE;
@@ -1034,7 +1034,7 @@
       '<li><b>Ajoute un peu de crédit</b><p>Dans ton tableau de bord, Billing : 5 $ suffisent pour une quinzaine de vidéos avec l\'accroche en vidéo. Laisse le rechargement automatique désactivé : tu ne dépenseras jamais plus que ce que tu as mis.</p>' + l('https://fal.ai/dashboard/billing', 'Ouvrir Billing') + '</li>' +
       '<li><b>Crée ta clé</b><p>Dans Keys, Create key, de type API. Appelle-la « Studio », puis copie-la en entier : deux suites de chiffres et de lettres séparées par deux-points. Elle ne s\'affiche qu\'une fois.</p>' + l('https://fal.ai/dashboard/keys', 'Ouvrir Keys') + '</li>' +
       '<li><b>Colle-la ici</b><p>Le studio vérifie que fal la connaît, puis la range chiffrée. Elle ne s\'affiche plus jamais en entier.</p>' +
-      '<form data-form="cleFal" style="margin-top:10px"><input type="password" name="cle" autocomplete="off" spellcheck="false" placeholder="1a2b3c4d-…:9f8e7d…" required><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button>' + (fal.branchee ? '<button class="btn discret" type="button" data-a="cleFalRetirer">Retirer ma clé</button>' : '') + '</div></form></li>' +
+      '<form data-form="cleFal" style="margin-top:10px"><input type="text" name="cle" class="champ-cle" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" placeholder="1a2b3c4d-…:9f8e7d…" required><p class="erreur-cle" role="alert" hidden></p><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button>' + (fal.branchee ? '<button class="btn discret" type="button" data-a="cleFalRetirer">Retirer ma clé</button>' : '') + '</div></form></li>' +
       '<li><b>Choisis le look Images IA</b><p>Dans <a href="#reglages/videos">Mes vidéos</a> pour toutes tes vidéos, ou au moment de créer une vidéo. Le même budget du jour compte Claude et fal.</p></li></ol></div>';
     x += '<div class="bloc"><h2>Publication automatique</h2><p class="doux" style="margin:6px 0 14px">Facultatif. upload-post publie tes vidéos sur tes comptes, sans passer par ton téléphone. Gratuit jusqu\'à 10 publications par mois sur YouTube et Instagram ; TikTok demande leur offre Basic (environ 16 $ par mois).</p>' + etatCle(up, 'upload-post');
     if (up.branchee) {
@@ -1046,7 +1046,7 @@
     } else {
       x += '<ol class="tuto"><li><b>Crée ton compte upload-post</b><p>Gratuit, sans carte bancaire.</p>' + l('https://www.upload-post.com', 'Ouvrir upload-post.com') + '</li>' +
         '<li><b>Crée ta clé</b><p>Dans ton tableau de bord, ouvre API Keys et crée une clé. Copie-la.</p></li>' +
-        '<li><b>Colle-la ici</b><form data-form="cleUp" style="margin-top:10px"><input type="password" name="cle" autocomplete="off" spellcheck="false" placeholder="Ta clé upload-post" required><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button></div></form></li>' +
+        '<li><b>Colle-la ici</b><form data-form="cleUp" style="margin-top:10px"><input type="text" name="cle" class="champ-cle" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" placeholder="Ta clé upload-post" required><p class="erreur-cle" role="alert" hidden></p><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button></div></form></li>' +
         '<li><b>Relie tes comptes</b><p>Crée un profil, puis « Relier mes comptes » : TikTok, YouTube, Instagram, comme tu veux.</p></li>' +
         '<li><b>Choisis où publier chaque langue</b><p>Dans Publication. Sans upload-post, tu publies depuis ton téléphone : Partager, puis l\'appli.</p></li></ol>';
     }
@@ -1165,13 +1165,13 @@
       await occupe(btn, async () => { if (d.nom || d.sujets) await agir('reglages', { reglages: { chaine: { nom: d.nom, sujets: d.sujets } } }); const b = $('.barre'); if (b) b.outerHTML = barreHtml('accueil'); if (S.ville) majVille(); ouvrirVisite(S.visite + 1); });
     },
     async cleClaude(f, btn) {
-      await occupe(btn, async () => { const r = await agir('cle_claude', { cle: lireForm(f).cle }); rendre(); toast(r.avertissement ? 'Clé enregistrée : ' + r.avertissement : 'Ta clé Claude est branchée.', r.avertissement ? '' : 'ok'); verifierBadges(); });
+      await brancherCle(f, btn, 'cle_claude', (r) => { toast(r.avertissement ? 'Clé enregistrée : ' + r.avertissement : 'Ta clé Claude est branchée.', r.avertissement ? '' : 'ok'); verifierBadges(); });
     },
     async cleFal(f, btn) {
-      await occupe(btn, async () => { const r = await agir('cle_fal', { cle: lireForm(f).cle }); rendre(); toast(r.avertissement ? 'Clé enregistrée : ' + r.avertissement : 'Ta clé fal est branchée : le look Images IA est à toi.', r.avertissement ? '' : 'ok'); });
+      await brancherCle(f, btn, 'cle_fal', (r) => toast(r.avertissement ? 'Clé enregistrée : ' + r.avertissement : 'Ta clé fal est branchée : le look Images IA est à toi.', r.avertissement ? '' : 'ok'));
     },
     async cleUp(f, btn) {
-      await occupe(btn, async () => { await agir('uploadpost', { cle: lireForm(f).cle }); rendre(); toast('upload-post est branché.', 'ok'); });
+      await brancherCle(f, btn, 'uploadpost', () => toast('upload-post est branché.', 'ok'));
     },
     async upProfil(f, btn) {
       await occupe(btn, async () => { await agir('uploadpost_creer_profil', { nom: lireForm(f).nom }); rendre(); toast('Profil créé : relie tes comptes.', 'ok'); });
@@ -1180,6 +1180,23 @@
       await occupe(btn, async () => { const r = await agir('mdp', lireForm(f)); f.reset(); toast(r.message || 'Mot de passe changé.', 'ok'); });
     }
   };
+  // brancher une clé : en cas de refus, la raison reste écrite sous la case, jusqu'au prochain essai
+  async function brancherCle(f, btn, op, ok) {
+    const zone = $('.erreur-cle', f);
+    if (zone) { zone.hidden = true; zone.textContent = ''; }
+    await occupe(btn, async () => {
+      let r;
+      try { r = await agir(op, { cle: lireForm(f).cle }); }
+      catch (e) {
+        if (!zone) throw e;
+        const m = String(e.message || e);
+        zone.textContent = m.charAt(0).toUpperCase() + m.slice(1) + (/[.!?]$/.test(m) ? '' : '.');
+        zone.hidden = false;
+        return;
+      }
+      rendre(); ok(r);
+    });
+  }
   function scriptDe(f) {
     const beats = (S.video.script.beats || []).map((b, i) => {
       const champ = (sel) => $(sel + '[data-i="' + i + '"]', f);
