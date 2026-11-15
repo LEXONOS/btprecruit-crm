@@ -201,7 +201,10 @@ async function action(req, res, db, b) {
   return json(res, 200, { ok: true, video: r.video ? await vueVideo(db, r.video) : null });
 }
 
-module.exports = async function (req, res) {
+// la fonction est coupée à 300 secondes : un appel à Claude qui ne pourrait plus finir avant n'est pas lancé (l'heure de
+// coupure est propre à chaque requête, même quand plusieurs partagent une instance)
+module.exports = function (req, res) { return CL.avecEcheance(Date.now() + 280000, () => traiter(req, res)); };
+async function traiter(req, res) {
   try {
     const db = open();
     if (!db) return json(res, 503, { erreur: 'la base de la tour n\'est pas branchée' });
@@ -224,4 +227,4 @@ module.exports = async function (req, res) {
   } catch (e) {
     return json(res, 500, { erreur: court(String(e.message || e), 300) });
   }
-};
+}

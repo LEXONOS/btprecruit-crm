@@ -39,6 +39,38 @@ const CLAUDE = { appels: [], refusee: false, sansCredit: false, notes: [6.2, 8.6
 const SANS_ESPACE = { type: 'error', error: { type: 'invalid_request_error', message: 'This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use. Add the header, or use an API key that is scoped to a workspace.' } };
 let nTool = 0;
 const repJson = (code, d) => ({ ok: code < 300, status: code, json: async () => d, text: async () => JSON.stringify(d) });
+// comme la vraie API : la génération 5.5 refuse un outil imposé (400, rien n'est payé) ; l'outil demandé en clair passe
+const { MODELS } = require('../lib/config');
+const GEN55 = [MODELS.fast.id, MODELS.smart.id, MODELS.genius.id];
+const REFUS_OUTIL = { type: 'error', error: { type: 'invalid_request_error', message: 'tool_choice: type "tool" and "any" are not supported for this model.' } };
+// les modèles fermés aux comptes récents (l'ancien modèle de repli du studio), et un compte où le modèle moyen n'est
+// pas ouvert : sa liste de modèles ne le propose pas
+CLAUDE.fermes = ['claude-sonnet-4-5'];
+const LISTE_FERMEE = [{ id: 'claude-haiku-5-5', created_at: '2026-10-07T00:00:00Z' }, { id: 'claude-fable-5-2', created_at: '2026-11-09T00:00:00Z' }, { id: 'claude-sonnet-4-6', created_at: '2026-02-17T00:00:00Z' }, { id: 'claude-sonnet-5', created_at: '2026-06-30T00:00:00Z' }, { id: 'claude-opus-5-5', created_at: '2026-09-22T00:00:00Z' }];
+const texteDe = (c) => (typeof c === 'string' ? c : (c || []).map((b) => b.text || '').join('\n\n'));
+// la réponse en flux (server-sent events), découpée en morceaux qui coupent les lignes n'importe où
+function enFlux(d) {
+  CLAUDE.flux = (CLAUDE.flux || 0) + 1;
+  const u = d.usage || {};
+  const ev = [{ type: 'message_start', message: { id: 'msg_f', type: 'message', role: 'assistant', model: d.model, content: [], stop_reason: null, usage: { input_tokens: u.input_tokens || 0, output_tokens: 1 } } }];
+  (d.content || []).forEach((b, i) => {
+    if (b.type === 'tool_use') {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } });
+      const j = JSON.stringify(b.input || {});
+      for (let k = 0; k < j.length; k += 37) ev.push({ type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: j.slice(k, k + 37) } });
+    } else {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'text', text: '' } });
+      ev.push({ type: 'content_block_delta', index: i, delta: { type: 'text_delta', text: b.text || '' } });
+    }
+    ev.push({ type: 'content_block_stop', index: i });
+  });
+  ev.push({ type: 'message_delta', delta: { stop_reason: d.stop_reason }, usage: { output_tokens: u.output_tokens || 0 } });
+  ev.push({ type: 'message_stop' });
+  const octets = new TextEncoder().encode(ev.map((e) => 'event: ' + e.type + '\ndata: ' + JSON.stringify(e) + '\n\n').join(''));
+  let pos = 0;
+  return { ok: true, status: 200, body: new ReadableStream({ pull(c) { if (pos >= octets.length) { c.close(); return; } c.enqueue(octets.slice(pos, pos + 53)); pos += 53; } }) };
+}
+const reponse = (body, d) => (body.stream ? enFlux(d) : repJson(200, d));
 function scriptFaux(beatsN, avecImages, version, ia) {
   // en images IA, la plume écrit aussi la scène pour l'IA, son mouvement, une recherche de secours et l'univers commun
   const visuel = (i) => (ia
@@ -57,7 +89,7 @@ CL.forcer(async (url, o) => {
   if (/^sk-ant-oat/.test(cleRecue)) return repJson(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } });
   const sansEspace = /sans-espace/.test(cleRecue) && !o.headers['anthropic-workspace-id'];
   if (/\/organizations\/workspaces/.test(url)) return repJson(200, { data: [{ id: 'wrkspc_01Projet', type: 'workspace', name: 'Projet', archived_at: null }, { id: 'wrkspc_01Default', type: 'workspace', name: 'Default Workspace', archived_at: null }], has_more: false });
-  if (/\/models/.test(url)) return CLAUDE.refusee ? repJson(401, { error: { message: 'invalid x-api-key' } }) : sansEspace ? repJson(400, SANS_ESPACE) : repJson(200, { data: [] });
+  if (/\/models/.test(url)) return CLAUDE.refusee ? repJson(401, { error: { message: 'invalid x-api-key' } }) : sansEspace ? repJson(400, SANS_ESPACE) : repJson(200, { data: /compte-ferme/.test(cleRecue) ? LISTE_FERMEE : [] });
   if (sansEspace) return repJson(400, SANS_ESPACE);
   CLAUDE.espaces.push(o.headers['anthropic-workspace-id'] || null);
   const body = JSON.parse(o.body);
@@ -66,16 +98,28 @@ CL.forcer(async (url, o) => {
   if (CLAUDE.refusee) return repJson(401, { error: { message: 'invalid x-api-key' } });
   if (CLAUDE.sansCredit) return repJson(400, { error: { message: 'Your credit balance is too low to access the Anthropic API.' } });
   if (body.max_tokens === 1) return repJson(200, { content: [{ type: 'text', text: 'o' }], usage: { input_tokens: 8, output_tokens: 1 } });
+  if (CLAUDE.fermes.indexOf(body.model) >= 0 || (/compte-ferme/.test(cleRecue) && body.model === MODELS.smart.id) || /compte-vide/.test(cleRecue)) {
+    CLAUDE.introuvables = (CLAUDE.introuvables || 0) + 1;
+    return repJson(404, { type: 'error', error: { type: 'not_found_error', message: 'model: ' + body.model } });
+  }
+  if (GEN55.indexOf(body.model) >= 0 && body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any')) { CLAUDE.refusOutil = (CLAUDE.refusOutil || 0) + 1; return repJson(400, REFUS_OUTIL); }
+  const dernier = body.messages[body.messages.length - 1];
+  const enClair = !!(body.tool_choice && body.tool_choice.type === 'auto' && /Réponds en appelant l'outil/.test(texteDe(dernier.content)));
+  if (enClair) CLAUDE.enClair = (CLAUDE.enClair || 0) + 1;
+  CLAUDE.corps = body;
   const outil = body.tools[0].name;
-  const prompt = typeof body.messages[0].content === 'string' ? body.messages[0].content : JSON.stringify(body.messages[0].content);
-  CLAUDE.appels.push({ outil, model: body.model, max_tokens: body.max_tokens, prompt });
+  const prompt = texteDe(body.messages[0].content);
+  CLAUDE.appels.push({ outil, model: body.model, max_tokens: body.max_tokens, prompt, enClair, flux: !!body.stream });
+  // un tour où le modèle parle sans remplir l'outil, une réponse coupée par la longueur en plein outil
+  if (CLAUDE.texteSeul) { CLAUDE.texteSeul = false; return reponse(body, { model: body.model, content: [{ type: 'text', text: 'Je réfléchis à tes idées.' }], stop_reason: 'end_turn', usage: { input_tokens: 3000, output_tokens: 40 } }); }
+  if (CLAUDE.coupe) { CLAUDE.coupe = false; return reponse(body, { model: body.model, content: [{ type: 'tool_use', id: 'tu_coupe', name: outil, input: {} }], stop_reason: 'max_tokens', usage: { input_tokens: 3000, output_tokens: body.max_tokens } }); }
   let input;
   if (outil === 'proposer_idees') input = { idees: [1, 2, 3, 4, 5].map((i) => ({ titre: 'Idée ' + i + ' sur le ciel', accroche: 'Accroche ' + i, angle: 'Angle ' + i, pourquoi: 'Parce que ' + i })) };
   else if (outil === 'ecrire_script') { const vis = body.tools[0].input_schema.properties.beats.items.properties.visuel; input = scriptFaux(9, !!vis, CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').length, !!(vis && vis.properties.prompt)); CLAUDE.appels[CLAUDE.appels.length - 1].system = JSON.stringify(body.system); }
   else if (outil === 'noter_script') { const n = CLAUDE.notes.length > 1 ? CLAUDE.notes.shift() : CLAUDE.notes[0]; input = { notes: { accroche: n, promesse: n, rythme: n, boucles: n, gain: n, fin: n, clarte: n, ton: n, images: n }, points_forts: ['L\'accroche'], corrections: n < 7.5 ? ['Phrase 2 : plus court'] : [], verdict: 'Note ' + n }; }
   else if (outil === 'adapter_script') { const src = JSON.parse(prompt.split('L\'ORIGINALE :\n')[1].split('\n\nAppelle')[0]); input = { titre: 'Why the sky is blue', accroche: 'The sky is *not* blue', beats: src.beats.map((b, i) => ({ voix: 'English sentence ' + (i + 1) + ' that says the same thing.', ecran: 'Screen ' + (i + 1) })), description: 'Did you know?', hashtags: ['science'], titre_youtube: 'The sky is not blue' }; }
   nTool++;
-  return repJson(200, { model: body.model, content: [{ type: 'tool_use', id: 'tu_' + nTool, name: outil, input }], stop_reason: 'tool_use', usage: { input_tokens: 4000, output_tokens: 1500 } });
+  return reponse(body, { model: body.model, content: [{ type: 'tool_use', id: 'tu_' + nTool, name: outil, input }], stop_reason: 'tool_use', usage: { input_tokens: 4000, output_tokens: 1500 } });
 });
 
 /* ── Pexels simulé : des vidéos verticales, sauf pour une recherche introuvable ── */
@@ -721,6 +765,73 @@ async function jusqua(id, statuts, n) {
   assert.strictEqual(CLAUDE.cles[CLAUDE.cles.length - 1], clePorteur);
   const fal2 = await FAL.essayerCle('  Key 7c1f2a90-4be3-4f60-9d1e-1a2b3c4d5e6f:\u200b0f9e8d7c6b5a49382716abcdef012345\n');
   assert.strictEqual(fal2.cle, CLE_FAL, 'la clé fal aussi, nettoyée');
+
+  // 26. la vidéo d'Emma (15 nov.) : la génération 5.5 refuse l'outil imposé (« tool_choice … not supported for this
+  //     model »). Le studio le demande en clair, au même tour, sans jamais passer par l'ancien modèle de repli (fermé
+  //     aux comptes récents : « model: claude-sonnet-4-5 ») ; les réponses arrivent en flux ; un modèle fermé au compte
+  //     est remplacé par le plus proche que sa clé propose ; la cause première reste lisible ; le temps compte
+  await api('POST', { op: 'reglages', reglages: { qualite: 'equilibre', budget_jour: 5 } });
+  const OUTIL_T = { name: 'proposer_idees', description: 'Des idées', input_schema: { type: 'object', properties: { idees: { type: 'array', items: { type: 'object', properties: { titre: { type: 'string' } } } } }, required: ['idees'] } };
+  const demande = (x) => Object.assign({ usage: 'ecrire', system: 'Tu écris des idées.', prompt: 'Des idées sur les flamants.', outil: OUTIL_T, maxTokens: 3500 }, x || {});
+  let milaC = await db.one('hq_createurs', { eq: { id: mila.id } });
+  CL.oublier();
+  const refus0 = CLAUDE.refusOutil || 0, introuv0 = CLAUDE.introuvables || 0, n0 = CLAUDE.appels.length;
+  let sortieT = await CL.appeler(db, milaC, demande({ maxTokens: 8000 }));
+  assert.strictEqual(sortieT.sortie.idees.length, 5, 'le travail est rendu');
+  assert.strictEqual(CLAUDE.refusOutil, refus0 + 1, 'un seul refus, puis l\'outil demandé en clair');
+  assert.strictEqual(CLAUDE.introuvables || 0, introuv0, 'jamais l\'ancien modèle de repli');
+  assert.strictEqual(sortieT.modele, 'claude-sonnet-5-5');
+  assert.strictEqual(CLAUDE.appels.length, n0 + 1, 'un seul appel payé');
+  assert.ok(CLAUDE.appels[n0].enClair && CLAUDE.appels[n0].flux, 'demandé en clair, réponse en flux');
+  assert.ok(!CLAUDE.appels.some((x) => /4-5/.test(x.model)), 'aucun appel à un modèle 4.5');
+  sortieT = await CL.appeler(db, milaC, demande());
+  assert.strictEqual(CLAUDE.refusOutil, refus0 + 1, 'retenu : plus de refus pour ce modèle');
+  // un tour où le modèle parle sans remplir l'outil : on le lui redemande
+  CLAUDE.texteSeul = true;
+  let n1 = CLAUDE.appels.length;
+  sortieT = await CL.appeler(db, milaC, demande());
+  assert.strictEqual(CLAUDE.appels.length, n1 + 2, 'un tour de texte, puis l\'outil');
+  assert.ok(/Appelle maintenant l'outil proposer_idees/.test(texteDe(CLAUDE.corps.messages[2].content)) && sortieT.sortie.idees.length === 5);
+  // une réponse coupée par la longueur en plein outil : refaite avec plus de place
+  CLAUDE.coupe = true;
+  n1 = CLAUDE.appels.length;
+  sortieT = await CL.appeler(db, milaC, demande());
+  assert.strictEqual(CLAUDE.appels.length, n1 + 2); assert.strictEqual(CLAUDE.appels[n1 + 1].max_tokens, 7000, 'relancée avec deux fois plus de place');
+  assert.strictEqual(sortieT.sortie.idees.length, 5);
+  // un compte où le modèle moyen n'est pas ouvert : le plus récent de la même famille que sa clé propose, compté au prix prudent
+  const cleFermee = 'sk-ant-api03-compte-ferme-' + 'Rr5_'.repeat(20) + 'kAA';
+  r = await api('POST', { op: 'cle_claude', cle: cleFermee });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  milaC = await db.one('hq_createurs', { eq: { id: mila.id } });
+  sortieT = await CL.appeler(db, milaC, demande());
+  assert.strictEqual(sortieT.modele, 'claude-sonnet-5', 'remplacé par le Sonnet le plus récent de sa liste : ' + sortieT.modele);
+  assert.ok(Math.abs(sortieT.cout - (4000 * 3 + 1500 * 15) / 1e6) < 1e-9, 'au prix prudent d\'un Sonnet : ' + sortieT.cout);
+  assert.strictEqual(CL.modeleNomme('claude-opus-5-5', 'genius').out, 20, 'un modèle prévu garde son prix');
+  // un compte où rien ne passe : la cause première d'abord, celle du remplaçant ensuite
+  const cleVide = 'sk-ant-api03-compte-vide-' + 'Vv6_'.repeat(20) + 'mAA';
+  r = await api('POST', { op: 'cle_claude', cle: cleVide });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  milaC = await db.one('hq_createurs', { eq: { id: mila.id } });
+  await assert.rejects(CL.appeler(db, milaC, demande()), (e) => e.code === 'claude' && /refusé la demande : claude-sonnet-5-5 : model: claude-sonnet-5-5 ; claude-sonnet-5 : model: claude-sonnet-5/.test(e.message), 'la cause première reste lisible');
+  // le temps : moins de 30 secondes avant la coupure de la fonction, rien n'est demandé ; dans la chaîne, le passage
+  // suivant reprend sans compter d'essai
+  r = await api('POST', { op: 'cle_claude', cle: vraie });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  milaC = await db.one('hq_createurs', { eq: { id: mila.id } });
+  const n3 = CLAUDE.appels.length;
+  const bientot = () => Date.now() + 10000;
+  await assert.rejects(CL.avecEcheance(bientot(), () => CL.appeler(db, milaC, demande())), (e) => e.code === 'temps');
+  assert.strictEqual(CLAUDE.appels.length, n3, 'rien de demandé, rien de payé');
+  const vt = await CH.creer(db, milaC, { sujet: 'Les flamants dorment sur une patte', langues: ['fr'], format: 'court', style: 'clips' });
+  assert.ok(vt.video, JSON.stringify(vt));
+  // deux requêtes en même temps : chacune garde son heure de coupure
+  await Promise.all([CL.avecEcheance(bientot(), () => CH.avancer(db, mila.id, vt.video.id)), CL.avecEcheance(Date.now() + 280000, () => dormir(5))]);
+  let vtDb = await db.one('hq_crea_videos', { eq: { id: vt.video.id } });
+  assert.ok(vtDb.status === 'ecriture' && !vtDb.etape.erreur && !vtDb.etape.essais && vtDb.etape.attendre_jusqu, 'reprise au passage suivant, sans essai compté : ' + JSON.stringify(vtDb.etape));
+  await db.update('hq_crea_videos', { etape: Object.assign({}, vtDb.etape, { attendre_jusqu: null }) }, { eq: { id: vt.video.id } });
+  await CH.avancer(db, mila.id, vt.video.id);
+  vtDb = await db.one('hq_crea_videos', { eq: { id: vt.video.id } });
+  assert.ok(vtDb.script && vtDb.script.beats && vtDb.status === 'ecriture' && vtDb.etape.quoi === 'critique', 'puis le script s\'écrit : ' + vtDb.status + ' ' + JSON.stringify(vtDb.etape));
 
   console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal).');
 })().catch((e) => { console.error(e); process.exit(1); });
