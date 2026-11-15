@@ -51,13 +51,18 @@ function scriptFaux(beatsN, avecImages, version, ia) {
   }, ia ? { direction: 'A grey fluffy flamingo chick with big curious eyes, pastel pink salt lake, golden light "always"' } : {});
 }
 CL.forcer(async (url, o) => {
-  const sansEspace = /sans-espace/.test(o.headers['x-api-key']) && !o.headers['anthropic-workspace-id'];
+  // la clé arrive par l'en-tête historique (x-api-key) ou en « Bearer » ; certaines clés ne passent qu'en Bearer
+  const cleRecue = o.headers['x-api-key'] || String(o.headers.authorization || '').replace(/^Bearer /, '');
+  if (/porteur/.test(cleRecue) && o.headers['x-api-key']) return repJson(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } });
+  if (/^sk-ant-oat/.test(cleRecue)) return repJson(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } });
+  const sansEspace = /sans-espace/.test(cleRecue) && !o.headers['anthropic-workspace-id'];
   if (/\/organizations\/workspaces/.test(url)) return repJson(200, { data: [{ id: 'wrkspc_01Projet', type: 'workspace', name: 'Projet', archived_at: null }, { id: 'wrkspc_01Default', type: 'workspace', name: 'Default Workspace', archived_at: null }], has_more: false });
   if (/\/models/.test(url)) return CLAUDE.refusee ? repJson(401, { error: { message: 'invalid x-api-key' } }) : sansEspace ? repJson(400, SANS_ESPACE) : repJson(200, { data: [] });
   if (sansEspace) return repJson(400, SANS_ESPACE);
   CLAUDE.espaces.push(o.headers['anthropic-workspace-id'] || null);
   const body = JSON.parse(o.body);
-  CLAUDE.cles.push(o.headers['x-api-key']);
+  CLAUDE.cles.push(cleRecue);
+  CLAUDE.porteurs = (CLAUDE.porteurs || []).concat([!!o.headers.authorization]);
   if (CLAUDE.refusee) return repJson(401, { error: { message: 'invalid x-api-key' } });
   if (CLAUDE.sansCredit) return repJson(400, { error: { message: 'Your credit balance is too low to access the Anthropic API.' } });
   if (body.max_tokens === 1) return repJson(200, { content: [{ type: 'text', text: 'o' }], usage: { input_tokens: 8, output_tokens: 1 } });
@@ -687,7 +692,10 @@ async function jusqua(id, statuts, n) {
   assert.strictEqual(CL.lireCle('Ma clé : ' + vraie.slice(0, 40) + '\u200b\n ' + vraie.slice(40) + '.').cle, vraie, 'la clé seule, sans ce qui traînait autour');
   assert.strictEqual(CL.lireCle(vraie.replace(/-/g, '\u2011')).cle, vraie, 'des tirets insécables redeviennent des traits d\'union');
   assert.ok(/version raccourcie/.test(CL.lireCle('sk-ant-api03-R2D...igAA').erreur), 'la clé raccourcie de la liste des clés');
-  assert.ok(/jeton de connexion/.test(CL.lireCle('sk-ant-oat01-' + 'x'.repeat(80)).erreur), 'un jeton de Claude Code n\'est pas une clé d\'API');
+  assert.ok(CL.lireCle('sk-ant-pk01-' + 'Qq7_'.repeat(20)).cle, 'une clé récente sans « api » dedans passe à l\'essai');
+  assert.ok(CL.lireCle('ak_' + 'Mm3'.repeat(20)).cle, 'une clé d\'une autre forme aussi : c\'est Claude qui dira');
+  r = await api('POST', { op: 'cle_claude', cle: 'sk-ant-oat01-' + 'x'.repeat(80) });
+  assert.strictEqual(r.code, 400); assert.ok(/jeton de connexion/.test(r.d.erreur), 'un jeton de Claude Code n\'est pas une clé : ' + r.d.erreur);
   assert.ok(/20 caractères, commence par « bovq… »/.test(CL.lireCle('bovqi3-fujpu7-hYmzaf').erreur), 'un mot de passe proposé par le téléphone : on dit ce qui a été collé');
   assert.ok(/incomplète/.test(CL.lireCle('sk-ant-api03-abcdef').erreur));
   r = await api('POST', { op: 'cle_claude', cle: 'bovqi3-fujpu7-hYmzaf' });
@@ -701,6 +709,16 @@ async function jusqua(id, statuts, n) {
   await api('POST', { op: 'reglages', reglages: { budget_jour: 5 } });
   r = await api('POST', { op: 'idees', theme: 'les flamants' });
   assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(CLAUDE.espaces[CLAUDE.espaces.length - 1], 'wrkspc_01Default', 'chaque demande nomme l\'espace de la clé');
+  // une clé récente sans « api » dedans, qui ne passe qu'en « Authorization: Bearer » : branchée, et toutes les
+  // demandes partent en Bearer
+  const clePorteur = 'sk-ant-pk01-porteur-' + 'Hh4_'.repeat(22);
+  r = await api('POST', { op: 'cle_claude', cle: clePorteur });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  milaDb = await db.one('hq_createurs', { eq: { id: mila.id } });
+  assert.strictEqual(milaDb.secrets.claude.porteur, true, 'le studio a vu qu\'elle ne passe qu\'en Bearer');
+  r = await api('POST', { op: 'idees', theme: 'les flamants roses' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(CLAUDE.porteurs[CLAUDE.porteurs.length - 1], true, 'et chaque demande part en Bearer');
+  assert.strictEqual(CLAUDE.cles[CLAUDE.cles.length - 1], clePorteur);
   const fal2 = await FAL.essayerCle('  Key 7c1f2a90-4be3-4f60-9d1e-1a2b3c4d5e6f:\u200b0f9e8d7c6b5a49382716abcdef012345\n');
   assert.strictEqual(fal2.cle, CLE_FAL, 'la clé fal aussi, nettoyée');
 
