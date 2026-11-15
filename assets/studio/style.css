@@ -500,3 +500,8 @@ details.aide p { padding: 0 0 14px; color: var(--encre-2); font-size: 13.5px; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   .confettis { display: none; }
 }
+
+/* ── les cases de clé : en clair pendant qu'on colle (on voit si elle est entière), la raison d'un refus dessous ── */
+.champ-cle { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; letter-spacing: -.01em; }
+.erreur-cle { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--alerte-pale); color: var(--alerte); font-size: 13px; line-height: 1.45; }
+.erreur-cle[hidden] { display: none; }

@@ -100,11 +100,12 @@ async function action(req, res, db, b) {
     return json(res, 200, { ok: true, moi: C.moi(c) });
   }
   if (op === 'cle_claude') {
-    const k = String(b.cle || '').trim();
-    const r = await CL.essayerCle(k);
+    const r = await CL.essayerCle(b.cle);
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
-    const secrets = Object.assign({}, c.secrets || {}, { claude: Object.assign(SEC.chiffrer(k, 'claude:' + c.id), { etat: r.credit === false ? 'credit' : 'ok', message: r.avertissement || null }) });
-    c = await majCreateur(db, c, { secrets }, ['Clé Claude branchée', 'se termine par ' + k.slice(-4)]);
+    // la clé nettoyée (ce qu'elle a collé peut traîner des espaces ou du texte autour) et, pour une clé personnelle sans
+    // espace de travail, l'espace trouvé (pas un secret : il est rangé à côté)
+    const secrets = Object.assign({}, c.secrets || {}, { claude: Object.assign(SEC.chiffrer(r.cle, 'claude:' + c.id), { etat: r.credit === false ? 'credit' : 'ok', message: r.avertissement || null, espace: r.espace || null }) });
+    c = await majCreateur(db, c, { secrets }, ['Clé Claude branchée', 'se termine par ' + r.cle.slice(-4)]);
     return json(res, 200, { ok: true, avertissement: r.avertissement || null, moi: C.moi(c) });
   }
   if (op === 'cle_claude_supprimer') {
@@ -125,10 +126,9 @@ async function action(req, res, db, b) {
     return json(res, 200, { ok: true, moi: C.moi(c) });
   }
   if (op === 'uploadpost') {
-    const k = String(b.cle || '').trim();
-    const r = await P.essayerCle(k);
+    const r = await P.essayerCle(b.cle);
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
-    const secrets = Object.assign({}, c.secrets || {}, { uploadpost: Object.assign(SEC.chiffrer(k, 'uploadpost:' + c.id), { plan: r.plan, limite: r.limite, profils: r.profils }) });
+    const secrets = Object.assign({}, c.secrets || {}, { uploadpost: Object.assign(SEC.chiffrer(r.cle, 'uploadpost:' + c.id), { plan: r.plan, limite: r.limite, profils: r.profils }) });
     c = await majCreateur(db, c, { secrets }, ['upload-post branché', r.profils.length + ' profil(s)']);
     return json(res, 200, { ok: true, moi: C.moi(c) });
   }
