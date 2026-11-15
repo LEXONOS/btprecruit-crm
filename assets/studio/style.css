@@ -377,6 +377,32 @@ a.msg:hover { background: var(--verre-fort); }
 .modele svg { width: 30px; height: 30px; color: var(--accent-encre); }
 .modele b { font-size: 13.5px; font-weight: 620; }
 .modele small { font-size: 12px; color: var(--doux); line-height: 1.35; }
+/* ── le look : les images IA (un style, un mouvement), et leur planche pendant qu'elles arrivent ── */
+.panneau-ia { margin: -4px 0 16px; padding: 14px 14px 2px; border-radius: 16px; background: var(--surface-2); }
+.panneau-ia[hidden] { display: none; }
+.looks { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
+.look { position: relative; cursor: pointer; }
+.look input { position: absolute; opacity: 0; pointer-events: none; }
+/* une carte par look : sa petite vidéo verticale en couleurs, son nom, ce qu'il donne */
+.look span { display: grid; grid-template-columns: 30px 1fr; grid-template-rows: auto 1fr; column-gap: 10px; row-gap: 2px; height: 100%; padding: 9px 10px; border-radius: 14px; background: var(--surface); box-shadow: var(--ombre-1); transition: box-shadow .15s, background .15s; }
+.look:hover span { background: var(--surface-3); }
+.look input:checked + span { box-shadow: 0 0 0 2px var(--accent); background: var(--accent-pale); }
+.look input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.look i { grid-row: 1 / span 2; width: 30px; aspect-ratio: 9 / 16; align-self: center; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), inset 0 -10px 12px -8px rgba(0, 0, 0, .35); }
+.look b { align-self: end; font-size: 13px; font-weight: 620; line-height: 1.25; }
+.look small { font-size: 11.5px; color: var(--doux); line-height: 1.3; }
+.beats .mini.scene { display: block; margin-top: 8px; }
+.beats .mini.scene textarea { min-height: 58px; font-size: 13px; }
+.planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; }
+.planche .case { position: relative; aspect-ratio: 9 / 16; border-radius: 10px; overflow: hidden; background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: lueur 1.4s linear infinite; }
+.planche .case.fini { animation: none; background: var(--surface-3); }
+.planche .case.echec { animation: none; background: var(--alerte-pale); }
+.planche .case img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.planche .case small { position: absolute; left: 5px; top: 4px; font-size: 11px; font-weight: 650; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+.planche .case.attente small, .planche .case.demande small { color: var(--doux); text-shadow: none; }
+.planche .case.echec small { color: var(--alerte); text-shadow: none; }
+.planche .anime { position: absolute; left: 4px; right: 4px; bottom: 4px; padding: 2px 0; border-radius: 6px; font-size: 10px; font-weight: 620; text-align: center; color: #fff; background: rgba(10, 19, 40, .55); }
+.planche .anime.ok { background: color-mix(in oklab, var(--ok) 80%, #000); }
 .idees { display: grid; gap: 10px; }
 .idee { padding: 14px 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--ombre-1); }
 .idee blockquote { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: var(--accent-pale); font-weight: 600; font-size: 14.5px; }

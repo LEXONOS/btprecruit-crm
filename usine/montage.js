@@ -1,8 +1,9 @@
 // L'usine du studio des créatrices : monte une vidéo verticale (1080 x 1920, 30 images/s) dans une langue, de bout en bout.
 //   1. la voix (Kokoro ou Piper, voix.py) et la musique d'ambiance choisie, chronométrées phrase par phrase et mot par mot
 //   2. le fond : pour chaque phrase, la vidéo d'illustration choisie par la réalisatrice (banque libre de droits, Pexels),
-//      recadrée en vertical et coupée à la durée de la phrase ; sans vidéo (style « texte », ou rien de trouvé), un fond
-//      en dégradé animé aux couleurs de la créatrice
+//      ou l'image créée par IA (elle zoome ou glisse doucement), ou la vidéo créée par IA, recadrée en vertical et coupée
+//      à la durée de la phrase ; sans rien (style « texte », ou rien de trouvé), un fond en dégradé animé aux couleurs de
+//      la créatrice
 //   3. les textes : l'accroche à l'écran pendant les premières secondes, le texte court de chaque phrase, et les
 //      sous-titres mot à mot (le mot dit s'allume dans sa couleur, les mots forts aussi)
 //   4. le montage final (son normalisé à -14 LUFS, comme le veulent TikTok et YouTube), la vignette et les sous-titres SRT
@@ -31,8 +32,17 @@ const POLICES_LANGUE = {
 const policeDe = (langue) => POLICES_LANGUE[langue] || POLICE;
 const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 const longueur = (s) => Array.from(String(s || '')).length;
-// les vidéos d'illustration ne viennent que des banques libres de droits (jamais une autre adresse)
+// les vidéos d'illustration ne viennent que des banques libres de droits, les images et vidéos IA que de fal (son CDN
+// fal.media, ou son ancien stockage) : jamais une autre adresse
 const HOTES = /^(videos\.pexels\.com|player\.vimeo\.com|cdn\.pixabay\.com)$/;
+const FAL = /(^|\.)fal\.media$/;
+const REDIRECTIONS = /\.(pexels\.com|vimeocdn\.com|akamaized\.net|pixabay\.com)$/;
+function adresseAutorisee(u, apresRedirection) {
+  if (!u || u.protocol !== 'https:') return false;
+  if (HOTES.test(u.hostname) || FAL.test(u.hostname)) return true;
+  if (u.hostname === 'storage.googleapis.com' && /^\/falserverless\//.test(u.pathname)) return true;
+  return !!apresRedirection && REDIRECTIONS.test(u.hostname);
+}
 const MAX_CLIP = 80 * 1048576;
 
 /* ── couleurs ── */
@@ -96,13 +106,13 @@ async function voix(cmd, sortie, beats) {
 async function telecharger(url, fichier) {
   let u;
   try { u = new URL(url); } catch (e) { throw new Error('adresse de vidéo illisible'); }
-  if (u.protocol !== 'https:' || !HOTES.test(u.hostname)) throw new Error('adresse de vidéo refusée : ' + u.hostname);
+  if (!adresseAutorisee(u)) throw new Error('adresse de vidéo refusée : ' + u.hostname);
   for (let essai = 0; essai < 3; essai++) {
     try {
       const r = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(90000) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const final = new URL(r.url || u);
-      if (!HOTES.test(final.hostname) && !/\.(pexels\.com|vimeocdn\.com|akamaized\.net|pixabay\.com)$/.test(final.hostname)) throw new Error('redirection refusée : ' + final.hostname);
+      if (!adresseAutorisee(final, true)) throw new Error('redirection refusée : ' + final.hostname);
       const buf = Buffer.from(await r.arrayBuffer());
       if (buf.length < 10000 || buf.length > MAX_CLIP) throw new Error('taille inattendue : ' + buf.length);
       fs.writeFileSync(fichier, buf);
@@ -125,12 +135,36 @@ function fenetres(temps) {
   });
 }
 
-// un morceau du fond : la vidéo recadrée en vertical, légèrement assombrie pour que les textes se lisent ; ou un dégradé
+// le mouvement d'une image IA, différent d'une phrase à l'autre : elle avance, recule, monte ou glisse (zoompan, sur
+// l'image agrandie deux fois : le mouvement reste fluide, sans tremblement)
+function kenBurns(i, n) {
+  const p = 'on/' + Math.max(1, n - 1);
+  const centre = { x: 'iw/2-(iw/zoom/2)', y: 'ih/2-(ih/zoom/2)' };
+  return [
+    { z: '1+0.12*' + p, x: centre.x, y: centre.y },
+    { z: '1.12-0.12*' + p, x: centre.x, y: centre.y },
+    { z: '1.1', x: centre.x, y: '(ih-ih/zoom)*(1-' + p + ')' },
+    { z: '1.1', x: '(iw-iw/zoom)*' + p, y: centre.y }
+  ][i % 4];
+}
+
+// un morceau du fond : la vidéo recadrée en vertical, légèrement assombrie pour que les textes se lisent ; l'image IA
+// qui bouge doucement ; la vidéo IA (plus courte que la phrase, elle garde sa dernière image) ; ou un dégradé
 async function morceau(sortie, i, f, clip, couleurs) {
   const out = path.join(sortie, 'fond-' + String(i).padStart(2, '0') + '.mp4');
   const d = f.duree.toFixed(3);
   const commun = ['-r', String(FPS), '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-g', String(FPS * 2), out];
-  if (clip) {
+  const cadrer = 'scale=' + L + ':' + H + ':force_original_aspect_ratio=increase,crop=' + L + ':' + H + ',setsar=1,fps=' + FPS;
+  if (clip && clip.type === 'image') {
+    const n = Math.ceil(f.duree * FPS) + 2;
+    const k = kenBurns(i, n);
+    await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-i', clip.fichier, '-t', d,
+      '-vf', 'scale=' + 2 * L + ':' + 2 * H + ':force_original_aspect_ratio=increase:flags=lanczos,crop=' + 2 * L + ':' + 2 * H + ',setsar=1,' +
+      "zoompan=z='" + k.z + "':x='" + k.x + "':y='" + k.y + "':d=" + n + ':s=' + L + 'x' + H + ':fps=' + FPS + ',eq=brightness=-0.03:saturation=1.04,format=yuv420p'].concat(commun));
+  } else if (clip && clip.type === 'video') {
+    await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-i', clip.fichier, '-t', d,
+      '-vf', cadrer + ',tpad=stop_mode=clone:stop_duration=' + d + ',eq=brightness=-0.035:saturation=1.06,format=yuv420p'].concat(commun));
+  } else if (clip) {
     await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-stream_loop', '-1', '-ss', String(clip.depart || 0), '-i', clip.fichier, '-t', d,
       '-vf', 'scale=' + L + ':' + H + ':force_original_aspect_ratio=increase,crop=' + L + ':' + H + ',setsar=1,fps=' + FPS + ',eq=brightness=-0.035:saturation=1.06,format=yuv420p'].concat(commun));
   } else {
@@ -157,15 +191,18 @@ async function fond(cmd, sortie, temps) {
   for (let i = 0; i < fen.length; i++) {
     let clip = null;
     const c = plan.style !== 'texte' && Array.isArray(plan.clips) ? plan.clips[i] : null;
+    const type = c && ['image', 'video'].indexOf(c.type) >= 0 ? c.type : 'clip';
     // en local seulement (--fichier), un clip peut être un fichier de la machine (pour essayer sans réseau)
-    if (c && c.fichier && arg('fichier') && fs.existsSync(c.fichier)) clip = { fichier: c.fichier, depart: Number(c.depart) || 0 };
+    if (c && c.fichier && arg('fichier') && fs.existsSync(c.fichier)) clip = { fichier: c.fichier, depart: Number(c.depart) || 0, type };
     else if (c && c.url) {
       try {
-        if (!caches[c.url]) caches[c.url] = await telecharger(c.url, path.join(sortie, 'clip-' + i + '.mp4'));
+        // l'extension du fichier suit ce qu'il est (ffmpeg devine mieux une image .jpg qu'une image .mp4)
+        const ext = type === 'image' ? ((/\.(jpe?g|png|webp)$/i.exec(new URL(c.url).pathname) || ['.jpg'])[0].toLowerCase()) : '.mp4';
+        if (!caches[c.url]) caches[c.url] = await telecharger(c.url, path.join(sortie, 'clip-' + i + ext));
         // un même clip réutilisé plus loin repart d'un autre moment
         const deja = Object.keys(caches).indexOf(c.url) !== Object.keys(caches).length - 1;
-        clip = { fichier: caches[c.url], depart: deja ? 2.5 : (Number(c.depart) || 0) };
-      } catch (e) { avertissements.push('phrase ' + (i + 1) + ' : vidéo indisponible (' + String(e.message).slice(0, 80) + '), fond en dégradé'); }
+        clip = { fichier: caches[c.url], depart: deja && type === 'clip' ? 2.5 : (Number(c.depart) || 0), type };
+      } catch (e) { avertissements.push('phrase ' + (i + 1) + ' : ' + (type === 'clip' ? 'vidéo' : type === 'image' ? 'image IA' : 'vidéo IA') + ' indisponible (' + String(e.message).slice(0, 80) + '), fond en dégradé'); }
     }
     morceaux.push(await morceau(sortie, i, fen[i], clip, couleurs));
   }
@@ -340,4 +377,4 @@ async function principal() {
 
 if (require.main === module) principal().catch((e) => { console.error('[montage] échec :', e.message || e); process.exit(1); });
 
-module.exports = { monter, sousTitres, fenetres, couper, ass, hex, HOTES, policeDe };
+module.exports = { monter, sousTitres, fenetres, couper, ass, hex, HOTES, adresseAutorisee, kenBurns, morceau, policeDe };

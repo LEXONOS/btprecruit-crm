@@ -37,12 +37,16 @@ const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
 const CLAUDE = { appels: [], refusee: false, sansCredit: false, notes: [6.2, 8.6], cles: [] };
 let nTool = 0;
 const repJson = (code, d) => ({ ok: code < 300, status: code, json: async () => d, text: async () => JSON.stringify(d) });
-function scriptFaux(beatsN, avecImages, version) {
-  return {
+function scriptFaux(beatsN, avecImages, version, ia) {
+  // en images IA, la plume écrit aussi la scène pour l'IA, son mouvement, une recherche de secours et l'univers commun
+  const visuel = (i) => (ia
+    ? { prompt: 'A fluffy flamingo chick in scene ' + (i + 1) + ', wading through a pink salt lake at sunrise, close-up', mouvement: 'slow push-in, ripples spreading', requete: 'flamingo lake', description: 'Un petit flamant' }
+    : { requete: i === 3 ? 'introuvable chose' : 'blue sky clouds', description: 'Un ciel bleu' });
+  return Object.assign({
     titre: 'Pourquoi le ciel est bleu' + (version > 1 ? ' (v' + version + ')' : ''), accroche: 'Le ciel n\'est *pas* bleu',
-    beats: Array.from({ length: beatsN }, (_, i) => Object.assign({ voix: (i === 0 ? 'Le ciel n\'est pas *vraiment* bleu.' : 'Phrase numéro ' + (i + 1) + ' qui explique une chose simple et vraie.'), ecran: 'Écran ' + (i + 1) }, avecImages ? { visuel: { requete: i === 3 ? 'introuvable chose' : 'blue sky clouds', description: 'Un ciel bleu' } } : {})),
+    beats: Array.from({ length: beatsN }, (_, i) => Object.assign({ voix: (i === 0 ? 'Le ciel n\'est pas *vraiment* bleu.' : 'Phrase numéro ' + (i + 1) + ' qui explique une chose simple et vraie.'), ecran: 'Écran ' + (i + 1) }, avecImages ? { visuel: visuel(i) } : {})),
     description: 'Tu savais ? Dis-moi en commentaire.', hashtags: ['#science', 'ciel', 'le ciel'], titre_youtube: 'Le ciel n\'est pas bleu #shorts', image_generale: 'sky timelapse'
-  };
+  }, ia ? { direction: 'A grey fluffy flamingo chick with big curious eyes, pastel pink salt lake, golden light "always"' } : {});
 }
 CL.forcer(async (url, o) => {
   if (/\/models/.test(url)) return CLAUDE.refusee ? repJson(401, { error: { message: 'invalid x-api-key' } }) : repJson(200, { data: [] });
@@ -56,7 +60,7 @@ CL.forcer(async (url, o) => {
   CLAUDE.appels.push({ outil, model: body.model, max_tokens: body.max_tokens, prompt });
   let input;
   if (outil === 'proposer_idees') input = { idees: [1, 2, 3, 4, 5].map((i) => ({ titre: 'Idée ' + i + ' sur le ciel', accroche: 'Accroche ' + i, angle: 'Angle ' + i, pourquoi: 'Parce que ' + i })) };
-  else if (outil === 'ecrire_script') input = scriptFaux(9, !!body.tools[0].input_schema.properties.beats.items.properties.visuel, CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').length);
+  else if (outil === 'ecrire_script') { const vis = body.tools[0].input_schema.properties.beats.items.properties.visuel; input = scriptFaux(9, !!vis, CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').length, !!(vis && vis.properties.prompt)); CLAUDE.appels[CLAUDE.appels.length - 1].system = JSON.stringify(body.system); }
   else if (outil === 'noter_script') { const n = CLAUDE.notes.length > 1 ? CLAUDE.notes.shift() : CLAUDE.notes[0]; input = { notes: { accroche: n, promesse: n, rythme: n, boucles: n, gain: n, fin: n, clarte: n, ton: n, images: n }, points_forts: ['L\'accroche'], corrections: n < 7.5 ? ['Phrase 2 : plus court'] : [], verdict: 'Note ' + n }; }
   else if (outil === 'adapter_script') { const src = JSON.parse(prompt.split('L\'ORIGINALE :\n')[1].split('\n\nAppelle')[0]); input = { titre: 'Why the sky is blue', accroche: 'The sky is *not* blue', beats: src.beats.map((b, i) => ({ voix: 'English sentence ' + (i + 1) + ' that says the same thing.', ecran: 'Screen ' + (i + 1) })), description: 'Did you know?', hashtags: ['science'], titre_youtube: 'The sky is not blue' }; }
   nTool++;
@@ -101,6 +105,41 @@ P.forcer(async (url, o) => {
   if (/\/upload$/.test(url)) { const f = o.body; UP.envois.push({ user: f.get('user'), plateformes: f.getAll('platform[]'), video: f.get('video'), titre: f.get('title'), yt: f.get('youtube_title'), confidentialite: f.get('privacyStatus'), requete: f.get('request_id') }); return t(200, { success: true, request_id: f.get('request_id') }); }
   if (/\/uploadposts\/status/.test(url)) { UP.suivis++; return t(200, UP.suivis < 2 ? { status: 'in_progress', results: [] } : { status: 'completed', completed: 1, total: 1, results: [{ platform: 'youtube', success: true, message: 'Published', post_url: 'https://youtube.com/shorts/abc' }] }); }
   return t(404, { message: 'inconnu' });
+});
+
+/* ── fal simulé : la file d'attente (envoyer, revenir voir deux fois, prendre le résultat), des images et des vidéos ;
+   une image peut rater chez fal, ou revenir écartée par le filtre ── */
+const FAL = require('../lib/createurs/fal');
+const IA = require('../lib/createurs/ia');
+IA.reglerAttente(0);
+const FALM = { envois: [], vus: {}, refuse: false, credit: false, erreurs: {}, filtre: {}, cles: [], ailleurs: [] };
+FAL.forcer(async (url, o) => {
+  const k = String(o.headers.Authorization || '').replace(/^Key /, '');
+  FALM.cles.push(k);
+  const u = new URL(url);
+  if (['queue.fal.run', 'api.fal.ai'].indexOf(u.hostname) < 0) FALM.ailleurs.push(url);
+  if (FALM.refuse || /mauvaise/.test(k)) return repJson(401, { detail: 'Invalid key' });
+  if (u.hostname === 'api.fal.ai') return repJson(200, { prices: [{ endpoint_id: u.searchParams.get('endpoint_id'), unit_price: 0.008, unit: 'megapixels', currency: 'USD' }] });
+  if (FALM.credit) return repJson(403, { detail: 'User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.' });
+  if (o.method === 'POST') {
+    const modele = u.pathname.slice(1);
+    const id = 'req-' + (FALM.envois.length + 1);
+    FALM.envois.push({ id, modele, corps: JSON.parse(o.body), cycle: o.headers['X-Fal-Object-Lifecycle-Preference'] });
+    const base = 'https://queue.fal.run/' + modele.split('/').slice(0, 2).join('/') + '/requests/' + id;
+    return repJson(200, { request_id: id, status_url: base + '/status', response_url: base, cancel_url: base + '/cancel' });
+  }
+  const m = /\/requests\/([^/]+?)(\/status)?$/.exec(u.pathname);
+  const env = m && FALM.envois.find((x) => x.id === m[1]);
+  if (!env) return repJson(404, { detail: 'Request not found' });
+  const marque = (table) => { const t = Object.keys(table).find((x) => env.corps.prompt.includes(x) && table[x] > 0); if (t) table[t]--; return !!t; };
+  if (m[2]) {
+    FALM.vus[env.id] = (FALM.vus[env.id] || 0) + 1;
+    if (FALM.vus[env.id] < 2) return repJson(200, { status: 'IN_QUEUE', queue_position: 2 });
+    if (marque(FALM.erreurs)) return repJson(200, { status: 'COMPLETED', error: 'Runner crashed', error_type: 'runner_error' });
+    return repJson(200, { status: 'COMPLETED' });
+  }
+  if (/image-to-video/.test(env.modele)) return repJson(200, { video: { url: 'https://v3b.fal.media/files/v/' + env.id + '.mp4', content_type: 'video/mp4', file_size: 2e6 } });
+  return repJson(200, { images: [{ url: 'https://v3.fal.media/files/i/' + env.id + '.jpg', width: 1088, height: 1920, content_type: 'image/jpeg' }], has_nsfw_concepts: [marque(FALM.filtre)], seed: env.corps.seed, prompt: env.corps.prompt });
 });
 
 /* ── de fausses requêtes HTTP ── */
@@ -479,5 +518,161 @@ async function jusqua(id, statuts, n) {
   fs.copyFileSync(path.join(__dirname, '../assets/studio/ville.js'), tmp);
   try { execFileSync(process.execPath, ['--check', tmp]); } finally { fs.unlinkSync(tmp); }
 
-  console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication).');
+  // 24. les images IA : Mila branche sa clé fal, choisit le look anime avec l'accroche en vidéo ; la plume écrit les
+  //     scènes ; Lou fait créer les images en plusieurs tours (une image ratée chez fal est refaite, une image écartée
+  //     deux fois par le filtre laisse sa place à Pexels), anime la première scène, puis lance le montage ; le budget
+  //     compte tout ; « Refaire le montage » reprend les images ; une clé refusée, plus de crédit, continuer sans IA
+  COOKIE = null;
+  const mila = await ADM.agir(db, 'crea_creer', { prenom: 'Mila' });
+  r = await api('POST', { op: 'invitation', code: mila.code, mdp: 'le studio de mila 2026' });
+  assert.strictEqual(r.code, 200);
+  r = await api('POST', { op: 'cle_claude', cle: 'sk-ant-api03-la-cle-de-mila-0123456789abc' });
+  assert.strictEqual(r.code, 200);
+  r = await api('POST', { op: 'reglages', reglages: { style: 'ia', ia: { style: 'anime', mouvement: 'accroche' }, budget_jour: 5, langues: ['fr', 'en'] } });
+  assert.strictEqual(r.d.moi.reglages.style, 'ia'); assert.deepStrictEqual(r.d.moi.reglages.ia, { style: 'anime', mouvement: 'accroche' });
+  assert.ok(r.d.moi.depense.estime_ia > 0.2 && r.d.moi.depense.estime_video > r.d.moi.depense.estime_ia, 'le coût estimé compte les images IA : ' + JSON.stringify(r.d.moi.depense));
+  r = await api('POST', { op: 'reglages', reglages: { ia: { style: 'inconnu', mouvement: 'tout' } } });
+  assert.deepStrictEqual(r.d.moi.reglages.ia, { style: 'anime', mouvement: 'tout' }, 'un look inconnu est ignoré');
+  await api('POST', { op: 'reglages', reglages: { ia: { mouvement: 'accroche' } } });
+  const catIa = (await api('GET', { op: 'etat' })).d.catalogue.ia;
+  assert.ok(catIa.looks.anime && catIa.looks.anime.nom === 'Anime' && !catIa.looks.anime.prompt, 'le catalogue montre les looks, pas ce que reçoit l\'IA');
+  assert.ok(catIa.couts.court.zoom < catIa.couts.court.accroche && catIa.couts.court.accroche < catIa.couts.court.tout && catIa.couts.long.tout > catIa.couts.court.tout, 'les coûts suivent le mouvement et la durée');
+  r = await api('POST', { op: 'creer', sujet: 'Pourquoi les flamants roses sont roses', style: 'ia' });
+  assert.strictEqual(r.code, 400); assert.ok(/clé fal/.test(r.d.erreur), 'sans clé fal, pas de vidéo en images IA');
+  r = await api('POST', { op: 'cle_fal', cle: 'sk-ant-api03-pas-la-bonne-cle-0123456789' });
+  assert.strictEqual(r.code, 400); assert.ok(/clé Claude/.test(r.d.erreur), 'une clé Claude collée au mauvais endroit');
+  r = await api('POST', { op: 'cle_fal', cle: 'mauvaise-cle-fal-0123:abcdef0123456789abcdef' });
+  assert.strictEqual(r.code, 400); assert.ok(/reconnaît pas/.test(r.d.erreur));
+  const CLE_FAL = '7c1f2a90-4be3-4f60-9d1e-1a2b3c4d5e6f:0f9e8d7c6b5a49382716abcdef012345';
+  r = await api('POST', { op: 'cle_fal', cle: 'Key ' + CLE_FAL });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.moi.connexions.fal.branchee, true); assert.strictEqual(r.d.moi.connexions.fal.fin, '2345');
+  let milaDb = await db.one('hq_createurs', { eq: { id: mila.id } });
+  assert.ok(!JSON.stringify(milaDb.secrets).includes('0f9e8d7c6b5a'), 'la clé fal est chiffrée en base');
+
+  // la plume écrit les scènes pour l'IA, dans le look choisi ; Mila retouche une scène
+  r = await api('POST', { op: 'creer', sujet: 'Pourquoi les flamants roses sont roses', langues: ['fr', 'en'] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); const vIa = r.d.video.id;
+  assert.strictEqual(r.d.video.plan.style, 'ia'); assert.deepStrictEqual(r.d.video.plan.ia, { style: 'anime', mouvement: 'accroche' });
+  v = await jusqua(vIa, 'relecture');
+  assert.strictEqual(v.status, 'relecture');
+  const ecritIa = CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').pop();
+  assert.ok(/style « images IA »/.test(ecritIa.system) && /Anime/.test(ecritIa.system), 'la plume connaît le look et les règles des images IA');
+  assert.ok(ecritIa.max_tokens > 3500, 'plus de place pour écrire les scènes');
+  assert.ok(v.script.beats[0].visuel.prompt.indexOf('scene 1') > 0 && v.script.beats[0].visuel.mouvement && v.script.beats[0].visuel.requete === 'flamingo lake', 'une scène, un mouvement et une recherche de secours par phrase');
+  assert.ok(v.script.direction && !/"/.test(v.script.direction), 'l\'univers commun, sans guillemets doubles');
+  const beatsIa = v.script.beats.map((x, i) => (i === 2 ? Object.assign({}, x, { visuel: Object.assign({}, x.visuel, { prompt: 'A fluffy flamingo chick in scene 3, eating tiny pink shrimps, macro shot' }) }) : x));
+  r = await api('POST', { op: 'modifier', id: vIa, script: { beats: beatsIa } });
+  assert.strictEqual(r.code, 200); assert.ok(/tiny pink shrimps/.test(r.d.video.script.beats[2].visuel.prompt) && r.d.video.script.beats[2].visuel.requete === 'flamingo lake', 'sa retouche garde la recherche de secours');
+  r = await api('POST', { op: 'valider', id: vIa });
+  assert.strictEqual(r.d.video.status, 'langues');
+
+  // Lou fait créer les images en plusieurs tours, anime la première scène, lance le montage
+  FALM.erreurs['scene 4,'] = 1; FALM.filtre['scene 6,'] = 2;
+  const avantFal = FALM.envois.length;
+  const depAvant = Number(((milaDb.couts || {}).jours || {})[C.jourDe(milaDb)] || 0);
+  v = await jusqua(vIa, 'realisation', 4);
+  assert.strictEqual(v.status, 'realisation');
+  v = await jusqua(vIa, 'fabrication', 8);
+  assert.strictEqual(v.status, 'fabrication', 'les images IA sont faites, le montage est lancé : ' + JSON.stringify(v.etape));
+  const envIa = FALM.envois.slice(avantFal);
+  const imgs = envIa.filter((x) => x.modele === 'fal-ai/flux-2/turbo'), anims = envIa.filter((x) => /image-to-video/.test(x.modele));
+  assert.strictEqual(imgs.length, 11, '9 images, une refaite après une erreur, une refaite après le filtre');
+  assert.strictEqual(anims.length, 1, 'l\'accroche en vidéo : une seule animation');
+  assert.ok(FALM.cles.slice(-3).every((k) => k === CLE_FAL), 'fal reçoit SA clé, nettoyée');
+  assert.deepStrictEqual(imgs[0].corps.image_size, { width: 1088, height: 1920 }); assert.strictEqual(imgs[0].corps.output_format, 'jpeg');
+  assert.ok(/anime illustration/.test(imgs[0].corps.prompt) && /flamingo chick with big curious eyes/.test(imgs[0].corps.prompt) && /no text/.test(imgs[0].corps.prompt), 'la scène, l\'univers, le look et les règles');
+  assert.strictEqual(new Set(imgs.map((x) => x.corps.seed)).size, 1, 'la même graine pour toutes les images de la vidéo');
+  assert.ok(imgs.some((x) => /tiny pink shrimps/.test(x.corps.prompt)), 'sa retouche part chez fal');
+  assert.strictEqual(JSON.parse(imgs[0].cycle).expiration_duration_seconds, 14 * 86400, 'fal garde les fichiers 14 jours');
+  assert.strictEqual(anims[0].corps.image_url, 'https://v3.fal.media/files/i/' + imgs[0].id + '.jpg', 'la vidéo part de la première image');
+  assert.strictEqual(anims[0].corps.duration, 2.7); assert.strictEqual(anims[0].corps.resolution, '768P'); assert.strictEqual(anims[0].corps.prompt_expansion_mode, 'balanced');
+  assert.ok(/slow push-in/.test(anims[0].corps.prompt), 'le mouvement écrit par la plume');
+  const cl = v.plan.clips;
+  assert.strictEqual(cl.length, 9);
+  assert.strictEqual(cl[0].type, 'video'); assert.ok(/^https:\/\/v3b\.fal\.media\//.test(cl[0].url));
+  assert.ok(cl.filter((x, i) => i !== 0 && i !== 5).every((x) => x.type === 'image' && /^https:\/\/v3\.fal\.media\//.test(x.url) && x.h === 1920), 'les autres phrases : leur image IA');
+  assert.strictEqual(cl[5].type, 'clip'); assert.ok(/^https:\/\/videos\.pexels\.com\//.test(cl[5].url), 'l\'image écartée deux fois : une vidéo d\'illustration à la place');
+  assert.ok(v.plan.credits.length >= 1 && /image IA n'a pas pu être faite/.test(v.etape.note || ''), 'la note le dit : ' + v.etape.note);
+  assert.ok(!JSON.stringify(v.plan.generation).includes('queue.fal.run'), 'la page ne voit pas les adresses de suivi');
+  const coutIaAttendu = 10 * 0.016 + 0.136;
+  assert.ok(Math.abs(v.plan.generation.cout - coutIaAttendu) < 1e-6, 'le coût des images IA (onze envoyées, une rendue après son erreur, l\'animation de 2,7 s) : ' + v.plan.generation.cout);
+  milaDb = await db.one('hq_createurs', { eq: { id: mila.id } });
+  assert.ok(Number(milaDb.couts.jours[C.jourDe(milaDb)]) - depAvant >= coutIaAttendu - 1e-6, 'le budget du jour compte fal');
+  assert.ok(v.cout_usd >= coutIaAttendu, 'le coût de la vidéo compte fal');
+  u = await appelUsine('GET', { op: 'montage', video: String(vIa), langue: 'en' });
+  assert.strictEqual(u.code, 200); assert.deepStrictEqual(u.d.plan.clips.map((x) => x.type), ['video', 'image', 'image', 'image', 'image', 'clip', 'image', 'image', 'image'], 'l\'usine sait ce qu\'est chaque image');
+
+  // « Refaire le montage » : les images et la vidéo sont reprises, seule l'image écartée est retentée
+  await db.update('hq_crea_videos', { status: 'prete', rendus: { fr: { etat: 'fini', fichiers: ['video.mp4'] }, en: { etat: 'fini', fichiers: ['video.mp4'] } }, etape: {} }, { eq: { id: vIa } });
+  r = await api('POST', { op: 'refaire', id: vIa });
+  assert.strictEqual(r.d.video.status, 'realisation');
+  const avantRefaire = FALM.envois.length;
+  v = await jusqua(vIa, 'fabrication', 5);
+  assert.strictEqual(v.status, 'fabrication');
+  assert.strictEqual(FALM.envois.length - avantRefaire, 1, 'refaire : une seule image refaite, le reste est repris');
+  assert.strictEqual(v.plan.clips[5].type, 'image', 'cette fois, l\'image IA est là'); assert.strictEqual(v.plan.clips[0].type, 'video');
+
+  // une clé refusée met la vidéo en attente ; une nouvelle clé la relance ; plus de crédit : en attente aussi
+  r = await api('POST', { op: 'creer', sujet: 'Pourquoi les chats ronronnent', langues: ['fr'] });
+  const vIa2 = r.d.video.id;
+  await jusqua(vIa2, 'relecture');
+  r = await api('POST', { op: 'valider', id: vIa2 });
+  assert.strictEqual(r.d.video.status, 'realisation');
+  FALM.refuse = true;
+  v = (await api('POST', { op: 'avancer', id: vIa2 })).d.video;
+  assert.strictEqual(v.etape.bloque, 'fal'); assert.ok(/fal refuse ta clé/.test(v.etape.erreur), v.etape.erreur);
+  assert.strictEqual((await api('GET', { op: 'moi' })).d.moi.connexions.fal.etat, 'refusee', 'Réglages le montre sur sa clé');
+  FALM.refuse = false;
+  await dormir(5);
+  await api('POST', { op: 'cle_fal', cle: CLE_FAL });
+  FALM.credit = true;
+  v = (await api('POST', { op: 'avancer', id: vIa2 })).d.video;
+  assert.strictEqual(v.etape.bloque, 'credit_fal', 'nouvelle clé : Lou reprend, mais le compte fal est vide'); assert.ok(/plus de crédit/.test(v.etape.erreur));
+  assert.strictEqual((await api('GET', { op: 'moi' })).d.moi.connexions.fal.etat, 'credit');
+  FALM.credit = false;
+  r = await api('POST', { op: 'sans_ia', id: vIa2 });
+  assert.strictEqual(r.code, 200); assert.strictEqual(r.d.video.plan.style, 'clips');
+  v = await jusqua(vIa2, 'fabrication', 3);
+  assert.strictEqual(v.status, 'fabrication', 'continuer sans images IA : des vidéos d\'illustration');
+  assert.ok(v.plan.clips.every((x) => !x || !x.type || x.type === 'clip') && /^https:\/\/videos\.pexels\.com\//.test(v.plan.clips[0].url));
+  r = await api('POST', { op: 'sans_ia', id: vIa2 });
+  assert.strictEqual(r.code, 400, 'plus rien à changer');
+
+  // le budget du jour trop bas : Lou attend avant d'envoyer quoi que ce soit chez fal
+  await api('POST', { op: 'reglages', reglages: { budget_jour: 0.05 } });
+  const scriptIa = (await db.one('hq_crea_videos', { eq: { id: vIa } })).script;
+  const [vb] = await db.insert('hq_crea_videos', { createur_id: mila.id, status: 'realisation', sujet: 'Le budget', titre: 'Le budget', langue_source: 'fr', langues: ['fr'], script: scriptIa, plan: { style: 'ia', ia: { style: 'aquarelle', mouvement: 'zoom' } }, etape: { quoi: 'images', depuis: new Date().toISOString() }, rendus: {}, traductions: {}, publication: {}, critique: {}, idee: {} });
+  const avantBudget = FALM.envois.length;
+  v = (await api('POST', { op: 'avancer', id: vb.id })).d.video;
+  assert.strictEqual(v.etape.bloque, 'budget'); assert.strictEqual(FALM.envois.length, avantBudget, 'rien n\'est parti chez fal');
+  assert.deepStrictEqual(FALM.ailleurs, [], 'la clé fal n\'est jamais partie ailleurs que chez fal');
+
+  // ce que fal répond, lu avec prudence : un résultat rangé autrement, une adresse d'ailleurs, les erreurs traduites
+  assert.strictEqual(FAL.lireImage({ response: { images: [{ url: 'https://v3.fal.media/x.jpg' }] } }).url, 'https://v3.fal.media/x.jpg', 'un résultat rangé dans « response » se lit aussi');
+  assert.ok(FAL.lireImage({ images: [{ url: 'https://ailleurs.example/x.jpg' }] }).erreur && FAL.lireVideo({ video: { url: 'http://v3.fal.media/x.mp4' } }).erreur, 'un fichier ailleurs que chez fal est refusé');
+  assert.strictEqual(FAL.traduire(403, { detail: 'User is locked. Reason: Exhausted balance.' }).code, 'fal_credit');
+  assert.strictEqual(FAL.traduire(401, {}).code, 'fal_refusee'); assert.strictEqual(FAL.traduire(503, {}).code, 'fal_surcharge');
+  assert.strictEqual(FAL.traduire(422, { detail: [{ msg: 'prompt too long' }] }).definitif, true, 'une demande refusée pour de bon ne se réessaie pas telle quelle');
+  assert.ok(/prompt too long/.test(FAL.traduire(422, { detail: [{ msg: 'prompt too long' }] }).message));
+
+  // l'usine : les adresses de fal sont acceptées (et seulement elles) ; l'image IA bouge, la vidéo IA garde sa dernière image
+  assert.ok(['https://v3.fal.media/files/i/x.jpg', 'https://fal.media/files/x.mp4', 'https://storage.googleapis.com/falserverless/x.png', 'https://videos.pexels.com/v.mp4'].every((x) => M.adresseAutorisee(new URL(x))), 'fal et les banques');
+  assert.ok(['https://evil-fal.media/x.jpg', 'https://fal.media.evil.com/x.jpg', 'https://storage.googleapis.com/autre/x.png', 'http://v3.fal.media/x.jpg', 'https://cdn.vimeocdn.com/x.mp4'].every((x) => !M.adresseAutorisee(new URL(x))), 'aucune autre adresse');
+  assert.ok(M.adresseAutorisee(new URL('https://cdn.vimeocdn.com/x.mp4'), true), 'les serveurs des banques, seulement après une redirection');
+  assert.strictEqual(new Set([0, 1, 2, 3].map((i) => JSON.stringify(M.kenBurns(i, 120)))).size, 4, 'quatre mouvements d\'image différents');
+  const outil = (n) => { try { execFileSync(n, ['-version'], { stdio: 'ignore' }); return true; } catch (e) { return false; } };
+  if (outil('ffmpeg') && outil('ffprobe')) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ia-'));
+    try {
+      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=1088x1920:d=1', '-frames:v', '1', path.join(dir, 'image.jpg')]);
+      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=768x1366:d=2:r=24', '-pix_fmt', 'yuv420p', path.join(dir, 'ia.mp4')]);
+      const sonde = (f) => execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v', '-show_entries', 'stream=width,height,nb_frames', '-of', 'csv=p=0', f]).toString().trim();
+      const a = await M.morceau(dir, 0, { duree: 3.2 }, { fichier: path.join(dir, 'image.jpg'), type: 'image' }, ['111111', '222222']);
+      assert.strictEqual(sonde(a), '1080,1920,96', 'l\'image IA devient 3,2 s de vidéo verticale');
+      const b2 = await M.morceau(dir, 1, { duree: 3.0 }, { fichier: path.join(dir, 'ia.mp4'), type: 'video' }, ['111111', '222222']);
+      assert.strictEqual(sonde(b2), '1080,1920,90', 'la vidéo IA de 2 s tient les 3 s de sa phrase');
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  }
+
+  console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal).');
 })().catch((e) => { console.error(e); process.exit(1); });
