@@ -7,6 +7,7 @@ const C = require('../lib/createurs');
 const AC = require('../lib/createurs/acces');
 const SEC = require('../lib/createurs/secret');
 const CL = require('../lib/createurs/claude');
+const FAL = require('../lib/createurs/fal');
 const E = require('../lib/createurs/equipe');
 const F = require('../lib/createurs/fabrication');
 const P = require('../lib/createurs/publication');
@@ -27,6 +28,14 @@ function catalogue() {
     langues: Object.fromEntries(Object.keys(C.LANGUES).map((l) => [l, { nom: C.LANGUES[l].nom, voix: C.LANGUES[l].voix, defaut: C.LANGUES[l].defaut, vitesse: C.LANGUES[l].vitesse }])),
     naturelles: C.NATURELLES, modeles: Object.fromEntries(Object.keys(B.MODELES).map((k) => [k, { nom: B.MODELES[k].nom, court: B.MODELES[k].court, exemple: B.MODELES[k].exemple }])),
     roles: C.ROLES, ordre: C.ORDRE_ROLES, plateformes: C.PLATEFORMES, musiques: C.MUSIQUES, qualites: C.QUALITES, statuts: C.STATUTS, automatiques: C.AUTOMATIQUES, garde_jours: C.GARDE_JOURS,
+    styles: C.STYLES,
+    // les images IA : les looks (sans ce que l'IA reçoit), les mouvements, le coût à peu près de chaque choix, les modèles
+    ia: {
+      looks: Object.fromEntries(Object.keys(C.STYLES_IA).map((k) => [k, { nom: C.STYLES_IA[k].nom, court: C.STYLES_IA[k].court, teintes: C.STYLES_IA[k].teintes }])),
+      mouvements: C.MOUVEMENTS_IA,
+      couts: Object.fromEntries(['court', 'long'].map((f) => [f, Object.fromEntries(Object.keys(C.MOUVEMENTS_IA).map((m) => [m, C.coutIa(f, m)]))])),
+      modeles: { image: FAL.MODELES.image.nom, video: FAL.MODELES.video.nom }
+    },
     images: IM.branche(), usine: G.branche(), coffre: SEC.disponible()
   };
 }
@@ -103,6 +112,18 @@ async function action(req, res, db, b) {
     c = await majCreateur(db, c, { secrets }, ['Clé Claude retirée']);
     return json(res, 200, { ok: true, moi: C.moi(c) });
   }
+  if (op === 'cle_fal') {
+    const r = await FAL.essayerCle(b.cle);
+    if (r.erreur) return json(res, 400, { erreur: r.erreur });
+    const secrets = Object.assign({}, c.secrets || {}, { fal: Object.assign(SEC.chiffrer(r.cle, 'fal:' + c.id), { etat: r.credit === false ? 'credit' : 'ok', message: r.avertissement || null }) });
+    c = await majCreateur(db, c, { secrets }, ['Clé fal branchée', 'se termine par ' + r.cle.slice(-4)]);
+    return json(res, 200, { ok: true, avertissement: r.avertissement || null, moi: C.moi(c) });
+  }
+  if (op === 'cle_fal_supprimer') {
+    const secrets = Object.assign({}, c.secrets || {}); delete secrets.fal;
+    c = await majCreateur(db, c, { secrets }, ['Clé fal retirée']);
+    return json(res, 200, { ok: true, moi: C.moi(c) });
+  }
   if (op === 'uploadpost') {
     const k = String(b.cle || '').trim();
     const r = await P.essayerCle(k);
@@ -145,7 +166,7 @@ async function action(req, res, db, b) {
   }
   if (op === 'creer') {
     const idee = b.idee_id ? (c.idees || []).find((x) => x.id === String(b.idee_id)) : null;
-    const r = await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, modele: b.modele });
+    const r = await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, ia: b.ia, modele: b.modele });
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
     return json(res, 200, { ok: true, video: await vueVideo(db, r.video) });
   }
@@ -166,6 +187,7 @@ async function action(req, res, db, b) {
   else if (op === 'marquer_publiee') r = await CH.marquerPubliee(db, c, v.id, String(b.langue || ''), String(b.plateforme || ''), b.lien);
   else if (op === 'reprendre') r = await CH.reprendre(db, c, v.id);
   else if (op === 'refaire') r = await CH.refaireMontage(db, c, v.id);
+  else if (op === 'sans_ia') r = await CH.sansIa(db, c, v.id);
   else if (op === 'archiver') {
     if (C.AUTOMATIQUES.indexOf(v.status) >= 0 && v.status !== 'fabrication') return json(res, 400, { erreur: 'attends que l\'équipe finisse l\'étape en cours' });
     await db.update('hq_crea_videos', { status: 'archivee', etape: {}, updated_at: iso() }, { eq: { id: v.id } });

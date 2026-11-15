@@ -272,7 +272,7 @@
       case 'ecriture': return e.quoi === 'critique' ? { role: 'critique', texte: membre('critique').prenom + ' relit ' + tt } : { role: 'plume', texte: membre('plume').prenom + (e.quoi === 'reecriture' ? ' réécrit ' : ' écrit ') + tt };
       case 'relecture': return { role: 'toi', texte: 'Le script de ' + tt + ' t\'attend' };
       case 'langues': return { role: 'traduction', texte: membre('traduction').prenom + ' adapte ' + tt };
-      case 'realisation': return { role: 'realisation', texte: membre('realisation').prenom + ' choisit les images de ' + tt };
+      case 'realisation': return { role: 'realisation', texte: membre('realisation').prenom + (e.quoi === 'images_ia' ? ' fait créer les images IA de ' : ' choisit les images de ') + tt };
       case 'fabrication': return { role: 'realisation', texte: 'Montage de ' + tt };
       case 'prete': return { role: 'diffusion', texte: tt + ' est prête à publier' };
       case 'publication': return { role: 'diffusion', texte: membre('diffusion').prenom + ' publie ' + tt };
@@ -376,6 +376,7 @@
       { fait: !!r.chaine.sujets, titre: 'Décris ta chaîne', texte: 'Tes sujets, ton public, ton ton : toute l\'équipe s\'en sert.', lien: '#reglages/chaine' },
       { fait: m.connexions.claude.branchee && m.connexions.claude.etat === 'ok', titre: 'Branche ta clé Claude', texte: 'C\'est elle qui fait travailler ton équipe, dans le budget que tu choisis. Le pas à pas prend 5 minutes.', lien: '#reglages/connexions' },
       { fait: (S.videos || []).length > 0, titre: 'Lance ta première vidéo', texte: 'Un modèle et une idée en une phrase suffisent.', lien: '#creer' },
+      { fait: m.connexions.fal && m.connexions.fal.branchee, titre: 'Images IA', texte: 'Facultatif : des scènes créées pour chaque vidéo, dans le style que tu veux, sur ta clé fal.', lien: '#reglages/connexions', facultatif: true },
       { fait: m.connexions.uploadpost.branchee, titre: 'Publication automatique', texte: 'Facultatif : sinon tu publies depuis ton téléphone en quelques secondes.', lien: '#reglages/connexions', facultatif: true }
     ];
   }
@@ -578,6 +579,54 @@
       (autres.length ? '<div class="groupe"><small>' + autres.length + ' autres langues</small><input type="search" placeholder="Chercher une langue : allemand, arabe, russe..." data-filtre-langues aria-label="Chercher une langue"><div class="choix" style="margin-top:8px">' + autres.map(puce).join('') + '</div></div>' : '') + '</div>';
   }
   function radios(nom, options, valeur) { return '<div class="choix">' + options.map((o) => '<label><input type="radio" name="' + nom + '" value="' + h(o[0]) + '"' + (o[0] === valeur ? ' checked' : '') + '><span>' + h(o[1]) + (o[2] ? ' <small>' + h(o[2]) + '</small>' : '') + '</span></label>').join('') + '</div>'; }
+
+  /* ── le look : vidéos d'illustration, images IA (un style, un mouvement), texte animé ── */
+  const IA_VIDE = { looks: {}, mouvements: {}, couts: {}, modeles: {} };
+  const coutIa = (format, mouvement) => (((S.cat.ia || IA_VIDE).couts || {})[format === 'long' ? 'long' : 'court'] || {})[mouvement] || 0;
+  function mouvementsHtml(format, choisi) {
+    const m = (S.cat.ia || IA_VIDE).mouvements;
+    return radios('ia.mouvement', Object.keys(m).map((k) => [k, m[k].nom, 'environ ' + usd(coutIa(format, k))]), choisi) +
+      '<small>' + h((m[choisi] || {}).court || '') + '. Par vidéo, sur ta clé fal.</small>';
+  }
+  function lookHtml(r, format) {
+    const cat = S.cat.ia || IA_VIDE;
+    const ia = r.ia || {};
+    const fal = S.moi.connexions.fal || {};
+    const st = S.cat.styles || { clips: 'Vidéos d\'illustration', ia: 'Images IA', texte: 'Texte animé' };
+    const style = st[r.style] ? r.style : 'clips';
+    return '<div class="champ"><span>Le look</span>' + radios('style', [['clips', st.clips, 'offertes'], ['ia', st.ia, 'sur ta clé fal'], ['texte', st.texte]], style) + '</div>' +
+      '<div class="panneau-ia" data-panneau-ia' + (style === 'ia' ? '' : ' hidden') + '>' +
+      (fal.branchee ? '' : '<div class="message attention" style="margin-bottom:14px"><b>Ce look demande ta clé fal</b>Les images IA se paient sur ton compte fal, à l\'usage. <a href="#reglages/connexions">Le pas à pas prend 5 minutes</a>.</div>') +
+      '<div class="champ"><span>Le style des images</span><div class="looks">' + Object.keys(cat.looks).map((k) => {
+        const l = cat.looks[k];
+        return '<label class="look"><input type="radio" name="ia.style" value="' + h(k) + '"' + (k === ia.style ? ' checked' : '') + '><span><i style="background:linear-gradient(155deg,' + (l.teintes || []).map(h).join(',') + ')"></i><b>' + h(l.nom) + '</b><small>' + h(l.court) + '</small></span></label>';
+      }).join('') + '</div></div>' +
+      '<div class="champ" data-mouvements><span>Le mouvement</span>' + mouvementsHtml(format, ia.mouvement) + '</div></div>';
+  }
+  // le formulaire a changé (format, look, mouvement) : le panneau des images IA et les coûts suivent
+  function majLook(form) {
+    if (!form) return;
+    const d = lireForm(form);
+    const p = $('[data-panneau-ia]', form);
+    if (p) p.hidden = d.style !== 'ia';
+    const format = d.format || S.moi.reglages.format;
+    const mouvement = (d.ia || {}).mouvement || S.moi.reglages.ia.mouvement;
+    // les prix suivent la durée choisie, l'explication suit le mouvement (sans redessiner : le focus reste où il est)
+    $$('input[name="ia.mouvement"]', form).forEach((el) => { const sm = $('small', el.nextElementSibling); if (sm) sm.textContent = 'environ ' + usd(coutIa(format, el.value)); });
+    const m = $('[data-mouvements] > small', form);
+    if (m) m.textContent = (((S.cat.ia || IA_VIDE).mouvements[mouvement] || {}).court || '') + '. Par vidéo, sur ta clé fal.';
+    const c = $('[data-cout-creer]', form);
+    if (c) c.innerHTML = coutCreerHtml(d.style, format, mouvement, (d.langues || []).length);
+  }
+  // ce que coûte la vidéo qu'elle s'apprête à lancer : l'écriture sur sa clé Claude (le même calcul que le serveur),
+  // les images IA sur sa clé fal
+  function coutCreerHtml(style, format, mouvement, nbLangues) {
+    const r = S.moi.reglages, q = S.cat.qualites[r.qualite] || {};
+    const f = format === 'long' ? 1.4 : 1, n = nbLangues || r.langues.length || 1;
+    const ecriture = (q.par_video || 0) * f + (q.par_langue || 0) * f * Math.max(0, n - 1) + (r.tendances ? 0.02 : 0);
+    return 'Environ ' + h(usd(ecriture)) + ' pour l\'écriture sur ta clé Claude, en qualité ' + h((q.nom || '').toLowerCase()) + '.' +
+      (style === 'ia' ? ' Les images IA : environ ' + h(usd(coutIa(format, mouvement))) + ' sur ta clé fal. Le montage et les voix sont offerts.' : style === 'clips' ? ' Le montage, les voix et les images sont offerts.' : ' Le montage et les voix sont offerts.');
+  }
   function carteIdee(i) {
     return '<article class="idee"><h3>' + h(i.titre) + '</h3>' + (i.accroche ? '<blockquote>' + forts(i.accroche) + '</blockquote>' : '') + '<p>' + h(i.angle) + '</p>' + (i.pourquoi ? '<p class="pourquoi">' + h(i.pourquoi) + '</p>' : '') +
       '<div class="actions"><button class="btn petit" data-a="ideeChoisir" data-id="' + h(i.id) + '">Faire cette vidéo</button><button class="btn discret petit" data-a="ideeOublier" data-id="' + h(i.id) + '">Oublier</button></div></article>';
@@ -589,7 +638,6 @@
   }
   function vueCreer() {
     const r = S.moi.reglages;
-    const q = S.cat.qualites[r.qualite] || {};
     const mod = (S.cat.modeles || {})[S.modele];
     let x = '<div class="s-tete"><div><h1>Nouvelle vidéo</h1><p>Choisis une forme, donne une idée : ' + h(membre('plume').prenom) + ' écrit, ' + h(membre('critique').prenom) + ' relit, tu valides.</p></div></div>';
     if (!S.moi.connexions.claude.branchee) x += '<div class="message attention" style="margin-bottom:16px"><b>Ta clé Claude n\'est pas encore branchée</b>Ton équipe ne peut pas écrire sans elle.<div class="actions"><a class="btn petit" href="#reglages/connexions">Brancher ma clé</a></div></div>';
@@ -597,9 +645,9 @@
       '<div class="champ"><span>La forme</span>' + modelesHtml() + '</div>' +
       '<label class="champ"><span>Ton idée</span><textarea name="sujet" rows="3" maxlength="600" placeholder="' + h(mod ? mod.exemple : 'Pourquoi on a toujours froid aux pieds la nuit') + '"></textarea><small class="aide" id="aideIdee">' + (mod ? 'Par exemple : « ' + h(mod.exemple) + ' ». <a href="#" data-a="prendreExemple">Prendre cet exemple</a>' : 'Une phrase suffit.') + '</small></label>' +
       '<div class="champ"><span>Langues</span>' + choixLangues('langues[]', r.langues) + '<small>La version en ' + h(nomLangue(r.langue_source).toLowerCase()) + ' s\'écrit d\'abord ; ' + h(membre('traduction').prenom) + ' adapte les autres. Six langues au plus par vidéo.</small></div>' +
-      '<div class="grille2"><div class="champ"><span>Durée</span>' + radios('format', [['court', '35 à 50 s'], ['long', 'Plus d\'une minute', 'payée par TikTok']], r.format) + '</div>' +
-      '<div class="champ"><span>Images</span>' + radios('style', [['clips', 'Vidéos d\'illustration'], ['texte', 'Texte animé']], r.style) + '</div></div>' +
-      '<button class="btn large" type="submit">Lancer l\'équipe</button><p class="doux petit" style="margin-top:10px">Environ ' + h(usd(S.moi.depense.estime_video)) + ' sur ta clé en qualité ' + h((q.nom || '').toLowerCase()) + '. Le montage, les voix et les images sont offerts.</p></form>';
+      '<div class="champ"><span>Durée</span>' + radios('format', [['court', '35 à 50 s'], ['long', 'Plus d\'une minute', 'payée par TikTok']], r.format) + '</div>' +
+      lookHtml(r, r.format) +
+      '<button class="btn large" type="submit">Lancer l\'équipe</button><p class="doux petit" style="margin-top:10px" data-cout-creer>' + coutCreerHtml(r.style, r.format, r.ia.mouvement, r.langues.length) + '</p></form>';
     x += '<div class="ou">ou</div><section class="bloc"><div class="ligne" style="margin-bottom:14px">' + avatar('idees', 'grand', S.mayaCherche) + '<div class="plein"><h2>' + h(membre('idees').prenom) + ' te propose 5 idées</h2><p class="doux petit">' + (r.tendances ? 'Elle regarde d\'abord ce dont on parle cette semaine dans ta niche. ' : '') + 'Quelques centimes sur ta clé.</p></div></div>' +
       '<form data-form="idees"><label class="champ"><span>Un thème ?</span><input type="text" name="theme" maxlength="200" placeholder="Facultatif : la rentrée, les plantes, les entretiens d\'embauche"></label><button class="btn second large" type="submit"' + (S.mayaCherche ? ' disabled' : '') + '>' + (S.mayaCherche ? h(membre('idees').prenom) + ' cherche…' : 'Proposer des idées') + '</button></form>';
     const idees = S.moi.idees || [];
@@ -642,7 +690,7 @@
       { role: 'toi', titre: 'Toi', sous: st === 'relecture' ? 'à valider' : 'validation', fait: rang > 1, actif: st === 'relecture' }
     ];
     if (plusieurs) liste.push({ role: 'traduction', titre: membre('traduction').prenom, sous: 'les langues', fait: rang > 2, actif: st === 'langues' });
-    liste.push({ role: 'realisation', titre: membre('realisation').prenom, sous: st === 'fabrication' ? 'le montage' : 'images et montage', fait: rang > 4, actif: st === 'realisation' || st === 'fabrication' });
+    liste.push({ role: 'realisation', titre: membre('realisation').prenom, sous: st === 'fabrication' ? 'le montage' : ((v.plan || {}).style === 'ia' ? 'images IA et montage' : 'images et montage'), fait: rang > 4, actif: st === 'realisation' || st === 'fabrication' });
     liste.push({ role: 'diffusion', titre: membre('diffusion').prenom, sous: 'la publication', fait: st === 'publiee' || st === 'archivee', actif: st === 'publication' });
     return liste.map((x) => Object.assign(x, { bloque: x.actif && bloque }));
   }
@@ -655,16 +703,33 @@
   function activiteHtml(v) {
     const e = v.etape || {}, st = v.status;
     const r = v.rendus || {};
+    const enIa = (v.plan || {}).style === 'ia';
     if (e.bloque || (e.erreur && st !== 'echec')) {
-      const act = { cle: '<a class="btn petit" href="#reglages/connexions">Ma clé Claude</a>', credit: '<a class="btn petit" href="https://platform.claude.com/settings/billing" target="_blank" rel="noopener noreferrer">Ajouter du crédit</a><button class="btn second petit" data-a="reprendre">Réessayer</button>', budget: '<a class="btn petit" href="#reglages/budget">Monter mon budget</a>', usine: '' }[e.bloque];
+      const sans = enIa && st === 'realisation' ? '<button class="btn second petit" data-a="sansIa">Continuer sans images IA</button>' : '';
+      const act = {
+        cle: '<a class="btn petit" href="#reglages/connexions">Ma clé Claude</a>',
+        credit: '<a class="btn petit" href="https://platform.claude.com/settings/billing" target="_blank" rel="noopener noreferrer">Ajouter du crédit</a><button class="btn second petit" data-a="reprendre">Réessayer</button>',
+        budget: '<a class="btn petit" href="#reglages/budget">Monter mon budget</a>' + sans,
+        fal: '<a class="btn petit" href="#reglages/connexions">Ma clé fal</a>' + sans,
+        credit_fal: '<a class="btn petit" href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener noreferrer">Ajouter du crédit fal</a><button class="btn second petit" data-a="reprendre">Réessayer</button>' + sans,
+        usine: ''
+      }[e.bloque];
       return '<div class="activite alerte">' + avatar(roleActif(v), 'petit') + '<div class="plein"><b>' + h(e.bloque ? 'En attente' : 'Petit souci') + '</b><br>' + h(e.erreur || '') + (e.bloque ? '' : '<br><span class="doux petit">L\'équipe réessaie toute seule.</span>') + (act != null ? '<div class="actions" style="margin-top:8px">' + (act || '') + (e.bloque ? '' : '<button class="btn second petit" data-a="reprendre">Réessayer maintenant</button>') + '</div>' : '') + '</div></div>';
     }
-    if (st === 'echec') return '<div class="activite alerte">' + avatar(roleActif(v), 'petit') + '<div class="plein"><b>Bloquée</b><br>' + h(e.erreur || 'L\'équipe n\'a pas pu finir.') + '<div class="actions" style="margin-top:8px"><button class="btn petit" data-a="reprendre">Reprendre</button></div></div></div>';
+    if (st === 'echec') return '<div class="activite alerte">' + avatar(roleActif(v), 'petit') + '<div class="plein"><b>Bloquée</b><br>' + h(e.erreur || 'L\'équipe n\'a pas pu finir.') + '<div class="actions" style="margin-top:8px"><button class="btn petit" data-a="reprendre">Reprendre</button>' + (enIa && e.statut_avant === 'realisation' ? '<button class="btn second petit" data-a="sansIa">Continuer sans images IA</button>' : '') + '</div></div></div>';
+    // les images IA en route : combien sont faites, combien d'animations
+    const pr = e.progres || null;
+    const lou = membre('realisation').prenom;
+    const realisation = !enIa ? lou + ' choisit les images de chaque phrase.'
+      : !pr ? lou + ' prépare les images IA de chaque phrase.'
+        : pr.images[0] < pr.images[1] ? lou + ' fait créer les images IA : ' + pr.images[0] + ' sur ' + pr.images[1] + '. Quelques secondes chacune.'
+          : pr.videos[1] && pr.videos[0] < pr.videos[1] ? lou + ' anime ' + (pr.videos[1] > 1 ? 'les scènes en vidéo : ' + pr.videos[0] + ' sur ' + pr.videos[1] : 'la première scène en vidéo') + '. Compte une à deux minutes.'
+            : lou + ' a toutes les images IA et lance le montage.';
     const textes = {
       ecriture: e.quoi === 'critique' ? membre('critique').prenom + ' relit le script et le note.' : e.quoi === 'reecriture' ? membre('plume').prenom + ' réécrit le script avec ' + (e.consigne ? 'ta consigne.' : 'les remarques de ' + membre('critique').prenom + '.') : membre('plume').prenom + ' écrit le script.',
       relecture: 'À toi : relis le script, retouche ce que tu veux, puis valide.',
       langues: membre('traduction').prenom + ' écrit la version ' + h(nomLangue(e.langue || (v.langues || []).find((l) => l !== v.langue_source && !(v.traductions || {})[l]) || '').toLowerCase()) + '.',
-      realisation: membre('realisation').prenom + ' choisit les images de chaque phrase.',
+      realisation: h(realisation),
       fabrication: 'Montage en cours : ' + (v.langues || []).filter((l) => r[l] && r[l].etat === 'fini').length + ' sur ' + (v.langues || []).length + '. Compte 3 à 6 minutes.' + (e.note ? ' ' + e.note : ''),
       prete: 'Ta vidéo est prête.' + (e.note ? ' ' + e.note : ''),
       publication: membre('diffusion').prenom + ' publie ta vidéo.',
@@ -684,7 +749,8 @@
 
   function scriptLecture(s, titre) {
     if (!s || !s.beats) return '';
-    return '<div class="bloc"><h3 style="margin-bottom:6px">' + h(titre || 'Le script') + '</h3>' + (s.accroche ? '<p class="doux petit">À l\'écran au début : « ' + h(sansEtoiles(s.accroche)) + ' »</p>' : '') + '<ol class="beats">' + s.beats.map((b) => '<li><div class="dit">' + forts(b.voix) + '</div><div class="sous">' + (b.ecran ? '<span>Écran : ' + h(b.ecran) + '</span>' : '') + (b.visuel && b.visuel.requete ? '<span>Image : ' + h(b.visuel.requete) + '</span>' : '') + '</div></li>').join('') + '</ol></div>';
+    const image = (v) => (!v ? '' : v.prompt ? '<span>Scène : ' + h(v.description || v.prompt) + '</span>' : v.requete ? '<span>Image : ' + h(v.requete) + '</span>' : '');
+    return '<div class="bloc"><h3 style="margin-bottom:6px">' + h(titre || 'Le script') + '</h3>' + (s.accroche ? '<p class="doux petit">À l\'écran au début : « ' + h(sansEtoiles(s.accroche)) + ' »</p>' : '') + '<ol class="beats">' + s.beats.map((b) => '<li><div class="dit">' + forts(b.voix) + '</div><div class="sous">' + (b.ecran ? '<span>Écran : ' + h(b.ecran) + '</span>' : '') + image(b.visuel) + '</div></li>').join('') + '</ol></div>';
   }
   function noteHtml(c) {
     if (!c || !c.note) return '';
@@ -694,12 +760,17 @@
   }
   function editionScript(v) {
     const s = v.script || {};
-    const clips = (v.plan && v.plan.style) === 'clips';
+    const look = (v.plan && v.plan.style) || 'clips';
+    const clips = look === 'clips', ia = look === 'ia';
+    const nomLook = ia ? (((S.cat.ia || IA_VIDE).looks[((v.plan || {}).ia || {}).style] || {}).nom || '') : '';
+    const champImage = (b, i) => (clips ? '<label class="mini"><span>Image (en anglais)</span><input type="text" name="requete" data-i="' + i + '" maxlength="60" value="' + h((b.visuel || {}).requete || '') + '"></label>' : '');
+    const champScene = (b, i) => (ia ? '<label class="mini scene"><span>La scène pour l\'IA (en anglais)</span><textarea name="prompt" data-i="' + i + '" rows="2" maxlength="600">' + h((b.visuel || {}).prompt || '') + '</textarea></label>' : '');
     return '<form class="bloc vif" data-form="script"><h3 style="margin-bottom:14px">Le script de ' + h(membre('plume').prenom) + '</h3>' +
       '<label class="champ"><span>Titre</span><input type="text" name="titre" maxlength="100" value="' + h(s.titre || '') + '"></label>' +
       '<label class="champ"><span>Accroche à l\'écran</span><input type="text" name="accroche" maxlength="70" value="' + h(s.accroche || '') + '"><small>Les deux premières secondes, 7 mots au plus.</small></label>' +
-      '<ol class="beats">' + (s.beats || []).map((b, i) => '<li><textarea name="voix" data-i="' + i + '" rows="2" aria-label="Phrase ' + (i + 1) + '">' + h(b.voix) + '</textarea><div class="duo"><label class="mini"><span>À l\'écran</span><input type="text" name="ecran" data-i="' + i + '" maxlength="48" value="' + h(b.ecran || '') + '"></label>' + (clips ? '<label class="mini"><span>Image (en anglais)</span><input type="text" name="requete" data-i="' + i + '" maxlength="60" value="' + h((b.visuel || {}).requete || '') + '"></label>' : '') + '</div></li>').join('') + '</ol>' +
-      '<p class="doux petit" style="margin:4px 0 16px">Les mots entre *étoiles* s\'allument à l\'écran dans ta couleur.' + (clips ? ' L\'image se cherche en anglais, en 2 à 4 mots concrets : « ocean waves aerial ».' : '') + '</p>' +
+      (ia ? '<label class="champ"><span>L\'univers des images (en anglais)</span><textarea name="direction" rows="2" maxlength="400">' + h(s.direction || '') + '</textarea><small>Ajouté à chaque image : le sujet qui revient, le décor, la lumière. C\'est ce qui fait que toutes les scènes se ressemblent.</small></label>' : '') +
+      '<ol class="beats">' + (s.beats || []).map((b, i) => '<li><textarea name="voix" data-i="' + i + '" rows="2" aria-label="Phrase ' + (i + 1) + '">' + h(b.voix) + '</textarea><div class="duo"><label class="mini"><span>À l\'écran</span><input type="text" name="ecran" data-i="' + i + '" maxlength="48" value="' + h(b.ecran || '') + '"></label>' + champImage(b, i) + '</div>' + champScene(b, i) + '</li>').join('') + '</ol>' +
+      '<p class="doux petit" style="margin:4px 0 16px">Les mots entre *étoiles* s\'allument à l\'écran dans ta couleur.' + (clips ? ' L\'image se cherche en anglais, en 2 à 4 mots concrets : « ocean waves aerial ».' : '') + (ia ? ' Chaque scène se décrit en anglais : qui, quoi, où, la lumière ; jamais de texte dans l\'image. Le style « ' + h(nomLook) + ' » s\'ajoute tout seul.' : '') + '</p>' +
       '<label class="champ"><span>Texte de la publication</span><textarea name="description" rows="3" maxlength="400">' + h(s.description || '') + '</textarea></label>' +
       '<label class="champ"><span>Hashtags</span><input type="text" name="hashtags" value="' + h((s.hashtags || []).join(' ')) + '"></label>' +
       '<div class="actions"><button class="btn" type="submit">Valider et lancer la suite</button><button class="btn second" type="button" data-a="scriptEnregistrer">Enregistrer mes retouches</button></div></form>' +
@@ -753,7 +824,27 @@
       '<label class="champ"><span>Texte de la publication</span><textarea name="description" rows="3" maxlength="2000">' + h(t.description) + '</textarea></label>' +
       '<label class="champ"><span>Hashtags</span><input type="text" name="hashtags" value="' + h((t.hashtags || []).join(' ')) + '"></label><button class="btn second petit" type="submit">Enregistrer le texte</button></form>' +
       '<div id="v-pub">' + pubHtml(v, l) + '</div></div></div>' +
-      ((v.plan || {}).credits && v.plan.credits.length ? '<p class="doux petit" style="margin-top:14px">Images : Pexels (' + h(Array.from(new Set(v.plan.credits.map((c) => c.auteur))).slice(0, 8).join(', ')) + ').</p>' : '');
+      creditsHtml(v);
+  }
+  // d'où viennent les images : créées par IA sur son compte fal, et les vidéos de Pexels (avec leurs auteurs)
+  function creditsHtml(v) {
+    const p = v.plan || {}, t = [];
+    if (p.style === 'ia') { const m = (S.cat.ia || IA_VIDE).modeles; t.push('créées par IA sur ton compte fal (' + [m.image, p.generation && p.generation.videos && p.generation.videos.some((x) => x && x.etat === 'fini') ? m.video : null].filter(Boolean).join(', ') + (p.generation && p.generation.cout ? ', ' + usd(p.generation.cout) : '') + ')'); }
+    if (p.credits && p.credits.length) t.push('Pexels (' + Array.from(new Set(p.credits.map((c) => c.auteur))).slice(0, 8).join(', ') + ')');
+    return t.length ? '<p class="doux petit" style="margin-top:14px">Images : ' + h(t.join(' ; ')) + '.</p>' : '';
+  }
+  // les images IA qui arrivent, une case par phrase (celles qui seront animées en vidéo sont marquées)
+  function plancheHtml(v) {
+    const g = (v.plan || {}).generation;
+    if (!g || !(g.images || []).length) return '';
+    const cases = g.images.map((im, i) => {
+      const vd = (g.videos || [])[i];
+      const etat = !im ? 'attente' : im.etat;
+      const fond = im && im.url ? '<img src="' + h(im.url) + '" alt="" loading="lazy">' : '';
+      const marque = vd ? '<span class="anime' + (vd.etat === 'fini' ? ' ok' : '') + '">' + (vd.etat === 'fini' ? 'vidéo prête' : vd.etat === 'echec' ? 'image fixe' : 'en vidéo') + '</span>' : '';
+      return '<div class="case ' + h(etat) + '" title="' + h('Phrase ' + (i + 1) + (im && im.erreur ? ' : ' + im.erreur : '')) + '">' + fond + '<small>' + (i + 1) + '</small>' + marque + '</div>';
+    }).join('');
+    return '<div class="bloc"><h3 style="margin-bottom:10px">Les images IA</h3><div class="planche">' + cases + '</div></div>';
   }
   function corpsVideo(v) {
     const st = v.status;
@@ -765,6 +856,7 @@
       x += '<div class="bloc"><p class="doux petit">L\'idée' + (mod ? ', en « ' + h(mod.nom) + ' »' : '') + '</p><p style="margin-top:4px;font-size:16px">' + h(v.sujet) + '</p>' + (v.idee && v.idee.angle ? '<p class="doux petit" style="margin-top:8px">' + h(v.idee.angle) + '</p>' : '') + '</div>';
     }
     if (v.critique && v.critique.note && st === 'ecriture') x += noteHtml(v.critique);
+    if (st === 'realisation' || st === 'fabrication' || st === 'echec') x += plancheHtml(v);
     x += scriptLecture(v.script);
     const trad = Object.keys(v.traductions || {});
     if (trad.length) x += trad.map((l) => scriptLecture(v.traductions[l], 'Version ' + nomLangue(l).toLowerCase())).join('');
@@ -785,7 +877,11 @@
     b.push('<button class="btn danger petit" data-a="supprimer">Supprimer</button>');
     return '<div class="actions" style="margin-top:22px">' + b.join('') + '</div>';
   }
-  function signature(v) { return [v.status, (v.script && v.script.beats || []).length, (v.script || {}).titre, Object.keys(v.traductions || {}).join(), JSON.stringify(Object.keys(v.rendus || {}).map((l) => [l, v.rendus[l].etat, v.rendus[l].essais])), (v.critique || {}).note, (v.etape || {}).quoi].join('|'); }
+  function signature(v) {
+    const g = (v.plan || {}).generation;
+    const ia = g ? (g.images || []).concat(g.videos || []).map((j) => (j ? j.etat.charAt(0) : '-')).join('') : '';
+    return [v.status, (v.script && v.script.beats || []).length, (v.script || {}).titre, Object.keys(v.traductions || {}).join(), JSON.stringify(Object.keys(v.rendus || {}).map((l) => [l, v.rendus[l].etat, v.rendus[l].essais])), (v.critique || {}).note, (v.etape || {}).quoi, ia].join('|');
+  }
   function vueVideo(id) {
     const v = S.video && String(S.video.id) === String(id) ? S.video : null;
     if (!v) return '<a class="retour" href="#videos">' + ico('retour') + 'Tes vidéos</a><div class="cadre-vide" style="max-width:220px"></div>';
@@ -891,7 +987,8 @@
   function sectionVideos(r) {
     return formulaire('videos',
       champ('Durée habituelle', radios('format', [['court', '35 à 50 secondes'], ['long', 'Plus d\'une minute']], r.format), 'TikTok ne rémunère que les vidéos de plus d\'une minute ; les courtes se regardent plus souvent jusqu\'au bout.') +
-      champ('Images', radios('style', [['clips', 'Vidéos d\'illustration'], ['texte', 'Texte animé']], r.style), 'Vidéos libres de droits (Pexels) choisies phrase par phrase, ou texte animé sur un fond à tes couleurs.') +
+      lookHtml(r, r.format) +
+      '<p class="doux petit" style="margin:-4px 0 16px">Vidéos d\'illustration : des vidéos libres de droits (Pexels) choisies phrase par phrase, offertes. Images IA : chaque scène est créée pour ta vidéo, dans le style que tu choisis, sur ta clé fal. Texte animé : le texte sur un fond à tes couleurs.</p>' +
       champ('La couleur de tes vidéos', nuancier('couleur', r.couleur), 'L\'accroche et le mot qui s\'allume pendant les sous-titres.') +
       champ('Musique', radios('musique', Object.keys(S.cat.musiques).map((k) => [k, S.cat.musiques[k]]), r.musique), 'Une musique d\'ambiance très douce sous la voix, fabriquée par le studio (aucun droit à payer).'));
   }
@@ -899,7 +996,7 @@
     const d = S.moi.depense;
     return formulaire('budget',
       '<div class="message" style="margin-bottom:16px"><b>Aujourd\'hui : ' + h(usd(d.jour)) + ' sur ' + h(usd(d.budget)) + '</b>Ce mois : ' + h(usd(d.mois)) + '. Depuis le début : ' + h(usd(d.total)) + '.</div>' +
-      '<label class="champ"><span>Budget par jour : <output id="budgetVal">' + h(usd(r.budget_jour)) + '</output></span><input type="range" name="budget_jour" min="0.1" max="5" step="0.05" value="' + h(r.budget_jour) + '"><small>Ton équipe s\'arrête dès qu\'elle l\'atteint, et reprend le lendemain. Une vidéo coûte environ ' + h(usd(d.estime_video)) + '.</small></label>' +
+      '<label class="champ"><span>Budget par jour : <output id="budgetVal">' + h(usd(r.budget_jour)) + '</output></span><input type="range" name="budget_jour" min="0.1" max="' + (r.budget_jour > 5 || r.style === 'ia' ? 20 : 5) + '" step="0.05" value="' + h(r.budget_jour) + '"><small>Ton équipe s\'arrête dès qu\'elle l\'atteint, et reprend le lendemain. Il compte l\'écriture (Claude) et, avec le look images IA, les images (fal). Une vidéo coûte environ ' + h(usd(d.estime_video)) + '.' + (d.estime_video > r.budget_jour ? ' Monte ton budget : une vidéo coûte plus que ce que tu permets par jour.' : '') + '</small></label>' +
       champ('Qualité de l\'écriture', radios('qualite', Object.keys(S.cat.qualites).map((k) => [k, S.cat.qualites[k].nom]), r.qualite), h((S.cat.qualites[r.qualite] || {}).explication || '')) +
       inter('tendances', r.tendances, 'Regarder les tendances', h(membre('idees').prenom) + ' cherche sur le web ce dont on parle cette semaine avant de proposer des idées (1 centime la recherche).'));
   }
@@ -930,6 +1027,15 @@
       '<li><b>Colle-la ici</b><p>Le studio vérifie qu\'elle marche et qu\'il te reste du crédit, puis la range chiffrée. Elle ne s\'affiche plus jamais en entier.</p>' +
       '<form data-form="cleClaude" style="margin-top:10px"><input type="password" name="cle" autocomplete="off" spellcheck="false" placeholder="sk-ant-api03-…" required><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button>' + (cl.branchee ? '<button class="btn discret" type="button" data-a="cleClaudeRetirer">Retirer ma clé</button>' : '') + '</div></form></li>' +
       '<li><b>Choisis ton budget du jour</b><p>Dans <a href="#reglages/budget">Budget</a> : arrivée au plafond, ton équipe s\'arrête jusqu\'au lendemain.</p></li></ol></div>';
+    const fal = S.moi.connexions.fal || { branchee: false };
+    const ia = S.cat.ia || IA_VIDE;
+    x += '<div class="bloc"><h2>Images IA</h2><p class="doux" style="margin:6px 0 14px">Facultatif. Avec ta clé fal, chaque scène de tes vidéos est créée pour elle, dans le style que tu choisis (photo réaliste, anime, aquarelle...), et peut même devenir une vraie vidéo. Tu paies fal à l\'usage : environ ' + h(usd(coutIa('court', 'zoom'))) + ' par vidéo en images animées, ' + h(usd(coutIa('court', 'accroche'))) + ' avec l\'accroche en vidéo. Les images : ' + h(ia.modeles.image || 'FLUX.2') + ' ; les vidéos : ' + h(ia.modeles.video || 'MiniMax') + '.</p>' + etatCle(fal, 'fal') +
+      '<ol class="tuto"><li><b>Crée ton compte fal</b><p>Sur fal.ai, inscris-toi avec ton e-mail ou ton compte Google.</p>' + l('https://fal.ai', 'Ouvrir fal.ai') + '</li>' +
+      '<li><b>Ajoute un peu de crédit</b><p>Dans ton tableau de bord, Billing : 5 $ suffisent pour une quinzaine de vidéos avec l\'accroche en vidéo. Laisse le rechargement automatique désactivé : tu ne dépenseras jamais plus que ce que tu as mis.</p>' + l('https://fal.ai/dashboard/billing', 'Ouvrir Billing') + '</li>' +
+      '<li><b>Crée ta clé</b><p>Dans Keys, Create key, de type API. Appelle-la « Studio », puis copie-la en entier : deux suites de chiffres et de lettres séparées par deux-points. Elle ne s\'affiche qu\'une fois.</p>' + l('https://fal.ai/dashboard/keys', 'Ouvrir Keys') + '</li>' +
+      '<li><b>Colle-la ici</b><p>Le studio vérifie que fal la connaît, puis la range chiffrée. Elle ne s\'affiche plus jamais en entier.</p>' +
+      '<form data-form="cleFal" style="margin-top:10px"><input type="password" name="cle" autocomplete="off" spellcheck="false" placeholder="1a2b3c4d-…:9f8e7d…" required><div class="actions" style="margin-top:10px"><button class="btn" type="submit">Vérifier et enregistrer</button>' + (fal.branchee ? '<button class="btn discret" type="button" data-a="cleFalRetirer">Retirer ma clé</button>' : '') + '</div></form></li>' +
+      '<li><b>Choisis le look Images IA</b><p>Dans <a href="#reglages/videos">Mes vidéos</a> pour toutes tes vidéos, ou au moment de créer une vidéo. Le même budget du jour compte Claude et fal.</p></li></ol></div>';
     x += '<div class="bloc"><h2>Publication automatique</h2><p class="doux" style="margin:6px 0 14px">Facultatif. upload-post publie tes vidéos sur tes comptes, sans passer par ton téléphone. Gratuit jusqu\'à 10 publications par mois sur YouTube et Instagram ; TikTok demande leur offre Basic (environ 16 $ par mois).</p>' + etatCle(up, 'upload-post');
     if (up.branchee) {
       const pr = up.profils || [];
@@ -970,16 +1076,17 @@
   }
   function sectionAide() {
     const q = [
-      ['Combien ça coûte ?', 'Seule l\'écriture est payante, sur ta clé Claude : environ 1 centime par vidéo en qualité économique, 8 centimes en qualité équilibrée (plus 2 par langue), 15 centimes en premium. Le montage, les voix, les images et le stockage sont offerts par le studio. Ton budget du jour bloque tout dépassement.'],
+      ['Combien ça coûte ?', 'L\'écriture se paie sur ta clé Claude : environ 1 centime par vidéo en qualité économique, 8 centimes en qualité équilibrée (plus 2 par langue), 15 centimes en premium. Si tu choisis le look Images IA, les images se paient sur ta clé fal : environ ' + usd(coutIa('court', 'zoom')) + ' par vidéo en images animées, ' + usd(coutIa('court', 'accroche')) + ' avec l\'accroche en vidéo, ' + usd(coutIa('court', 'tout')) + ' tout en vidéo. Le montage, les voix, les vidéos d\'illustration et le stockage sont offerts par le studio. Ton budget du jour (Claude et fal ensemble) bloque tout dépassement.'],
+      ['Les images IA, c\'est quoi ?', 'Au lieu de vidéos trouvées dans une banque, chaque phrase a sa scène créée pour ta vidéo, dans le style que tu choisis : photo réaliste, anime, 3D, aquarelle, pâte à modeler... Le même personnage revient d\'une scène à l\'autre. Les images zooment doucement, et la première scène (ou toutes) peut devenir une vraie vidéo IA. Il faut ta clé fal : Réglages, Connexions.'],
       ['Quelles langues ?', Object.keys(S.cat.langues).length + ' langues. Les voix les plus naturelles : ' + (S.cat.naturelles || []).map(nomLangue).join(', ') + '. Les autres ont une voix correcte, un peu plus robotique. Une vidéo peut sortir dans six langues au plus, chacune avec ses sous-titres et ses hashtags.'],
       ['Pourquoi TikTok ne se publie pas tout seul ?', 'TikTok n\'autorise la publication automatique que par des services agréés. upload-post l\'est, sur son offre payante. Sinon, depuis ton téléphone : Partager, puis TikTok ; le texte se copie en un geste.'],
       ['TikTok me paiera-t-il ?', 'Le programme de rémunération de TikTok ne compte que les vidéos de plus d\'une minute : choisis la durée « Plus d\'une minute » pour celles-là. Les conditions (âge, abonnés, vues) sont dans l\'appli TikTok, rubrique Studio TikTok.'],
       ['Et YouTube ?', 'Une vidéo verticale de moins de 3 minutes devient un Short tout seul. Elle peut rapporter une fois ta chaîne acceptée au Programme Partenaire YouTube.'],
       ['Combien de temps mes vidéos restent-elles ici ?', 'Leurs fichiers sont gardés ' + S.cat.garde_jours + ' jours : télécharge celles que tu veux garder. Les scripts restent.'],
-      ['Ma vidéo est bloquée, je fais quoi ?', 'Ouvre-la : le message dit pourquoi (clé, crédit, budget du jour) et le bouton pour régler. Les petits soucis passagers se réessaient tout seuls.'],
-      ['D\'où viennent les images, la voix, la musique ?', 'Les images viennent de Pexels (libres de droits, usage commercial permis), la voix est une voix de synthèse libre (Kokoro ou Piper), la musique est fabriquée par le studio. Tu peux publier et monétiser sans rien payer pour elles.'],
+      ['Ma vidéo est bloquée, je fais quoi ?', 'Ouvre-la : le message dit pourquoi (clé, crédit, budget du jour) et le bouton pour régler. Une vidéo en images IA peut aussi continuer sans elles, avec des vidéos d\'illustration. Les petits soucis passagers se réessaient tout seuls.'],
+      ['D\'où viennent les images, la voix, la musique ?', 'Les vidéos d\'illustration viennent de Pexels (libres de droits, usage commercial permis) ; les images IA sont créées pour toi par fal, sur ton compte, et tu peux t\'en servir commercialement. La voix est une voix de synthèse libre (Kokoro ou Piper), la musique est fabriquée par le studio. Tu peux publier et monétiser sans rien payer de plus pour elles.'],
       ['Qu\'est-ce qui se passe dans ma rue ?', 'La vie du quartier : Mila qui se gare comme elle peut, des collègues qui s\'ennuient et lorgnent sur la piscine de la résidence d\'à côté... Touche la voiture garée ou la piscine pour voir.'],
-      ['Qui voit ma clé et mes vidéos ?', 'Ta clé est rangée chiffrée et ne s\'affiche plus jamais. Dans la tour, Louis voit que ton compte existe, ta dépense et le nombre de tes vidéos.']
+      ['Qui voit mes clés et mes vidéos ?', 'Tes clés (Claude, fal, upload-post) sont rangées chiffrées et ne s\'affichent plus jamais. Dans la tour, Louis voit que ton compte existe, ta dépense et le nombre de tes vidéos.']
     ];
     return '<div class="bloc">' + q.map((x) => '<details class="aide"><summary>' + h(x[0]) + '</summary><p>' + h(x[1]) + '</p></details>').join('') + '</div>';
   }
@@ -1021,9 +1128,10 @@
     async creer(f, btn) {
       const d = lireForm(f);
       if (!S.moi.connexions.claude.branchee) { toast('Branche d\'abord ta clé Claude.', 'err'); location.hash = '#reglages/connexions'; return; }
+      if (d.style === 'ia' && !S.moi.connexions.fal.branchee) { toast('Branche d\'abord ta clé fal pour les images IA, ou choisis un autre look.', 'err'); location.hash = '#reglages/connexions'; return; }
       if (String(d.sujet || '').trim().length < 4) { toast('Écris ton idée en quelques mots.', 'err'); const t = $('textarea[name="sujet"]', f); if (t) t.focus(); return; }
       if ((d.langues || []).length > 6) { toast('Six langues au plus par vidéo.', 'err'); return; }
-      await occupe(btn, async () => { const r = await agir('creer', { sujet: d.sujet, langues: d.langues, format: d.format, style: d.style, modele: d.modele || null }); S.video = r.video; S.videos = null; S.modele = ''; location.hash = '#video/' + r.video.id; });
+      await occupe(btn, async () => { const r = await agir('creer', { sujet: d.sujet, langues: d.langues, format: d.format, style: d.style, ia: d.ia || null, modele: d.modele || null }); S.video = r.video; S.videos = null; S.modele = ''; location.hash = '#video/' + r.video.id; });
     },
     async idees(f, btn) {
       const d = lireForm(f);
@@ -1059,6 +1167,9 @@
     async cleClaude(f, btn) {
       await occupe(btn, async () => { const r = await agir('cle_claude', { cle: lireForm(f).cle }); rendre(); toast(r.avertissement ? 'Clé enregistrée : ' + r.avertissement : 'Ta clé Claude est branchée.', r.avertissement ? '' : 'ok'); verifierBadges(); });
     },
+    async cleFal(f, btn) {
+      await occupe(btn, async () => { const r = await agir('cle_fal', { cle: lireForm(f).cle }); rendre(); toast(r.avertissement ? 'Clé enregistrée : ' + r.avertissement : 'Ta clé fal est branchée : le look Images IA est à toi.', r.avertissement ? '' : 'ok'); });
+    },
     async cleUp(f, btn) {
       await occupe(btn, async () => { await agir('uploadpost', { cle: lireForm(f).cle }); rendre(); toast('upload-post est branché.', 'ok'); });
     },
@@ -1071,13 +1182,17 @@
   };
   function scriptDe(f) {
     const beats = (S.video.script.beats || []).map((b, i) => {
-      const voix = $('textarea[name="voix"][data-i="' + i + '"]', f), ecran = $('input[name="ecran"][data-i="' + i + '"]', f), req = $('input[name="requete"][data-i="' + i + '"]', f);
+      const champ = (sel) => $(sel + '[data-i="' + i + '"]', f);
+      const voix = champ('textarea[name="voix"]'), ecran = champ('input[name="ecran"]'), req = champ('input[name="requete"]'), prompt = champ('textarea[name="prompt"]');
       const out = { voix: voix ? voix.value : b.voix, ecran: ecran ? ecran.value : b.ecran };
-      if (b.visuel || req) out.visuel = { requete: req ? req.value : (b.visuel || {}).requete, description: (b.visuel || {}).description || '' };
+      // ce qu'elle a retouché de l'image ; le reste (la description, le mouvement...) reste celui de la plume
+      if (b.visuel || req || prompt) out.visuel = Object.assign({}, b.visuel || {}, req ? { requete: req.value } : {}, prompt ? { prompt: prompt.value } : {});
       return out;
     }).filter((b) => String(b.voix || '').trim());
     const v = (n) => { const el = $('[name="' + n + '"]', f); return el ? el.value : undefined; };
-    return { titre: v('titre'), accroche: v('accroche'), description: v('description'), hashtags: String(v('hashtags') || '').split(/[\s,]+/).filter(Boolean), beats };
+    const s = { titre: v('titre'), accroche: v('accroche'), description: v('description'), hashtags: String(v('hashtags') || '').split(/[\s,]+/).filter(Boolean), beats };
+    if (v('direction') !== undefined) s.direction = v('direction');
+    return s;
   }
 
   /* ── les boutons ── */
@@ -1117,7 +1232,8 @@
     },
     async reprendre(b) { await occupe(b, async () => { const r = await agir('reprendre', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); }); },
     async refaire(b) {
-      if (!(await fenetre({ titre: 'Refaire le montage ?', texte: 'Avec tes réglages actuels (couleur, musique, voix) et de nouvelles images. Ça ne coûte rien sur ta clé.', ok: 'Refaire' }))) return;
+      const ia = ((S.video || {}).plan || {}).style === 'ia';
+      if (!(await fenetre({ titre: 'Refaire le montage ?', texte: ia ? 'Avec tes réglages actuels (couleur, musique, voix). Les images IA de moins de 6 jours sont reprises sans rien payer ; les plus vieilles, ou celles qui avaient raté, sont refaites sur ta clé fal.' : 'Avec tes réglages actuels (couleur, musique, voix) et de nouvelles images. Ça ne coûte rien sur ta clé.', ok: 'Refaire' }))) return;
       await occupe(b, async () => { const r = await agir('refaire', { id: S.video.id }); S.partage = {}; majVideo(r.video); suivre(S.video.id); });
     },
     async archiver(b) { await occupe(b, async () => { await agir('archiver', { id: S.video.id }); S.videos = null; location.hash = '#videos'; toast('Vidéo archivée.', 'ok'); }); },
@@ -1168,6 +1284,14 @@
       if (!(await fenetre({ titre: 'Retirer ta clé Claude ?', texte: 'Ton équipe s\'arrête jusqu\'à ce que tu en colles une autre.', ok: 'Retirer', danger: true }))) return;
       await occupe(b, async () => { await agir('cle_claude_supprimer'); rendre(); });
     },
+    async cleFalRetirer(b) {
+      if (!(await fenetre({ titre: 'Retirer ta clé fal ?', texte: 'Les vidéos au look Images IA attendront une nouvelle clé (ou continueront avec des vidéos d\'illustration si tu le choisis).', ok: 'Retirer', danger: true }))) return;
+      await occupe(b, async () => { await agir('cle_fal_supprimer'); rendre(); });
+    },
+    async sansIa(b) {
+      if (!(await fenetre({ titre: 'Continuer sans images IA ?', texte: 'Cette vidéo prend des vidéos d\'illustration à la place (offertes), puis part au montage. Les images IA déjà faites restent sur ton compte fal.', ok: 'Continuer' }))) return;
+      await occupe(b, async () => { const r = await agir('sans_ia', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); });
+    },
     async upConnecter(b) { await occupe(b, async () => { const r = await agir('uploadpost_connecter', { profil: b.dataset.profil }); location.href = r.url; }); },
     async upRafraichir(b) { await occupe(b, async () => { await agir('uploadpost_profils'); rendre(); toast('Profils à jour.', 'ok'); }); },
     async upRetirer(b) {
@@ -1208,6 +1332,7 @@
     if (t.name === 'budget_jour') { const o = $('#budgetVal'); if (o) o.textContent = usd(t.value); }
     if (t.type === 'color' && t.closest('[data-nuancier]')) { const n = t.closest('[data-nuancier]'); $$('button', n).forEach((x) => x.classList.toggle('on', x.dataset.c.toLowerCase() === t.value.toLowerCase())); if (n.dataset.nuancier === 'theme.accent') document.documentElement.style.setProperty('--accent', t.value); }
     if (t.name === 'qualite' && S.cat) { const s = t.closest('.champ'); const sm = s && $('small', s); if (sm) sm.textContent = (S.cat.qualites[t.value] || {}).explication || ''; }
+    if (['style', 'format', 'ia.mouvement', 'ia.style'].indexOf(t.name) >= 0 && S.cat) majLook(t.closest('form'));
     if (t.name === 'modele') {
       S.modele = t.value;
       const m = (S.cat.modeles || {})[t.value], ta = $('textarea[name="sujet"]'), aide = $('#aideIdee');
@@ -1218,7 +1343,7 @@
       const q = t.value.trim().toLowerCase();
       $$('label[data-nom]', t.parentNode).forEach((l) => l.classList.toggle('masque', !!q && l.dataset.nom.indexOf(q) < 0 && !$('input', l).checked));
     }
-    if (t.name === 'langues[]') { const n = $$('input[name="langues[]"]:checked', t.closest('form')).length; if (n > 6) { t.checked = false; toast('Six langues au plus par vidéo.', 'err'); } }
+    if (t.name === 'langues[]') { const n = $$('input[name="langues[]"]:checked', t.closest('form')).length; if (n > 6) { t.checked = false; toast('Six langues au plus par vidéo.', 'err'); } if (S.cat) majLook(t.closest('form')); }
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S.moi && route().vue === 'video' && S.video) suivre(S.video.id); if (!document.hidden && S.moi && route().vue === 'accueil') chargerVideos(true); });
   // la nuit tombe (ou le jour se lève) pendant qu'elle est là
