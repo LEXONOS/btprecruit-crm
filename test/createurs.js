@@ -75,7 +75,7 @@ function scriptFaux(beatsN, avecImages, version, ia) {
   // en images IA, la plume écrit aussi la scène pour l'IA, son mouvement, une recherche de secours et l'univers commun
   const visuel = (i) => (ia
     ? { prompt: 'A fluffy flamingo chick in scene ' + (i + 1) + ', wading through a pink salt lake at sunrise, close-up', mouvement: 'slow push-in, ripples spreading', requete: 'flamingo lake', description: 'Un petit flamant' }
-    : { requete: i === 3 ? 'introuvable chose' : 'blue sky clouds', description: 'Un ciel bleu' });
+    : { requete: i === 3 ? 'introuvable chose' : ['blue sky clouds', 'sunlight through clouds', 'sunset over sea', 'rainbow after rain', 'night stars sky', 'airplane above clouds', 'storm clouds moving', 'children looking up sky', 'mountain sky timelapse'][i % 9], requete2: i === 3 ? 'introuvable aussi' : 'sky view ' + (i + 1), description: 'Un ciel bleu' });
   return Object.assign({
     titre: 'Pourquoi le ciel est bleu' + (version > 1 ? ' (v' + version + ')' : ''), accroche: 'Le ciel n\'est *pas* bleu',
     beats: Array.from({ length: beatsN }, (_, i) => Object.assign({ voix: (i === 0 ? 'Le ciel n\'est pas *vraiment* bleu.' : 'Phrase numéro ' + (i + 1) + ' qui explique une chose simple et vraie.'), ecran: 'Écran ' + (i + 1) }, avecImages ? { visuel: visuel(i) } : {})),
@@ -115,6 +115,16 @@ CL.forcer(async (url, o) => {
   if (CLAUDE.coupe) { CLAUDE.coupe = false; return reponse(body, { model: body.model, content: [{ type: 'tool_use', id: 'tu_coupe', name: outil, input: {} }], stop_reason: 'max_tokens', usage: { input_tokens: 3000, output_tokens: body.max_tokens } }); }
   let input;
   if (outil === 'proposer_idees') input = { idees: [1, 2, 3, 4, 5].map((i) => ({ titre: 'Idée ' + i + ' sur le ciel', accroche: 'Accroche ' + i, angle: 'Angle ' + i, pourquoi: 'Parce que ' + i })) };
+  else if (outil === 'choisir_images') {
+    // Lou choisit : la première vidéo de chaque phrase, sauf celles dites hors sujet (aucune, et l'image à créer)
+    const blocs = prompt.split(/\n\n(?=PHRASE \d+ :)/).filter((x) => /^PHRASE \d+ :/.test(x.replace(/^[^]*?(PHRASE \d+ :)/, '$1')));
+    input = { choix: blocs.map((x) => {
+      const n = Number(/PHRASE (\d+) :/.exec(x)[1]);
+      const hors = (CLAUDE.horsSujet || []).indexOf(n) >= 0 || /aucune vidéo trouvée/.test(x);
+      return hors ? { phrase: n, video: 0, image: 'A friendly 3D illustration of the human stomach digesting food, soft light, clean background' } : { phrase: n, video: CLAUDE.choixVideo || 1 };
+    }) };
+    CLAUDE.choix = (CLAUDE.choix || []).concat([{ prompt, choix: input.choix }]);
+  }
   else if (outil === 'ecrire_script') { const vis = body.tools[0].input_schema.properties.beats.items.properties.visuel; input = scriptFaux(9, !!vis, CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').length, !!(vis && vis.properties.prompt)); CLAUDE.appels[CLAUDE.appels.length - 1].system = JSON.stringify(body.system); }
   else if (outil === 'noter_script') { const n = CLAUDE.notes.length > 1 ? CLAUDE.notes.shift() : CLAUDE.notes[0]; input = { notes: { accroche: n, promesse: n, rythme: n, boucles: n, gain: n, fin: n, clarte: n, ton: n, images: n }, points_forts: ['L\'accroche'], corrections: n < 7.5 ? ['Phrase 2 : plus court'] : [], verdict: 'Note ' + n }; }
   else if (outil === 'adapter_script') { const src = JSON.parse(prompt.split('L\'ORIGINALE :\n')[1].split('\n\nAppelle')[0]); input = { titre: 'Why the sky is blue', accroche: 'The sky is *not* blue', beats: src.beats.map((b, i) => ({ voix: 'English sentence ' + (i + 1) + ' that says the same thing.', ecran: 'Screen ' + (i + 1) })), description: 'Did you know?', hashtags: ['science'], titre_youtube: 'The sky is not blue' }; }
@@ -167,15 +177,27 @@ P.forcer(async (url, o) => {
 const FAL = require('../lib/createurs/fal');
 const IA = require('../lib/createurs/ia');
 IA.reglerAttente(0);
-const FALM = { envois: [], vus: {}, refuse: false, credit: false, erreurs: {}, filtre: {}, cles: [], ailleurs: [] };
+const FALM = { envois: [], vus: {}, refuse: false, credit: false, erreurs: {}, filtre: {}, cles: [], ailleurs: [], voix: [], directes: [], voixRatees: {} };
 FAL.forcer(async (url, o) => {
   const k = String(o.headers.Authorization || '').replace(/^Key /, '');
   FALM.cles.push(k);
   const u = new URL(url);
-  if (['queue.fal.run', 'api.fal.ai'].indexOf(u.hostname) < 0) FALM.ailleurs.push(url);
+  if (['queue.fal.run', 'api.fal.ai', 'fal.run'].indexOf(u.hostname) < 0) FALM.ailleurs.push(url);
   if (FALM.refuse || /mauvaise/.test(k)) return repJson(401, { detail: 'Invalid key' });
   if (u.hostname === 'api.fal.ai') return repJson(200, { prices: [{ endpoint_id: u.searchParams.get('endpoint_id'), unit_price: 0.008, unit: 'megapixels', currency: 'USD' }] });
   if (FALM.credit) return repJson(403, { detail: 'User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.' });
+  // les demandes directes (fal.run) : une phrase dite par la voix naturelle, ou une image créée pour une phrase
+  if (u.hostname === 'fal.run') {
+    const modele = u.pathname.slice(1), corps = JSON.parse(o.body);
+    if (/elevenlabs\/tts\//.test(modele)) {
+      FALM.voix.push({ modele, corps, cycle: o.headers['X-Fal-Object-Lifecycle-Preference'] });
+      const rate = Object.keys(FALM.voixRatees).find((x) => corps.text.includes(x) && FALM.voixRatees[x] > 0);
+      if (rate) { FALM.voixRatees[rate]--; return repJson(422, { detail: [{ msg: 'Text could not be synthesized' }] }); }
+      return repJson(200, { audio: { url: 'https://v3.fal.media/files/a/voix-' + FALM.voix.length + '.mp3', content_type: 'audio/mpeg' } });
+    }
+    FALM.directes.push({ modele, corps });
+    return repJson(200, { images: [{ url: 'https://v3.fal.media/files/i/d' + FALM.directes.length + '.jpg', width: 1088, height: 1920 }], has_nsfw_concepts: [false] });
+  }
   if (o.method === 'POST') {
     const modele = u.pathname.slice(1);
     const id = 'req-' + (FALM.envois.length + 1);
@@ -833,5 +855,103 @@ async function jusqua(id, statuts, n) {
   vtDb = await db.one('hq_crea_videos', { eq: { id: vt.video.id } });
   assert.ok(vtDb.script && vtDb.script.beats && vtDb.status === 'ecriture' && vtDb.etape.quoi === 'critique', 'puis le script s\'écrit : ' + vtDb.status + ' ' + JSON.stringify(vtDb.etape));
 
-  console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal).');
+  // 27. les voix naturelles et les images qui collent (16 nov.). Avec sa clé fal, chaque phrase de chaque langue est
+  //     dite par une voix d'ElevenLabs (Eleven v4) ; l'usine reçoit un fichier par phrase ; une langue dont une phrase
+  //     rate deux fois prend la voix gratuite en entier ; « Refaire le montage » ne repaie rien. Lou choisit parmi
+  //     plusieurs vidéos par phrase, crée une image là où aucune ne montre la phrase ; elle écoute une voix avant de
+  //     choisir ; une vidéo bloquée par fal continue avec la voix gratuite.
+  r = await api('POST', { op: 'reglages', reglages: { voix_ia: { actif: true, voix: 'Brian' }, langues: ['fr', 'en'], budget_jour: 5, style: 'clips' } });
+  assert.strictEqual(r.code, 200); assert.deepStrictEqual(r.d.moi.reglages.voix_ia, { actif: true, voix: 'Brian' });
+  assert.ok(r.d.moi.depense.estime_voix > 0 && r.d.moi.depense.estime_video > r.d.moi.depense.estime_voix, 'la voix est comptée dans le coût d\'une vidéo : ' + JSON.stringify(r.d.moi.depense));
+  r = await api('POST', { op: 'reglages', reglages: { voix_ia: { voix: 'Personne' } } });
+  assert.strictEqual(r.d.moi.reglages.voix_ia.voix, 'Brian', 'une voix inconnue ne passe pas');
+  const catV = (await api('GET', { op: 'etat' })).d.catalogue;
+  assert.ok(catV.voix_ia && catV.voix_ia.voix.Jessica && catV.voix_ia.couts.court > 0 && catV.voix_ia.couts.long > catV.voix_ia.couts.court, 'la page connaît les voix et leur prix');
+  // écouter une voix : une phrase dans sa langue, sur sa clé fal, comptée sur son budget
+  const depEcoute = (await db.one('hq_createurs', { eq: { id: mila.id } })).couts.total;
+  let nVoix = FALM.voix.length;
+  r = await api('POST', { op: 'ecouter_voix', voix: 'Lily', langue: 'fr' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.ok(/^https:\/\/v3\.fal\.media\//.test(r.d.url));
+  const ec = FALM.voix[nVoix];
+  assert.strictEqual(FALM.voix.length, nVoix + 1); assert.strictEqual(ec.modele, 'elevenlabs/tts/eleven-v4');
+  assert.strictEqual(ec.corps.voice, 'Lily'); assert.strictEqual(ec.corps.language_code, 'fr'); assert.ok(/raconterai/.test(ec.corps.text) && ec.cycle, 'la phrase d\'écoute, gardée 14 jours');
+  assert.ok((await db.one('hq_createurs', { eq: { id: mila.id } })).couts.total > depEcoute, 'l\'écoute est comptée');
+  assert.strictEqual((await api('POST', { op: 'ecouter_voix', voix: 'Personne', langue: 'fr' })).code, 400);
+  // une vidéo : Lou trouve la phrase 3 hors sujet (une image est créée), une phrase anglaise rate deux fois
+  r = await api('POST', { op: 'creer', sujet: 'Comment se forme le caca', langues: ['fr', 'en'], format: 'court', style: 'clips' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const vVoix = r.d.video.id;
+  let vv = await jusqua(vVoix, 'relecture');
+  assert.strictEqual(vv.status, 'relecture');
+  r = await api('POST', { op: 'valider', id: vVoix });
+  CLAUDE.horsSujet = [3];
+  FALM.voixRatees['English sentence 4 '] = 2;
+  nVoix = FALM.voix.length;
+  const nDirectes = FALM.directes.length;
+  vv = await jusqua(vVoix, 'fabrication');
+  CLAUDE.horsSujet = [];
+  assert.strictEqual(vv.status, 'fabrication', 'montage lancé : ' + JSON.stringify(vv.etape));
+  const nFr = vv.script.beats.length, nEn = vv.traductions.en.beats.length;
+  const dites = FALM.voix.slice(nVoix);
+  assert.strictEqual(dites.filter((x) => x.corps.language_code === 'fr').length, nFr, 'chaque phrase française dite une fois');
+  assert.ok(dites.every((x) => x.corps.voice === 'Brian' && x.modele === 'elevenlabs/tts/eleven-v4' && !/\*/.test(x.corps.text) && x.corps.seed === dites[0].corps.seed), 'sa voix, sans les étoiles, la même graine');
+  assert.strictEqual(dites.filter((x) => /English sentence 4 /.test(x.corps.text)).length, 2, 'la phrase ratée : deux essais');
+  assert.deepStrictEqual(vv.plan.voix_ia.langues.fr, { etat: 'fini', faites: nFr, total: nFr }); assert.strictEqual(vv.plan.voix_ia.langues.en.etat, 'echec');
+  assert.ok(!JSON.stringify(vv.plan.voix_ia).includes('fal.media'), 'la page ne voit pas les fichiers de voix');
+  // les images : la phrase 3 n'avait pas de bonne vidéo, une image a été créée pour elle sur sa clé fal
+  assert.strictEqual(FALM.directes.length, nDirectes + 1, 'une image créée');
+  assert.ok(/stomach/.test(FALM.directes[nDirectes].corps.prompt) && /no text/.test(FALM.directes[nDirectes].corps.prompt));
+  assert.strictEqual(vv.plan.clips[2].type, 'image'); assert.ok(/^https:\/\/v3\.fal\.media\//.test(vv.plan.clips[2].url));
+  assert.ok(vv.plan.clips.filter((x, i) => i !== 2).every((x) => x && /^https:\/\/videos\.pexels\.com\//.test(x.url)), 'les autres phrases : une vidéo choisie par Lou');
+  assert.ok(/1 image créée/.test(vv.etape.note || ''), vv.etape.note);
+  const ch = CLAUDE.choix[CLAUDE.choix.length - 1];
+  assert.ok(/PHRASE 3 :/.test(ch.prompt) && /la plume voulait montrer/.test(ch.prompt), 'Lou voit chaque phrase et ce que la plume voulait montrer');
+  assert.ok(CLAUDE.appels.filter((x) => x.outil === 'choisir_images').pop().model === 'claude-haiku-5-5', 'le petit modèle choisit les images');
+  // l'usine : les fichiers de chaque phrase en français, la voix gratuite en anglais
+  let uc = await appelUsine('GET', { op: 'montage', video: String(vVoix), langue: 'fr' });
+  assert.strictEqual(uc.code, 200, JSON.stringify(uc.d));
+  assert.strictEqual(uc.d.voix.moteur, 'fichiers'); assert.strictEqual(uc.d.voix.fichiers.length, uc.d.texte.beats.length);
+  assert.ok(uc.d.voix.fichiers.every((x) => /^https:\/\/v3\.fal\.media\/files\/a\//.test(x)) && uc.d.voix.secours.moteur === 'kokoro', 'la voix naturelle, avec la voix gratuite en secours');
+  uc = await appelUsine('GET', { op: 'montage', video: String(vVoix), langue: 'en' });
+  assert.strictEqual(uc.d.voix.moteur, 'kokoro', 'la langue ratée : la voix gratuite en entier');
+  // « Refaire le montage » : rien n'est redit (même texte, même voix, récent) ; l'anglais retente
+  await db.update('hq_crea_videos', { status: 'prete', rendus: { fr: { etat: 'fini', fichiers: ['video.mp4'] }, en: { etat: 'fini', fichiers: ['video.mp4'] } }, etape: {} }, { eq: { id: vVoix } });
+  nVoix = FALM.voix.length;
+  r = await api('POST', { op: 'refaire', id: vVoix });
+  assert.strictEqual(r.d.video.status, 'realisation');
+  vv = await jusqua(vVoix, 'fabrication');
+  const redites = FALM.voix.slice(nVoix);
+  assert.ok(redites.length === 1 && /English sentence 4 /.test(redites[0].corps.text), 'refaire : seule la phrase anglaise ratée est redite, le reste est repris (' + redites.length + ' sur ' + (nFr + nEn) + ')');
+  assert.strictEqual(vv.plan.voix_ia.langues.en.etat, 'fini');
+  // fal refuse sa clé pendant les voix : la vidéo attend ; elle continue avec la voix gratuite
+  r = await api('POST', { op: 'creer', sujet: 'Pourquoi on baille', langues: ['fr'], format: 'court', style: 'clips' });
+  const vBloc = r.d.video.id;
+  await jusqua(vBloc, 'relecture');
+  await api('POST', { op: 'valider', id: vBloc });
+  FALM.refuse = true;
+  vv = await jusqua(vBloc, ['fabrication', 'realisation'], 3);
+  assert.strictEqual(vv.etape.bloque, 'fal', 'clé refusée pendant les voix : en attente ' + JSON.stringify(vv.etape));
+  FALM.refuse = false;
+  nVoix = FALM.voix.length;
+  r = await api('POST', { op: 'sans_ia', id: vBloc });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.video.plan.style, 'clips');
+  vv = await jusqua(vBloc, 'fabrication', 3);
+  assert.strictEqual(vv.status, 'fabrication'); assert.strictEqual(FALM.voix.length, nVoix, 'avec la voix gratuite : plus rien chez fal');
+  uc = await appelUsine('GET', { op: 'montage', video: String(vBloc), langue: 'fr' });
+  assert.strictEqual(uc.d.voix.moteur, 'kokoro');
+  assert.strictEqual((await api('POST', { op: 'sans_ia', id: vBloc })).code, 400, 'plus rien à changer');
+  await api('POST', { op: 'cle_fal', cle: CLE_FAL });
+  // voix naturelles coupées : la voix gratuite, rien chez fal
+  r = await api('POST', { op: 'reglages', reglages: { voix_ia: { actif: false } } });
+  assert.strictEqual(r.d.moi.reglages.voix_ia.actif, false); assert.strictEqual(r.d.moi.depense.estime_voix, 0);
+  r = await api('POST', { op: 'creer', sujet: 'Pourquoi le chat ronronne', langues: ['fr'], format: 'court', style: 'texte' });
+  const vSans = r.d.video.id;
+  await jusqua(vSans, 'relecture');
+  await api('POST', { op: 'valider', id: vSans });
+  nVoix = FALM.voix.length;
+  vv = await jusqua(vSans, 'fabrication');
+  assert.strictEqual(vv.status, 'fabrication'); assert.strictEqual(FALM.voix.length, nVoix, 'voix naturelles coupées : rien chez fal');
+  await api('POST', { op: 'reglages', reglages: { voix_ia: { actif: true } } });
+
+  console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal, phrases dites : ' + FALM.voix.length + ', images créées : ' + FALM.directes.length + ').');
 })().catch((e) => { console.error(e); process.exit(1); });

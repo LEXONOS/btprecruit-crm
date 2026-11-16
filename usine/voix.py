@@ -1,6 +1,7 @@
 """La voix et le son du Studio 3D et du studio des créatrices.
 
-Lit une commande JSON sur l'entrée standard :
+Lit une commande JSON sur l'entrée standard (moteur « fichiers » : la voix déjà dite, un WAV par phrase dans
+« fichiers », pour les voix naturelles d'ElevenLabs que la tour a fait dire par fal) :
   { "langue": "en-us", "voix": "af_heart", "vitesse": 1.0, "segments": ["...", "..."],
     "sortie": "/dossier", "modele": "kokoro-v1.0.onnx", "voix_fichier": "voices-v1.0.bin",
     "debut": 0.25, "ecart": 0.3, "fin": 0.9, "musique": true, "ambiance": "calme", "graine": 7,
@@ -158,7 +159,7 @@ def moteur_kokoro(c):
         from misaki import ja
         g2p = ja.JAG2P()
 
-    def dire(texte, vitesse):
+    def dire(texte, vitesse, i=0):
         if g2p is not None:
             r = g2p(texte)
             ph = r[0] if isinstance(r, tuple) else r
@@ -185,13 +186,25 @@ def moteur_piper(c):
     v = PiperVoice.load(str(modele))
     base = float(v.config.length_scale or 1.0)
 
-    def dire(texte, vitesse):
+    def dire(texte, vitesse, i=0):
         cfg = SynthesisConfig(length_scale=base / max(0.5, vitesse))
         morceaux = [ch.audio_int16_array for ch in v.synthesize(texte, syn_config=cfg)]
         if not morceaux:
             return np.zeros(int(0.3 * SR), dtype=np.float32)
         x = np.concatenate(morceaux).astype(np.float32) / 32768.0
         return reechantillonner(x, int(v.config.sample_rate), SR)
+    return dire
+
+
+def moteur_fichiers(c):
+    """La voix déjà dite (les voix naturelles d'ElevenLabs, par fal) : un fichier WAV par phrase, posé tel quel."""
+    fichiers = list(c.get("fichiers") or [])
+
+    def dire(texte, vitesse, i=0):
+        x, sr = sf.read(fichiers[i], dtype="float32", always_2d=False)
+        if getattr(x, "ndim", 1) > 1:
+            x = x.mean(axis=1)
+        return reechantillonner(np.asarray(x, dtype=np.float32), sr, SR)
     return dire
 
 
@@ -302,11 +315,15 @@ def pop(graine=0):
 
 
 def main():
+    global SR
     c = lire()
+    # la voix déjà dite (ElevenLabs, 44,1 kHz) garde ses aigus : le son se fait à 48 kHz ; Kokoro et Piper restent à 24 kHz
+    SR = int(c.get("sr") or 24000)
     sortie = c.get("sortie", ".")
     os.makedirs(sortie, exist_ok=True)
-    dire = moteur_piper(c) if c.get("moteur") == "piper" else moteur_kokoro(c)
-    langue = "" if c.get("moteur") == "piper" else c.get("langue", "")
+    moteur = c.get("moteur")
+    dire = moteur_piper(c) if moteur == "piper" else moteur_fichiers(c) if moteur == "fichiers" else moteur_kokoro(c)
+    langue = "" if moteur in ("piper", "fichiers") else c.get("langue", "")
     if c.get("cjk"):
         langue = c.get("cjk")
     debut, ecart, fin = float(c.get("debut", 0.25)), float(c.get("ecart", 0.3)), float(c.get("fin", 0.9))
@@ -315,12 +332,12 @@ def main():
 
     def synthese(v):
         out = []
-        for texte in c["segments"]:
+        for i, texte in enumerate(c["segments"]):
             texte = (texte or "").strip()
             if not texte:
                 out.append(np.zeros(int(0.6 * SR), dtype=np.float32))
                 continue
-            out.append(rogner(dire(texte, v)))
+            out.append(rogner(dire(texte, v, i)))
         return out
 
     morceaux = synthese(vitesse)
@@ -330,7 +347,10 @@ def main():
     # puis, s'il le faut encore, la voix ralentit un peu (jamais sous 85 % de sa vitesse)
     if duree_min and debut + parole + nb * ecart + fin < duree_min:
         ecart = min(0.72, (duree_min - debut - parole - fin) / nb)
-        if debut + parole + nb * ecart + fin < duree_min:
+        # une voix déjà dite ne ralentit pas : on respire seulement un peu plus entre les phrases
+        if moteur == "fichiers":
+            ecart = max(ecart, min(0.85, (duree_min - debut - parole - fin) / nb))
+        elif debut + parole + nb * ecart + fin < duree_min:
             manque = duree_min - (debut + nb * ecart + fin)
             v2 = max(vitesse * 0.85, vitesse * parole / max(1.0, manque))
             morceaux = synthese(v2)

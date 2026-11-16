@@ -12,6 +12,7 @@ const E = require('../lib/createurs/equipe');
 const F = require('../lib/createurs/fabrication');
 const P = require('../lib/createurs/publication');
 const IM = require('../lib/createurs/images');
+const VX = require('../lib/createurs/voix');
 const CH = require('../lib/createurs/chaine');
 const B = require('../lib/createurs/bible');
 const G = require('../lib/studio/github');
@@ -36,6 +37,9 @@ function catalogue() {
       couts: Object.fromEntries(['court', 'long'].map((f) => [f, Object.fromEntries(Object.keys(C.MOUVEMENTS_IA).map((m) => [m, C.coutIa(f, m)]))])),
       modeles: { image: FAL.MODELES.image.nom, video: FAL.MODELES.video.nom }
     },
+    // les voix naturelles (ElevenLabs, sur sa clé fal) : les voix, le prix des 1 000 caractères, le coût à peu près d'une
+    // vidéo par langue
+    voix_ia: { voix: C.VOIX_IA, modele: FAL.MODELES.voix.nom, mille: FAL.MODELES.voix.mille, couts: { court: C.coutVoix('court', 1), long: C.coutVoix('long', 1) } },
     images: IM.branche(), usine: G.branche(), coffre: SEC.disponible()
   };
 }
@@ -119,6 +123,11 @@ async function action(req, res, db, b) {
     const secrets = Object.assign({}, c.secrets || {}, { fal: Object.assign(SEC.chiffrer(r.cle, 'fal:' + c.id), { etat: r.credit === false ? 'credit' : 'ok', message: r.avertissement || null }) });
     c = await majCreateur(db, c, { secrets }, ['Clé fal branchée', 'se termine par ' + r.cle.slice(-4)]);
     return json(res, 200, { ok: true, avertissement: r.avertissement || null, moi: C.moi(c) });
+  }
+  // écouter une voix naturelle avant de la choisir : une phrase dans la langue demandée, sur sa clé fal
+  if (op === 'ecouter_voix') {
+    const r = await VX.ecouter(db, c, String(b.voix || ''), String(b.langue || ''));
+    return json(res, r.code || 200, r.ok ? { ok: true, url: r.url, prix: r.prix } : { erreur: r.erreur });
   }
   if (op === 'cle_fal_supprimer') {
     const secrets = Object.assign({}, c.secrets || {}); delete secrets.fal;
