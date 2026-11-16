@@ -64,7 +64,8 @@ function clair(c) { const h = hex(c, 'FFFFFF'); const r = parseInt(h.slice(0, 2)
 const cjkDe = (cmd) => ((cmd.voix || {}).cjk ? (cmd.langue === 'ja' ? 'ja' : 'zh') : '');
 
 // ce que la voix demande en plus selon la langue, installé une fois si l'usine ne l'a pas encore (Piper pour une
-// vingtaine de langues, misaki pour écrire le chinois et le japonais comme les voix de Kokoro les lisent)
+// vingtaine de langues, misaki pour écrire le chinois et le japonais comme les voix de Kokoro les lisent, avec jieba et
+// fugashi qui coupent leurs phrases en mots pour les sous-titres, voix naturelle comprise)
 async function dependances(cmd) {
   const v = cmd.voix || {};
   const besoins = [];
@@ -122,7 +123,9 @@ async function voix(cmd, sortie, beats) {
     musique: (cmd.plan || {}).musique !== 'aucune', ambiance: (cmd.plan || {}).musique || 'calme', graine: Number((cmd.video || {}).id) || 7,
     etiquettes: []
   };
-  if (!fichiers) await dependances(Object.assign({}, cmd, { voix: v }));
+  // ce que la voix gratuite demande (Piper, misaki) et, même avec une voix naturelle, le découpage en mots du chinois et
+  // du japonais pour les sous-titres mot à mot (jieba, fugashi : voix.py s'en sert dans tous les cas)
+  await dependances(Object.assign({}, cmd, { voix: v }));
   const res = await lancer(PYTHON, [path.join(__dirname, 'voix.py')], JSON.stringify(commande));
   journal(cmd.langue, 'voix', commande.moteur, res.trim().split('\n').pop());
   const temps = JSON.parse(fs.readFileSync(path.join(sortie, 'temps.json'), 'utf8'));

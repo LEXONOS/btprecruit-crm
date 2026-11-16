@@ -59,12 +59,18 @@ jobs:
           cache: pip
           cache-dependency-path: usine/requirements.txt
 
+      # un miroir d'Ubuntu qui répond mal laisse parfois la liste des paquets incomplète (« Unable to locate package
+      # ffmpeg ») : trois essais, à 20 secondes d'écart
       - name: Outils (ffmpeg avec libass ; police chinoise et japonaise au besoin)
         run: |
-          sudo apt-get update -qq
           paquets="ffmpeg"
           [[ "$LANGUE" == "zh" || "$LANGUE" == "ja" ]] && paquets="$paquets fonts-noto-cjk"
-          sudo apt-get install -y -qq --no-install-recommends $paquets > /dev/null
+          for essai in 1 2 3; do
+            sudo apt-get update -qq || true
+            sudo apt-get install -y -qq --no-install-recommends $paquets > /dev/null && break
+            [[ "$essai" == 3 ]] && { echo "paquets introuvables après 3 essais : $paquets"; exit 1; }
+            echo "liste des paquets incomplète, nouvel essai dans 20 s"; sleep 20
+          done
           ffmpeg -hide_banner -filters | grep -q " subtitles " || { echo "ffmpeg sans sous-titres"; exit 1; }
 
       - name: Modèles de voix (en cache)
