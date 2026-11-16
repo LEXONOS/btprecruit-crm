@@ -539,6 +539,30 @@ create index if not exists hq_crea_videos_createur on public.hq_crea_videos (cre
 create index if not exists hq_crea_videos_status on public.hq_crea_videos (status, updated_at);
 alter table public.hq_crea_videos enable row level security;
 
+-- La messagerie entre Louis et chaque créatrice (lib/createurs/messages.js) : une conversation par créatrice ; les
+-- fichiers dans l'espace privé « messages » (60 jours), le texte reste.
+create table if not exists public.hq_crea_messages (
+  id bigint generated always as identity primary key,
+  createur_id bigint not null references public.hq_createurs (id) on delete cascade,
+  auteur text not null check (auteur in ('louis', 'createur')),
+  texte text not null default '',
+  pieces jsonb not null default '[]'::jsonb,     -- [{ genre: video|image|son|document, type, chemin, nom, taille, expire }] ou [{ genre: studio, video, langue, titre }]
+  lu_le timestamptz,                             -- lu par l'autre
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists hq_crea_messages_conv on public.hq_crea_messages (createur_id, id);
+create index if not exists hq_crea_messages_non_lus on public.hq_crea_messages (createur_id, auteur) where lu_le is null;
+alter table public.hq_crea_messages enable row level security;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('messages', 'messages', false, 209715200, array[
+  'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v',
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/x-wav',
+  'application/pdf'])
+on conflict (id) do nothing;
+
 -- La dépense d'une créatrice, réservée AVANT chaque appel à Claude (au prix maximum de l'appel) puis ajustée au prix
 -- réel : une seule instruction, verrou de ligne ; refusée si elle dépasse son plafond du jour.
 create or replace function public.hq_crea_cout(p_id bigint, p_jour text, p_mois text, p_delta numeric, p_plafond numeric default null)

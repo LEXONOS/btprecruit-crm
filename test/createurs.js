@@ -150,9 +150,14 @@ G.forcer(async (url, o) => {
 });
 
 /* ── le stockage simulé ── */
-const STOCK = { envoyes: [], effaces: [] };
+const STOCK = { envoyes: [], effaces: [], msgEnvoyes: [], msgEffaces: [], arrives: new Set() };
 ST.forcer(async (url, o) => {
   const json = (d) => ({ ok: true, status: 200, text: async () => JSON.stringify(d) });
+  // l'espace de la messagerie : les liens d'envoi, les fichiers arrivés (STOCK.arrives), les liens de lecture, le ménage
+  if (/\/object\/upload\/sign\/messages\//.test(url)) { const c = url.split('/object/upload/sign/messages/')[1]; STOCK.msgEnvoyes.push(c); return json({ url: '/object/upload/sign/messages/' + c + '?token=env' }); }
+  if (/\/object\/sign\/messages$/.test(url)) return json(JSON.parse(o.body).paths.map((p) => ({ path: p, signedURL: '/object/sign/messages/' + p + '?token=lu' })));
+  if (/\/object\/list\/messages$/.test(url)) { const b = JSON.parse(o.body); return json(STOCK.arrives.has(b.prefix + '/' + b.search) ? [{ name: b.search }] : []); }
+  if (/\/object\/messages$/.test(url) && o.method === 'DELETE') { STOCK.msgEffaces.push.apply(STOCK.msgEffaces, JSON.parse(o.body).prefixes); return json([]); }
   if (/\/object\/upload\/sign\//.test(url)) { STOCK.envoyes.push(url.split('/object/upload/sign/studio/')[1]); return json({ url: '/object/upload/sign/studio/x?token=abc' }); }
   if (/\/object\/sign\/studio$/.test(url)) return json(JSON.parse(o.body).paths.map((p) => ({ path: p, signedURL: '/object/sign/studio/' + p + '?token=t' })));
   if (/\/object\/sign\/studio\//.test(url)) return json({ signedURL: '/object/sign/studio/' + url.split('/object/sign/studio/')[1] + '?token=t' });
@@ -952,6 +957,77 @@ async function jusqua(id, statuts, n) {
   vv = await jusqua(vSans, 'fabrication');
   assert.strictEqual(vv.status, 'fabrication'); assert.strictEqual(FALM.voix.length, nVoix, 'voix naturelles coupées : rien chez fal');
   await api('POST', { op: 'reglages', reglages: { voix_ia: { actif: true } } });
+
+  // 28. la messagerie (16 nov.) : Louis et chaque créatrice s'écrivent dans l'appli, en direct ; des fichiers dans les
+  //     deux sens, envoyés droit dans le stockage (l'espace « messages ») ; une vidéo prête de son studio ; le compteur
+  //     des non lus ; le « vu » ; Louis prévenu une fois par série de messages ; chacune ne voit que sa conversation ;
+  //     les fichiers partent après 60 jours
+  const MSG = require('../lib/createurs/messages');
+  const alertesAvant = (await db.select('hq_messages', { eq: { to_id: 'louis', kind: 'alerte' } })).length;
+  r = await api('POST', { op: 'message', texte: 'Coucou Louis ! Tu peux regarder ma dernière vidéo ?' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.message.auteur, 'createur');
+  let alertes = await db.select('hq_messages', { eq: { to_id: 'louis', kind: 'alerte' }, order: 'id.desc' });
+  assert.strictEqual(alertes.length, alertesAvant + 1, 'Louis prévenu dans la tour'); assert.ok(/Mila t'a écrit/.test(alertes[0].subject) && /dernière vidéo/.test(alertes[0].body));
+  r = await api('POST', { op: 'message', texte: 'Et une question sur les hashtags.' });
+  assert.strictEqual((await db.select('hq_messages', { eq: { to_id: 'louis', kind: 'alerte' } })).length, alertesAvant + 1, 'pas prévenu deux fois pour la même série');
+  const deuxiemeElle = r.d.message.id;
+  // Louis : le compteur dans la tour, la conversation, ses messages à elle passent en lus
+  let tour = await ADM.agir(db, 'crea_liste', {});
+  assert.strictEqual(tour.createurs.find((x) => x.id === mila.id).messages_non_lus, 2, 'le compteur de Louis');
+  let conv = await ADM.agir(db, 'crea_messages', { id: mila.id, lire: true });
+  assert.strictEqual(conv.prenom, 'Mila'); assert.strictEqual(conv.messages.length, 2); assert.strictEqual(conv.non_lus, 0);
+  assert.strictEqual((await ADM.agir(db, 'crea_liste', {})).createurs.find((x) => x.id === mila.id).messages_non_lus, 0);
+  let vueElle = await api('GET', { op: 'messages' });
+  assert.strictEqual(vueElle.d.vu_jusqua, deuxiemeElle, 'elle voit que Louis a lu');
+  // Louis répond avec une vidéo de son téléphone : le lien d'envoi, le fichier qui arrive, le message
+  const env = await ADM.agir(db, 'crea_message_envoi', { id: mila.id, nom: 'Mon exemple TikTok.MOV', type: 'video/quicktime', taille: 30 * 1048576 });
+  assert.ok(new RegExp('^conv/' + mila.id + '/\\d{6}/[a-f0-9]{12}-mon-exemple-tiktok\\.mov$').test(env.chemin), env.chemin);
+  assert.ok(/\/object\/upload\/sign\/messages\/conv\//.test(env.url) && env.type === 'video/quicktime', 'un lien d\'envoi droit vers l\'espace « messages »');
+  const piece = { chemin: env.chemin, nom: 'Mon exemple TikTok.MOV', type: 'video/quicktime', taille: 30 * 1048576 };
+  await assert.rejects(ADM.agir(db, 'crea_message', { id: mila.id, texte: 'Regarde', pieces: [piece] }), /pas arrivé/, 'un fichier pas arrivé est refusé');
+  STOCK.arrives.add(env.chemin);
+  const rep = await ADM.agir(db, 'crea_message', { id: mila.id, texte: 'Regarde cet exemple : https://www.tiktok.com/@exemple', pieces: [piece] });
+  assert.strictEqual(rep.message.auteur, 'louis'); assert.strictEqual(rep.message.pieces[0].genre, 'video');
+  assert.ok(/\/object\/sign\/messages\/conv\//.test(rep.message.pieces[0].url), 'lu par un lien signé');
+  assert.ok(!JSON.stringify(rep.message).includes('"chemin"'), 'la page ne voit jamais le chemin des fichiers');
+  // elle : le compteur, puis la conversation ouverte ; le direct ne rend que le nouveau
+  assert.strictEqual((await api('GET', { op: 'messages_etat' })).d.non_lus, 1);
+  assert.strictEqual((await api('GET', { op: 'etat' })).d.moi.messages_non_lus, 1, 'le compteur est là dès l\'ouverture du studio');
+  vueElle = await api('GET', { op: 'messages', lire: '1' });
+  assert.strictEqual(vueElle.d.messages.length, 3); assert.strictEqual(vueElle.d.non_lus, 0);
+  assert.strictEqual((await api('GET', { op: 'messages_etat' })).d.non_lus, 0);
+  assert.strictEqual((await ADM.agir(db, 'crea_messages', { id: mila.id })).vu_jusqua, rep.message.id, 'Louis voit qu\'elle a lu');
+  const apresTout = vueElle.d.messages[2].id;
+  assert.strictEqual((await api('GET', { op: 'messages', apres: String(apresTout), lire: '1' })).d.messages.length, 0, 'rien de neuf');
+  // elle envoie une photo et sa vidéo du studio, prête en français
+  const envP = await api('POST', { op: 'message_envoi', nom: 'Écran.PNG', type: 'image/png', taille: 2e5 });
+  assert.strictEqual(envP.code, 200, JSON.stringify(envP.d)); STOCK.arrives.add(envP.d.chemin);
+  await db.update('hq_crea_videos', { status: 'prete', rendus: { fr: { etat: 'fini', fichiers: ['video.mp4', 'vignette.jpg'] } } }, { eq: { id: vVoix } });
+  r = await api('POST', { op: 'message', texte: 'Voilà ma vidéo, et une capture.', pieces: [{ chemin: envP.d.chemin, nom: 'Écran.PNG', type: 'image/png', taille: 2e5 }], video: { id: vVoix, langue: 'fr' } });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.deepStrictEqual(r.d.message.pieces.map((p) => p.genre), ['image', 'studio']);
+  const ps = r.d.message.pieces[1];
+  assert.ok(/\/object\/sign\/studio\/crea\/\d+\/\d+\/fr\/video\.mp4/.test(ps.url) && /vignette\.jpg/.test(ps.vignette) && ps.langue === 'fr', 'sa vidéo du studio, lisible par Louis');
+  assert.strictEqual((await api('POST', { op: 'message', video: { id: vVoix, langue: 'de' } })).code, 400, 'une langue pas prête');
+  assert.strictEqual((await db.select('hq_messages', { eq: { to_id: 'louis', kind: 'alerte' } })).length, alertesAvant + 2, 'une nouvelle série : Louis prévenu');
+  // ce qui ne passe pas
+  assert.strictEqual((await api('POST', { op: 'message_envoi', nom: 'virus.exe', type: 'application/x-msdownload', taille: 1000 })).code, 400);
+  assert.strictEqual((await api('POST', { op: 'message_envoi', nom: 'gros.mp4', type: 'video/mp4', taille: 300 * 1048576 })).code, 400, '200 Mo au plus');
+  r = await api('POST', { op: 'message', texte: 'x', pieces: [{ chemin: 'conv/999/202611/aaaaaaaaaaaa-x.mp4', nom: 'x.mp4', type: 'video/mp4' }] });
+  assert.strictEqual(r.code, 400, 'un fichier d\'une autre conversation est refusé');
+  assert.strictEqual((await api('POST', { op: 'message', texte: '   ' })).code, 400, 'un message vide');
+  assert.strictEqual((await api('POST', { op: 'message', texte: 'Coucou' }, { origine: 'https://ailleurs.example' })).code, 403, 'seulement depuis la page du studio');
+  // par la tour : les mêmes opérations passent par les actions de Louis (lib/actions.js)
+  assert.strictEqual((await require('../lib/actions').agir('crea_messages', { id: mila.id })).messages.length, 4, 'la tour lit la conversation');
+  // chacune ne voit que sa conversation
+  assert.strictEqual((await MSG.lister(db, lea.id, 'createur')).messages.length, 0, 'Léa ne voit rien de la conversation de Mila');
+  const vueLea = await api('GET', { op: 'messages' }, { cookie: coLea, garder: false });
+  assert.ok(vueLea.code !== 200 || !vueLea.d.messages.some((m) => /Coucou Louis/.test(m.texte)), 'pas même par sa session');
+  // le ménage : après 60 jours, le fichier part, le texte et le nom restent
+  await db.update('hq_crea_messages', { created_at: new Date(Date.now() - 61 * 86400000).toISOString() }, { eq: { id: rep.message.id } });
+  assert.strictEqual(await MSG.menage(db), 1); assert.ok(STOCK.msgEffaces.indexOf(env.chemin) >= 0);
+  const pm = (await api('GET', { op: 'messages' })).d.messages.find((m) => m.id === rep.message.id);
+  assert.ok(pm.texte && pm.pieces[0].expire && !pm.pieces[0].url && pm.pieces[0].nom === 'Mon exemple TikTok.MOV', 'le texte et le nom du fichier restent');
 
   console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal, phrases dites : ' + FALM.voix.length + ', images créées : ' + FALM.directes.length + ').');
 })().catch((e) => { console.error(e); process.exit(1); });

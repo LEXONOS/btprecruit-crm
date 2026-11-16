@@ -19,6 +19,9 @@
     studio: '<path d="M3 21h18"/><path d="M5 21V9l6-4v16"/><path d="M11 21V8l8-3v16"/><path d="M14 10h2M14 14h2M7.5 12h1M7.5 16h1"/>',
     creer: '<path d="M12 5v14M5 12h14"/>',
     ecouter: '<path d="M8 5.5v13l10.5-6.5z"/>',
+    message: '<path d="M20 12.5a7.5 7.5 0 0 1-11 6.6L4 20l1.1-4.4A7.5 7.5 0 1 1 20 12.5z"/>',
+    trombone: '<path d="M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+    envoyer: '<path d="M4.5 12L20 4.5 16 20l-3.6-6.4z"/><path d="M12.4 13.6L20 4.5"/>',
     videos: '<rect x="4" y="3" width="7" height="12" rx="2"/><rect x="13" y="9" width="7" height="12" rx="2"/>',
     equipe: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.2.3 3.8 1.9 4.5 4.4"/>',
     reglages: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
@@ -167,7 +170,7 @@
   }
 
   /* ── la navigation ── */
-  const VUES = ['accueil', 'creer', 'videos', 'video', 'equipe', 'reglages'];
+  const VUES = ['accueil', 'creer', 'videos', 'video', 'equipe', 'reglages', 'messages'];
   function route() {
     const x = location.hash.replace(/^#/, '');
     if (x.indexOf('invitation=') === 0) return { vue: 'invitation', arg: x.slice(11) };
@@ -190,10 +193,16 @@
     const nom = r.chaine.nom || 'Le studio de ' + S.moi.prenom;
     return '<header class="barre"><a class="marque" href="#accueil" aria-label="Mon studio"><span class="logo">' + initiale(r.chaine.nom || S.moi.prenom) + '</span><span><b>' + h(nom) + '</b><small>' + h(r.langues.map(nomLangue).join(', ')) + '</small></span></a>' +
       '<nav class="onglets-barre" aria-label="Le studio">' + NAV.map((n) => '<a href="#' + n[0] + '" class="' + (n[0] === 'creer' ? 'creer ' : '') + (actif === n[0] ? 'on' : '') + '"' + (actif === n[0] ? ' aria-current="page"' : '') + '>' + ico(n[2]) + n[1] + '</a>').join('') + '</nav>' +
-      '<div class="barre-d">' + jaugeHtml() +
+      '<div class="barre-d">' + jaugeHtml() + boutonMessages(vue) +
       '<button class="icone-barre" data-a="basculerNuit" title="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '" aria-label="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '">' + ico(estNuit() ? 'jour' : 'nuit') + '</button>' +
       '<div class="compte"><button class="icone-barre" data-a="menu" aria-label="Mon compte" aria-expanded="' + S.menu + '">' + ico('personne') + '</button>' + (S.menu ? menuHtml() : '') + '</div></div></header>';
   }
+  // l'icône des messages de Louis, avec ce qu'il reste à lire
+  function boutonMessages(vue) {
+    const n = S.moi.messages_non_lus || 0;
+    return '<a class="icone-barre messages' + (vue === 'messages' ? ' on' : '') + '" id="b-messages" href="#messages" title="Messages avec Louis" aria-label="Messages avec Louis' + (n ? ', ' + n + ' non lu' + (n > 1 ? 's' : '') : '') + '">' + ico('message') + (n ? '<span class="compteur">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</a>';
+  }
+  function majBoutonMessages() { const b = $('#b-messages'); if (b) b.outerHTML = boutonMessages(route().vue); }
   function menuHtml() {
     return '<div class="menu-compte" role="menu"><a href="#reglages/compte" role="menuitem">' + ico('personne') + 'Mon compte (' + h(S.moi.identifiant) + ')</a><a href="#equipe" role="menuitem">' + ico('etoile') + 'Mes badges</a>' +
       '<button data-a="revoirVisite" role="menuitem">' + ico('studio') + 'Revoir la visite</button><a href="#reglages/aide" role="menuitem">' + ico('aide') + 'Aide</a><hr><button data-a="deconnexion" role="menuitem">' + ico('sortir') + 'Me déconnecter</button></div>';
@@ -219,8 +228,9 @@
       else if (r.vue === 'videos') c = vueVideos();
       else if (r.vue === 'video') c = vueVideo(r.arg);
       else if (r.vue === 'equipe') c = vueEquipe();
+      else if (r.vue === 'messages') c = vueMessages();
       else c = vueReglages(r.arg || 'chaine');
-      corps = '<div class="gestion"><main id="contenu" class="contenu' + (r.vue === 'videos' ? ' large' : '') + '">' + c + '</main></div>';
+      corps = '<div class="gestion"><main id="contenu" class="contenu' + (r.vue === 'videos' ? ' large' : r.vue === 'messages' ? ' conv-page' : '') + '">' + c + '</main></div>';
     }
     $('#app').innerHTML = barreHtml(r.vue) + corps + tabsHtml(r.vue);
     if (accueil) montrerVille(); else cacherVille();
@@ -231,6 +241,7 @@
     if (r.vue === 'reglages') { const a = $('.reglages-nav a.on'); if (a && a.scrollIntoView) a.scrollIntoView({ inline: 'center', block: 'nearest' }); }
     if ((r.vue === 'accueil' || r.vue === 'videos' || r.vue === 'equipe') && !S.chargement) chargerVideos();
     if (r.vue === 'video') { if (!S.video || String(S.video.id) !== String(r.arg)) chargerVideo(r.arg); else suivre(r.arg); }
+    if (r.vue === 'messages') ouvrirMessages();
     if (r.vue === 'accueil' && !S.moi.reglages.visite_faite && !S.visite && !memoire.lire('visite-passee-' + S.moi.identifiant, false)) ouvrirVisite(0);
   }
   async function chargerVideos(silencieux) {
@@ -829,7 +840,8 @@
       '<div class="lecteur"><video controls playsinline preload="metadata"' + (f['vignette.jpg'] ? ' poster="' + h(f['vignette.jpg']) + '"' : '') + ' src="' + h(f['video.mp4'] || '') + '"></video><div>' +
       '<div class="actions">' + (f.telecharger ? '<a class="btn" href="' + h(f.telecharger) + '" download>' + ico('telecharger') + 'Télécharger</a>' : '') +
       (peutPartager ? '<button class="btn second" data-a="partager" data-l="' + l + '">' + ico('partager') + (pret ? 'Partager maintenant' : 'Partager') + '</button>' : '') +
-      '<button class="btn second" data-a="copierTexte" data-l="' + l + '">' + ico('copier') + 'Copier le texte</button></div>' +
+      '<button class="btn second" data-a="copierTexte" data-l="' + l + '">' + ico('copier') + 'Copier le texte</button>' +
+      '<button class="btn second" data-a="envoyerALouis" data-l="' + l + '">' + ico('message') + 'Envoyer à Louis</button></div>' +
       '<p class="doux petit" style="margin-top:10px">' + (((v.rendus || {})[l] || {}).duree ? Math.round(v.rendus[l].duree) + ' secondes. ' : '') + 'Disponible jusqu\'au ' + h(dateCourte(v.garde_jusqu)) + '.</p>' +
       '<form data-form="texte" data-l="' + l + '" style="margin-top:18px"><label class="champ"><span>Titre (TikTok, Instagram)</span><input type="text" name="titre" maxlength="100" value="' + h(t.titre) + '"></label>' +
       '<label class="champ"><span>Titre YouTube</span><input type="text" name="titre_youtube" maxlength="95" value="' + h(t.titre_youtube) + '"></label>' +
@@ -953,6 +965,111 @@
       } catch (err) { attente = 8000; }
       await dormir(attente);
     }
+  }
+
+  /* ── les messages avec Louis ── */
+  // une conversation : le direct (la page regarde toutes les 3 secondes), les fichiers envoyés droit dans le stockage
+  const TYPES_EXT = { mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v', webm: 'video/webm', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', pdf: 'application/pdf' };
+  const typeFichier = (f) => f.type || TYPES_EXT[String(f.name || '').split('.').pop().toLowerCase()] || '';
+  const tailleLisible = (o) => (o >= 1048576 ? (o / 1048576).toFixed(o >= 10485760 ? 0 : 1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(o / 1024)) + ' Ko');
+  function vueMessages() {
+    S.conv = S.conv || { messages: [], dernier: 0, vu: 0, pieces: [], charge: false };
+    return '<section class="conv"><header class="conv-tete"><span class="agent" style="--c:#2B59E8">L</span><div><b>Louis</b><small>Écris-lui ici, envoie-lui tes vidéos : il te répond depuis la tour.</small></div></header>' +
+      '<div class="conv-fil" id="conv-fil" aria-live="polite">' + filMessagesHtml() + '</div>' +
+      '<form class="conv-saisie" data-form="message" autocomplete="off"><div class="conv-pieces" id="conv-pieces">' + piecesChoisiesHtml() + '</div>' +
+      '<div class="conv-ligne"><label class="conv-joindre" title="Joindre une vidéo, une photo, un son"><input type="file" name="fichiers" accept="video/*,image/*,audio/*,application/pdf" multiple aria-label="Joindre des fichiers">' + ico('trombone') + '</label>' +
+      '<textarea name="texte" rows="1" maxlength="4000" placeholder="Écris à Louis" aria-label="Ton message"></textarea>' +
+      '<button class="conv-envoyer" type="submit" aria-label="Envoyer">' + ico('envoyer') + '</button></div></form></section>';
+  }
+  function jourDe(iso) {
+    const d = new Date(iso), a = new Date(), hier = new Date(Date.now() - 86400000);
+    if (d.toDateString() === a.toDateString()) return 'Aujourd\'hui';
+    if (d.toDateString() === hier.toDateString()) return 'Hier';
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+  const heureDe = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const avecLiens = (t) => t.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  function pieceHtml(p) {
+    if (p.expire || !p.url) return '<div class="piece expiree">' + h(p.nom || p.titre || 'Fichier') + ' : ' + (p.genre === 'studio' ? 'la vidéo n\'est plus disponible' : 'effacé après 60 jours') + '</div>';
+    if (p.genre === 'studio') return '<div class="piece studio"><video controls playsinline preload="none"' + (p.vignette ? ' poster="' + h(p.vignette) + '"' : '') + ' src="' + h(p.url) + '"></video><small>Vidéo du studio : ' + h(sansEtoiles(p.titre || '')) + ' (' + h(nomLangue(p.langue)) + ')</small></div>';
+    if (p.genre === 'video') return '<div class="piece"><video controls playsinline preload="metadata" src="' + h(p.url) + '"></video><a class="piece-nom" href="' + h(p.url) + '" target="_blank" rel="noopener noreferrer">' + h(p.nom) + (p.taille ? ', ' + tailleLisible(p.taille) : '') + '</a></div>';
+    if (p.genre === 'image') return '<a class="piece" href="' + h(p.url) + '" target="_blank" rel="noopener noreferrer"><img src="' + h(p.url) + '" alt="' + h(p.nom) + '" loading="lazy"></a>';
+    if (p.genre === 'son') return '<div class="piece"><audio controls preload="none" src="' + h(p.url) + '"></audio></div>';
+    return '<a class="piece doc" href="' + h(p.url) + '" target="_blank" rel="noopener noreferrer">' + ico('telecharger') + h(p.nom) + '</a>';
+  }
+  function filMessagesHtml() {
+    const c = S.conv;
+    if (!c.charge) return '<div class="conv-vide">Un instant…</div>';
+    if (!c.messages.length) return '<div class="conv-vide"><b>Ta conversation avec Louis</b>Une question, une idée de vidéo, une vidéo que tu viens de faire : écris-lui ici, il te répond depuis la tour.</div>';
+    const derniereMoi = c.messages.filter((m) => m.auteur === 'createur').map((m) => m.id).pop();
+    let jour = '';
+    return c.messages.map((m) => {
+      const j = jourDe(m.le);
+      const sep = j !== jour ? '<div class="conv-jour">' + h(j) + '</div>' : '';
+      jour = j;
+      const moi = m.auteur === 'createur';
+      return sep + '<div class="bulle ' + (moi ? 'moi' : 'lui') + '">' + (m.texte ? '<p>' + avecLiens(h(m.texte)) + '</p>' : '') + (m.pieces || []).map(pieceHtml).join('') +
+        '<small>' + h(heureDe(m.le)) + (moi && m.id === derniereMoi && c.vu >= m.id ? ', vu' : '') + '</small></div>';
+    }).join('') + (c.envoi ? '<div class="bulle moi envoi"><p>' + h(c.envoi) + '</p><div class="barre-envoi"><i style="width:' + Math.round((c.progres || 0) * 100) + '%"></i></div></div>' : '');
+  }
+  function piecesChoisiesHtml() {
+    return (S.conv && S.conv.pieces || []).map((f, i) => '<span class="puce-piece">' + h(f.name) + ' (' + tailleLisible(f.size) + ')<button type="button" data-a="retirerPiece" data-i="' + i + '" aria-label="Retirer ' + h(f.name) + '">' + ico('fermer') + '</button></span>').join('');
+  }
+  function majConv(bas) {
+    const f = $('#conv-fil');
+    if (!f) return;
+    const enBas = bas || f.scrollHeight - f.scrollTop - f.clientHeight < 80;
+    f.innerHTML = filMessagesHtml();
+    if (enBas) f.scrollTop = f.scrollHeight;
+  }
+  function recevoir(d, bas) {
+    const c = S.conv;
+    const nouveaux = (d.messages || []).filter((m) => !c.messages.some((x) => x.id === m.id));
+    c.messages = c.messages.concat(nouveaux).sort((a, b) => a.id - b.id);
+    c.dernier = c.messages.length ? c.messages[c.messages.length - 1].id : 0;
+    const vuAvant = c.vu;
+    c.vu = Math.max(c.vu, d.vu_jusqua || 0);
+    c.charge = true;
+    if (nouveaux.length || c.vu !== vuAvant || bas) majConv(bas || nouveaux.some((m) => m.auteur === 'createur'));
+    S.moi.messages_non_lus = d.non_lus || 0;
+    majBoutonMessages();
+  }
+  async function ouvrirMessages() {
+    const moi = ++S.boucle;
+    S.conv = S.conv || { messages: [], dernier: 0, vu: 0, pieces: [], charge: false };
+    try { const d = await lire('messages', { lire: '1' }); S.conv.messages = []; recevoir(d, true); }
+    catch (e) { toast(e.message, 'err'); }
+    // le direct : toutes les 3 secondes tant qu'elle regarde (moins souvent quand la page est cachée)
+    while (moi === S.boucle && route().vue === 'messages') {
+      await dormir(document.hidden ? 9000 : 3000);
+      if (moi !== S.boucle || route().vue !== 'messages') return;
+      if (document.hidden) continue;
+      try { recevoir(await lire('messages', { apres: String(S.conv.dernier || 0), lire: '1' })); } catch (e) { await dormir(5000); }
+    }
+  }
+  // ailleurs dans le studio : le compteur se met à jour toutes les 20 secondes, un petit mot quand Louis écrit
+  async function verifierMessages() {
+    if (!S.moi || document.hidden || route().vue === 'messages' || route().vue === 'invitation') return;
+    try {
+      const d = await lire('messages_etat');
+      const avant = S.moi.messages_non_lus || 0;
+      S.moi.messages_non_lus = d.non_lus || 0;
+      if (S.moi.messages_non_lus !== avant) majBoutonMessages();
+      if (S.moi.messages_non_lus > avant) toast('Louis t\'a écrit : ouvre tes messages.', 'ok');
+    } catch (e) { /* la prochaine fois */ }
+  }
+  // envoyer un fichier droit dans le stockage, avec sa progression
+  function televerser(url, fichier, type, progres) {
+    return new Promise((ok, ko) => {
+      const x = new XMLHttpRequest();
+      x.open('PUT', url);
+      x.setRequestHeader('Content-Type', type);
+      x.setRequestHeader('x-upsert', 'true');
+      x.upload.onprogress = (e) => { if (e.lengthComputable) progres(e.loaded / e.total); };
+      x.onload = () => (x.status >= 200 && x.status < 300 ? ok() : ko(new Error(x.status === 413 ? 'fichier trop lourd pour l\'envoi' : 'envoi refusé (' + x.status + ')')));
+      x.onerror = () => ko(new Error('connexion coupée pendant l\'envoi'));
+      x.send(fichier);
+    });
   }
 
   /* ── l'équipe ── */
@@ -1143,6 +1260,31 @@
 
   /* ── les formulaires ── */
   const FORMS = {
+    async message(f, btn) {
+      const c = S.conv;
+      const ta = $('textarea[name="texte"]', f);
+      const texte = String(ta.value || '').trim();
+      const fichiers = c.pieces.slice();
+      if (!texte && !fichiers.length) { ta.focus(); return; }
+      if (c.envoi) return;
+      btn.disabled = true;
+      try {
+        const pieces = [];
+        for (let i = 0; i < fichiers.length; i++) {
+          const fi = fichiers[i], type = typeFichier(fi);
+          c.envoi = 'Envoi de ' + fi.name + (fichiers.length > 1 ? ' (' + (i + 1) + ' sur ' + fichiers.length + ')' : '');
+          c.progres = 0; majConv(true);
+          const r = await agir('message_envoi', { nom: fi.name, type, taille: fi.size });
+          await televerser(r.url, fi, r.type, (x) => { c.progres = x; const b = $('.barre-envoi i'); if (b) b.style.width = Math.round(x * 100) + '%'; });
+          pieces.push({ chemin: r.chemin, nom: fi.name, type: r.type, taille: fi.size });
+        }
+        const d = await agir('message', { texte, pieces });
+        c.envoi = null; c.pieces = []; ta.value = ''; ta.style.height = '';
+        const p = $('#conv-pieces'); if (p) p.innerHTML = '';
+        recevoir({ messages: [d.message], non_lus: S.moi.messages_non_lus, vu_jusqua: c.vu }, true);
+      } catch (e) { c.envoi = null; majConv(); toast(e.message, 'err'); }
+      finally { btn.disabled = false; }
+    },
     async connexion(f, btn) {
       const d = lireForm(f);
       await occupe(btn, async () => { await agir('connexion', d); const e = await lire('etat'); S.moi = e.moi; S.videos = null; S.statuts = null; S.fil = []; location.hash = '#accueil'; rendre(); });
@@ -1340,6 +1482,10 @@
         : { titre: 'Continuer avec la voix gratuite ?', texte: 'Cette vidéo part au montage sans passer par fal : la voix gratuite de chaque langue, et le fond animé là où aucune vidéo ne colle.', ok: 'Continuer' }))) return;
       await occupe(b, async () => { const r = await agir('sans_ia', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); });
     },
+    retirerPiece(b) { S.conv.pieces.splice(Number(b.dataset.i), 1); const p = $('#conv-pieces'); if (p) p.innerHTML = piecesChoisiesHtml(); },
+    async envoyerALouis(b) {
+      await occupe(b, async () => { await agir('message', { video: { id: S.video.id, langue: b.dataset.l } }); toast('Envoyée à Louis : il la voit dans vos messages.', 'ok'); });
+    },
     // écouter une voix naturelle : une phrase dans sa langue principale, sur sa clé fal ; le lecteur reste sous les voix
     async ecouterVoix(b) {
       const voix = b.dataset.voix;
@@ -1384,8 +1530,23 @@
     FORMS[f.dataset.form](f, $('button[type="submit"]', f) || e.submitter);
   });
   // l'aperçu en direct : un prénom ou une couleur d'équipe, le budget, une couleur, le modèle choisi, la recherche de langue
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.name !== 'fichiers' || !t.closest('[data-form="message"]')) return;
+    const trop = Array.from(t.files || []).filter((f) => f.size > 200 * 1048576);
+    if (trop.length) toast(trop.map((f) => f.name).join(', ') + ' : trop lourd (200 Mo au plus).', 'err');
+    S.conv.pieces = S.conv.pieces.concat(Array.from(t.files || []).filter((f) => f.size <= 200 * 1048576)).slice(0, 6);
+    t.value = '';
+    const p = $('#conv-pieces'); if (p) p.innerHTML = piecesChoisiesHtml();
+  });
+  document.addEventListener('keydown', (e) => {
+    // Entrée envoie sur ordinateur, Maj + Entrée va à la ligne ; sur téléphone, Entrée va à la ligne
+    const t = e.target;
+    if (e.key === 'Enter' && !e.shiftKey && t.name === 'texte' && t.closest('[data-form="message"]') && matchMedia('(hover: hover) and (pointer: fine)').matches) { e.preventDefault(); t.form.requestSubmit(); }
+  });
   document.addEventListener('input', (e) => {
     const t = e.target;
+    if (t.name === 'texte' && t.closest('[data-form="message"]')) { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
     if (t.dataset && t.dataset.apercu) {
       const carte = t.closest('.membre-carte');
       const av = carte && $('.agent', carte);
@@ -1411,6 +1572,7 @@
   // la nuit tombe (ou le jour se lève) pendant qu'elle est là
   setInterval(() => { if (!S.moi || (S.moi.reglages.theme.mode || 'auto') !== 'auto') return; const avant = document.documentElement.dataset.theme; appliquerTheme(); if (document.documentElement.dataset.theme !== avant) { majVille(); const b = $('.barre'); if (b) b.outerHTML = barreHtml(route().vue); } }, 60000);
 
+  setInterval(verifierMessages, 20000);
   async function demarrer() {
     try { const d = await lire('etat'); S.cat = d.catalogue; S.moi = d.moi; }
     catch (e) { $('#app').innerHTML = '<div class="porte"><div class="porte-c verre"><h1>Le studio ne répond pas</h1><p class="sous">' + h(e.message) + '</p><button class="btn" data-a="recharger">Réessayer</button></div></div>'; return; }

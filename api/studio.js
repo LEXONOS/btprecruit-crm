@@ -13,6 +13,7 @@ const F = require('../lib/createurs/fabrication');
 const P = require('../lib/createurs/publication');
 const IM = require('../lib/createurs/images');
 const VX = require('../lib/createurs/voix');
+const MSG = require('../lib/createurs/messages');
 const CH = require('../lib/createurs/chaine');
 const B = require('../lib/createurs/bible');
 const G = require('../lib/studio/github');
@@ -61,13 +62,16 @@ async function vueVideo(db, v) {
 async function lecture(req, res, db, q) {
   if (q.op === 'etat') {
     const s = await AC.session(req, db).catch(() => ({ ok: false }));
-    return json(res, 200, { connecte: !!s.ok, moi: s.ok ? C.moi(s.createur) : null, catalogue: catalogue() });
+    return json(res, 200, { connecte: !!s.ok, moi: s.ok ? C.moi(s.createur, { messages_non_lus: await MSG.nonLus(db, s.createur.id, 'createur') }) : null, catalogue: catalogue() });
   }
   if (q.op === 'invitation') return AC.lireInvitation(req, res, db, q.code);
   const s = await AC.exiger(req, res, db);
   if (!s) return;
   const c = s.createur;
-  if (q.op === 'moi') return json(res, 200, { moi: C.moi(c) });
+  if (q.op === 'moi') return json(res, 200, { moi: C.moi(c, { messages_non_lus: await MSG.nonLus(db, c.id, 'createur') }) });
+  // la messagerie avec Louis : la conversation (ouverte : ses messages passent en lus), ou juste le compteur
+  if (q.op === 'messages') { const r = await MSG.lister(db, c.id, 'createur', { apres: q.apres, lire: q.lire === '1' }); return json(res, r.code, r); }
+  if (q.op === 'messages_etat') return json(res, 200, { non_lus: await MSG.nonLus(db, c.id, 'createur') });
   if (q.op === 'videos') {
     const liste = await db.select('hq_crea_videos', { eq: { createur_id: c.id }, order: ['created_at.desc'], limit: 80, select: 'id,createur_id,status,titre,sujet,langue_source,langues,cout_usd,auto,etape,rendus,critique,accroche:script->>accroche,created_at,updated_at' });
     // les vignettes des vidéos montées (une seule demande de liens pour toute la liste)
@@ -124,6 +128,9 @@ async function action(req, res, db, b) {
     c = await majCreateur(db, c, { secrets }, ['Clé fal branchée', 'se termine par ' + r.cle.slice(-4)]);
     return json(res, 200, { ok: true, avertissement: r.avertissement || null, moi: C.moi(c) });
   }
+  // la messagerie avec Louis : préparer l'envoi d'un fichier (un lien signé), puis le message
+  if (op === 'message_envoi') { const r = await MSG.preparerEnvoi(c.id, b); return json(res, r.code, r.code === 200 ? { ok: true, chemin: r.chemin, url: r.url, type: r.type } : { erreur: r.erreur }); }
+  if (op === 'message') { const r = await MSG.envoyer(db, c, 'createur', b); return json(res, r.code, r.code === 200 ? { ok: true, message: r.message } : { erreur: r.erreur }); }
   // écouter une voix naturelle avant de la choisir : une phrase dans la langue demandée, sur sa clé fal
   if (op === 'ecouter_voix') {
     const r = await VX.ecouter(db, c, String(b.voix || ''), String(b.langue || ''));
