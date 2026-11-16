@@ -47,6 +47,9 @@ export const SOURCE = { domaines: 'nouveau domaine', maps: 'Google Maps', regist
 
 /* ── icônes (trait 1,8, coins arrondis) ── */
 const P = {
+  message: '<path d="M20 12.5a7.5 7.5 0 0 1-11 6.6L4 20l1.1-4.4A7.5 7.5 0 1 1 20 12.5z"/>',
+  trombone: '<path d="M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+  envoyer: '<path d="M4.5 12L20 4.5 16 20l-3.6-6.4z"/><path d="M12.4 13.6L20 4.5"/>',
   studio: '<rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3"/><path d="M8 10l3.5 2L8 14z"/>',
   ville: '<path d="M3 21h18M5 21V10l5-3v14M10 21V4l9 4v13"/><path d="M13 10h3M13 13h3M13 16h3"/>',
   gestion: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 13h3M8 16h6"/>',
