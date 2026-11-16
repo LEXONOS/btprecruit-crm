@@ -37,10 +37,13 @@ const longueur = (s) => Array.from(String(s || '')).length;
 const HOTES = /^(videos\.pexels\.com|player\.vimeo\.com|cdn\.pixabay\.com)$/;
 const FAL = /(^|\.)fal\.media$/;
 const REDIRECTIONS = /\.(pexels\.com|vimeocdn\.com|akamaized\.net|pixabay\.com)$/;
+// la musique qu'une créatrice a envoyée pour son clip : un lien de lecture signé de l'espace « studio » de la tour
+const STOCKAGE = /^[a-z0-9]{20}\.supabase\.co$/;
 function adresseAutorisee(u, apresRedirection) {
   if (!u || u.protocol !== 'https:') return false;
   if (HOTES.test(u.hostname) || FAL.test(u.hostname)) return true;
   if (u.hostname === 'storage.googleapis.com' && /^\/falserverless\//.test(u.pathname)) return true;
+  if (STOCKAGE.test(u.hostname) && /^\/storage\/v1\/object\/sign\/studio\/crea\/\d+\/sons\//.test(u.pathname)) return true;
   return !!apresRedirection && REDIRECTIONS.test(u.hostname);
 }
 const MAX_CLIP = 80 * 1048576;
@@ -377,12 +380,17 @@ async function monter(cmd, sortie) {
 }
 
 /* ── 5. avec la tour ── */
+// une vidéo racontée (voix, images, sous-titres) ou un clip (des plans filmés montés sur le rythme, usine/clip.js)
+function monterCommande(cmd, sortie, local) {
+  if (cmd.genre === 'clip') return require('./clip').monter(cmd, sortie, { telecharger, local });
+  return monter(cmd, sortie);
+}
 async function principal() {
   const langue = arg('langue', 'fr');
   if (arg('fichier')) {
     const cmd = JSON.parse(fs.readFileSync(arg('fichier'), 'utf8'));
     cmd.langue = cmd.langue || langue;
-    const r = await monter(cmd, arg('sortie', path.join(os.tmpdir(), 'montage-' + cmd.langue)));
+    const r = await monterCommande(cmd, arg('sortie', path.join(os.tmpdir(), 'montage-' + cmd.langue)), true);
     console.log(JSON.stringify(r, null, 1));
     return;
   }
@@ -391,12 +399,12 @@ async function principal() {
   const cmd = await tour('montage', { video, langue }, 'GET');
   const sortie = path.join(os.tmpdir(), 'montage-' + video + '-' + langue);
   let r;
-  try { r = await monter(cmd, sortie); }
+  try { r = await monterCommande(cmd, sortie, false); }
   catch (e) {
     await tour('montage_fini', { video, langue, ok: false, erreur: String(e.message || e).slice(0, 900), jeton: cmd.jeton }).catch(() => null);
     throw e;
   }
-  const fichiers = [['video.mp4', r.video, 'video/mp4'], ['vignette.jpg', r.vignette, 'image/jpeg'], ['sous-titres.srt', r.srt, 'application/x-subrip']];
+  const fichiers = [['video.mp4', r.video, 'video/mp4'], ['vignette.jpg', r.vignette, 'image/jpeg']].concat(r.srt ? [['sous-titres.srt', r.srt, 'application/x-subrip']] : []);
   const urls = await tour('montage_televerser', { video, langue, jeton: cmd.jeton, fichiers: fichiers.map((f) => ({ nom: f[0], type: f[2], taille: fs.statSync(f[1]).size })) });
   for (const f of fichiers) { const u = (urls.urls || {})[f[0]]; if (!u) throw new Error('pas d\'adresse d\'envoi pour ' + f[0]); await televerser(u, f[1], f[2]); }
   await tour('montage_fini', { video, langue, ok: true, jeton: cmd.jeton, duree: r.duree, taille: r.taille, secondes: r.secondes, fichiers: fichiers.map((f) => f[0]), avertissements: r.avertissements });
@@ -405,4 +413,4 @@ async function principal() {
 
 if (require.main === module) principal().catch((e) => { console.error('[montage] échec :', e.message || e); process.exit(1); });
 
-module.exports = { monter, sousTitres, fenetres, couper, ass, hex, HOTES, adresseAutorisee, kenBurns, morceau, policeDe };
+module.exports = { monter, monterCommande, sousTitres, fenetres, couper, ass, hex, HOTES, adresseAutorisee, telecharger, kenBurns, morceau, policeDe };

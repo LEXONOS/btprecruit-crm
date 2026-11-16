@@ -14,6 +14,7 @@ const P = require('../lib/createurs/publication');
 const IM = require('../lib/createurs/images');
 const VX = require('../lib/createurs/voix');
 const MSG = require('../lib/createurs/messages');
+const CLIP = require('../lib/createurs/clip');
 const CH = require('../lib/createurs/chaine');
 const B = require('../lib/createurs/bible');
 const G = require('../lib/studio/github');
@@ -41,6 +42,9 @@ function catalogue() {
     // les voix naturelles (ElevenLabs, sur sa clé fal) : les voix, le prix des 1 000 caractères, le coût à peu près d'une
     // vidéo par langue
     voix_ia: { voix: C.VOIX_IA, modele: FAL.MODELES.voix.nom, mille: FAL.MODELES.voix.mille, couts: { court: C.coutVoix('court', 1), long: C.coutVoix('long', 1) } },
+    // les clips (son prompt de réalisateur) : les qualités et leurs modèles, le prix de chaque morceau, les styles de
+    // montage, les formats, les sources de musique
+    clip: CLIP.catalogue(),
     images: IM.branche(), usine: G.branche(), coffre: SEC.disponible()
   };
 }
@@ -56,7 +60,10 @@ function hote(req) { return String((req.headers && (req.headers['x-forwarded-hos
 async function maVideo(db, c, id) { return okId(id) ? db.one('hq_crea_videos', { eq: { id: Number(id), createur_id: c.id } }) : null; }
 async function vueVideo(db, v) {
   const avecFichiers = Object.values(v.rendus || {}).some((r) => r && r.etat === 'fini');
-  return C.videoPublique(v, avecFichiers ? await F.liens(v, true).catch(() => ({})) : undefined);
+  const out = C.videoPublique(v, avecFichiers ? await F.liens(v, true).catch(() => ({})) : undefined);
+  // un clip : ce qu'il reste à payer pour le finir (le prix affiché sur « Tourner le clip »)
+  if (CLIP.estClip(v) && out.plan.clip) out.plan.clip.a_payer = CLIP.aPayer(v);
+  return out;
 }
 
 async function lecture(req, res, db, q) {
@@ -73,7 +80,7 @@ async function lecture(req, res, db, q) {
   if (q.op === 'messages') { const r = await MSG.lister(db, c.id, 'createur', { apres: q.apres, lire: q.lire === '1' }); return json(res, r.code, r); }
   if (q.op === 'messages_etat') return json(res, 200, { non_lus: await MSG.nonLus(db, c.id, 'createur') });
   if (q.op === 'videos') {
-    const liste = await db.select('hq_crea_videos', { eq: { createur_id: c.id }, order: ['created_at.desc'], limit: 80, select: 'id,createur_id,status,titre,sujet,langue_source,langues,cout_usd,auto,etape,rendus,critique,accroche:script->>accroche,created_at,updated_at' });
+    const liste = await db.select('hq_crea_videos', { eq: { createur_id: c.id }, order: ['created_at.desc'], limit: 80, select: 'id,createur_id,status,titre,sujet,langue_source,langues,cout_usd,auto,etape,rendus,critique,accroche:script->>accroche,genre:plan->>genre,created_at,updated_at' });
     // les vignettes des vidéos montées (une seule demande de liens pour toute la liste)
     const chemins = {};
     liste.forEach((v) => { const r = v.rendus || {}; const l = r[v.langue_source] && r[v.langue_source].etat === 'fini' ? v.langue_source : Object.keys(r).find((x) => r[x] && r[x].etat === 'fini'); if (l) chemins[v.id] = ST.cheminCrea(c.id, v.id, l, 'vignette.jpg'); });
@@ -180,9 +187,13 @@ async function action(req, res, db, b) {
     c = await majCreateur(db, c, { idees: (c.idees || []).filter((x) => x.id !== String(b.id || '')) });
     return json(res, 200, { ok: true, moi: C.moi(c) });
   }
+  // un clip : préparer l'envoi de sa musique (un lien signé, le fichier va droit dans le stockage)
+  if (op === 'clip_son_envoi') { const r = await CLIP.preparerSon(c.id, b); return json(res, r.code, r.code === 200 ? { ok: true, chemin: r.chemin, url: r.url, type: r.type } : { erreur: r.erreur }); }
   if (op === 'creer') {
     const idee = b.idee_id ? (c.idees || []).find((x) => x.id === String(b.idee_id)) : null;
-    const r = await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, ia: b.ia, modele: b.modele });
+    const r = b.genre === 'clip'
+      ? await CH.creer(db, c, { genre: 'clip', prompt: b.prompt, format: b.format, qualite: b.qualite, montage: b.montage, bruitages: b.bruitages, valider: b.valider, duree: b.duree, musique: b.musique })
+      : await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, ia: b.ia, modele: b.modele });
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
     return json(res, 200, { ok: true, video: await vueVideo(db, r.video) });
   }
@@ -196,14 +207,19 @@ async function action(req, res, db, b) {
     const f = r.video || await maVideo(db, c, v.id);
     return json(res, 200, { ok: true, fait: r.fait || null, erreur: r.erreur || null, occupe: !!r.occupe, video: f ? await vueVideo(db, f) : null });
   }
-  if (op === 'valider') r = await CH.valider(db, c, v.id);
+  if (op === 'valider') r = await CH.valider(db, c, v.id, b.accepte);
   else if (op === 'reecrire') r = await CH.reecrire(db, c, v.id, b.consigne);
   else if (op === 'modifier') r = await CH.modifier(db, c, v.id, { script: b.script, langue: b.langue, texte: b.texte });
   else if (op === 'publier') r = await CH.publier(db, c, v.id, b.choix || null);
   else if (op === 'marquer_publiee') r = await CH.marquerPubliee(db, c, v.id, String(b.langue || ''), String(b.plateforme || ''), b.lien);
   else if (op === 'reprendre') r = await CH.reprendre(db, c, v.id);
-  else if (op === 'refaire') r = await CH.refaireMontage(db, c, v.id);
+  else if (op === 'refaire') r = await CH.refaireMontage(db, c, v.id, { montage: b.montage, musique: b.musique, bruitages: b.bruitages });
   else if (op === 'sans_ia') r = await CH.sansIa(db, c, v.id);
+  // un clip en validation : retoucher un plan (refaire son image, l'enlever), refaire un personnage ; accepter plus de
+  // budget quand le clip l'a atteint
+  else if (op === 'clip_plan') r = await CLIP.modifierPlan(db, c, v.id, { i: b.i, image: b.image, mouvement: b.mouvement, son: b.son, duree: b.duree, effet: b.effet, refaire: !!b.refaire, consigne: b.consigne, retirer: !!b.retirer });
+  else if (op === 'clip_reference') r = await CLIP.refaireReference(db, c, v.id, String(b.element || ''), b.consigne);
+  else if (op === 'clip_budget') r = await CLIP.accepterBudget(db, c, v.id, b.accepte);
   else if (op === 'archiver') {
     if (C.AUTOMATIQUES.indexOf(v.status) >= 0 && v.status !== 'fabrication') return json(res, 400, { erreur: 'attends que l\'équipe finisse l\'étape en cours' });
     await db.update('hq_crea_videos', { status: 'archivee', etape: {}, updated_at: iso() }, { eq: { id: v.id } });
