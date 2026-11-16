@@ -11,7 +11,9 @@
   const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
   const S = {
     moi: null, cat: null, videos: null, filtre: 'tout', video: null, sigCorps: '', onglet: {}, partage: {}, mayaCherche: false, boucle: 0, chargement: false,
-    ville: null, villeEssai: false, fil: [], filOuvert: false, salutReplie: false, menu: false, fiche: null, evenement: null, modele: '', visite: null, statuts: null, badgesVus: null
+    ville: null, villeEssai: false, fil: [], filOuvert: false, salutReplie: false, menu: false, fiche: null, evenement: null, modele: '', visite: null, statuts: null, badgesVus: null,
+    // le compte de Louis : ses conversations avec les créatrices (prénoms, messages non lus, leurs langues)
+    dest: null, destEnCours: false, destErreur: null
   };
 
   /* ── petits outils ── */
@@ -110,6 +112,28 @@
       f.addEventListener('click', (e) => { const b = e.target.closest('[data-r]'); if (!b) return; if (b.dataset.r === '0') return fin(null); const t = $('textarea', f); fin(t ? (t.value.trim() || '') : true); });
     });
   }
+  // une fenêtre avec un petit formulaire (des cases à cocher, un mot) : rend ce qui a été choisi, ou null si elle annule ;
+  // « verifier » dit ce qui manque avant de fermer
+  function fenetreForm(o) {
+    return new Promise((ok) => {
+      const voile = document.createElement('div'); voile.className = 'voile';
+      const f = document.createElement('form'); f.className = 'fenetre fenetre-form'; f.setAttribute('role', 'dialog'); f.setAttribute('aria-modal', 'true'); f.setAttribute('aria-label', o.titre); f.noValidate = true;
+      f.innerHTML = '<h2>' + h(o.titre) + '</h2>' + (o.texte ? '<p>' + h(o.texte) + '</p>' : '') + o.corps +
+        '<div class="actions fin"><button type="button" class="btn discret" data-r="0">Annuler</button><button type="submit" class="btn">' + h(o.ok || 'Confirmer') + '</button></div>';
+      document.body.append(voile, f);
+      requestAnimationFrame(() => { voile.classList.add('visible'); f.classList.add('visible'); const x = $('input:checked', f) || $('input, textarea', f); if (x) x.focus(); });
+      let finie = false;
+      const fin = (v) => { if (finie) return; finie = true; voile.classList.remove('visible'); f.classList.remove('visible'); setTimeout(() => { voile.remove(); f.remove(); }, 220); document.removeEventListener('keydown', cl); window.removeEventListener('hashchange', partie); ok(v); };
+      const cl = (e) => { if (e.key === 'Escape') fin(null); };
+      // la page change sous la fenêtre (le bouton retour du téléphone) : elle se ferme
+      const partie = () => fin(null);
+      document.addEventListener('keydown', cl);
+      window.addEventListener('hashchange', partie);
+      voile.addEventListener('click', () => fin(null));
+      f.addEventListener('click', (e) => { if (e.target.closest('[data-r="0"]')) fin(null); });
+      f.addEventListener('submit', (e) => { e.preventDefault(); const d = lireForm(f); const manque = o.verifier ? o.verifier(d) : null; if (manque) { toast(manque, 'err'); return; } fin(d); });
+    });
+  }
   async function occupe(btn, fn) {
     if (btn) { btn.classList.add('occupe'); btn.disabled = true; }
     try { return await fn(); } catch (e) { toast(e.message || String(e), 'err'); return null; }
@@ -197,10 +221,11 @@
       '<button class="icone-barre" data-a="basculerNuit" title="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '" aria-label="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '">' + ico(estNuit() ? 'jour' : 'nuit') + '</button>' +
       '<div class="compte"><button class="icone-barre" data-a="menu" aria-label="Mon compte" aria-expanded="' + S.menu + '">' + ico('personne') + '</button>' + (S.menu ? menuHtml() : '') + '</div></div></header>';
   }
-  // l'icône des messages de Louis, avec ce qu'il reste à lire
+  // l'icône des messages (avec Louis ; pour le compte de Louis, avec les créatrices), avec ce qu'il reste à lire
   function boutonMessages(vue) {
     const n = S.moi.messages_non_lus || 0;
-    return '<a class="icone-barre messages' + (vue === 'messages' ? ' on' : '') + '" id="b-messages" href="#messages" title="Messages avec Louis" aria-label="Messages avec Louis' + (n ? ', ' + n + ' non lu' + (n > 1 ? 's' : '') : '') + '">' + ico('message') + (n ? '<span class="compteur">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</a>';
+    const titre = S.moi.louis ? 'Tes messages avec les créatrices' : 'Messages avec Louis';
+    return '<a class="icone-barre messages' + (vue === 'messages' ? ' on' : '') + '" id="b-messages" href="#messages" title="' + titre + '" aria-label="' + titre + (n ? ', ' + n + ' non lu' + (n > 1 ? 's' : '') : '') + '">' + ico('message') + (n ? '<span class="compteur">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</a>';
   }
   function majBoutonMessages() { const b = $('#b-messages'); if (b) b.outerHTML = boutonMessages(route().vue); }
   function menuHtml() {
@@ -228,7 +253,7 @@
       else if (r.vue === 'videos') c = vueVideos();
       else if (r.vue === 'video') c = vueVideo(r.arg);
       else if (r.vue === 'equipe') c = vueEquipe();
-      else if (r.vue === 'messages') c = vueMessages();
+      else if (r.vue === 'messages') c = vueMessages(r.arg);
       else c = vueReglages(r.arg || 'chaine');
       corps = '<div class="gestion"><main id="contenu" class="contenu' + (r.vue === 'videos' ? ' large' : r.vue === 'messages' ? ' conv-page' : '') + '">' + c + '</main></div>';
     }
@@ -241,7 +266,9 @@
     if (r.vue === 'reglages') { const a = $('.reglages-nav a.on'); if (a && a.scrollIntoView) a.scrollIntoView({ inline: 'center', block: 'nearest' }); }
     if ((r.vue === 'accueil' || r.vue === 'videos' || r.vue === 'equipe') && !S.chargement) chargerVideos();
     if (r.vue === 'video') { if (!S.video || String(S.video.id) !== String(r.arg)) chargerVideo(r.arg); else { centrerBande(); suivre(r.arg); } }
-    if (r.vue === 'messages') ouvrirMessages();
+    // le compte de Louis : ses conversations, chargées une fois (sa messagerie et le bouton « Envoyer à » en ont besoin)
+    if (S.moi.louis && !S.dest && !S.destEnCours && !S.destErreur) chargerDest(true).then(() => { if (route().vue === 'messages' && S.dest) rendre(); });
+    if (r.vue === 'messages' && (!S.moi.louis || S.dest)) ouvrirMessages();
     if (r.vue === 'accueil' && !S.moi.reglages.visite_faite && !S.visite && !memoire.lire('visite-passee-' + S.moi.identifiant, false)) ouvrirVisite(0);
   }
   async function chargerVideos(silencieux) {
@@ -1018,7 +1045,8 @@
       '<div class="actions">' + (f.telecharger ? '<a class="btn" href="' + h(f.telecharger) + '" download>' + ico('telecharger') + 'Télécharger</a>' : '') +
       (peutPartager ? '<button class="btn second" data-a="partager" data-l="' + l + '">' + ico('partager') + (pret ? 'Partager maintenant' : 'Partager') + '</button>' : '') +
       '<button class="btn second" data-a="copierTexte" data-l="' + l + '">' + ico('copier') + 'Copier le texte</button>' +
-      '<button class="btn second" data-a="envoyerALouis" data-l="' + l + '">' + ico('message') + 'Envoyer à Louis</button></div>' +
+      (S.moi.louis ? '<button class="btn second" id="b-envoyer" data-a="envoyerVideo" data-l="' + l + '">' + ico('envoyer') + h(libelleEnvoyer()) + '</button>'
+        : '<button class="btn second" data-a="envoyerALouis" data-l="' + l + '">' + ico('message') + 'Envoyer à Louis</button>') + '</div>' +
       '<p class="doux petit" style="margin-top:10px">' + (((v.rendus || {})[l] || {}).duree ? Math.round(v.rendus[l].duree) + ' secondes. ' : '') + 'Disponible jusqu\'au ' + h(dateCourte(v.garde_jusqu)) + '.</p>' +
       '<form data-form="texte" data-l="' + l + '" style="margin-top:18px"><label class="champ"><span>Titre (TikTok, Instagram)</span><input type="text" name="titre" maxlength="100" value="' + h(t.titre) + '"></label>' +
       '<label class="champ"><span>Titre YouTube</span><input type="text" name="titre_youtube" maxlength="95" value="' + h(t.titre_youtube) + '"></label>' +
@@ -1234,19 +1262,72 @@
     }
   }
 
-  /* ── les messages avec Louis ── */
+  /* ── les messages : une créatrice avec Louis ; le compte de Louis avec chaque créatrice ── */
   // une conversation : le direct (la page regarde toutes les 3 secondes), les fichiers envoyés droit dans le stockage
   const TYPES_EXT = { mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v', webm: 'video/webm', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', pdf: 'application/pdf' };
   const typeFichier = (f) => f.type || TYPES_EXT[String(f.name || '').split('.').pop().toLowerCase()] || '';
   const tailleLisible = (o) => (o >= 1048576 ? (o / 1048576).toFixed(o >= 10485760 ? 0 : 1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(o / 1024)) + ' Ko');
-  function vueMessages() {
+  const moiAuteur = () => (S.moi.louis ? 'louis' : 'createur');
+  const listeNoms = (n) => (n.length > 1 ? n.slice(0, -1).join(', ') + ' et ' + n[n.length - 1] : (n[0] || ''));
+  // la saisie : joindre des fichiers, écrire, envoyer
+  function saisieHtml(invite) {
+    return '<form class="conv-saisie" data-form="message" autocomplete="off"><div class="conv-pieces" id="conv-pieces">' + piecesChoisiesHtml() + '</div>' +
+      '<div class="conv-ligne"><label class="conv-joindre" title="Joindre une vidéo, une photo, un son"><input type="file" name="fichiers" accept="video/*,image/*,audio/*,application/pdf" multiple aria-label="Joindre des fichiers">' + ico('trombone') + '</label>' +
+      '<textarea name="texte" rows="1" maxlength="4000" placeholder="' + h(invite) + '" aria-label="Ton message"></textarea>' +
+      '<button class="conv-envoyer" type="submit" aria-label="Envoyer">' + ico('envoyer') + '</button></div></form>';
+  }
+  function vueMessages(arg) {
+    if (S.moi.louis) return vueMessagesLouis(arg);
     S.conv = S.conv || { messages: [], dernier: 0, vu: 0, pieces: [], charge: false };
     return '<section class="conv"><header class="conv-tete"><span class="agent" style="--c:#2B59E8">L</span><div><b>Louis</b><small>Écris-lui ici, envoie-lui tes vidéos : il te répond depuis la tour.</small></div></header>' +
-      '<div class="conv-fil" id="conv-fil" aria-live="polite">' + filMessagesHtml() + '</div>' +
-      '<form class="conv-saisie" data-form="message" autocomplete="off"><div class="conv-pieces" id="conv-pieces">' + piecesChoisiesHtml() + '</div>' +
-      '<div class="conv-ligne"><label class="conv-joindre" title="Joindre une vidéo, une photo, un son"><input type="file" name="fichiers" accept="video/*,image/*,audio/*,application/pdf" multiple aria-label="Joindre des fichiers">' + ico('trombone') + '</label>' +
-      '<textarea name="texte" rows="1" maxlength="4000" placeholder="Écris à Louis" aria-label="Ton message"></textarea>' +
-      '<button class="conv-envoyer" type="submit" aria-label="Envoyer">' + ico('envoyer') + '</button></div></form></section>';
+      '<div class="conv-fil" id="conv-fil" aria-live="polite">' + filMessagesHtml() + '</div>' + saisieHtml('Écris à Louis') + '</section>';
+  }
+  // le compte de Louis : une conversation par créatrice, leurs prénoms en haut pour passer de l'une à l'autre (à
+  // l'ouverture : celle qui lui a écrit, sinon la dernière à qui il a parlé)
+  const parDernier = (a, b) => ((b.dernier && b.dernier.id) || 0) - ((a.dernier && a.dernier.id) || 0);
+  function convChoisie(arg) {
+    const d = S.dest || [];
+    return d.find((x) => String(x.id) === String(arg)) || d.filter((x) => x.non_lus).sort(parDernier)[0] || d.slice().sort(parDernier)[0] || null;
+  }
+  const couleurDe = (x) => NUANCES[(Number(x.id) * 5) % NUANCES.length];
+  function quiHtml(id) {
+    if (!S.dest || S.dest.length < 2) return '';
+    return '<nav class="conv-qui" id="conv-qui" aria-label="Tes conversations">' + S.dest.map((x) => '<a href="#messages/' + x.id + '" class="' + (x.id === id ? 'on' : '') + '"' + (x.id === id ? ' aria-current="page"' : '') + '>' + h(x.prenom) +
+      (x.non_lus && x.id !== id ? '<b aria-label="' + x.non_lus + ' non lu' + (x.non_lus > 1 ? 's' : '') + '">' + (x.non_lus > 9 ? '9+' : x.non_lus) + '</b>' : '') + '</a>').join('') + '</nav>';
+  }
+  function majQui() { const q = $('#conv-qui'); if (q && S.conv) q.outerHTML = quiHtml(S.conv.avec); }
+  function vueMessagesLouis(arg) {
+    if (!S.dest) return '<section class="conv"><div class="conv-vide">' + (S.destErreur ? '<b>Tes conversations ne se chargent pas</b>' + h(S.destErreur) + '<div class="actions" style="justify-content:center;margin-top:12px"><button class="btn second petit" data-a="rechargerDest">Réessayer</button></div>' : 'Un instant…') + '</div></section>';
+    const x = convChoisie(arg);
+    if (!x) return '<section class="conv"><div class="conv-vide"><b>Pas encore de créatrice</b>Crée leurs comptes dans la tour (Gestion, Studio, Les créatrices) : vos conversations arrivent ici.</div></section>';
+    if (!S.conv || S.conv.avec !== x.id) S.conv = { avec: x.id, prenom: x.prenom, messages: [], dernier: 0, vu: 0, pieces: [], charge: false };
+    return '<section class="conv"><header class="conv-tete"><span class="agent" style="--c:' + couleurDe(x) + '">' + initiale(x.prenom) + '</span><div><b>' + h(x.prenom) + '</b><small>' +
+      (x.statut === 'invitee' ? 'Invitation pas encore ouverte : tes messages l\'attendent.' : 'Tes messages arrivent dans son studio. Tes vidéos partent de leur page, avec « Envoyer à ».') + '</small></div></header>' + quiHtml(x.id) +
+      '<div class="conv-fil" id="conv-fil" aria-live="polite">' + filMessagesHtml() + '</div>' + saisieHtml('Écris à ' + x.prenom) + '</section>';
+  }
+  // ses conversations, et son compteur : ce que les créatrices lui ont écrit, sauf la conversation ouverte
+  async function chargerDest(silencieux) {
+    if (!S.moi || !S.moi.louis) return;
+    S.destEnCours = true;
+    try {
+      const d = await lire('conversations');
+      S.dest = d.conversations || []; S.destErreur = null;
+      compterLouis(); majQui();
+      const b = $('#b-envoyer'); if (b) b.lastChild.textContent = libelleEnvoyer();
+    } catch (e) { S.destErreur = e.message; if (!silencieux) toast(e.message, 'err'); }
+    finally { S.destEnCours = false; }
+  }
+  function compterLouis() {
+    const ouverte = route().vue === 'messages' && S.conv ? S.conv.avec : null;
+    const avant = S.moi.messages_non_lus || 0;
+    S.moi.messages_non_lus = (S.dest || []).reduce((s, x) => s + (x.id === ouverte ? 0 : (x.non_lus || 0)), 0);
+    if (S.moi.messages_non_lus !== avant) majBoutonMessages();
+  }
+  // le bouton sous une de ses vidéos prêtes : les prénoms des créatrices dès que la liste est là
+  function libelleEnvoyer() {
+    const noms = (S.dest || []).filter((x) => x.statut === 'active').map((x) => x.prenom);
+    if (!noms.length) return 'Envoyer à une créatrice';
+    return 'Envoyer à ' + (noms.length <= 2 ? noms.join(' ou ') : noms.slice(0, 2).join(', ') + '…');
   }
   function jourDe(iso) {
     const d = new Date(iso), a = new Date(), hier = new Date(Date.now() - 86400000);
@@ -1258,23 +1339,43 @@
   const avecLiens = (t) => t.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   function pieceHtml(p) {
     if (p.expire || !p.url) return '<div class="piece expiree">' + h(p.nom || p.titre || 'Fichier') + ' : ' + (p.genre === 'studio' ? 'la vidéo n\'est plus disponible' : 'effacé après 60 jours') + '</div>';
-    if (p.genre === 'studio') return '<div class="piece studio"><video controls playsinline preload="none"' + (p.vignette ? ' poster="' + h(p.vignette) + '"' : '') + ' src="' + h(p.url) + '"></video><small>Vidéo du studio : ' + h(sansEtoiles(p.titre || '')) + ' (' + h(nomLangue(p.langue)) + ')</small></div>';
+    if (p.genre === 'studio') {
+      // sa vidéo envoyée à Louis, ou une vidéo du studio de Louis (reçue par elle ; « ta vidéo » dans le compte de Louis)
+      const deLouis = p.de === 'louis';
+      const qui = !deLouis ? 'Vidéo du studio' : S.moi.louis ? 'Ta vidéo' : 'Vidéo de Louis';
+      return '<div class="piece studio"><video controls playsinline preload="none" style="' + ({ '16:9': 'aspect-ratio:16 / 9', '1:1': 'aspect-ratio:1 / 1' }[p.format] || 'aspect-ratio:9 / 16;width:236px') + '"' + (p.vignette ? ' poster="' + h(p.vignette) + '"' : '') + ' src="' + h(p.url) + '"></video><small>' + qui + ' : ' + h(sansEtoiles(p.titre || '')) + ' (' + h(nomLangue(p.langue)) + (p.duree ? ', ' + p.duree + ' s' : '') + ')</small>' +
+        (deLouis && !S.moi.louis ? actionsRecueHtml(p) : '') + '</div>';
+    }
     if (p.genre === 'video') return '<div class="piece"><video controls playsinline preload="metadata" src="' + h(p.url) + '"></video><a class="piece-nom" href="' + h(p.url) + '" target="_blank" rel="noopener noreferrer">' + h(p.nom) + (p.taille ? ', ' + tailleLisible(p.taille) : '') + '</a></div>';
     if (p.genre === 'image') return '<a class="piece" href="' + h(p.url) + '" target="_blank" rel="noopener noreferrer"><img src="' + h(p.url) + '" alt="' + h(p.nom) + '" loading="lazy"></a>';
     if (p.genre === 'son') return '<div class="piece"><audio controls preload="none" src="' + h(p.url) + '"></audio></div>';
     return '<a class="piece doc" href="' + h(p.url) + '" target="_blank" rel="noopener noreferrer">' + ico('telecharger') + h(p.nom) + '</a>';
   }
+  // une vidéo reçue de Louis : la télécharger, la partager depuis le téléphone (vers TikTok, ses photos...), copier son
+  // texte pour la publier
+  const nomRecue = (p) => (String(sansEtoiles(p.titre) || 'video').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'video') + '-' + p.langue + '.mp4';
+  function actionsRecueHtml(p) {
+    const t = p.publication || {};
+    const texte = [t.titre, legende(t)].filter(Boolean).join('\n\n');
+    return '<div class="piece-actions">' + (p.telecharger ? '<a class="btn second petit" href="' + h(p.telecharger) + '" download>' + ico('telecharger') + 'Télécharger</a>' : '') +
+      (navigator.share && navigator.canShare ? '<button class="btn second petit" data-a="partagerRecue" data-u="' + h(p.url) + '" data-n="' + h(nomRecue(p)) + '">' + ico('partager') + (S.partage['recue:' + p.url] ? 'Partager maintenant' : 'Partager') + '</button>' : '') +
+      (texte ? '<button class="btn second petit" data-a="copierRecue" data-t="' + h(texte) + '">' + ico('copier') + 'Copier le texte</button>' : '') + '</div>';
+  }
   function filMessagesHtml() {
     const c = S.conv;
     if (!c.charge) return '<div class="conv-vide">Un instant…</div>';
-    if (!c.messages.length) return '<div class="conv-vide"><b>Ta conversation avec Louis</b>Une question, une idée de vidéo, une vidéo que tu viens de faire : écris-lui ici, il te répond depuis la tour.</div>';
-    const derniereMoi = c.messages.filter((m) => m.auteur === 'createur').map((m) => m.id).pop();
+    if (!c.messages.length) {
+      return S.moi.louis ? '<div class="conv-vide"><b>Ta conversation avec ' + h(c.prenom || '') + '</b>Écris-lui ici, joins une vidéo de ton téléphone, ou envoie une vidéo de ton studio depuis sa page.</div>'
+        : '<div class="conv-vide"><b>Ta conversation avec Louis</b>Une question, une idée de vidéo, une vidéo que tu viens de faire : écris-lui ici, il te répond depuis la tour.</div>';
+    }
+    const auteur = moiAuteur();
+    const derniereMoi = c.messages.filter((m) => m.auteur === auteur).map((m) => m.id).pop();
     let jour = '';
     return c.messages.map((m) => {
       const j = jourDe(m.le);
       const sep = j !== jour ? '<div class="conv-jour">' + h(j) + '</div>' : '';
       jour = j;
-      const moi = m.auteur === 'createur';
+      const moi = m.auteur === auteur;
       return sep + '<div class="bulle ' + (moi ? 'moi' : 'lui') + '">' + (m.texte ? '<p>' + avecLiens(h(m.texte)) + '</p>' : '') + (m.pieces || []).map(pieceHtml).join('') +
         '<small>' + h(heureDe(m.le)) + (moi && m.id === derniereMoi && c.vu >= m.id ? ', vu' : '') + '</small></div>';
     }).join('') + (c.envoi ? '<div class="bulle moi envoi"><p>' + h(c.envoi) + '</p><div class="barre-envoi"><i style="width:' + Math.round((c.progres || 0) * 100) + '%"></i></div></div>' : '');
@@ -1297,32 +1398,59 @@
     const vuAvant = c.vu;
     c.vu = Math.max(c.vu, d.vu_jusqua || 0);
     c.charge = true;
-    if (nouveaux.length || c.vu !== vuAvant || bas) majConv(bas || nouveaux.some((m) => m.auteur === 'createur'));
-    S.moi.messages_non_lus = d.non_lus || 0;
-    majBoutonMessages();
+    if (nouveaux.length || c.vu !== vuAvant || bas) majConv(bas || nouveaux.some((m) => m.auteur === moiAuteur()));
+    if (d.non_lus == null) return;
+    if (S.moi.louis) { const x = (S.dest || []).find((y) => y.id === c.avec); if (x) x.non_lus = d.non_lus; compterLouis(); }
+    else { S.moi.messages_non_lus = d.non_lus; majBoutonMessages(); }
   }
   async function ouvrirMessages() {
+    if (S.moi.louis && !(S.conv && S.conv.avec)) return;
     const moi = ++S.boucle;
     S.conv = S.conv || { messages: [], dernier: 0, vu: 0, pieces: [], charge: false };
-    try { const d = await lire('messages', { lire: '1' }); S.conv.messages = []; recevoir(d, true); }
+    const c = S.conv;
+    const avec = S.moi.louis ? { avec: String(c.avec) } : {};
+    try { const d = await lire('messages', Object.assign({ lire: '1' }, avec)); if (S.conv !== c) return; c.messages = []; recevoir(d, true); }
     catch (e) { toast(e.message, 'err'); }
-    // le direct : toutes les 3 secondes tant qu'elle regarde (moins souvent quand la page est cachée)
-    while (moi === S.boucle && route().vue === 'messages') {
+    // le direct : toutes les 3 secondes tant qu'on regarde (moins souvent quand la page est cachée)
+    while (moi === S.boucle && route().vue === 'messages' && S.conv === c) {
       await dormir(document.hidden ? 9000 : 3000);
-      if (moi !== S.boucle || route().vue !== 'messages') return;
+      if (moi !== S.boucle || route().vue !== 'messages' || S.conv !== c) return;
       if (document.hidden) continue;
-      try { recevoir(await lire('messages', { apres: String(S.conv.dernier || 0), lire: '1' })); } catch (e) { await dormir(5000); }
+      try { const d = await lire('messages', Object.assign({ apres: String(c.dernier || 0), lire: '1' }, avec)); if (S.conv === c) recevoir(d); } catch (e) { await dormir(5000); }
     }
   }
-  // ailleurs dans le studio : le compteur se met à jour toutes les 20 secondes, un petit mot quand Louis écrit
+  // ailleurs dans le studio : le compteur se met à jour toutes les 20 secondes, un petit mot quand Louis écrit (pour le
+  // compte de Louis : quand une créatrice écrit, même pendant qu'il est dans la conversation d'une autre)
   async function verifierMessages() {
-    if (!S.moi || document.hidden || route().vue === 'messages' || route().vue === 'invitation') return;
+    if (!S.moi || document.hidden || route().vue === 'invitation') return;
+    if (S.moi.louis) return verifierMessagesLouis();
+    if (route().vue === 'messages') return;
     try {
       const d = await lire('messages_etat');
       const avant = S.moi.messages_non_lus || 0;
       S.moi.messages_non_lus = d.non_lus || 0;
       if (S.moi.messages_non_lus !== avant) majBoutonMessages();
       if (S.moi.messages_non_lus > avant) toast('Louis t\'a écrit : ouvre tes messages.', 'ok');
+    } catch (e) { /* la prochaine fois */ }
+  }
+  async function verifierMessagesLouis() {
+    try {
+      const d = await lire('messages_etat');
+      const par = d.par || {};
+      if (!S.dest) {
+        const avant = S.moi.messages_non_lus || 0;
+        S.moi.messages_non_lus = d.non_lus || 0;
+        if (S.moi.messages_non_lus !== avant) majBoutonMessages();
+        if (S.moi.messages_non_lus > avant) toast('Une créatrice t\'a écrit : ouvre tes messages.', 'ok');
+        return;
+      }
+      // une créatrice qu'il ne connaissait pas encore (un compte créé entre-temps) : la liste se recharge
+      if (Object.keys(par).some((id) => !S.dest.some((x) => String(x.id) === id))) { await chargerDest(true); return; }
+      const ouverte = route().vue === 'messages' && S.conv ? S.conv.avec : null;
+      const ecrit = S.dest.filter((x) => x.id !== ouverte && (par[x.id] || 0) > (x.non_lus || 0));
+      S.dest.forEach((x) => { if (x.id !== ouverte) x.non_lus = par[x.id] || 0; });
+      compterLouis(); majQui();
+      if (ecrit.length) toast(ecrit.length > 1 ? listeNoms(ecrit.map((x) => x.prenom)) + ' t\'ont écrit.' : ecrit[0].prenom + ' t\'a écrit.', 'ok');
     } catch (e) { /* la prochaine fois */ }
   }
   // envoyer un fichier droit dans le stockage, avec sa progression
@@ -1534,6 +1662,8 @@
       const fichiers = c.pieces.slice();
       if (!texte && !fichiers.length) { ta.focus(); return; }
       if (c.envoi) return;
+      // le compte de Louis écrit à la créatrice de la conversation ouverte
+      const avec = S.moi.louis ? { avec: c.avec } : {};
       btn.disabled = true;
       try {
         const pieces = [];
@@ -1541,15 +1671,17 @@
           const fi = fichiers[i], type = typeFichier(fi);
           c.envoi = 'Envoi de ' + fi.name + (fichiers.length > 1 ? ' (' + (i + 1) + ' sur ' + fichiers.length + ')' : '');
           c.progres = 0; majConv(true);
-          const r = await agir('message_envoi', { nom: fi.name, type, taille: fi.size });
+          const r = await agir('message_envoi', Object.assign({ nom: fi.name, type, taille: fi.size }, avec));
           await televerser(r.url, fi, r.type, (x) => { c.progres = x; const b = $('.barre-envoi i'); if (b) b.style.width = Math.round(x * 100) + '%'; });
           pieces.push({ chemin: r.chemin, nom: fi.name, type: r.type, taille: fi.size });
         }
-        const d = await agir('message', { texte, pieces });
-        c.envoi = null; c.pieces = []; ta.value = ''; ta.style.height = '';
+        const d = await agir('message', Object.assign({ texte, pieces }, avec));
+        c.envoi = null; c.pieces = [];
+        if (S.conv !== c) return;
+        ta.value = ''; ta.style.height = '';
         const p = $('#conv-pieces'); if (p) p.innerHTML = '';
-        recevoir({ messages: [d.message], non_lus: S.moi.messages_non_lus, vu_jusqua: c.vu }, true);
-      } catch (e) { c.envoi = null; majConv(); toast(e.message, 'err'); }
+        recevoir({ messages: [d.message], vu_jusqua: c.vu }, true);
+      } catch (e) { c.envoi = null; if (S.conv === c) majConv(); toast(e.message, 'err'); }
       finally { btn.disabled = false; }
     },
     async connexion(f, btn) {
@@ -1839,6 +1971,55 @@
     async envoyerALouis(b) {
       await occupe(b, async () => { await agir('message', { video: { id: S.video.id, langue: b.dataset.l } }); toast('Envoyée à Louis : il la voit dans vos messages.', 'ok'); });
     },
+    // le compte de Louis : une de ses vidéos prêtes part dans les messages des créatrices choisies, dans les langues
+    // choisies (celle qu'il regarde, cochée d'avance), avec un mot s'il veut
+    async envoyerVideo(b) {
+      if (!S.dest) await occupe(b, () => chargerDest());
+      const dest = S.dest || [];
+      if (!dest.length) { toast('Aucune créatrice pour l\'instant : crée leurs comptes dans la tour.', 'err'); return; }
+      const v = S.video, l = b.dataset.l, ls = pretes(v);
+      const choix = await fenetreForm({
+        titre: 'Envoyer « ' + sansEtoiles(v.titre || 'ta vidéo') + ' »',
+        texte: 'Ta vidéo arrive dans ses messages, à regarder ou à télécharger, avec son texte et ses hashtags pour la publier.',
+        corps: '<div class="champ"><span>À qui</span><div class="choix">' + dest.map((x) => '<label><input type="checkbox" name="a[]" value="' + x.id + '"' + (dest.length === 1 ? ' checked' : '') + '><span>' + h(x.prenom) +
+            (x.statut === 'invitee' ? ' <small>invitation en attente</small>' : (x.langues || []).length ? ' <small>' + h(x.langues.slice(0, 2).map((y) => nomLangue(y).toLowerCase()).join(', ') + (x.langues.length > 2 ? ' +' + (x.langues.length - 2) : '')) + '</small>' : '') + '</span></label>').join('') + '</div></div>' +
+          (ls.length > 1 ? '<div class="champ"><span>Langues</span><div class="choix">' + ls.map((y) => '<label><input type="checkbox" name="l[]" value="' + y + '"' + (y === l ? ' checked' : '') + '><span>' + h(nomLangue(y)) + '</span></label>').join('') + '</div></div>' : '') +
+          '<label class="champ"><span>Un mot avec, si tu veux</span><textarea name="mot" rows="2" maxlength="1000" placeholder="Regarde ce que donne le studio maintenant"></textarea></label>',
+        ok: 'Envoyer',
+        verifier: (d) => (!(d.a || []).length ? 'Choisis à qui l\'envoyer.' : ls.length > 1 && !(d.l || []).length ? 'Choisis au moins une langue.' : null)
+      });
+      if (!choix) return;
+      const langues = ls.length > 1 ? choix.l : [l];
+      await occupe(b, async () => {
+        const r = await agir('envoyer_video', { id: v.id, a: choix.a.map(Number), langues, texte: choix.mot || '' });
+        const noms = r.envois.map((x) => x.prenom);
+        toast((langues.length > 1 ? langues.length + ' versions envoyées' : 'Envoyée') + ' à ' + listeNoms(noms) + ', dans ' + (noms.length > 1 ? 'leurs' : 'ses') + ' messages.', 'ok');
+        chargerDest(true);
+      });
+    },
+    async rechargerDest(b) { S.destErreur = null; await occupe(b, () => chargerDest()); if (route().vue === 'messages') rendre(); },
+    // une vidéo reçue de Louis, partagée depuis le téléphone : d'abord la vidéo dans le téléphone, puis le partage (le
+    // navigateur exige un geste juste avant)
+    async partagerRecue(b) {
+      const k = 'recue:' + b.dataset.u;
+      if (!S.partage[k]) {
+        await occupe(b, async () => {
+          const r = await fetch(b.dataset.u);
+          if (!r.ok) throw new Error('La vidéo ne se télécharge pas : rouvre tes messages.');
+          const f = new File([await r.blob()], b.dataset.n || 'video.mp4', { type: 'video/mp4' });
+          if (!navigator.canShare({ files: [f] })) throw new Error('Ton navigateur ne sait pas partager une vidéo : utilise Télécharger.');
+          S.partage[k] = f;
+        });
+        if (S.partage[k]) { b.lastChild.textContent = 'Partager maintenant'; toast('Prête : touche encore Partager.', 'ok'); }
+        return;
+      }
+      try { await navigator.share({ files: [S.partage[k]] }); }
+      catch (e) { if (e && e.name !== 'AbortError') toast('Partage impossible : utilise Télécharger.', 'err'); }
+    },
+    async copierRecue(b) {
+      try { await navigator.clipboard.writeText(b.dataset.t); toast('Texte copié.', 'ok'); }
+      catch (e) { toast('Copie impossible : sélectionne le texte à la main.', 'err'); }
+    },
     // écouter une voix naturelle : une phrase dans sa langue principale, sur sa clé fal ; le lecteur reste sous les voix
     async ecouterVoix(b) {
       const voix = b.dataset.voix;
@@ -1859,13 +2040,15 @@
       if (!(await fenetre({ titre: 'Retirer upload-post ?', texte: 'Tes vidéos ne se publieront plus toutes seules. Tes comptes restent reliés chez upload-post.', ok: 'Retirer', danger: true }))) return;
       await occupe(b, async () => { await agir('uploadpost_supprimer'); rendre(); });
     },
-    async deconnexion(b) { await occupe(b, async () => { await agir('deconnexion'); S.moi = null; S.videos = null; S.video = null; S.statuts = null; S.fil = []; S.menu = false; if (S.ville) { S.ville.detruire(); S.ville = null; } location.hash = ''; rendre(); }); },
+    async deconnexion(b) { await occupe(b, async () => { await agir('deconnexion'); S.moi = null; S.videos = null; S.video = null; S.statuts = null; S.fil = []; S.menu = false; oublierConversations(); if (S.ville) { S.ville.detruire(); S.ville = null; } location.hash = ''; rendre(); }); },
     async partout(b) {
       if (!(await fenetre({ titre: 'Déconnecter tous tes appareils ?', texte: 'Y compris celui-ci : tu devras te reconnecter partout.', ok: 'Tout déconnecter' }))) return;
-      await occupe(b, async () => { await agir('deconnexion', { partout: true }); S.moi = null; if (S.ville) { S.ville.detruire(); S.ville = null; } location.hash = ''; rendre(); });
+      await occupe(b, async () => { await agir('deconnexion', { partout: true }); S.moi = null; oublierConversations(); if (S.ville) { S.ville.detruire(); S.ville = null; } location.hash = ''; rendre(); });
     }
   };
   async function rafraichirMoi() { try { const d = await lire('moi'); S.moi = d.moi; } catch (e) { /* la page reste comme elle est */ } }
+  // à la déconnexion : rien d'une conversation ne reste pour le compte suivant
+  function oublierConversations() { S.conv = null; S.dest = null; S.destErreur = null; S.partage = {}; }
 
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-a]');

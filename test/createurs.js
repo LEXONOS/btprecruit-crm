@@ -172,9 +172,17 @@ G.forcer(async (url, o) => {
 });
 
 /* ── le stockage simulé ── */
-const STOCK = { envoyes: [], effaces: [], msgEnvoyes: [], msgEffaces: [], arrives: new Set() };
+const STOCK = { envoyes: [], effaces: [], msgEnvoyes: [], msgEffaces: [], arrives: new Set(), copies: [], copieRatee: false };
 ST.forcer(async (url, o) => {
   const json = (d) => ({ ok: true, status: 200, text: async () => JSON.stringify(d) });
+  // une copie d'un espace à l'autre (une vidéo du studio de Louis envoyée dans une conversation) ; elle peut rater
+  if (/\/object\/copy$/.test(url)) {
+    const b = JSON.parse(o.body);
+    STOCK.copies.push(b);
+    if (STOCK.copieRatee) return { ok: false, status: 400, text: async () => JSON.stringify({ statusCode: '400', error: 'InvalidRequest', message: 'copie impossible' }) };
+    STOCK.arrives.add(b.destinationKey);
+    return json({ Key: b.destinationBucket + '/' + b.destinationKey });
+  }
   // l'espace de la messagerie : les liens d'envoi, les fichiers arrivés (STOCK.arrives), les liens de lecture, le ménage
   if (/\/object\/upload\/sign\/messages\//.test(url)) { const c = url.split('/object/upload/sign/messages/')[1]; STOCK.msgEnvoyes.push(c); return json({ url: '/object/upload/sign/messages/' + c + '?token=env' }); }
   if (/\/object\/sign\/messages$/.test(url)) return json(JSON.parse(o.body).paths.map((p) => ({ path: p, signedURL: '/object/sign/messages/' + p + '?token=lu' })));
@@ -1247,6 +1255,130 @@ async function jusqua(id, statuts, n) {
   assert.deepStrictEqual([eN.push, eN.punchs.length, eN.secousses.length], [0, 0, 0], 'coupes franches : aucun effet');
   const ex = UC.expressions(eZ, 3);
   assert.ok(/zoom/.test(ex.x) && /exp\(/.test(ex.z) && /sin\(/.test(ex.x) && /n\/30/.test(ex.flash), 'les expressions de zoompan et du flash');
+
+  // 30. le compte de Louis dans le studio (16 nov.) : il fait ses vidéos comme les créatrices, et sa messagerie va vers
+  //     elles. Il envoie une de ses vidéos prêtes (une ou plusieurs langues, à une ou plusieurs créatrices, avec un mot),
+  //     copiée dans l'espace « messages » de chaque conversation avec sa vignette et le texte de sa publication ; il leur
+  //     écrit, joint des fichiers, lit leurs réponses, voit qui lui a écrit. Aucune créatrice n'a ces portes.
+  const coMila = COOKIE;
+  const louisCree = await ADM.agir(db, 'crea_creer', { prenom: 'Louis' });
+  assert.strictEqual(louisCree.identifiant, 'louis');
+  COOKIE = null;
+  r = await api('POST', { op: 'invitation', code: louisCree.code, mdp: 'le studio de louis 2026' });
+  assert.strictEqual(r.code, 200);
+  const louisRow = await db.one('hq_createurs', { eq: { identifiant: 'louis' } });
+  r = await api('GET', { op: 'etat' });
+  assert.strictEqual(r.d.moi.louis, true, 'son compte est reconnu');
+  assert.strictEqual((await api('GET', { op: 'etat' }, { cookie: coMila, garder: false })).d.moi.louis, false, 'une créatrice n\'est pas Louis');
+  // ses conversations : les créatrices actives ou invitées, ni lui-même ni un compte en pause
+  const samia = await db.one('hq_createurs', { eq: { identifiant: 'samia' } });
+  await ADM.agir(db, 'crea_statut', { id: samia.id, statut: 'suspendue' });
+  const convs = (await api('GET', { op: 'conversations' })).d.conversations;
+  assert.deepStrictEqual(convs.map((x) => x.prenom), ['Léa', 'Mila'], 'les créatrices, ni lui ni un compte en pause');
+  const cMila = convs.find((x) => x.id === mila.id);
+  assert.ok(Array.isArray(cMila.langues) && cMila.langues.length && cMila.dernier && cMila.dernier.id, 'ses langues et son dernier message');
+  const attendus = (await ADM.agir(db, 'crea_liste', {})).createurs.find((x) => x.id === mila.id).messages_non_lus;
+  assert.ok(attendus >= 1, 'Mila avait écrit sans réponse');
+  assert.strictEqual(cMila.non_lus, attendus, 'ce que Mila lui a écrit et qu\'il n\'a pas lu');
+  assert.strictEqual((await api('GET', { op: 'etat' })).d.moi.messages_non_lus, attendus, 'son compteur : toutes les créatrices');
+  let et = (await api('GET', { op: 'messages_etat' })).d;
+  assert.strictEqual(et.non_lus, attendus); assert.strictEqual(et.par[mila.id], attendus, 'et qui lui a écrit');
+  // une de ses vidéos, prête en français et en allemand (le japonais est encore à l'usine)
+  const [vL] = await db.insert('hq_crea_videos', {
+    createur_id: louisRow.id, status: 'prete', sujet: 'flamants', titre: 'Les flamants roses naissent *gris*', langue_source: 'fr', langues: ['fr', 'de', 'ja'],
+    script: { titre: 'Les flamants roses naissent gris', description: 'Leur couleur vient de ce qu\'ils mangent.\nTu le savais ?', hashtags: ['flamants', 'nature'] },
+    traductions: { de: { titre: 'Flamingos werden grau geboren', description: 'Ihre Farbe kommt vom Essen.', hashtags: ['flamingo'] } },
+    rendus: { fr: { etat: 'fini', duree: 19.2, taille: 4200000, fichiers: ['video.mp4', 'vignette.jpg', 'sous-titres.srt'] }, de: { etat: 'fini', duree: 19.6, fichiers: ['video.mp4', 'vignette.jpg'] }, ja: { etat: 'demande' } }
+  });
+  const copiesAvant = STOCK.copies.length;
+  r = await api('POST', { op: 'envoyer_video', id: vL.id, a: [mila.id], langues: ['fr', 'de'], texte: 'Regarde ce que donne le studio maintenant !\nDis-moi ce que tu en penses.' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.deepStrictEqual(r.d.envois.map((x) => x.prenom), ['Mila']);
+  const msgL = r.d.envois[0].message;
+  assert.strictEqual(msgL.auteur, 'louis'); assert.ok(/maintenant !\nDis-moi/.test(msgL.texte), 'son mot, avec ses retours à la ligne');
+  assert.deepStrictEqual(msgL.pieces.map((p) => [p.genre, p.de, p.langue]), [['studio', 'louis', 'fr'], ['studio', 'louis', 'de']]);
+  const pf = msgL.pieces[0];
+  assert.ok(new RegExp('/object/sign/messages/conv/' + mila.id + '/\\d{6}/[a-f0-9]{12}-les-flamants-roses-naissent-gris-fr\\.mp4\\?').test(pf.url), 'une copie dans la conversation de Mila : ' + pf.url);
+  assert.ok(/-fr\.jpg\?token/.test(pf.vignette), 'avec sa vignette');
+  assert.ok(/[?&]download=Les-flamants-roses-naissent-gris-fr\.mp4$/.test(pf.telecharger), 'à télécharger sous son titre : ' + pf.telecharger);
+  assert.strictEqual(pf.duree, 19); assert.strictEqual(pf.titre, 'Les flamants roses naissent *gris*'); assert.strictEqual(pf.format, '9:16', 'sa taille connue avant qu\'elle charge');
+  assert.strictEqual(pf.publication.titre, 'Les flamants roses naissent gris'); assert.deepStrictEqual(pf.publication.hashtags, ['flamants', 'nature']);
+  assert.ok(/mangent\.\nTu le savais/.test(pf.publication.description), 'le texte de la publication, pour la publier');
+  assert.strictEqual(msgL.pieces[1].publication.titre, 'Flamingos werden grau geboren', 'le texte de chaque langue');
+  assert.ok(!/"(chemin|vignette_chemin|compte)"/.test(JSON.stringify(r.d)), 'jamais un chemin de fichier dans la page');
+  const cp = STOCK.copies.slice(copiesAvant);
+  assert.strictEqual(cp.length, 4, 'deux langues : la vidéo et la vignette de chacune');
+  assert.ok(cp.every((x) => x.bucketId === 'studio' && x.destinationBucket === 'messages' && new RegExp('^conv/' + mila.id + '/').test(x.destinationKey)), 'copiées chez Supabase, du studio vers sa conversation');
+  assert.ok(cp.some((x) => x.sourceKey === 'crea/' + louisRow.id + '/' + vL.id + '/fr/video.mp4'));
+  // Mila : le compteur, puis la vidéo dans ses messages, prête à regarder, télécharger, publier
+  assert.strictEqual((await api('GET', { op: 'messages_etat' }, { cookie: coMila, garder: false })).d.non_lus, 1, 'Mila : un message de Louis');
+  const vueMila = await api('GET', { op: 'messages', lire: '1' }, { cookie: coMila, garder: false });
+  const recu = vueMila.d.messages.find((m) => m.id === msgL.id);
+  assert.ok(recu && recu.auteur === 'louis' && recu.pieces[0].url && recu.pieces[0].telecharger && recu.pieces[0].publication.hashtags.length, 'Mila la voit dans ses messages');
+  // Louis ouvre la conversation de Mila depuis son studio : elle passe en lue, il voit que Mila a lu
+  let convL = await api('GET', { op: 'messages', avec: String(mila.id), lire: '1' });
+  assert.strictEqual(convL.code, 200, JSON.stringify(convL.d)); assert.strictEqual(convL.d.avec, mila.id);
+  assert.ok(convL.d.messages.some((m) => m.id === msgL.id)); assert.strictEqual(convL.d.non_lus, 0, 'ouverte, la conversation est lue');
+  assert.strictEqual(convL.d.vu_jusqua, msgL.id, 'il voit que Mila a lu');
+  assert.strictEqual((await api('GET', { op: 'messages_etat' })).d.non_lus, 0);
+  assert.strictEqual((await ADM.agir(db, 'crea_liste', {})).createurs.find((x) => x.id === mila.id).messages_non_lus, 0, 'lu dans son studio, lu dans la tour');
+  // il écrit à Léa depuis son studio, avec une vidéo de son téléphone : le fichier va dans la conversation de Léa
+  const envL = await api('POST', { op: 'message_envoi', avec: lea.id, nom: 'Mon montage.mp4', type: 'video/mp4', taille: 8e6 });
+  assert.strictEqual(envL.code, 200, JSON.stringify(envL.d));
+  assert.ok(new RegExp('^conv/' + lea.id + '/\\d{6}/[a-f0-9]{12}-mon-montage\\.mp4$').test(envL.d.chemin), envL.d.chemin);
+  STOCK.arrives.add(envL.d.chemin);
+  r = await api('POST', { op: 'message', avec: lea.id, texte: 'Une vidéo que j\'ai faite', pieces: [{ chemin: envL.d.chemin, nom: 'Mon montage.mp4', type: 'video/mp4', taille: 8e6 }] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.message.auteur, 'louis');
+  assert.strictEqual((await MSG.lister(db, lea.id, 'createur')).non_lus, 1, 'Léa a un message de Louis');
+  r = await api('POST', { op: 'message', avec: mila.id, texte: 'x', pieces: [{ chemin: envL.d.chemin, nom: 'x.mp4', type: 'video/mp4' }] });
+  assert.strictEqual(r.code, 400, 'un fichier de la conversation de Léa ne part pas chez Mila');
+  // Mila répond : Louis voit qui lui a écrit, et il est prévenu dans la tour comme avant
+  r = await api('POST', { op: 'message', texte: 'Trop bien la vidéo !' }, { cookie: coMila, garder: false });
+  assert.strictEqual(r.code, 200);
+  et = (await api('GET', { op: 'messages_etat' })).d;
+  assert.strictEqual(et.non_lus, 1); assert.deepStrictEqual(et.par, { [mila.id]: 1 }, 'Louis voit qui lui a écrit');
+  // à plusieurs d'un coup, sans mot
+  r = await api('POST', { op: 'envoyer_video', id: vL.id, a: [mila.id, lea.id], langues: ['de'] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.deepStrictEqual(r.d.envois.map((x) => x.prenom), ['Mila', 'Léa']);
+  assert.ok(r.d.envois.every((x) => x.message.texte === '' && x.message.pieces.length === 1 && x.message.pieces[0].langue === 'de'), 'juste la vidéo, une copie pour chacune');
+  // ce qui ne part pas
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vL.id, a: [mila.id], langues: ['ja'] })).code, 400, 'une langue pas prête');
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vL.id, a: [mila.id], langues: [] })).code, 400, 'sans langue');
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vL.id, a: [], langues: ['fr'] })).code, 400, 'sans destinataire');
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vL.id, a: [louisRow.id], langues: ['fr'] })).code, 404, 'pas à lui-même');
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vL.id, a: [samia.id], langues: ['fr'] })).code, 400, 'un compte en pause ne reçoit rien');
+  const vMila = (await db.select('hq_crea_videos', { eq: { createur_id: mila.id }, limit: 1 }))[0];
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vMila.id, a: [lea.id], langues: ['fr'] })).code, 404, 'seulement ses vidéos à lui');
+  assert.strictEqual((await api('GET', { op: 'messages', avec: String(samia.id) })).code, 400, 'la conversation d\'un compte en pause');
+  assert.strictEqual((await api('GET', { op: 'messages', avec: String(louisRow.id) })).code, 404, 'pas de conversation avec lui-même');
+  assert.strictEqual((await api('GET', { op: 'messages' })).code, 404, 'une conversation à choisir');
+  // les portes : une créatrice n'a ni ses conversations, ni l'envoi de vidéos, et « avec » ne change rien pour elle
+  assert.strictEqual((await api('GET', { op: 'conversations' }, { cookie: coMila, garder: false })).code, 403, 'réservé au compte de Louis');
+  assert.strictEqual((await api('POST', { op: 'envoyer_video', id: vMila.id, a: [lea.id], langues: ['fr'] }, { cookie: coMila, garder: false })).code, 403);
+  r = await api('POST', { op: 'message', avec: lea.id, texte: 'Coucou Léa' }, { cookie: coMila, garder: false });
+  assert.ok(!(await MSG.lister(db, lea.id, 'createur')).messages.some((m) => m.texte === 'Coucou Léa'), 'une créatrice n\'écrit qu\'à Louis');
+  assert.strictEqual((await api('GET', { op: 'messages', avec: String(lea.id) }, { cookie: coMila, garder: false })).d.messages.some((m) => m.texte === 'Une vidéo que j\'ai faite'), false, 'ni ne lit la conversation d\'une autre');
+  // la copie ne prend pas : la vidéo part quand même, lue depuis le studio de Louis (tant qu'elle y est)
+  STOCK.copieRatee = true;
+  r = await api('POST', { op: 'envoyer_video', id: vL.id, a: [lea.id], langues: ['fr'] });
+  STOCK.copieRatee = false;
+  assert.strictEqual(r.code, 200, 'une copie ratée n\'empêche pas l\'envoi');
+  assert.ok(new RegExp('/object/sign/studio/crea/' + louisRow.id + '/' + vL.id + '/fr/video\\.mp4').test(r.d.envois[0].message.pieces[0].url), 'la vidéo de son studio à la place');
+  // la tour : son compte est marqué, sans conversation avec lui-même (même avec un vieux message envoyé à lui-même)
+  await db.insert('hq_crea_messages', { createur_id: louisRow.id, auteur: 'createur', texte: '', pieces: [{ genre: 'studio', video: vL.id, langue: 'fr', titre: 'x' }] });
+  const tl = (await ADM.agir(db, 'crea_liste', {})).createurs;
+  assert.strictEqual(tl.find((x) => x.id === louisRow.id).louis, true); assert.strictEqual(tl.find((x) => x.id === mila.id).louis, false);
+  assert.strictEqual(tl.find((x) => x.id === louisRow.id).messages_non_lus, 0, 'pas de conversation avec lui-même');
+  assert.strictEqual((await api('GET', { op: 'messages_etat' })).d.par[louisRow.id], undefined);
+  // le ménage : après 60 jours, ses vidéos et leurs vignettes quittent la conversation, le message reste
+  await db.update('hq_crea_messages', { created_at: new Date(Date.now() - 61 * 86400000).toISOString() }, { eq: { id: msgL.id } });
+  const effAvant = STOCK.msgEffaces.length;
+  assert.strictEqual(await MSG.menage(db), 4, 'les deux vidéos et leurs vignettes');
+  assert.ok(STOCK.msgEffaces.slice(effAvant).some((x) => /-fr\.jpg$/.test(x)));
+  const vieux = (await api('GET', { op: 'messages', avec: String(mila.id) })).d.messages.find((m) => m.id === msgL.id);
+  assert.ok(vieux.texte && vieux.pieces[0].expire && !vieux.pieces[0].url && !vieux.pieces[0].telecharger, 'la vidéo n\'est plus là, le message reste');
+  await ADM.agir(db, 'crea_statut', { id: samia.id, statut: 'active' });
+  COOKIE = coMila;
 
   console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal, phrases dites : ' + FALM.voix.length + ', images créées : ' + FALM.directes.length + ', clips tournés : 3).');
 })().catch((e) => { console.error(e); process.exit(1); });

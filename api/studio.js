@@ -49,6 +49,9 @@ function catalogue() {
   };
 }
 async function relire(db, id) { return db.one('hq_createurs', { eq: { id } }); }
+// le compteur des messages : pour une créatrice, ce que Louis lui a écrit ; pour le compte de Louis, ce que toutes les
+// créatrices lui ont écrit
+async function compteur(db, c) { return C.estLouis(c) ? (await MSG.etatLouis(db, c)).non_lus : MSG.nonLus(db, c.id, 'createur'); }
 async function majCreateur(db, c, patch, journal) {
   const p = Object.assign({}, patch, { updated_at: iso() });
   if (journal) p.journal = C.ligneJournal(c, journal[0], journal[1]);
@@ -69,16 +72,31 @@ async function vueVideo(db, v) {
 async function lecture(req, res, db, q) {
   if (q.op === 'etat') {
     const s = await AC.session(req, db).catch(() => ({ ok: false }));
-    return json(res, 200, { connecte: !!s.ok, moi: s.ok ? C.moi(s.createur, { messages_non_lus: await MSG.nonLus(db, s.createur.id, 'createur') }) : null, catalogue: catalogue() });
+    return json(res, 200, { connecte: !!s.ok, moi: s.ok ? C.moi(s.createur, { messages_non_lus: await compteur(db, s.createur) }) : null, catalogue: catalogue() });
   }
   if (q.op === 'invitation') return AC.lireInvitation(req, res, db, q.code);
   const s = await AC.exiger(req, res, db);
   if (!s) return;
   const c = s.createur;
-  if (q.op === 'moi') return json(res, 200, { moi: C.moi(c, { messages_non_lus: await MSG.nonLus(db, c.id, 'createur') }) });
-  // la messagerie avec Louis : la conversation (ouverte : ses messages passent en lus), ou juste le compteur
-  if (q.op === 'messages') { const r = await MSG.lister(db, c.id, 'createur', { apres: q.apres, lire: q.lire === '1' }); return json(res, r.code, r); }
-  if (q.op === 'messages_etat') return json(res, 200, { non_lus: await MSG.nonLus(db, c.id, 'createur') });
+  if (q.op === 'moi') return json(res, 200, { moi: C.moi(c, { messages_non_lus: await compteur(db, c) }) });
+  // la messagerie : une créatrice et Louis (la conversation, ouverte : les messages de l'autre passent en lus ; ou juste
+  // le compteur). Le compte de Louis lit la conversation de la créatrice choisie (« avec »), et le compteur de toutes.
+  if (q.op === 'messages') {
+    if (C.estLouis(c)) {
+      const x = await MSG.cible(db, c, q.avec);
+      if (x.erreur) return json(res, x.code, { erreur: x.erreur });
+      const r = await MSG.lister(db, x.createur.id, 'louis', { apres: q.apres, lire: q.lire === '1' });
+      return json(res, r.code, Object.assign({ avec: x.createur.id }, r));
+    }
+    const r = await MSG.lister(db, c.id, 'createur', { apres: q.apres, lire: q.lire === '1' });
+    return json(res, r.code, r);
+  }
+  if (q.op === 'messages_etat') return json(res, 200, C.estLouis(c) ? await MSG.etatLouis(db, c) : { non_lus: await MSG.nonLus(db, c.id, 'createur') });
+  // le compte de Louis : ses conversations, une par créatrice
+  if (q.op === 'conversations') {
+    if (!C.estLouis(c)) return json(res, 403, { erreur: 'réservé au compte de Louis' });
+    return json(res, 200, { conversations: await MSG.conversations(db, c) });
+  }
   if (q.op === 'videos') {
     const liste = await db.select('hq_crea_videos', { eq: { createur_id: c.id }, order: ['created_at.desc'], limit: 80, select: 'id,createur_id,status,titre,sujet,langue_source,langues,cout_usd,auto,etape,rendus,critique,accroche:script->>accroche,genre:plan->>genre,created_at,updated_at' });
     // les vignettes des vidéos montées (une seule demande de liens pour toute la liste)
@@ -135,9 +153,26 @@ async function action(req, res, db, b) {
     c = await majCreateur(db, c, { secrets }, ['Clé fal branchée', 'se termine par ' + r.cle.slice(-4)]);
     return json(res, 200, { ok: true, avertissement: r.avertissement || null, moi: C.moi(c) });
   }
-  // la messagerie avec Louis : préparer l'envoi d'un fichier (un lien signé), puis le message
-  if (op === 'message_envoi') { const r = await MSG.preparerEnvoi(c.id, b); return json(res, r.code, r.code === 200 ? { ok: true, chemin: r.chemin, url: r.url, type: r.type } : { erreur: r.erreur }); }
-  if (op === 'message') { const r = await MSG.envoyer(db, c, 'createur', b); return json(res, r.code, r.code === 200 ? { ok: true, message: r.message } : { erreur: r.erreur }); }
+  // la messagerie : préparer l'envoi d'un fichier (un lien signé), puis le message. Une créatrice écrit à Louis ; le
+  // compte de Louis écrit, en Louis, à la créatrice choisie (« avec »)
+  if (op === 'message_envoi' || op === 'message') {
+    let pour = c, auteur = 'createur', corps = b;
+    if (C.estLouis(c)) {
+      const x = await MSG.cible(db, c, b.avec);
+      if (x.erreur) return json(res, x.code, { erreur: x.erreur });
+      pour = x.createur; auteur = 'louis';
+      corps = { texte: b.texte, pieces: b.pieces, nom: b.nom, type: b.type, taille: b.taille };
+    }
+    if (op === 'message_envoi') { const r = await MSG.preparerEnvoi(pour.id, corps); return json(res, r.code, r.code === 200 ? { ok: true, chemin: r.chemin, url: r.url, type: r.type } : { erreur: r.erreur }); }
+    const r = await MSG.envoyer(db, pour, auteur, corps);
+    return json(res, r.code, r.code === 200 ? { ok: true, message: r.message } : { erreur: r.erreur });
+  }
+  // le compte de Louis : une de ses vidéos prêtes, envoyée aux créatrices choisies, dans les langues choisies
+  if (op === 'envoyer_video') {
+    if (!C.estLouis(c)) return json(res, 403, { erreur: 'réservé au compte de Louis' });
+    const r = await MSG.envoyerVideo(db, c, b);
+    return json(res, r.code, r.code === 200 ? { ok: true, envois: r.envois } : { erreur: r.erreur });
+  }
   // écouter une voix naturelle avant de la choisir : une phrase dans la langue demandée, sur sa clé fal
   if (op === 'ecouter_voix') {
     const r = await VX.ecouter(db, c, String(b.voix || ''), String(b.langue || ''));

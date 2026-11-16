@@ -557,7 +557,7 @@ details.aide p { padding: 0 0 14px; color: var(--encre-2); font-size: 13.5px; }
 .piece-nom { display: block; margin-top: 3px; font-size: 11.5px; opacity: .85; }
 .piece.doc { display: inline-flex; gap: 6px; align-items: center; padding: 8px 10px; border-radius: 10px; background: color-mix(in oklab, currentColor 10%, transparent); text-decoration: none; }
 .piece.doc svg { width: 16px; height: 16px; }
-.piece.studio small { display: block; margin-top: 4px; font-size: 11.5px; opacity: .85; }
+.piece.studio small { display: block; margin-top: 4px; font-size: 11.5px; opacity: .85; text-align: left; }
 .piece.expiree { font-size: 12.5px; font-style: italic; opacity: .75; }
 .conv-saisie { border-top: 1px solid var(--ligne); padding: 8px 10px; background: var(--surface); }
 .conv-pieces { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -574,6 +574,19 @@ details.aide p { padding: 0 0 14px; color: var(--encre-2); font-size: 13.5px; }
 .conv-envoyer { background: var(--accent); color: var(--sur-accent); }
 .conv-envoyer:disabled { opacity: .5; cursor: progress; }
 .conv-joindre svg, .conv-envoyer svg { width: 19px; height: 19px; }
+/* le compte de Louis : les prénoms des créatrices pour passer d'une conversation à l'autre, avec ce qu'il reste à lire */
+.conv-qui { display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--ligne); overflow-x: auto; scrollbar-width: none; }
+.conv-qui::-webkit-scrollbar { display: none; }
+.conv-qui a { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 13px; border-radius: var(--r-rond); font-size: 13.5px; font-weight: 540; color: var(--encre-2); text-decoration: none !important; transition: background .15s, color .15s; }
+.conv-qui a:hover { background: var(--surface-3); color: var(--encre); }
+.conv-qui a.on { background: var(--encre); color: var(--fond); }
+.conv-qui b { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--alerte); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+/* une vidéo reçue de Louis : télécharger, partager, copier son texte */
+.piece-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* la fenêtre d'envoi d'une vidéo : à qui, les langues, un mot */
+.fenetre-form .champ { margin-bottom: 14px; }
+.fenetre-form textarea { min-height: 64px; margin-bottom: 4px; }
+.fenetre-form .actions { margin-top: 6px; }
 
 /* ── les clips : le genre, le prompt, la qualité, le montage (un aperçu qui bouge comme le style), les plans ── */
 .genres { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
