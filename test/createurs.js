@@ -1070,6 +1070,13 @@ async function jusqua(id, statuts, n) {
   assert.ok(proche(est.video, (4.2 * 3 + 3.2) * 0.08) && proche(est.images, 6 * 0.07), JSON.stringify(est));
   const estC = CLIP.estimer({ qualite: 'cinema', prompt: PROMPT_CLIP });
   assert.ok(estC.sons === 0 && proche(estC.video, 16 * 0.48), 'Seedance : 4 secondes au moins par plan, les sons du film compris');
+  // un prompt minuté garde sa durée même si « 60 s » est choisi : aucun plan inventé en plus (45 $ au lieu de 22 en Cinéma)
+  const est60 = CLIP.estimer({ qualite: 'cinema', prompt: PROMPT_CLIP, duree: '60', musique: 'ia' });
+  assert.deepStrictEqual([est60.plans, est60.secondes], [4, 11], 'le minutage du prompt passe avant la durée choisie');
+  assert.strictEqual(CLIP.estimer({ qualite: 'hd', prompt: 'Two knights in Monaco, a luxury rap clip, no timings given.', duree: '60' }).plans, 22, 'sans minutage, la durée choisie décide');
+  const prep60 = await CLIP.preparer({ id: 1, secrets: { fal: 'cle' } }, { prompt: PROMPT_CLIP, duree: '60' });
+  assert.strictEqual(prep60.clip.duree, 'auto', 'un prompt minuté part avec sa propre durée');
+  assert.strictEqual((await CLIP.preparer({ id: 1, secrets: { fal: 'cle' } }, { prompt: 'Two knights in Monaco, a luxury rap clip, no timings given.', duree: '45' })).clip.duree, '45');
   r = await api('GET', { op: 'etat' });
   assert.strictEqual(r.d.catalogue.clip.qualites.hd.seconde, 0.08); assert.strictEqual(r.d.catalogue.clip.qualites.cinema.son, true); assert.ok(r.d.catalogue.clip.montages.zooms);
   // le découpage passé au tamis : 16 plans et 60 secondes au plus
