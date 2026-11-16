@@ -574,3 +574,77 @@ details.aide p { padding: 0 0 14px; color: var(--encre-2); font-size: 13.5px; }
 .conv-envoyer { background: var(--accent); color: var(--sur-accent); }
 .conv-envoyer:disabled { opacity: .5; cursor: progress; }
 .conv-joindre svg, .conv-envoyer svg { width: 19px; height: 19px; }
+
+/* ── les clips : le genre, le prompt, la qualité, le montage (un aperçu qui bouge comme le style), les plans ── */
+.genres { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.genres .modele span { flex-direction: row; align-items: center; gap: 12px; padding: 12px 14px; }
+.genres .modele span > svg { flex: none; }
+.genres .modele b { display: block; }
+@media (max-width: 520px) { .genres .modele span { flex-direction: column; align-items: flex-start; gap: 6px; } }
+.prompt-clip { min-height: 230px; font-size: 13.5px; line-height: 1.55; tab-size: 2; }
+.qualites-clip, .montages { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.modele.qualite span { gap: 3px; }
+.modele.qualite em { font-style: normal; font-weight: 650; font-size: 15px; letter-spacing: -.01em; color: var(--accent-encre); font-variant-numeric: tabular-nums; }
+.modele.montage span { display: grid; grid-template-columns: 30px 1fr; grid-template-rows: auto 1fr; column-gap: 11px; row-gap: 2px; }
+.modele.montage b { align-self: end; }
+.apercu-montage { grid-row: 1 / span 2; align-self: center; position: relative; display: block; width: 30px; aspect-ratio: 9 / 16; border-radius: 7px; overflow: hidden; background: #140D22; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+.apercu-montage > i { position: absolute; inset: 0; display: block; background: linear-gradient(165deg, #FF5A8A, #3B1C5A); animation: coupes 2.4s steps(1, end) infinite; }
+.apercu-montage > i::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 44%, rgba(255, 255, 255, .92) 0 12%, transparent 13%), radial-gradient(ellipse 30% 22% at 50% 78%, rgba(255, 255, 255, .55) 0 98%, transparent 100%); }
+.apercu-montage.zooms > i { animation: coupes 2.4s steps(1, end) infinite, punch .6s cubic-bezier(.15, .9, .3, 1) infinite; }
+.apercu-montage.rap > i { animation: coupes 2.4s steps(1, end) infinite, punch-coupe 2.4s cubic-bezier(.15, .9, .3, 1) infinite; }
+@keyframes coupes { 0% { background: linear-gradient(165deg, #FF5A8A, #3B1C5A); } 25% { background: linear-gradient(165deg, #FFB547, #5A2A12); } 50% { background: linear-gradient(165deg, #3BC9FF, #10264A); } 75% { background: linear-gradient(165deg, #A78BFA, #24124A); } }
+@keyframes punch { 0% { transform: scale(1.32); } 60%, 100% { transform: scale(1.04); } }
+@keyframes punch-coupe { 0%, 25%, 50%, 75% { transform: scale(1.2); } 12%, 37%, 62%, 87%, 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .apercu-montage > i, .apercu-montage.zooms > i, .apercu-montage.rap > i { animation: none; } }
+.inters { margin: -2px 0 16px; padding: 0 14px; border-radius: 14px; background: var(--surface-2); }
+.inters .inter:first-child { padding-top: 14px; }
+.sous-musique { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+.sous-musique small, .champ > .sous-musique + small { color: var(--doux); font-size: 12.5px; }
+.sous-musique input[type="file"] { font-size: 13px; max-width: 100%; }
+.sous-musique .duo, .editeur-clip .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 4px; }
+.editeur-clip .duo { margin-bottom: 16px; }
+.sous-musique .mini span, .editeur-clip .mini span { display: block; font-size: 12px; color: var(--doux); margin-bottom: 3px; }
+@media (max-width: 520px) { .sous-musique .duo, .editeur-clip .duo { grid-template-columns: 1fr; } }
+
+/* les personnages et objets de référence, puis les plans : l'image clé, son numéro, sa durée, son effet */
+.refs-clip { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; margin: 0 -2px; }
+.ref-clip { flex: 0 0 112px; display: flex; flex-direction: column; gap: 6px; }
+.ref-clip .vue, .plan-clip .vue { position: relative; border-radius: 12px; overflow: hidden; background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: lueur 1.4s linear infinite; }
+.ref-clip.fini .vue, .ref-clip.echec .vue, .plan-clip.fini .vue, .plan-clip.echec .vue { animation: none; background: var(--surface-3); }
+.ref-clip.echec .vue, .plan-clip.echec .vue { background: var(--alerte-pale); }
+.ref-clip .vue img, .plan-clip .vue img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ref-clip .txt b { display: block; font-size: 13px; font-weight: 620; line-height: 1.25; }
+.ref-clip .txt small, .plan-clip .txt small { display: block; font-size: 11.5px; color: var(--doux); line-height: 1.35; }
+.ref-clip .txt .btn, .plan-clip .txt .btn { margin: 4px 0 0 -8px; height: 28px; }
+.storyboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px 10px; }
+.plan-clip { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.plan-clip .vue { aspect-ratio: var(--ratio, 9 / 16); }
+.plan-clip.ouvert .vue { box-shadow: 0 0 0 2px var(--accent); }
+.plan-clip .n, .plan-clip .d, .plan-clip .fx { position: absolute; display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 8px; background: rgba(10, 6, 20, .62); color: #fff; font-size: 11.5px; font-weight: 620; font-variant-numeric: tabular-nums; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.plan-clip .n { top: 6px; left: 6px; }
+.plan-clip .d { bottom: 6px; left: 6px; }
+.plan-clip .fx { bottom: 6px; right: 6px; background: color-mix(in oklab, var(--accent) 78%, #0A0614); }
+.plan-clip .jouer { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .92); color: #0F1B2D; box-shadow: 0 8px 22px rgba(0, 0, 0, .35); cursor: pointer; }
+.plan-clip .jouer svg { width: 18px; height: 18px; fill: currentColor; stroke: none; margin-left: 3px; }
+.plan-clip .jouer:hover { background: #fff; transform: scale(1.04); }
+.plan-clip.tourne .vue::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .38) 50%, transparent 65%); background-size: 250% 100%; animation: lueur 1.6s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .plan-clip.tourne .vue::after, .ref-clip .vue, .plan-clip .vue { animation: none; } }
+.plan-clip .txt p { font-size: 12.5px; line-height: 1.35; color: var(--encre-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.plan-clip .txt small.err, .alerte-texte { color: var(--alerte); }
+/* sur téléphone : trois plans par ligne (deux en 16:9), l'effet passe en haut pour laisser la durée en bas */
+@media (max-width: 560px) {
+  .storyboard { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; }
+  .storyboard.paysage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .plan-clip .n, .plan-clip .d, .plan-clip .fx { height: 20px; padding: 0 5px; border-radius: 7px; font-size: 10.5px; }
+  .plan-clip .n { top: 5px; left: 5px; }
+  .plan-clip .d { bottom: 5px; left: 5px; }
+  .plan-clip .fx { top: 5px; right: 5px; bottom: auto; }
+  .plan-clip .jouer { width: 38px; height: 38px; }
+  .plan-clip .txt p { font-size: 12px; }
+  .plan-clip .txt .btn { padding: 0 8px; }
+}
+.tourner .prix-clip { font-size: 28px; font-weight: 680; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+details.bloc > summary { cursor: pointer; font-weight: 600; font-size: 14.5px; list-style-position: inside; }
+.prompt-lu { white-space: pre-wrap; word-break: break-word; margin: 10px 0 0; max-height: 320px; overflow: auto; font: 400 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--encre-2); }
+.fenetre-video { width: min(400px, calc(100vw - 28px)); }
+.fenetre-video video { display: block; width: 100%; max-height: 68vh; margin: 10px 0 14px; border-radius: 12px; background: #000; }

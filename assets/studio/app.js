@@ -240,7 +240,7 @@
   function apres(r) {
     if (r.vue === 'reglages') { const a = $('.reglages-nav a.on'); if (a && a.scrollIntoView) a.scrollIntoView({ inline: 'center', block: 'nearest' }); }
     if ((r.vue === 'accueil' || r.vue === 'videos' || r.vue === 'equipe') && !S.chargement) chargerVideos();
-    if (r.vue === 'video') { if (!S.video || String(S.video.id) !== String(r.arg)) chargerVideo(r.arg); else suivre(r.arg); }
+    if (r.vue === 'video') { if (!S.video || String(S.video.id) !== String(r.arg)) chargerVideo(r.arg); else { centrerBande(); suivre(r.arg); } }
     if (r.vue === 'messages') ouvrirMessages();
     if (r.vue === 'accueil' && !S.moi.reglages.visite_faite && !S.visite && !memoire.lire('visite-passee-' + S.moi.identifiant, false)) ouvrirVisite(0);
   }
@@ -577,7 +577,7 @@
     const fond = v.vignette ? '<img src="' + h(v.vignette) + '" alt="" loading="lazy"><span class="voile"></span>' : '';
     const e = v.etape || {};
     const ton = e.erreur ? 'alerte' : TON[v.status] || '';
-    return '<a class="cadre" href="#video/' + v.id + '">' + fond + '<span class="accroche">' + forts(v.accroche || v.titre || '') + '</span><span class="pied"><span class="pastille ' + ton + '">' + h(e.erreur ? 'À regarder' : v.statut) + '</span><small>' + h(v.langues.map((l) => l.toUpperCase()).join(' ')) + '</small></span></a>';
+    return '<a class="cadre" href="#video/' + v.id + '">' + fond + '<span class="accroche">' + forts(v.accroche || v.titre || '') + '</span><span class="pied"><span class="pastille ' + ton + '">' + h(e.erreur ? 'À regarder' : v.statut) + '</span><small>' + (v.genre === 'clip' ? 'CLIP' : h(v.langues.map((l) => l.toUpperCase()).join(' '))) + '</small></span></a>';
   }
 
   /* ── créer : un modèle, une idée, les langues ── */
@@ -655,10 +655,18 @@
     const libre = '<label class="modele"><input type="radio" name="modele" value=""' + (!S.modele ? ' checked' : '') + '><span>' + ico('libre') + '<b>Libre</b><small>Ton idée, ta forme</small></span></label>';
     return '<div class="modeles">' + libre + Object.keys(m).map((k) => '<label class="modele"><input type="radio" name="modele" value="' + k + '"' + (S.modele === k ? ' checked' : '') + '><span>' + ico(k) + '<b>' + h(m[k].nom) + '</b><small>' + h(m[k].court) + '</small></span></label>').join('') + '</div>';
   }
+  // deux façons de faire : une vidéo racontée (une idée, un script dit par une voix) ou un clip (son prompt de
+  // réalisateur, filmé plan par plan)
+  function genresHtml(genre) {
+    const carte = (k, icone, titre, texte) => '<label class="modele"><input type="radio" name="genre" value="' + k + '"' + (genre === k ? ' checked' : '') + '><span>' + ico(icone) + '<b>' + titre + '</b><small>' + texte + '</small></span></label>';
+    return '<div class="genres" role="radiogroup" aria-label="Le genre de vidéo">' + carte('video', 'histoire', 'Vidéo racontée', 'Une idée : ton équipe écrit, une voix raconte') + carte('clip', 'clap', 'Clip à partir de ton prompt', 'Tes plans, filmés par IA et montés sur le rythme') + '</div>';
+  }
   function vueCreer() {
     const r = S.moi.reglages;
     const mod = (S.cat.modeles || {})[S.modele];
-    let x = '<div class="s-tete"><div><h1>Nouvelle vidéo</h1><p>Choisis une forme, donne une idée : ' + h(membre('plume').prenom) + ' écrit, ' + h(membre('critique').prenom) + ' relit, tu valides.</p></div></div>';
+    const genre = S.genreCreer === 'clip' && S.cat.clip ? 'clip' : 'video';
+    if (genre === 'clip') return '<div class="s-tete"><div><h1>Nouveau clip</h1><p>Colle ton prompt de réalisateur : ' + h(membre('realisation').prenom) + ' le découpe en plans, fait une image par plan, tu valides, elle tourne et monte sur le rythme.</p></div></div>' + genresHtml(genre) + vueCreerClip();
+    let x = '<div class="s-tete"><div><h1>Nouvelle vidéo</h1><p>Choisis une forme, donne une idée : ' + h(membre('plume').prenom) + ' écrit, ' + h(membre('critique').prenom) + ' relit, tu valides.</p></div></div>' + (S.cat.clip ? genresHtml(genre) : '');
     if (!S.moi.connexions.claude.branchee) x += '<div class="message attention" style="margin-bottom:16px"><b>Ta clé Claude n\'est pas encore branchée</b>Ton équipe ne peut pas écrire sans elle.<div class="actions"><a class="btn petit" href="#reglages/connexions">Brancher ma clé</a></div></div>';
     x += '<form class="bloc" data-form="creer">' +
       '<div class="champ"><span>La forme</span>' + modelesHtml() + '</div>' +
@@ -672,6 +680,111 @@
     const idees = S.moi.idees || [];
     if (idees.length) x += '<div class="idees" style="margin-top:14px">' + idees.map(carteIdee).join('') + '</div>';
     return x + '</section>';
+  }
+
+  /* ── un clip : son prompt de réalisateur ── */
+  const CLIP_VIDE = { qualites: {}, montages: {}, formats: {}, sources: {}, durees: [], prix: {}, limites: { prompt: 8000, son: 31457280 } };
+  const catClip = () => S.cat.clip || CLIP_VIDE;
+  const EFFETS_CLIP = { aucun: 'Aucun', zoom: 'Coup de zoom', secousse: 'Secousse', flash: 'Flash' };
+  const EFFETS_COURTS = { zoom: 'Zoom', secousse: 'Secousse', flash: 'Flash' };
+  // les secondes de chaque plan, lues dans son prompt (« (3s) », « (2 sec) ») : le même calcul que la tour
+  function dureesLues(prompt) {
+    const out = [];
+    String(prompt || '').replace(/\(\s*(\d+(?:[.,]\d+)?)\s*(?:s|sec|secs|secondes?|seconds?)\s*\)/gi, (m, n) => { out.push(Number(n.replace(',', '.'))); return m; });
+    return out.filter((n) => n > 0 && n <= 20).slice(0, 16);
+  }
+  function dureePlanClip(q, d) {
+    const m = catClip().qualites[q] || {};
+    if (m.entier) return Math.min(m.maximum || 30, Math.max(m.minimum || 4, Math.ceil(d + 0.3)));
+    return Math.round(Math.min(m.maximum || 15, Math.max(m.minimum || 1, d + 0.5)) * 10) / 10;
+  }
+  const prixPlanClip = (q, d) => { const m = catClip().qualites[q] || {}; return (dureePlanClip(q, d) + (m.marge || 0)) * (m.seconde || 0); };
+  // ce que coûte un clip sur sa clé fal (images, plans filmés, bruitages, musique), avant le découpage
+  function estimerClip(o) {
+    const cat = catClip(), q = cat.qualites[o.qualite] ? o.qualite : 'hd', m = cat.qualites[q] || {};
+    const lues = dureesLues(o.prompt), auto = !o.duree || o.duree === 'auto';
+    let durees;
+    if (auto && lues.length) durees = lues;
+    else { const total = auto ? 30 : Number(o.duree) || 30, n = Math.max(1, Math.round(total / 2.7)); durees = Array.from({ length: n }, () => Math.round(total / n * 10) / 10); }
+    const secondes = durees.reduce((a, b) => a + b, 0);
+    const images = (durees.length + 2) * (m.image || 0);
+    const video = durees.reduce((a, d) => a + prixPlanClip(q, d), 0);
+    const sons = !m.son && o.bruitages !== false ? durees.reduce((a, d) => a + Math.min(30, dureePlanClip(q, d)), 0) * (cat.prix.bruitages || 0) : 0;
+    const musique = o.musique === 'ia' ? Math.ceil((secondes + 2.5) / 60) * (cat.prix.musique_minute || 0) : 0;
+    return { plans: durees.length, secondes: Math.round(secondes * 10) / 10, lues: auto && lues.length > 0, images, tournage: video + sons + musique, total: images + video + sons + musique };
+  }
+  function luHtml(prompt) {
+    const l = dureesLues(prompt);
+    if (!String(prompt || '').trim()) return 'En français ou en anglais. Donne les personnages, le style, puis chaque plan avec sa durée entre parenthèses : « Shot 1 (3s) : … ».';
+    if (!l.length) return 'Aucune durée lue : ' + h(membre('realisation').prenom) + ' découpe elle-même, des plans de 2 à 3 secondes.';
+    const t = Math.round(l.reduce((a, b) => a + b, 0) * 10) / 10;
+    return l.length + ' plan' + (l.length > 1 ? 's' : '') + ' lu' + (l.length > 1 ? 's' : '') + ' dans ton prompt, ' + String(t).replace('.', ',') + ' secondes' + (t > 60 ? ' (60 au plus : les plans seront raccourcis)' : '') + '.';
+  }
+  function coutClipHtml(o) {
+    const e = estimerClip(o), m = catClip().qualites[o.qualite] || {};
+    return 'Environ ' + h(usd(e.total)) + ' sur ta clé fal pour ' + e.plans + ' plans et ' + String(e.secondes).replace('.', ',') + ' s en qualité ' + h(m.nom === 'HD' ? 'HD' : (m.nom || '').toLowerCase()) +
+      (o.valider !== false ? ' : ' + h(usd(e.images)) + ' pour les images, puis le tournage (' + h(usd(e.tournage)) + ') seulement quand tu le lances.' : ', tout de suite (sans validation des images).') +
+      ' Le découpage : quelques centimes sur ta clé Claude. Le montage est offert.';
+  }
+  function cartesMontage(nom, choisi) {
+    const m = catClip().montages;
+    return '<div class="montages">' + Object.keys(m).map((k) => '<label class="modele montage"><input type="radio" name="' + nom + '" value="' + k + '"' + (k === choisi ? ' checked' : '') + '><span><i class="apercu-montage ' + k + '" aria-hidden="true"><i></i></i><b>' + h(m[k].nom) + '</b><small>' + h(m[k].court) + '</small></span></label>').join('') + '</div>';
+  }
+  // la musique : rien (un son TikTok ajouté en publiant), son fichier à elle, ou une musique créée pour le clip
+  function musiqueClipHtml(m, prefixe) {
+    m = m || {};
+    const src = m.source || 'aucune', s = catClip().sources;
+    return '<div class="champ"><span>La musique</span>' + radios('musique.source', Object.keys(s).map((k) => [k, s[k]]), src) +
+      '<div class="sous-musique" data-musique="aucune"' + (src === 'aucune' ? '' : ' hidden') + '><small>Pour un son connu : publie le clip sans musique et choisis le son dans TikTok en publiant. Il y est licencié, et un son tendance aide la portée.</small></div>' +
+      '<div class="sous-musique" data-musique="fichier"' + (src === 'fichier' ? '' : ' hidden') + '>' + (m.nom && prefixe ? '<small>Actuel : ' + h(m.nom) + '. Choisis un autre fichier pour le changer.</small>' : '') +
+        '<input type="file" name="son" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg" aria-label="Ton fichier audio"><div class="duo"><label class="mini"><span>Commencer le morceau à (secondes)</span><input type="number" name="musique.debut" min="0" max="600" step="0.5" value="' + h(m.debut || 0) + '"></label></div>' +
+        '<small>Un son à toi, ou que tu as le droit d\'utiliser (une instru achetée avec sa licence). ' + Math.round((catClip().limites.son || 31457280) / 1048576) + ' Mo au plus.</small></div>' +
+      '<div class="sous-musique" data-musique="ia"' + (src === 'ia' ? '' : ' hidden') + '><textarea name="musique.idee" rows="2" maxlength="300" placeholder="Trap sombre et luxueuse, 140 BPM, grosses basses">' + h(m.idee || '') + '</textarea><small>Une musique instrumentale créée pour ce clip, à sa durée, libre de droits : ' + h(usd(catClip().prix.musique_minute || 0.6)) + ' la minute entamée.</small></div>' +
+      '<small>Un lien YouTube ou Spotify ne peut pas servir : la musique appartient à son auteur, et la vidéo serait coupée ou démonétisée.</small></div>';
+  }
+  function vueCreerClip() {
+    const cat = catClip();
+    const b = S.brouillonClip || {};
+    const lou = membre('realisation').prenom;
+    let x = '';
+    if (!S.moi.connexions.claude.branchee) x += '<div class="message attention" style="margin-bottom:12px"><b>Ta clé Claude n\'est pas encore branchée</b>' + h(lou) + ' en a besoin pour découper ton prompt.<div class="actions"><a class="btn petit" href="#reglages/connexions">Brancher ma clé</a></div></div>';
+    if (!S.moi.connexions.fal.branchee) x += '<div class="message attention" style="margin-bottom:12px"><b>Un clip demande ta clé fal</b>Les images et les plans filmés se paient sur ton compte fal, à l\'usage. <a href="#reglages/connexions">Le pas à pas prend 5 minutes</a>.</div>';
+    const q = cat.qualites;
+    const qualites = Object.keys(q).map((k) => '<label class="modele qualite"><input type="radio" name="qualite" value="' + k + '"' + (k === (b.qualite || 'hd') ? ' checked' : '') + '><span><b>' + h(q[k].nom) + '</b><em>' + h(usd(q[k].seconde)) + ' la seconde</em><small>' + h(q[k].court) + '. ' + h(q[k].modele) + (q[k].son ? ', sons du film compris' : '') + (q[k].minimum >= 4 ? ', ' + q[k].minimum + ' s payées au moins par plan' : '') + '.</small></span></label>').join('');
+    return x + '<form class="bloc" data-form="clip">' +
+      '<label class="champ"><span>Ton prompt</span><textarea name="prompt" class="prompt-clip" rows="12" maxlength="' + cat.limites.prompt + '" placeholder="Fast-cut cinematic montage in Monaco…&#10;&#10;CHARACTERS (identical in every shot): …&#10;&#10;Shot 1 (3s): …&#10;Shot 2 (2s): …">' + h(b.prompt || '') + '</textarea><small class="aide" data-lu>' + luHtml(b.prompt) + '</small></label>' +
+      '<div class="champ"><span>Format</span>' + radios('format', Object.keys(cat.formats).map((k) => [k, cat.formats[k].nom, cat.formats[k].court]), b.format || '9:16') + '</div>' +
+      '<div class="champ"><span>Durée</span>' + radios('duree', [['auto', 'Selon mon prompt'], ['15', '15 s'], ['30', '30 s'], ['45', '45 s'], ['60', '60 s']], b.duree || 'auto') + '</div>' +
+      '<div class="champ"><span>La qualité des plans</span><div class="qualites-clip">' + qualites + '</div></div>' +
+      '<div class="champ"><span>Le montage</span>' + cartesMontage('montage', b.montage || 'zooms') + '</div>' +
+      '<div class="inters">' + inter('bruitages', b.bruitages !== false, 'Les bruitages', 'Le moteur, le bouchon, le briquet : le son de chaque plan') + inter('valider', b.valider !== false, 'Je vois les images avant le tournage', 'Une image par plan, quelques centimes chacune : tu valides avant de payer les plans filmés') + '</div>' +
+      musiqueClipHtml(b.musique || {}) +
+      '<button class="btn large" type="submit">Lancer ' + h(lou) + '</button><p class="doux petit" style="margin-top:10px" data-cout-clip>' + coutClipHtml(Object.assign({ qualite: 'hd', valider: true }, b, { musique: (b.musique || {}).source })) + '</p></form>';
+  }
+  // le formulaire a changé : ce qui est lu dans le prompt, la musique choisie, le prix ; le brouillon est gardé (un long
+  // prompt ne se perd pas en changeant de page)
+  function majClip(form) {
+    if (!form) return;
+    const d = lireForm(form);
+    const lu = $('[data-lu]', form); if (lu) lu.innerHTML = luHtml(d.prompt);
+    const src = (d.musique || {}).source || 'aucune';
+    $$('[data-musique]', form).forEach((el) => { el.hidden = el.dataset.musique !== src; });
+    const c = $('[data-cout-clip]', form);
+    if (c) c.innerHTML = coutClipHtml(Object.assign({}, d, { musique: src }));
+    if (form.dataset.form === 'clip') { S.brouillonClip = { prompt: d.prompt, format: d.format, duree: d.duree, qualite: d.qualite, montage: d.montage, bruitages: d.bruitages, valider: d.valider, musique: { source: src, idee: (d.musique || {}).idee, debut: (d.musique || {}).debut } }; memoire.ecrire('brouillonClip', S.brouillonClip); }
+  }
+  // envoyer son fichier audio droit dans le stockage (un lien signé), la barre de progression sur le bouton
+  async function envoyerSon(form, btn) {
+    const input = $('input[name="son"]', form);
+    const fi = input && input.files && input.files[0];
+    if (!fi) return null;
+    const max = catClip().limites.son || 31457280;
+    if (fi.size > max) throw new Error(fi.name + ' : trop lourd (' + Math.round(max / 1048576) + ' Mo au plus).');
+    const r = await agir('clip_son_envoi', { nom: fi.name, type: typeFichier(fi), taille: fi.size });
+    const texte = btn ? btn.textContent : '';
+    await televerser(r.url, fi, r.type, (x) => { if (btn) btn.textContent = 'Envoi du son : ' + Math.round(x * 100) + ' %'; });
+    if (btn) btn.textContent = texte;
+    return { chemin: r.chemin, nom: fi.name };
   }
 
   /* ── les vidéos ── */
@@ -696,7 +809,29 @@
   }
 
   /* ── une vidéo ── */
+  const estClip = (v) => !!(v && v.plan && v.plan.genre === 'clip');
+  // les étapes d'un clip : son prompt, le découpage, les images, sa validation, le tournage, le montage, la publication
+  function etapesClip(v) {
+    const st = v.status, e = v.etape || {};
+    const cl = v.plan.clip || {};
+    const ou = st === 'echec' ? (e.statut_avant || 'ecriture') : st;
+    const quoi = st === 'echec' ? e.quoi : e.quoi;
+    const rang = { ecriture: 0, realisation: quoi === 'tournage' ? 3 : 1, relecture: 2, fabrication: 4, prete: 5, publication: 6, publiee: 7, archivee: 7 }[ou] || 0;
+    const bloque = !!(e.bloque || e.erreur || st === 'echec');
+    const lou = membre('realisation').prenom;
+    const liste = [
+      { role: 'toi', titre: 'Toi', sous: 'le prompt', fait: true },
+      { role: 'realisation', titre: lou, sous: 'le découpage', fait: rang > 0, actif: rang === 0 },
+      { role: 'realisation', titre: lou, sous: 'les images', fait: rang > 1, actif: rang === 1 }
+    ];
+    if (cl.valider) liste.push({ role: 'toi', titre: 'Toi', sous: st === 'relecture' ? 'à valider' : 'validation', fait: rang > 2, actif: rang === 2 });
+    liste.push({ role: 'realisation', titre: lou, sous: 'le tournage', fait: rang > 3, actif: rang === 3 });
+    liste.push({ role: 'realisation', titre: lou, sous: 'le montage', fait: rang > 4, actif: rang === 4 });
+    liste.push({ role: 'diffusion', titre: membre('diffusion').prenom, sous: 'la publication', fait: st === 'publiee' || st === 'archivee', actif: st === 'publication' });
+    return liste.map((x) => Object.assign(x, { bloque: x.actif && bloque }));
+  }
   function etapes(v) {
+    if (estClip(v)) return etapesClip(v);
     const st = v.status, e = v.etape || {};
     const plusieurs = (v.langues || []).length > 1;
     const ordre = ['ecriture', 'relecture', 'langues', 'realisation', 'fabrication', 'prete', 'publication', 'publiee'];
@@ -723,8 +858,12 @@
     const e = v.etape || {}, st = v.status;
     const r = v.rendus || {};
     const enIa = (v.plan || {}).style === 'ia';
-    // continuer sans fal : sans images IA (look images IA), ou avec la voix gratuite (une vidéo bloquée par sa voix naturelle)
-    const parFal = !(v.plan || {}).sans_fal && (enIa || e.bloque === 'fal' || e.bloque === 'credit_fal' || !!(v.plan || {}).voix_ia);
+    const clip = estClip(v);
+    // le budget d'un clip atteint : elle accepte ce qu'il reste à payer
+    if (clip && e.bloque === 'budget_clip') return '<div class="activite alerte">' + avatar('realisation', 'petit') + '<div class="plein"><b>En attente</b><br>' + h(e.erreur || '') + '<div class="actions" style="margin-top:8px"><button class="btn petit" data-a="clipBudget">Accepter ' + h(usd((v.plan.clip || {}).a_payer)) + ' de plus</button></div></div></div>';
+    // continuer sans fal : sans images IA (look images IA), ou avec la voix gratuite (une vidéo bloquée par sa voix
+    // naturelle) ; jamais pour un clip, fait par fal de bout en bout
+    const parFal = !clip && !(v.plan || {}).sans_fal && (enIa || e.bloque === 'fal' || e.bloque === 'credit_fal' || !!(v.plan || {}).voix_ia);
     const libelleSans = enIa ? 'Continuer sans images IA' : 'Continuer avec la voix gratuite';
     if (e.bloque || (e.erreur && st !== 'echec')) {
       const sans = parFal && st === 'realisation' ? '<button class="btn second petit" data-a="sansIa">' + libelleSans + '</button>' : '';
@@ -748,6 +887,7 @@
         : pr.images[0] < pr.images[1] ? lou + ' fait créer les images IA : ' + pr.images[0] + ' sur ' + pr.images[1] + '. Quelques secondes chacune.'
           : pr.videos[1] && pr.videos[0] < pr.videos[1] ? lou + ' anime ' + (pr.videos[1] > 1 ? 'les scènes en vidéo : ' + pr.videos[0] + ' sur ' + pr.videos[1] : 'la première scène en vidéo') + '. Compte une à deux minutes.'
             : lou + ' a toutes les images IA et lance le montage.';
+    if (clip) return activiteClip(v);
     const textes = {
       ecriture: e.quoi === 'critique' ? membre('critique').prenom + ' relit le script et le note.' : e.quoi === 'reecriture' ? membre('plume').prenom + ' réécrit le script avec ' + (e.consigne ? 'ta consigne.' : 'les remarques de ' + membre('critique').prenom + '.') : membre('plume').prenom + ' écrit le script.',
       relecture: 'À toi : relis le script, retouche ce que tu veux, puis valide.',
@@ -763,12 +903,39 @@
     const role = st === 'relecture' ? null : roleActif(v);
     return '<div class="activite">' + (role ? avatar(role, 'petit', travaille) : avatarMoi('petit')) + '<div class="plein">' + textes[st] + '</div></div>';
   }
+  // ce que fait l'équipe sur un clip, en ce moment
+  function activiteClip(v) {
+    const e = v.etape || {}, st = v.status, pr = e.progres || null;
+    const cl = v.plan.clip || {};
+    const lou = membre('realisation').prenom;
+    let t;
+    if (st === 'ecriture') t = lou + (e.consigne ? ' redécoupe ton prompt avec ta consigne.' : ' découpe ton prompt en plans : les personnages qui reviennent, le style, chaque plan.');
+    else if (st === 'realisation' && e.quoi !== 'tournage') t = pr && pr.images ? lou + ' fait les images : ' + (pr.refs[0] + pr.images[0]) + ' sur ' + (pr.refs[1] + pr.images[1]) + '. Les personnages d\'abord, puis la première image de chaque plan.' : lou + ' prépare les images.';
+    else if (st === 'relecture') t = 'À toi : regarde chaque image, refais celles qui ne vont pas, puis lance le tournage.';
+    else if (st === 'realisation') t = (pr && pr.videos ? lou + ' tourne les plans : ' + pr.videos[0] + ' sur ' + pr.videos[1] + (pr.sons && pr.sons[1] ? ', bruitages ' + pr.sons[0] + ' sur ' + pr.sons[1] : '') + (pr.musique ? ', musique ' + (pr.musique === 'fini' ? 'prête' : 'en cours') : '') + '.' : lou + ' lance le tournage.') + ' Ils tournent en même temps : compte 2 à 5 minutes.' + (e.note ? ' ' + e.note + '.' : '');
+    else if (st === 'fabrication') t = 'Montage en cours : coupes sur le rythme, ' + (cl.montage === 'net' ? 'le son.' : 'zooms et le son.') + ' Compte 2 à 4 minutes.' + (e.note ? ' ' + e.note : '');
+    else t = { prete: 'Ton clip est prêt.', publication: membre('diffusion').prenom + ' publie ton clip.', publiee: 'Publié.', archivee: 'Archivé.' }[st] || '';
+    if (e.note && ['prete', 'publiee'].indexOf(st) >= 0) t += ' ' + e.note;
+    const travaille = S.cat.automatiques.indexOf(st) >= 0;
+    return '<div class="activite">' + (st === 'relecture' ? avatarMoi('petit') : avatar(st === 'prete' || st === 'publication' || st === 'publiee' ? 'diffusion' : 'realisation', 'petit', travaille)) + '<div class="plein">' + h(t) + '</div></div>';
+  }
   function roleActif(v) {
+    if (estClip(v)) return v.status === 'prete' || v.status === 'publication' || v.status === 'publiee' ? 'diffusion' : 'realisation';
     const e = v.etape || {};
     const st = v.status === 'echec' ? (e.statut_avant || 'ecriture') : v.status;
     return { ecriture: e.quoi === 'critique' ? 'critique' : 'plume', relecture: 'critique', langues: 'traduction', realisation: 'realisation', fabrication: 'realisation', prete: 'diffusion', publication: 'diffusion', publiee: 'diffusion', archivee: 'diffusion' }[st] || 'plume';
   }
   function etatHtml(v) { return bandeHtml(v) + activiteHtml(v); }
+  // la bande défile jusqu'à l'étape en cours (un clip en a jusqu'à sept, plus que la largeur d'un téléphone)
+  function centrerBande() {
+    const b = $('#v-etat .bande');
+    if (!b || b.scrollWidth <= b.clientWidth + 1) return;
+    const faites = b.querySelectorAll('.etape.faite');
+    const x = b.querySelector('.etape.active, .etape.bloquee') || faites[faites.length - 1];
+    if (!x) return;
+    const rb = b.getBoundingClientRect(), rx = x.getBoundingClientRect();
+    b.scrollLeft = Math.max(0, b.scrollLeft + rx.left - rb.left - (b.clientWidth - rx.width) / 2);
+  }
 
   function scriptLecture(s, titre) {
     if (!s || !s.beats) return '';
@@ -870,7 +1037,93 @@
     }).join('');
     return '<div class="bloc"><h3 style="margin-bottom:10px">Les images IA</h3><div class="planche">' + cases + '</div></div>';
   }
+  /* ── un clip : les personnages, les plans, la validation, le remontage ── */
+  const ratioClip = (cl) => (cl.format === '16:9' ? '16 / 9' : cl.format === '1:1' ? '1 / 1' : '9 / 16');
+  const prixImageClip = (cl) => ((catClip().qualites[cl.qualite] || {}).image) || 0.07;
+  function refsClipHtml(v) {
+    const cl = v.plan.clip, sb = cl.storyboard, g = cl.gen || {};
+    if (!sb || !(sb.elements || []).length) return '';
+    const edit = v.status === 'relecture';
+    const TYPES = { personnage: 'Personnage', objet: 'Objet', lieu: 'Lieu' };
+    const cartes = sb.elements.map((e) => {
+      const j = (g.refs || []).find((x) => x && x.id === e.id) || {};
+      const ratio = e.type === 'personnage' ? '3 / 4' : e.type === 'lieu' ? '16 / 9' : '4 / 3';
+      return '<article class="ref-clip ' + h(j.etat || 'attente') + '"><div class="vue" style="aspect-ratio:' + ratio + '">' + (j.url ? '<img src="' + h(j.url) + '" alt="' + h(e.nom) + '" loading="lazy">' : '') + '</div><div class="txt"><b>' + h(e.nom) + '</b><small>' + h(TYPES[e.type] || '') + (j.etat === 'echec' ? ', image ratée' : '') + '</small>' +
+        (edit ? '<button class="btn discret petit" data-a="clipRef" data-e="' + h(e.id) + '">Refaire</button>' : '') + '</div></article>';
+    }).join('');
+    return '<div class="bloc"><div class="bloc-t"><h3>Les personnages et objets</h3><small class="doux">la même apparence dans chaque plan</small></div><div class="refs-clip">' + cartes + '</div></div>';
+  }
+  function storyboardHtml(v) {
+    const cl = v.plan.clip, sb = cl.storyboard, g = cl.gen || {};
+    const edit = v.status === 'relecture';
+    const total = Math.round(sb.plans.reduce((a, p) => a + p.duree, 0) * 10) / 10;
+    const cases = sb.plans.map((p, i) => {
+      const im = (g.images || [])[i] || {}, vd = (g.videos || [])[i] || {};
+      const etat = vd.etat === 'fini' ? 'filmé' : vd.etat === 'demande' ? 'en tournage' : vd.etat === 'echec' ? 'image fixe à la place' : im.etat === 'echec' ? 'image ratée' : im.etat === 'fini' ? '' : 'image en cours';
+      const jouer = vd.url ? '<button class="jouer" data-a="voirPlan" data-i="' + i + '" aria-label="Voir le plan ' + (i + 1) + ' filmé">' + ico('ecouter') + '</button>' : '';
+      return '<article class="plan-clip ' + h(im.etat || 'attente') + (vd.etat === 'demande' ? ' tourne' : '') + (S.planOuvert === i && edit ? ' ouvert' : '') + '"><div class="vue">' + (im.url ? '<img src="' + h(im.url) + '" alt="" loading="lazy">' : '') + jouer +
+        '<span class="n">' + (i + 1) + '</span><span class="d">' + String(p.duree).replace('.', ',') + ' s</span>' + (p.effet && p.effet !== 'aucun' ? '<span class="fx" title="' + h(EFFETS_CLIP[p.effet]) + ' sur le moment fort">' + h(EFFETS_COURTS[p.effet] || '') + '</span>' : '') + '</div>' +
+        '<div class="txt"><p>' + h(p.resume) + '</p>' + (etat ? '<small>' + h(etat) + '</small>' : '') + (im.erreur && im.etat === 'echec' ? '<small class="err">' + h(im.erreur) + '</small>' : '') + (edit ? '<button class="btn discret petit" data-a="ouvrirPlan" data-i="' + i + '">Retoucher</button>' : '') + '</div></article>';
+    }).join('');
+    let x = '<div class="bloc"><div class="bloc-t"><h3>Les plans</h3><small class="doux">' + sb.plans.length + ' plans, ' + String(total).replace('.', ',') + ' s</small></div><div class="storyboard' + (cl.format === '16:9' ? ' paysage' : '') + '" style="--ratio:' + ratioClip(cl) + '">' + cases + '</div></div>';
+    if (edit && S.planOuvert != null && sb.plans[S.planOuvert]) x += editeurPlanHtml(v, S.planOuvert);
+    return x;
+  }
+  function editeurPlanHtml(v, i) {
+    const cl = v.plan.clip, p = cl.storyboard.plans[i];
+    return '<form class="bloc vif editeur-clip" data-form="clipPlan" data-i="' + i + '" id="editeur-plan"><div class="bloc-t"><h3>Plan ' + (i + 1) + '</h3><button type="button" class="btn discret petit" data-a="fermerPlan">Fermer</button></div>' +
+      '<label class="champ"><span>La première image (en anglais)</span><textarea name="image" rows="3" maxlength="900">' + h(p.image) + '</textarea></label>' +
+      '<label class="champ"><span>Ce qui se passe et la caméra (en anglais)</span><textarea name="mouvement" rows="2" maxlength="500">' + h(p.mouvement) + '</textarea></label>' +
+      '<div class="duo"><label class="mini"><span>Durée (secondes)</span><input type="number" name="duree" min="1" max="10" step="0.5" value="' + h(p.duree) + '"></label><label class="mini"><span>Effet sur le moment fort</span><select name="effet">' + Object.keys(EFFETS_CLIP).map((k) => '<option value="' + k + '"' + (k === p.effet ? ' selected' : '') + '>' + EFFETS_CLIP[k] + '</option>').join('') + '</select></label></div>' +
+      '<label class="champ"><span>Les bruitages (en anglais)</span><input type="text" name="son" maxlength="240" value="' + h(p.son || '') + '" placeholder="engine roar, champagne cork pop"></label>' +
+      '<label class="champ"><span>Une consigne pour refaire l\'image</span><input type="text" name="consigne" maxlength="400" placeholder="Facultatif : plus sombre, la voiture plus près, de dos"></label>' +
+      '<div class="actions"><button class="btn" type="submit">Refaire l\'image (' + h(usd(prixImageClip(cl))) + ')</button><button class="btn second" type="button" data-a="clipPlanEnregistrer">Enregistrer</button><button class="btn danger petit" type="button" data-a="clipPlanRetirer">Retirer ce plan</button></div>' +
+      '<p class="doux petit" style="margin-top:10px">Les textes en anglais partent tels quels aux modèles. Une première image changée est refaite (même prix) ; la durée, l\'effet et les bruitages servent au tournage et ne coûtent rien maintenant.</p></form>';
+  }
+  const enListe = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' et ' + l[l.length - 1] : String(l[0]));
+  function validationClipHtml(v) {
+    const cl = v.plan.clip, sb = cl.storyboard, g = cl.gen || {}, q = catClip().qualites[cl.qualite] || {};
+    // un plan sans image (ratée deux fois) n'est pas filmé : il sort du clip si elle ne la refait pas
+    const sans = sb.plans.map((_, i) => i).filter((i) => ((g.images || [])[i] || {}).etat === 'echec');
+    const n = sb.plans.length - sans.length;
+    const morceaux = [n + (n > 1 ? ' plans filmés' : ' plan filmé') + ' par ' + (q.modele || 'fal')].concat(!q.son && cl.bruitages ? ['leurs bruitages'] : []).concat(cl.musique.source === 'ia' ? ['la musique créée'] : []);
+    const avert = sans.length ? '<p class="petit alerte-texte" style="margin-top:8px">' + h((sans.length > 1 ? 'Les plans ' + enListe(sans.map((i) => i + 1)) + ' n\'ont pas d\'image' : 'Le plan ' + (sans[0] + 1) + ' n\'a pas d\'image') + ' : refais-la avec « Retoucher », sinon ' + (sans.length > 1 ? 'ils sortent' : 'il sort') + ' du clip.') + '</p>' : '';
+    return '<div class="bloc vif tourner"><div class="ligne"><div class="plein"><h3>Le tournage</h3><p class="doux petit">' + h(enListe(morceaux)) + ', sur ta clé fal.</p></div><b class="prix-clip">' + h(usd(cl.a_payer)) + '</b></div>' + avert +
+      '<div class="actions" style="margin-top:12px"><button class="btn large" data-a="tourner">Tourner le clip pour ' + h(usd(cl.a_payer)) + '</button></div>' +
+      '<p class="doux petit" style="margin-top:8px">Déjà dépensé pour ce clip : ' + h(usd(g.cout)) + '. Un plan raté est refait une fois sans te redemander.</p></div>';
+  }
+  function remontageHtml(v) {
+    const cl = v.plan.clip;
+    return '<form class="bloc" data-form="remonter"><h3 style="margin-bottom:4px">Refaire le montage</h3><p class="doux petit" style="margin-bottom:14px">Les plans filmés sont repris : change le style ou la musique sans rien retourner.</p>' +
+      '<div class="champ"><span>Le montage</span>' + cartesMontage('montage', cl.montage) + '</div>' +
+      '<div class="inters">' + inter('bruitages', cl.bruitages !== false, 'Les bruitages', 'Le son de chaque plan, sous la musique') + '</div>' +
+      musiqueClipHtml(cl.musique, true) + '<button class="btn second" type="submit">Refaire le montage</button></form>';
+  }
+  function corpsClip(v) {
+    const st = v.status, cl = v.plan.clip || {}, sb = cl.storyboard;
+    let x = '';
+    if (['prete', 'publication', 'publiee'].indexOf(st) >= 0) x += '<div class="bloc">' + lecteurHtml(v) + '</div>' + (st !== 'publication' ? remontageHtml(v) : '');
+    if (st === 'relecture') x += validationClipHtml(v);
+    if (sb) x += refsClipHtml(v) + storyboardHtml(v);
+    x += '<details class="bloc"' + (sb ? '' : ' open') + '><summary>Ton prompt</summary><pre class="prompt-lu">' + h(cl.prompt || v.sujet) + '</pre></details>';
+    if (st === 'relecture') x += '<div class="bloc"><h3>Pas convaincue par le découpage ?</h3><p class="doux petit" style="margin:4px 0 12px">Dis à ' + h(membre('realisation').prenom) + ' ce qui ne va pas : elle redécoupe tout. Les images dont le plan ne change pas sont gardées.</p><textarea id="consigne" rows="2" maxlength="600" placeholder="Ajoute un plan sur le yacht, et la voiture en rouge"></textarea><div class="actions" style="margin-top:10px"><button class="btn second" data-a="reecrire">Faire redécouper</button></div></div>';
+    return x + basVideo(v);
+  }
+  // un plan filmé, en grand
+  function voirVideo(url, titre) {
+    const voile = document.createElement('div'); voile.className = 'voile';
+    const f = document.createElement('div'); f.className = 'fenetre fenetre-video'; f.setAttribute('role', 'dialog'); f.setAttribute('aria-modal', 'true');
+    f.innerHTML = '<h2>' + h(titre) + '</h2><video controls autoplay playsinline loop src="' + h(url) + '"></video><div class="actions fin"><button class="btn discret" data-r="0">Fermer</button></div>';
+    document.body.append(voile, f);
+    requestAnimationFrame(() => { voile.classList.add('visible'); f.classList.add('visible'); });
+    const fin = () => { voile.classList.remove('visible'); f.classList.remove('visible'); setTimeout(() => { voile.remove(); f.remove(); }, 220); document.removeEventListener('keydown', cl); };
+    const cl = (e) => { if (e.key === 'Escape') fin(); };
+    document.addEventListener('keydown', cl);
+    voile.addEventListener('click', fin);
+    f.addEventListener('click', (e) => { if (e.target.closest('[data-r]')) fin(); });
+  }
   function corpsVideo(v) {
+    if (estClip(v)) return corpsClip(v);
     const st = v.status;
     let x = '';
     if (st === 'relecture') return noteHtml(v.critique) + editionScript(v) + basVideo(v);
@@ -904,7 +1157,10 @@
   function signature(v) {
     const g = (v.plan || {}).generation;
     const ia = g ? (g.images || []).concat(g.videos || []).map((j) => (j ? j.etat.charAt(0) : '-')).join('') : '';
-    return [v.status, (v.script && v.script.beats || []).length, (v.script || {}).titre, Object.keys(v.traductions || {}).join(), JSON.stringify(Object.keys(v.rendus || {}).map((l) => [l, v.rendus[l].etat, v.rendus[l].essais])), (v.critique || {}).note, (v.etape || {}).quoi, ia].join('|');
+    // un clip : où en est chaque image et chaque plan, le découpage, le prix
+    const cl = (v.plan || {}).clip;
+    const clip = cl ? [['refs', 'images', 'videos', 'sons'].map((k) => ((cl.gen || {})[k] || []).map((j) => (j ? j.etat.charAt(0) + String(j.url || '').slice(-10) : '-')).join('')).join('/'), cl.storyboard ? cl.storyboard.plans.map((p) => p.duree + p.effet + p.image.length + (p.son || '').length).join(',') : '', cl.a_payer, cl.montage, (cl.musique || {}).source].join('|') : '';
+    return [v.status, (v.script && v.script.beats || []).length, (v.script || {}).titre, Object.keys(v.traductions || {}).join(), JSON.stringify(Object.keys(v.rendus || {}).map((l) => [l, v.rendus[l].etat, v.rendus[l].essais])), (v.critique || {}).note, (v.etape || {}).quoi, ia, clip].join('|');
   }
   function vueVideo(id) {
     const v = S.video && String(S.video.id) === String(id) ? S.video : null;
@@ -916,7 +1172,7 @@
   async function chargerVideo(id) {
     try { const d = await lire('video', { id }); S.video = d.video; }
     catch (e) { toast(e.message, 'err'); return; }
-    if (route().vue === 'video' && route().arg === String(id)) { const c = $('#contenu'); if (c) c.innerHTML = vueVideo(id); suivre(id); }
+    if (route().vue === 'video' && route().arg === String(id)) { const c = $('#contenu'); if (c) c.innerHTML = vueVideo(id); centrerBande(); suivre(id); }
   }
   // une nouvelle version de la vidéo : l'état se met à jour, le reste seulement si quelque chose a changé
   function majVideo(v) {
@@ -930,8 +1186,9 @@
     }
     if (route().vue !== 'video' || route().arg !== String(v.id)) return;
     const e = $('#v-etat'), c = $('#v-corps');
-    if (!e || !c) { $('#contenu').innerHTML = vueVideo(v.id); return; }
+    if (!e || !c) { $('#contenu').innerHTML = vueVideo(v.id); centrerBande(); return; }
     e.innerHTML = etatHtml(v);
+    centrerBande();
     const sig = signature(v);
     if (sig !== S.sigCorps) { S.sigCorps = sig; c.innerHTML = corpsVideo(v); }
     else { const p = $('#v-pub'); if (p) { const l = pretes(v).indexOf(S.onglet[v.id]) >= 0 ? S.onglet[v.id] : pretes(v)[0]; if (l) p.innerHTML = pubHtml(v, l); } }
@@ -1302,6 +1559,48 @@
       if ((d.langues || []).length > 6) { toast('Six langues au plus par vidéo.', 'err'); return; }
       await occupe(btn, async () => { const r = await agir('creer', { sujet: d.sujet, langues: d.langues, format: d.format, style: d.style, ia: d.ia || null, modele: d.modele || null }); S.video = r.video; S.videos = null; S.modele = ''; location.hash = '#video/' + r.video.id; });
     },
+    // lancer un clip : son fichier audio d'abord (droit dans le stockage), puis le clip
+    async clip(f, btn) {
+      const d = lireForm(f);
+      const m = d.musique || {};
+      if (!S.moi.connexions.claude.branchee) { toast('Branche d\'abord ta clé Claude : ' + membre('realisation').prenom + ' en a besoin pour découper ton prompt.', 'err'); location.hash = '#reglages/connexions'; return; }
+      if (!S.moi.connexions.fal.branchee) { toast('Branche d\'abord ta clé fal : les images et les plans du clip se font sur ton compte fal.', 'err'); location.hash = '#reglages/connexions'; return; }
+      if (String(d.prompt || '').trim().length < 20) { toast('Colle ton prompt : quelques phrases au moins.', 'err'); const t = $('textarea[name="prompt"]', f); if (t) t.focus(); return; }
+      if (m.source === 'fichier' && !(($('input[name="son"]', f) || {}).files || []).length) { toast('Choisis ton fichier audio, ou une autre musique.', 'err'); return; }
+      await occupe(btn, async () => {
+        const musique = { source: m.source || 'aucune' };
+        if (musique.source === 'fichier') Object.assign(musique, await envoyerSon(f, btn), { debut: Number(m.debut) || 0 });
+        if (musique.source === 'ia') musique.idee = m.idee || '';
+        const r = await agir('creer', { genre: 'clip', prompt: d.prompt, format: d.format, duree: d.duree, qualite: d.qualite, montage: d.montage, bruitages: !!d.bruitages, valider: !!d.valider, musique });
+        S.brouillonClip = null; memoire.ecrire('brouillonClip', null);
+        S.video = r.video; S.videos = null; S.planOuvert = null; location.hash = '#video/' + r.video.id;
+      });
+    },
+    // refaire l'image d'un plan (avec ses retouches et sa consigne)
+    async clipPlan(f, btn) {
+      const d = lireForm(f);
+      await occupe(btn, async () => {
+        const r = await agir('clip_plan', { id: S.video.id, i: Number(f.dataset.i), image: d.image, mouvement: d.mouvement, son: d.son, duree: d.duree, effet: d.effet, refaire: true, consigne: d.consigne });
+        S.planOuvert = null; majVideo(r.video); suivre(S.video.id); toast(membre('realisation').prenom + ' refait l\'image.', 'ok');
+      });
+    },
+    // refaire le montage d'un clip : un autre style, une autre musique (son nouveau fichier part d'abord)
+    async remonter(f, btn) {
+      const d = lireForm(f);
+      const m = d.musique || {};
+      const cl = S.video.plan.clip || {};
+      const fichier = (($('input[name="son"]', f) || {}).files || []).length > 0;
+      if (m.source === 'fichier' && !fichier && !(cl.musique && cl.musique.source === 'fichier')) { toast('Choisis ton fichier audio, ou une autre musique.', 'err'); return; }
+      const nouvelleIa = m.source === 'ia' && (cl.musique.source !== 'ia' || (m.idee || '') !== (cl.musique.idee || ''));
+      if (nouvelleIa && !(await fenetre({ titre: 'Créer une nouvelle musique ?', texte: 'Environ ' + usd(catClip().prix.musique_minute || 0.6) + ' sur ta clé fal, puis le montage repart avec elle.', ok: 'Créer et remonter' }))) return;
+      await occupe(btn, async () => {
+        const musique = { source: m.source || 'aucune' };
+        if (musique.source === 'fichier') Object.assign(musique, fichier ? await envoyerSon(f, btn) : {}, { debut: Number(m.debut) || 0 });
+        if (musique.source === 'ia') musique.idee = m.idee || '';
+        const r = await agir('refaire', { id: S.video.id, montage: d.montage, bruitages: !!d.bruitages, musique });
+        S.partage = {}; majVideo(r.video); suivre(S.video.id); toast('Le montage repart.', 'ok');
+      });
+    },
     async idees(f, btn) {
       const d = lireForm(f);
       if (!S.moi.connexions.claude.branchee) { toast('Branche d\'abord ta clé Claude.', 'err'); location.hash = '#reglages/connexions'; return; }
@@ -1414,7 +1713,51 @@
     async scriptEnregistrer(b) { const f = b.closest('form'); await occupe(b, async () => { const r = await agir('modifier', { id: S.video.id, script: scriptDe(f) }); S.video = r.video; toast('Retouches enregistrées.', 'ok'); }); },
     async reecrire(b) {
       const c = ($('#consigne') || {}).value || '';
-      await occupe(b, async () => { const r = await agir('reecrire', { id: S.video.id, consigne: c }); majVideo(r.video); suivre(S.video.id); toast(membre('plume').prenom + ' réécrit le script.', 'ok'); });
+      const clip = estClip(S.video);
+      await occupe(b, async () => { const r = await agir('reecrire', { id: S.video.id, consigne: c }); S.planOuvert = null; majVideo(r.video); suivre(S.video.id); toast(clip ? membre('realisation').prenom + ' redécoupe ton prompt.' : membre('plume').prenom + ' réécrit le script.', 'ok'); });
+    },
+    /* un clip */
+    ouvrirPlan(b) {
+      S.planOuvert = Number(b.dataset.i);
+      const c = $('#v-corps'); if (c) c.innerHTML = corpsVideo(S.video);
+      const ed = $('#editeur-plan'); if (ed) { ed.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); const t = $('textarea', ed); if (t) t.focus({ preventScroll: true }); }
+    },
+    fermerPlan() { S.planOuvert = null; const c = $('#v-corps'); if (c) c.innerHTML = corpsVideo(S.video); },
+    voirPlan(b) {
+      const i = Number(b.dataset.i), cl = S.video.plan.clip;
+      const j = ((cl.gen || {}).videos || [])[i];
+      if (j && j.url) voirVideo(j.url, 'Plan ' + (i + 1) + ' : ' + ((cl.storyboard.plans[i] || {}).resume || ''));
+    },
+    async clipPlanEnregistrer(b) {
+      const f = b.closest('form'), d = lireForm(f);
+      await occupe(b, async () => {
+        const r = await agir('clip_plan', { id: S.video.id, i: Number(f.dataset.i), image: d.image, mouvement: d.mouvement, son: d.son, duree: d.duree, effet: d.effet });
+        if (r.video.status !== 'relecture') S.planOuvert = null;
+        majVideo(r.video);
+        if (r.video.status !== 'relecture') { suivre(S.video.id); toast('Enregistré : la première image a changé, ' + membre('realisation').prenom + ' la refait.', 'ok'); } else toast('Plan enregistré.', 'ok');
+      });
+    },
+    async clipPlanRetirer(b) {
+      const f = b.closest('form'), i = Number(f.dataset.i);
+      if (!(await fenetre({ titre: 'Retirer le plan ' + (i + 1) + ' ?', texte: 'Il ne sera ni filmé ni monté. Son image est perdue.', ok: 'Retirer', danger: true }))) return;
+      await occupe(b, async () => { const r = await agir('clip_plan', { id: S.video.id, i, retirer: true }); S.planOuvert = null; majVideo(r.video); toast('Plan retiré.', 'ok'); });
+    },
+    async clipRef(b) {
+      const cl = S.video.plan.clip, e = (cl.storyboard.elements || []).find((x) => x.id === b.dataset.e) || {};
+      const n = 1 + cl.storyboard.plans.filter((p) => p.elements.indexOf(e.id) >= 0).length;
+      const consigne = await fenetre({ titre: 'Refaire ' + (e.nom || 'cet élément') + ' ?', texte: 'Sa nouvelle image, puis les ' + (n - 1) + ' plans où il apparaît : environ ' + usd(n * prixImageClip(cl)) + ' sur ta clé fal. Une consigne, si tu veux :', saisie: 'Plus brillant, une cape rouge, plus grand', ok: 'Refaire' });
+      if (consigne === null) return;
+      await occupe(b, async () => { const r = await agir('clip_reference', { id: S.video.id, element: e.id, consigne }); majVideo(r.video); suivre(S.video.id); });
+    },
+    async tourner(b) {
+      const cl = S.video.plan.clip;
+      if (!(await fenetre({ titre: 'Tourner le clip ?', texte: 'Environ ' + usd(cl.a_payer) + ' sur ta clé fal. Les plans tournent en même temps : compte 2 à 5 minutes, puis le montage.', ok: 'Tourner' }))) return;
+      await occupe(b, async () => { const r = await agir('valider', { id: S.video.id, accepte: cl.a_payer }); S.planOuvert = null; majVideo(r.video); suivre(S.video.id); toast(membre('realisation').prenom + ' tourne ton clip.', 'ok'); });
+    },
+    async clipBudget(b) {
+      const cl = S.video.plan.clip;
+      if (!(await fenetre({ titre: 'Accepter ' + usd(cl.a_payer) + ' de plus ?', texte: 'C\'est ce qu\'il reste à payer sur ta clé fal pour finir ce clip.', ok: 'Accepter' }))) return;
+      await occupe(b, async () => { const r = await agir('clip_budget', { id: S.video.id, accepte: cl.a_payer }); majVideo(r.video); suivre(S.video.id); });
     },
     async reprendre(b) { await occupe(b, async () => { const r = await agir('reprendre', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); }); },
     async refaire(b) {
@@ -1547,6 +1890,11 @@
   document.addEventListener('input', (e) => {
     const t = e.target;
     if (t.name === 'texte' && t.closest('[data-form="message"]')) { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
+    // un clip : le genre choisi (vidéo racontée ou clip), puis le formulaire du clip ou du remontage, qui a ses propres
+    // aperçus (sa qualité n'est pas celle de l'écriture)
+    if (t.name === 'genre' && t.closest('.genres')) { S.genreCreer = t.value; memoire.ecrire('genre', t.value); const c = $('#contenu'); if (c) c.innerHTML = vueCreer(); return; }
+    const formClip = t.closest && t.closest('form[data-form="clip"], form[data-form="remonter"], form[data-form="clipPlan"]');
+    if (formClip) { if (S.cat && formClip.dataset.form !== 'clipPlan') majClip(formClip); return; }
     if (t.dataset && t.dataset.apercu) {
       const carte = t.closest('.membre-carte');
       const av = carte && $('.agent', carte);
@@ -1574,6 +1922,8 @@
 
   setInterval(verifierMessages, 20000);
   async function demarrer() {
+    S.genreCreer = memoire.lire('genre', 'video');
+    S.brouillonClip = memoire.lire('brouillonClip', null);
     try { const d = await lire('etat'); S.cat = d.catalogue; S.moi = d.moi; }
     catch (e) { $('#app').innerHTML = '<div class="porte"><div class="porte-c verre"><h1>Le studio ne répond pas</h1><p class="sous">' + h(e.message) + '</p><button class="btn" data-a="recharger">Réessayer</button></div></div>'; return; }
     rendre();

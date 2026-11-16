@@ -33,6 +33,27 @@ const usine = require('../api/usine');
 const M = require('../usine/montage');
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
+/* ── un découpage de clip simulé : deux chevaliers, quatre plans (un plan sans personnage, un élément inconnu, un moment
+   fort hors du plan), la musique, le noir final ── */
+function storyboardFaux(n) {
+  return {
+    titre: 'Les chevaliers de Monaco', style: 'photorealistic live-action footage, ARRI Alexa, anamorphic lenses, warm Mediterranean light, subtle film grain',
+    coherence: 'The knights\' faces are never visible behind their closed great helms.',
+    elements: [
+      { id: 'A', nom: 'Chevalier noir', nom_en: 'Knight A', type: 'personnage', description: 'a medieval knight in blackened steel plate armor with engraved gold details, closed great helm with narrow eye slits, thick gold Cuban link chain, sheathed longsword' },
+      { id: 'B', nom: 'Chevalier chrome', nom_en: 'Knight B', type: 'personnage', description: 'a medieval knight in mirror-polished chrome steel plate armor, closed great helm with narrow eye slits, thick gold Cuban link chain, sheathed longsword' }
+    ],
+    plans: [
+      { duree: 3, image: 'Low angle on Place du Casino, a matte black Lamborghini with gold rims stopping in front of the Hotel de Paris' + (n > 1 ? ', golden hour' : ''), mouvement: 'slow tracking shot along the bodywork, the facade reflected in the paint', son: 'engine roar, tires on cobblestones', elements: [], effet: 'aucun', accent: -1, resume: 'La Lamborghini arrive devant l\'Hôtel de Paris' },
+      { duree: 3, image: 'The scissor doors of the Lamborghini are open, Knight A and Knight B stepping out on the square', mouvement: 'slow motion, gold chains swinging, tourists film with their phones', son: 'doors hiss, crowd murmur', elements: ['A', 'B'], effet: 'secousse', accent: 1.2, resume: 'Les chevaliers descendent' },
+      { duree: 2, image: 'Close-up of Knight B slapping a thick stack of euro banknotes on a glass counter', mouvement: 'quick punch-in on the cash', son: 'cash slap on glass', elements: ['B', 'Z'], effet: 'zoom', accent: 0.8, resume: 'Les billets claquent sur le comptoir' },
+      { duree: 3.5, image: 'Sunset, extreme close-up of Knight A\'s helmet, a lighter flame at the visor slit', mouvement: 'thick white smoke pours out of the eye slits, harbour lights blurred behind', son: 'lighter click', elements: ['A'], effet: 'flash', accent: 99, resume: 'La fumée sort du casque' }
+    ],
+    musique: 'dark luxurious trap beat, 140 BPM, heavy 808 bass, crisp hi-hats, cinematic strings, menacing, no vocals',
+    fin_noir: true, description: 'Les chevaliers les plus riches de Monaco. Tu choisis lequel ?', hashtags: ['#monaco', 'ia', 'chevaliers'], titre_youtube: 'Des chevaliers milliardaires à Monaco'
+  };
+}
+
 /* ── Claude simulé ── */
 const CLAUDE = { appels: [], refusee: false, sansCredit: false, notes: [6.2, 8.6], cles: [], espaces: [] };
 // une clé personnelle liée à aucun espace de travail : chaque demande doit nommer l'espace (sauf la liste des espaces)
@@ -127,6 +148,7 @@ CL.forcer(async (url, o) => {
   }
   else if (outil === 'ecrire_script') { const vis = body.tools[0].input_schema.properties.beats.items.properties.visuel; input = scriptFaux(9, !!vis, CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').length, !!(vis && vis.properties.prompt)); CLAUDE.appels[CLAUDE.appels.length - 1].system = JSON.stringify(body.system); }
   else if (outil === 'noter_script') { const n = CLAUDE.notes.length > 1 ? CLAUDE.notes.shift() : CLAUDE.notes[0]; input = { notes: { accroche: n, promesse: n, rythme: n, boucles: n, gain: n, fin: n, clarte: n, ton: n, images: n }, points_forts: ['L\'accroche'], corrections: n < 7.5 ? ['Phrase 2 : plus court'] : [], verdict: 'Note ' + n }; }
+  else if (outil === 'decouper_clip') { CLAUDE.appels[CLAUDE.appels.length - 1].system = JSON.stringify(body.system); input = storyboardFaux(CLAUDE.appels.filter((x) => x.outil === 'decouper_clip').length); }
   else if (outil === 'adapter_script') { const src = JSON.parse(prompt.split('L\'ORIGINALE :\n')[1].split('\n\nAppelle')[0]); input = { titre: 'Why the sky is blue', accroche: 'The sky is *not* blue', beats: src.beats.map((b, i) => ({ voix: 'English sentence ' + (i + 1) + ' that says the same thing.', ecran: 'Screen ' + (i + 1) })), description: 'Did you know?', hashtags: ['science'], titre_youtube: 'The sky is not blue' }; }
   nTool++;
   return reponse(body, { model: body.model, content: [{ type: 'tool_use', id: 'tu_' + nTool, name: outil, input }], stop_reason: 'tool_use', usage: { input_tokens: 4000, output_tokens: 1500 } });
@@ -158,6 +180,7 @@ ST.forcer(async (url, o) => {
   if (/\/object\/sign\/messages$/.test(url)) return json(JSON.parse(o.body).paths.map((p) => ({ path: p, signedURL: '/object/sign/messages/' + p + '?token=lu' })));
   if (/\/object\/list\/messages$/.test(url)) { const b = JSON.parse(o.body); return json(STOCK.arrives.has(b.prefix + '/' + b.search) ? [{ name: b.search }] : []); }
   if (/\/object\/messages$/.test(url) && o.method === 'DELETE') { STOCK.msgEffaces.push.apply(STOCK.msgEffaces, JSON.parse(o.body).prefixes); return json([]); }
+  if (/\/object\/list\/studio$/.test(url)) { const b = JSON.parse(o.body); return json(b.search && STOCK.arrives.has(b.prefix + '/' + b.search) ? [{ name: b.search }] : []); }
   if (/\/object\/upload\/sign\//.test(url)) { STOCK.envoyes.push(url.split('/object/upload/sign/studio/')[1]); return json({ url: '/object/upload/sign/studio/x?token=abc' }); }
   if (/\/object\/sign\/studio$/.test(url)) return json(JSON.parse(o.body).paths.map((p) => ({ path: p, signedURL: '/object/sign/studio/' + p + '?token=t' })));
   if (/\/object\/sign\/studio\//.test(url)) return json({ signedURL: '/object/sign/studio/' + url.split('/object/sign/studio/')[1] + '?token=t' });
@@ -220,7 +243,8 @@ FAL.forcer(async (url, o) => {
     if (marque(FALM.erreurs)) return repJson(200, { status: 'COMPLETED', error: 'Runner crashed', error_type: 'runner_error' });
     return repJson(200, { status: 'COMPLETED' });
   }
-  if (/image-to-video/.test(env.modele)) return repJson(200, { video: { url: 'https://v3b.fal.media/files/v/' + env.id + '.mp4', content_type: 'video/mp4', file_size: 2e6 } });
+  if (/image-to-video|mmaudio/.test(env.modele)) return repJson(200, { video: { url: 'https://v3b.fal.media/files/v/' + env.id + '.mp4', content_type: 'video/mp4', file_size: 2e6 } });
+  if (/\/music\//.test(env.modele)) return repJson(200, { audio: { url: 'https://v3b.fal.media/files/a/' + env.id + '.mp3', content_type: 'audio/mpeg' } });
   return repJson(200, { images: [{ url: 'https://v3.fal.media/files/i/' + env.id + '.jpg', width: 1088, height: 1920, content_type: 'image/jpeg' }], has_nsfw_concepts: [marque(FALM.filtre)], seed: env.corps.seed, prompt: env.corps.prompt });
 });
 
@@ -1029,5 +1053,193 @@ async function jusqua(id, statuts, n) {
   const pm = (await api('GET', { op: 'messages' })).d.messages.find((m) => m.id === rep.message.id);
   assert.ok(pm.texte && pm.pieces[0].expire && !pm.pieces[0].url && pm.pieces[0].nom === 'Mon exemple TikTok.MOV', 'le texte et le nom du fichier restent');
 
-  console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal, phrases dites : ' + FALM.voix.length + ', images créées : ' + FALM.directes.length + ').');
+  // 29. les clips (16 nov.) : elle colle un prompt de réalisateur (deux chevaliers à Monaco, des plans minutés, des
+  //     sons) ; Lou le découpe en plans, fait une image de référence par personnage puis l'image clé de chaque plan à
+  //     partir de ces références (les mêmes chevaliers partout) ; elle retouche une image, retire un plan, refait un
+  //     personnage, accepte le prix du tournage ; chaque plan est filmé, ses bruitages ajoutés, la musique créée ;
+  //     l'usine reçoit les plans, la musique et le style de montage. Puis : le remontage, sa musique à elle, le budget
+  //     du clip, Seedance, et le calage des coupes sur le rythme.
+  const CLIP = require('../lib/createurs/clip');
+  CLIP.reglerAttente(0);
+  const PROMPT_CLIP = 'Fast-cut cinematic montage in the style of a luxury rap music video, filmed in Monaco. Hard cut between every shot, fast rhythm.\n\nCHARACTERS (identical in every shot): two medieval knights in full plate armor with closed great helms.\n\nShot 1 (3s): Place du Casino, a matte black Lamborghini.\nShot 2 (3s): The scissor doors rise and the two knights step out.\nShot 3 (2s): Knight B slaps a stack of euro banknotes.\nShot 4 (3s): Sunset, smoke pours out of the eye slits. Cut to black.\n\nSound: engine roar, champagne pop, lighter click. No music, no voices.';
+  const proche = (a, b) => Math.abs(a - b) < 1e-4;
+  // le prix avant le découpage : les durées sont lues dans son prompt
+  assert.deepStrictEqual(CLIP.dureesDuPrompt(PROMPT_CLIP), [3, 3, 2, 3]);
+  const est = CLIP.estimer({ qualite: 'hd', prompt: PROMPT_CLIP, musique: 'ia' });
+  assert.deepStrictEqual([est.plans, est.secondes, est.musique], [4, 11, 0.6]);
+  assert.ok(proche(est.video, (4.2 * 3 + 3.2) * 0.08) && proche(est.images, 6 * 0.07), JSON.stringify(est));
+  const estC = CLIP.estimer({ qualite: 'cinema', prompt: PROMPT_CLIP });
+  assert.ok(estC.sons === 0 && proche(estC.video, 16 * 0.48), 'Seedance : 4 secondes au moins par plan, les sons du film compris');
+  r = await api('GET', { op: 'etat' });
+  assert.strictEqual(r.d.catalogue.clip.qualites.hd.seconde, 0.08); assert.strictEqual(r.d.catalogue.clip.qualites.cinema.son, true); assert.ok(r.d.catalogue.clip.montages.zooms);
+  // le découpage passé au tamis : 16 plans et 60 secondes au plus
+  const long = E.nettoyerStoryboard({ elements: [], plans: Array.from({ length: 20 }, (_, i) => ({ duree: 9, image: 'shot ' + i })) });
+  assert.strictEqual(long.plans.length, 16); assert.ok(long.plans.reduce((a, p) => a + p.duree, 0) <= 60.01, '60 secondes au plus');
+  assert.throws(() => E.nettoyerStoryboard({ plans: [] }), /aucun plan/);
+  // sa musique à elle : un lien d'envoi droit dans le stockage
+  r = await api('POST', { op: 'clip_son_envoi', nom: 'Mon Son Préféré.MP3', type: 'audio/mpeg', taille: 4e6 });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.ok(new RegExp('^crea/' + mila.id + '/sons/[a-f0-9]{12}-mon-son-prefere\\.mp3$').test(r.d.chemin), r.d.chemin);
+  assert.ok(/\/object\/upload\/sign\/studio\/crea\//.test(r.d.url) || STOCK.envoyes.some((x) => x === r.d.chemin), 'un lien d\'envoi vers l\'espace « studio »');
+  const sonMila = r.d.chemin;
+  assert.strictEqual((await api('POST', { op: 'clip_son_envoi', nom: 'film.mp4', type: 'video/mp4', taille: 1e6 })).code, 400, 'pas un son');
+  assert.strictEqual((await api('POST', { op: 'clip_son_envoi', nom: 'long.wav', type: 'audio/wav', taille: 40 * 1048576 })).code, 400, '30 Mo au plus');
+  r = await api('POST', { op: 'creer', genre: 'clip', prompt: PROMPT_CLIP, musique: { source: 'fichier', chemin: sonMila, nom: 'Mon son' } });
+  assert.strictEqual(r.code, 400); assert.ok(/pas arrivé/.test(r.d.erreur), 'un fichier pas arrivé est refusé');
+  assert.strictEqual((await api('POST', { op: 'creer', genre: 'clip', prompt: 'trop court' })).code, 400);
+  assert.strictEqual((await api('POST', { op: 'creer', genre: 'clip', prompt: PROMPT_CLIP, musique: { source: 'fichier', chemin: 'crea/999/sons/aaaaaaaaaaaa-x.mp3' } })).code, 400, 'le fichier d\'une autre');
+  // le clip : vertical, HD, zooms tendance, bruitages, musique créée, elle valide les images avant le tournage
+  r = await api('POST', { op: 'creer', genre: 'clip', prompt: PROMPT_CLIP, format: '9:16', qualite: 'hd', montage: 'zooms', bruitages: true, valider: true, duree: 'auto', musique: { source: 'ia', idee: 'trap sombre et luxueuse' } });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const vClip = r.d.video.id;
+  assert.strictEqual(r.d.video.plan.genre, 'clip'); assert.strictEqual(r.d.video.statut, 'Découpage en plans'); assert.deepStrictEqual(r.d.video.langues, ['fr']);
+  assert.ok(proche(r.d.video.plan.clip.budget, 0.42 * 1.5 + 0.1), 'au lancement, le budget des images (elle valide avant le tournage)');
+  const nFal0 = FALM.envois.length;
+  let vc = await jusqua(vClip, 'relecture', 14);
+  const decoupe = CLAUDE.appels.filter((x) => x.outil === 'decouper_clip').pop();
+  assert.ok(/Fidélité/.test(decoupe.system) && decoupe.prompt.includes('Shot 3 (2s)') && /trap sombre/.test(decoupe.prompt), 'son prompt et sa musique vont à Lou');
+  assert.strictEqual(vc.status, 'relecture', JSON.stringify(vc.etape)); assert.strictEqual(vc.statut, 'Images à valider');
+  const sb = vc.plan.clip.storyboard;
+  assert.strictEqual(sb.plans.length, 4); assert.deepStrictEqual(sb.plans[2].elements, ['B'], 'un élément inconnu est retiré'); assert.strictEqual(sb.plans[3].accent, -1, 'un moment fort hors du plan est oublié');
+  assert.deepStrictEqual(sb.hashtags, ['monaco', 'ia', 'chevaliers']); assert.strictEqual(vc.titre, 'Les chevaliers de Monaco');
+  // une référence par chevalier (en pied, en 2K pour la HD), puis l'image clé de chaque plan avec les références de ses chevaliers
+  const envImages = FALM.envois.slice(nFal0);
+  const refsEnv = envImages.filter((x) => x.modele === 'google/nano-banana-2.1');
+  const clesEnv = envImages.filter((x) => x.modele === 'google/nano-banana-2.1/edit');
+  assert.strictEqual(refsEnv.length, 3, 'deux références, et le plan sans personnage'); assert.strictEqual(clesEnv.length, 3, 'trois plans avec des chevaliers');
+  assert.ok(refsEnv.filter((x) => /Character reference image of Knight/.test(x.corps.prompt)).every((x) => x.corps.aspect_ratio === '3:4' && x.corps.resolution === '2K'));
+  const cleDeux = clesEnv.find((x) => /stepping out/.test(x.corps.prompt));
+  assert.strictEqual(cleDeux.corps.image_urls.length, 2); assert.ok(/^Reference image 1 shows Knight A\. Reference image 2 shows Knight B\./.test(cleDeux.corps.prompt), cleDeux.corps.prompt.slice(0, 120));
+  assert.ok(cleDeux.corps.aspect_ratio === '9:16' && /never visible/.test(cleDeux.corps.prompt) && /ARRI Alexa/.test(cleDeux.corps.prompt) && /no text/.test(cleDeux.corps.prompt));
+  assert.strictEqual(cleDeux.corps.image_urls[0], vc.plan.clip.gen.refs.find((x) => x.id === 'A').url, 'la référence du chevalier A en premier');
+  const planVide = refsEnv.find((x) => /Lamborghini with gold rims stopping/.test(x.corps.prompt));
+  assert.ok(planVide && !planVide.corps.image_urls && planVide.corps.aspect_ratio === '9:16', 'un plan sans personnage : sans référence');
+  assert.ok(proche(vc.plan.clip.gen.cout, 0.42), 'six images à 7 centimes');
+  const aPayer1 = [3, 3, 2, 3.5].reduce((a, d) => a + FAL.prixPlan('hd', d) + FAL.prixBruitages(FAL.dureePlan('hd', d)), 0) + 0.6;
+  assert.ok(proche(vc.plan.clip.a_payer, aPayer1), 'à payer pour tourner : ' + vc.plan.clip.a_payer + ' (attendu ' + aPayer1 + ')');
+  // elle refait l'image du plan 3 avec une consigne : seule celle-là repart, puis le clip revient à valider
+  const nFal1 = FALM.envois.length;
+  r = await api('POST', { op: 'clip_plan', id: vClip, i: 2, refaire: true, consigne: 'plus de billets, lumière plus dure' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.video.status, 'realisation');
+  vc = await jusqua(vClip, 'relecture', 8);
+  const refaite = FALM.envois.slice(nFal1);
+  assert.strictEqual(refaite.length, 1, 'une seule image refaite'); assert.ok(/Change requested: plus de billets/.test(refaite[0].corps.prompt));
+  assert.ok(proche(vc.plan.clip.budget, 0.73 + 0.07), 'le budget monte du prix de l\'image');
+  // elle retire le dernier plan, raccourcit le deuxième (rien ne repart)
+  r = await api('POST', { op: 'clip_plan', id: vClip, i: 3, retirer: true });
+  assert.strictEqual(r.code, 200); assert.strictEqual(r.d.video.status, 'relecture'); assert.strictEqual(r.d.video.plan.clip.storyboard.plans.length, 3);
+  r = await api('POST', { op: 'clip_plan', id: vClip, i: 1, duree: 2.5 });
+  assert.strictEqual(r.d.video.status, 'relecture'); assert.strictEqual(r.d.video.plan.clip.storyboard.plans[1].duree, 2.5);
+  // elle refait le chevalier chrome : sa référence et les images où il apparaît
+  const nFal2 = FALM.envois.length;
+  r = await api('POST', { op: 'clip_reference', id: vClip, element: 'B', consigne: 'chrome plus brillant' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  vc = await jusqua(vClip, 'relecture', 10);
+  const refaitesB = FALM.envois.slice(nFal2);
+  assert.strictEqual(refaitesB.length, 3, 'la référence et ses deux plans'); assert.ok(/chrome plus brillant/.test(refaitesB[0].corps.prompt));
+  // le tournage, au prix affiché
+  const prixTournage = vc.plan.clip.a_payer;
+  r = await api('POST', { op: 'valider', id: vClip, accepte: prixTournage - 0.5 });
+  assert.strictEqual(r.code, 400); assert.ok(/a changé/.test(r.d.erreur));
+  r = await api('POST', { op: 'valider', id: vClip, accepte: prixTournage });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.video.etape.quoi, 'tournage');
+  const nFal3 = FALM.envois.length;
+  vc = await jusqua(vClip, 'fabrication', 14);
+  assert.strictEqual(vc.status, 'fabrication', JSON.stringify(vc.etape));
+  const tournage = FALM.envois.slice(nFal3);
+  const filmes = tournage.filter((x) => x.modele === 'minimax/h3-max-turbo/image-to-video');
+  assert.strictEqual(filmes.length, 3);
+  assert.ok(filmes.every((x) => x.corps.resolution === '1080P' && /^https:\/\/v3\.fal\.media\/files\/i\//.test(x.corps.image_url)), 'en 1080p, à partir des images clés');
+  assert.deepStrictEqual(filmes.map((x) => x.corps.duration).sort(), [2.5, 3, 3.5], 'un peu plus long que le plan à l\'écran');
+  const bruits = tournage.filter((x) => x.modele === 'fal-ai/mmaudio-v2');
+  assert.strictEqual(bruits.length, 3); assert.ok(bruits.every((x) => /^https:\/\/v3b\.fal\.media\/files\/v\//.test(x.corps.video_url) && /music/.test(x.corps.negative_prompt)), 'les bruitages collés à chaque plan filmé');
+  assert.ok(bruits.some((x) => /engine roar/.test(x.corps.prompt)));
+  const mus = tournage.filter((x) => x.modele === 'elevenlabs/music/v2');
+  assert.strictEqual(mus.length, 1); assert.strictEqual(mus[0].corps.force_instrumental, true);
+  assert.strictEqual(mus[0].corps.music_length_ms, 9800, 'la durée du clip, le noir final et une fin');
+  assert.ok(/808/.test(mus[0].corps.prompt) && /no vocals/i.test(mus[0].corps.prompt));
+  assert.deepStrictEqual(FALM.ailleurs, [], 'la clé fal ne part que chez fal');
+  // l'usine : les plans (avec leurs bruitages), la musique, le style de montage
+  assert.ok(GH.montages.some((m) => m.video === String(vClip) && m.langue === 'fr'), 'le montage est lancé');
+  uc = await appelUsine('GET', { op: 'montage', video: String(vClip), langue: 'fr' });
+  assert.strictEqual(uc.code, 200, JSON.stringify(uc.d)); assert.strictEqual(uc.d.genre, 'clip');
+  const jetonClip = uc.d.jeton, cc = uc.d.clip;
+  assert.deepStrictEqual([cc.montage, cc.format, cc.fin_noir, cc.bruitages], ['zooms', '9:16', true, true]);
+  assert.deepStrictEqual(cc.plans.map((p) => p.duree), [3, 2.5, 2]);
+  assert.ok(cc.plans.every((p) => p.type === 'video' && bruits.some((b) => p.url === 'https://v3b.fal.media/files/v/' + b.id + '.mp4')), 'chaque plan avec ses bruitages');
+  assert.deepStrictEqual(cc.plans.map((p) => p.effet), ['aucun', 'secousse', 'zoom']); assert.strictEqual(cc.plans[1].accent, 1.2);
+  assert.ok(/^https:\/\/v3b\.fal\.media\/files\/a\//.test(cc.musique.url), 'la musique créée');
+  assert.ok(cc.plans.every((p) => M.adresseAutorisee(new URL(p.url))) && M.adresseAutorisee(new URL(cc.musique.url)), 'l\'usine accepte ces adresses');
+  uc = await appelUsine('POST', { op: 'montage_televerser', video: vClip, langue: 'fr', jeton: jetonClip, fichiers: [{ nom: 'video.mp4', type: 'video/mp4', taille: 3e7 }, { nom: 'vignette.jpg', type: 'image/jpeg', taille: 1e5 }] });
+  assert.strictEqual(uc.code, 200, JSON.stringify(uc.d));
+  uc = await appelUsine('POST', { op: 'montage_fini', video: vClip, langue: 'fr', jeton: jetonClip, ok: true, duree: 8.3, taille: 3e7, secondes: 80, fichiers: ['video.mp4', 'vignette.jpg'] });
+  assert.strictEqual(uc.code, 200); assert.strictEqual(uc.d.statut, 'prete');
+  vc = (await api('GET', { op: 'video', id: vClip })).d.video;
+  assert.strictEqual(vc.status, 'prete'); assert.ok(vc.liens.fr['video.mp4'] && vc.liens.fr.telecharger);
+  assert.ok(vc.cout_usd > 1, 'le coût du clip compte (Claude et fal) : ' + vc.cout_usd);
+  assert.ok(!JSON.stringify(vc).includes('queue.fal.run'), 'jamais les adresses de suivi');
+  assert.strictEqual((await api('GET', { op: 'videos' })).d.videos.find((x) => x.id === vClip).genre, 'clip');
+  // le remontage : un autre style, sans musique ; les plans filmés sont repris, rien ne repart chez fal
+  const nFal4 = FALM.envois.length, nMontages = GH.montages.length;
+  r = await api('POST', { op: 'refaire', id: vClip, montage: 'rap', musique: { source: 'aucune' } });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  vc = await jusqua(vClip, 'fabrication', 4);
+  assert.strictEqual(vc.status, 'fabrication'); assert.strictEqual(FALM.envois.length, nFal4, 'rien ne repart chez fal'); assert.strictEqual(GH.montages.length, nMontages + 1);
+  uc = await appelUsine('GET', { op: 'montage', video: String(vClip), langue: 'fr' });
+  assert.strictEqual(uc.d.clip.montage, 'rap'); assert.strictEqual(uc.d.clip.musique, null);
+  // sa musique à elle, sans valider les images : le tournage part tout seul (dans le budget accepté), en 768p ; la
+  // musique passe à l'usine par un lien de lecture, à partir de la seconde choisie
+  STOCK.arrives.add(sonMila);
+  r = await api('POST', { op: 'creer', genre: 'clip', prompt: PROMPT_CLIP, qualite: 'rapide', montage: 'rap', valider: false, musique: { source: 'fichier', chemin: sonMila, nom: 'Mon son', debut: 12.5 } });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const vClip2 = r.d.video.id;
+  assert.ok(r.d.video.plan.clip.budget > 1, 'sans validation : le budget de tout le clip');
+  vc = await jusqua(vClip2, 'fabrication', 20);
+  assert.strictEqual(vc.status, 'fabrication', JSON.stringify(vc.etape));
+  uc = await appelUsine('GET', { op: 'montage', video: String(vClip2), langue: 'fr' });
+  assert.ok(/\/object\/sign\/studio\/crea\/\d+\/sons\/[a-f0-9]{12}-mon-son-prefere\.mp3/.test(uc.d.clip.musique.url) && uc.d.clip.musique.debut === 12.5, 'sa musique, à partir de 12,5 s');
+  assert.ok(M.adresseAutorisee(new URL(uc.d.clip.musique.url)), 'l\'usine accepte le lien de sa musique');
+  assert.ok(FALM.envois.filter((x) => x.modele === 'minimax/h3-max-turbo/image-to-video').slice(-4).every((x) => x.corps.resolution === '768P'), 'rapide : en 768p');
+  // le budget du clip : atteint, le clip attend ; elle accepte ce qu'il faut, il repart (Seedance : les sons du film)
+  r = await api('POST', { op: 'creer', genre: 'clip', prompt: PROMPT_CLIP, qualite: 'cinema', valider: true, musique: { source: 'aucune' } });
+  const vClip3 = r.d.video.id;
+  vc = await jusqua(vClip3, 'relecture', 14);
+  r = await api('POST', { op: 'valider', id: vClip3, accepte: vc.plan.clip.a_payer });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const ligne3 = await db.one('hq_crea_videos', { eq: { id: vClip3 } });
+  await db.update('hq_crea_videos', { plan: Object.assign({}, ligne3.plan, { clip: Object.assign({}, ligne3.plan.clip, { budget: Number(ligne3.plan.clip.gen.cout) + 2 }) }) }, { eq: { id: vClip3 } });
+  const nBruits = FALM.envois.filter((x) => x.modele === 'fal-ai/mmaudio-v2').length;
+  vc = await jusqua(vClip3, 'fabrication', 3);
+  assert.strictEqual(vc.etape.bloque, 'budget_clip', JSON.stringify(vc.etape)); assert.ok(/accepte un peu plus/.test(vc.etape.erreur));
+  const seed = FALM.envois.filter((x) => x.modele === 'bytedance/seedance-2.5/image-to-video');
+  assert.strictEqual(seed.length, 1, 'un plan est parti, le suivant dépassait');
+  assert.ok(seed[0].corps.duration === '4' && seed[0].corps.generate_audio === true && seed[0].corps.resolution === '720p', 'Seedance : 4 secondes, les sons du film');
+  assert.ok(/Sound: engine roar/.test(seed[0].corps.prompt) && /No music/.test(seed[0].corps.prompt));
+  assert.strictEqual((await api('POST', { op: 'clip_budget', id: vClip3, accepte: 0.1 })).code, 400, 'au prix affiché seulement');
+  const resteClip = (await api('GET', { op: 'video', id: vClip3 })).d.video.plan.clip.a_payer;
+  assert.ok(proche(resteClip, 3 * 4 * 0.48), 'il reste trois plans à filmer : ' + resteClip);
+  r = await api('POST', { op: 'clip_budget', id: vClip3, accepte: resteClip });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.ok(!r.d.video.etape.bloque);
+  vc = await jusqua(vClip3, 'fabrication', 14);
+  assert.strictEqual(vc.status, 'fabrication', JSON.stringify(vc.etape));
+  assert.strictEqual(FALM.envois.filter((x) => x.modele === 'fal-ai/mmaudio-v2').length, nBruits, 'Seedance : pas de bruitages à part');
+  // supprimer un clip efface aussi sa musique
+  await api('POST', { op: 'supprimer', id: vClip2 });
+  assert.ok(STOCK.effaces.indexOf(sonMila) >= 0, 'sa musique part avec le clip');
+  // l'usine : les coupes sur le rythme et les effets (sans ffmpeg)
+  const UC = require('../usine/clip');
+  const ry = { beats: [0.4, 0.83, 1.26, 1.69, 2.11, 2.54, 2.97, 3.4, 3.83, 4.26, 4.69, 5.11, 5.54, 5.97, 6.4, 6.83], forts: [0.4, 2.11, 3.83, 5.54], periode: 0.4286, drop: 3.83 };
+  assert.deepStrictEqual(UC.calerCoupes([3, 3, 2], [3.4, 3.4, 2.4], ry).map((x) => Math.round((x.debut + x.duree) * 100) / 100), [2.97, 5.97, 7.97], 'chaque coupe sur le temps le plus proche');
+  assert.deepStrictEqual(UC.calerCoupes([3, 2], [5, 5], null).map((x) => x.duree), [3, 2], 'sans musique : les durées de son prompt');
+  assert.strictEqual(UC.calerCoupes([3], [1.5], null)[0].duree, 1.5, 'jamais plus long que ce qui est filmé');
+  const eZ = UC.effetsPlan({ effet: 'secousse', accent: 1.2 }, { debut: 2.97, duree: 3 }, ry, 'zooms', null, false);
+  assert.ok(eZ.push > 0 && eZ.punchs[0][0] === 0, 'zooms : la caméra avance, la coupe claque');
+  assert.ok(eZ.punchs.some((p) => Math.abs(p[0] - 0.86) < 0.01 && p[1] >= 0.18) && eZ.flashs.length === 1, 'le drop : grand zoom et flash');
+  assert.ok(eZ.secousses.some((x) => x[0] === 1.2), 'la secousse sur le moment fort');
+  const eN = UC.effetsPlan({ effet: 'secousse', accent: 1.2 }, { debut: 0, duree: 3 }, { beats: [], forts: [] }, 'net', null, false);
+  assert.deepStrictEqual([eN.push, eN.punchs.length, eN.secousses.length], [0, 0, 0], 'coupes franches : aucun effet');
+  const ex = UC.expressions(eZ, 3);
+  assert.ok(/zoom/.test(ex.x) && /exp\(/.test(ex.z) && /sin\(/.test(ex.x) && /n\/30/.test(ex.flash), 'les expressions de zoompan et du flash');
+
+  console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal, phrases dites : ' + FALM.voix.length + ', images créées : ' + FALM.directes.length + ', clips tournés : 3).');
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -482,10 +482,15 @@ create table if not exists public.hq_videos (
 create index if not exists hq_videos_status on public.hq_videos (status, updated_at);
 alter table public.hq_videos enable row level security;
 
--- le stockage des vidéos : privé, lu par liens signés (la tour) et rempli par liens d'envoi signés (l'usine)
+-- le stockage des vidéos : privé, lu par liens signés (la tour) et rempli par liens d'envoi signés (l'usine) ; les
+-- morceaux que les créatrices envoient pour leurs clips y vont aussi (crea/<compte>/sons/), d'où les types audio
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('studio', 'studio', false, 209715200, array['video/mp4', 'image/jpeg', 'application/x-subrip', 'text/plain'])
 on conflict (id) do nothing;
+update storage.buckets set allowed_mime_types = array[
+  'video/mp4', 'image/jpeg', 'application/x-subrip', 'text/plain',
+  'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/wav', 'audio/x-wav', 'audio/ogg']
+where id = 'studio';
 
 -- ───────────────────────── STUDIO DES CRÉATRICES ─────────────────────────
 -- Les amies de Louis qui font des vidéos TikTok et YouTube avec leur propre équipe d'agents (/studio). Chacune a son
