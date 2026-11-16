@@ -704,14 +704,15 @@
     const cat = catClip(), q = cat.qualites[o.qualite] ? o.qualite : 'hd', m = cat.qualites[q] || {};
     const lues = dureesLues(o.prompt), auto = !o.duree || o.duree === 'auto';
     let durees;
-    if (auto && lues.length) durees = lues;
+    if (lues.length) durees = lues;
     else { const total = auto ? 30 : Number(o.duree) || 30, n = Math.max(1, Math.round(total / 2.7)); durees = Array.from({ length: n }, () => Math.round(total / n * 10) / 10); }
     const secondes = durees.reduce((a, b) => a + b, 0);
     const images = (durees.length + 2) * (m.image || 0);
     const video = durees.reduce((a, d) => a + prixPlanClip(q, d), 0);
     const sons = !m.son && o.bruitages !== false ? durees.reduce((a, d) => a + Math.min(30, dureePlanClip(q, d)), 0) * (cat.prix.bruitages || 0) : 0;
     const musique = o.musique === 'ia' ? Math.ceil((secondes + 2.5) / 60) * (cat.prix.musique_minute || 0) : 0;
-    return { plans: durees.length, secondes: Math.round(secondes * 10) / 10, lues: auto && lues.length > 0, images, tournage: video + sons + musique, total: images + video + sons + musique };
+    const payees = durees.reduce((a, d) => a + dureePlanClip(q, d), 0);
+    return { plans: durees.length, secondes: Math.round(secondes * 10) / 10, payees: Math.round(payees * 10) / 10, lues: lues.length > 0, images, tournage: video + sons + musique, total: images + video + sons + musique };
   }
   function luHtml(prompt) {
     const l = dureesLues(prompt);
@@ -722,10 +723,14 @@
   }
   function coutClipHtml(o) {
     const e = estimerClip(o), m = catClip().qualites[o.qualite] || {};
+    // Seedance facture 4 s au moins par plan : des plans de 2 ou 3 s coûtent comme des plans de 4 s
+    const mini = m.entier && e.payees > e.secondes + 1 ? ' En ' + h((m.nom || '').toLowerCase()) + ', chaque plan est payé ' + (m.minimum || 4) + ' s au moins : ' + String(e.payees).replace('.', ',') + ' s payées pour ' + String(e.secondes).replace('.', ',') + ' s de clip.' : '';
     return 'Environ ' + h(usd(e.total)) + ' sur ta clé fal pour ' + e.plans + ' plans et ' + String(e.secondes).replace('.', ',') + ' s en qualité ' + h(m.nom === 'HD' ? 'HD' : (m.nom || '').toLowerCase()) +
       (o.valider !== false ? ' : ' + h(usd(e.images)) + ' pour les images, puis le tournage (' + h(usd(e.tournage)) + ') seulement quand tu le lances.' : ', tout de suite (sans validation des images).') +
-      ' Le découpage : quelques centimes sur ta clé Claude. Le montage est offert.';
+      mini + ' Le découpage : quelques centimes sur ta clé Claude. Le montage est offert.';
   }
+  // chaque carte de qualité affiche ce que coûterait CE clip : la différence se voit avant de choisir
+  const prixQualite = (o, k) => usd(estimerClip(Object.assign({}, o, { qualite: k })).total);
   function cartesMontage(nom, choisi) {
     const m = catClip().montages;
     return '<div class="montages">' + Object.keys(m).map((k) => '<label class="modele montage"><input type="radio" name="' + nom + '" value="' + k + '"' + (k === choisi ? ' checked' : '') + '><span><i class="apercu-montage ' + k + '" aria-hidden="true"><i></i></i><b>' + h(m[k].nom) + '</b><small>' + h(m[k].court) + '</small></span></label>').join('') + '</div>';
@@ -750,16 +755,17 @@
     if (!S.moi.connexions.claude.branchee) x += '<div class="message attention" style="margin-bottom:12px"><b>Ta clé Claude n\'est pas encore branchée</b>' + h(lou) + ' en a besoin pour découper ton prompt.<div class="actions"><a class="btn petit" href="#reglages/connexions">Brancher ma clé</a></div></div>';
     if (!S.moi.connexions.fal.branchee) x += '<div class="message attention" style="margin-bottom:12px"><b>Un clip demande ta clé fal</b>Les images et les plans filmés se paient sur ton compte fal, à l\'usage. <a href="#reglages/connexions">Le pas à pas prend 5 minutes</a>.</div>';
     const q = cat.qualites;
-    const qualites = Object.keys(q).map((k) => '<label class="modele qualite"><input type="radio" name="qualite" value="' + k + '"' + (k === (b.qualite || 'hd') ? ' checked' : '') + '><span><b>' + h(q[k].nom) + '</b><em>' + h(usd(q[k].seconde)) + ' la seconde</em><small>' + h(q[k].court) + '. ' + h(q[k].modele) + (q[k].son ? ', sons du film compris' : '') + (q[k].minimum >= 4 ? ', ' + q[k].minimum + ' s payées au moins par plan' : '') + '.</small></span></label>').join('');
+    const base = Object.assign({ qualite: 'hd', valider: true }, b, { musique: (b.musique || {}).source });
+    const qualites = Object.keys(q).map((k) => '<label class="modele qualite"><input type="radio" name="qualite" value="' + k + '"' + (k === (b.qualite || 'hd') ? ' checked' : '') + '><span><b>' + h(q[k].nom) + '</b><em data-prix-qualite="' + k + '">' + h(prixQualite(base, k)) + '</em><small>' + h(q[k].court) + '. ' + h(q[k].modele) + ', ' + h(usd(q[k].seconde)) + ' la seconde' + (q[k].son ? ', sons du film compris' : '') + (q[k].minimum >= 4 ? ', ' + q[k].minimum + ' s payées au moins par plan' : '') + '.</small></span></label>').join('');
     return x + '<form class="bloc" data-form="clip">' +
       '<label class="champ"><span>Ton prompt</span><textarea name="prompt" class="prompt-clip" rows="12" maxlength="' + cat.limites.prompt + '" placeholder="Fast-cut cinematic montage in Monaco…&#10;&#10;CHARACTERS (identical in every shot): …&#10;&#10;Shot 1 (3s): …&#10;Shot 2 (2s): …">' + h(b.prompt || '') + '</textarea><small class="aide" data-lu>' + luHtml(b.prompt) + '</small></label>' +
       '<div class="champ"><span>Format</span>' + radios('format', Object.keys(cat.formats).map((k) => [k, cat.formats[k].nom, cat.formats[k].court]), b.format || '9:16') + '</div>' +
-      '<div class="champ"><span>Durée</span>' + radios('duree', [['auto', 'Selon mon prompt'], ['15', '15 s'], ['30', '30 s'], ['45', '45 s'], ['60', '60 s']], b.duree || 'auto') + '</div>' +
+      '<div class="champ" data-duree-choix' + (dureesLues(b.prompt).length ? ' hidden' : '') + '><span>Durée</span>' + radios('duree', [['auto', 'Environ 30 s'], ['15', '15 s'], ['30', '30 s'], ['45', '45 s'], ['60', '60 s']], b.duree || 'auto') + '<small>Ton prompt ne donne pas la durée de ses plans : ' + h(lou) + ' les découpe pour tenir cette durée.</small></div>' +
       '<div class="champ"><span>La qualité des plans</span><div class="qualites-clip">' + qualites + '</div></div>' +
       '<div class="champ"><span>Le montage</span>' + cartesMontage('montage', b.montage || 'zooms') + '</div>' +
       '<div class="inters">' + inter('bruitages', b.bruitages !== false, 'Les bruitages', 'Le moteur, le bouchon, le briquet : le son de chaque plan') + inter('valider', b.valider !== false, 'Je vois les images avant le tournage', 'Une image par plan, quelques centimes chacune : tu valides avant de payer les plans filmés') + '</div>' +
       musiqueClipHtml(b.musique || {}) +
-      '<button class="btn large" type="submit">Lancer ' + h(lou) + '</button><p class="doux petit" style="margin-top:10px" data-cout-clip>' + coutClipHtml(Object.assign({ qualite: 'hd', valider: true }, b, { musique: (b.musique || {}).source })) + '</p></form>';
+      '<button class="btn large" type="submit">Lancer ' + h(lou) + '</button><p class="doux petit" style="margin-top:10px" data-cout-clip>' + coutClipHtml(base) + '</p></form>';
   }
   // le formulaire a changé : ce qui est lu dans le prompt, la musique choisie, le prix ; le brouillon est gardé (un long
   // prompt ne se perd pas en changeant de page)
@@ -769,8 +775,12 @@
     const lu = $('[data-lu]', form); if (lu) lu.innerHTML = luHtml(d.prompt);
     const src = (d.musique || {}).source || 'aucune';
     $$('[data-musique]', form).forEach((el) => { el.hidden = el.dataset.musique !== src; });
+    const minute = dureesLues(d.prompt).length > 0;
+    const choix = $('[data-duree-choix]', form); if (choix) choix.hidden = minute;
+    const o = Object.assign({}, d, { musique: src }, minute ? { duree: 'auto' } : {});
+    $$('[data-prix-qualite]', form).forEach((el) => { el.textContent = prixQualite(o, el.dataset.prixQualite); });
     const c = $('[data-cout-clip]', form);
-    if (c) c.innerHTML = coutClipHtml(Object.assign({}, d, { musique: src }));
+    if (c) c.innerHTML = coutClipHtml(o);
     if (form.dataset.form === 'clip') { S.brouillonClip = { prompt: d.prompt, format: d.format, duree: d.duree, qualite: d.qualite, montage: d.montage, bruitages: d.bruitages, valider: d.valider, musique: { source: src, idee: (d.musique || {}).idee, debut: (d.musique || {}).debut } }; memoire.ecrire('brouillonClip', S.brouillonClip); }
   }
   // envoyer son fichier audio droit dans le stockage (un lien signé), la barre de progression sur le bouton
@@ -1571,7 +1581,7 @@
         const musique = { source: m.source || 'aucune' };
         if (musique.source === 'fichier') Object.assign(musique, await envoyerSon(f, btn), { debut: Number(m.debut) || 0 });
         if (musique.source === 'ia') musique.idee = m.idee || '';
-        const r = await agir('creer', { genre: 'clip', prompt: d.prompt, format: d.format, duree: d.duree, qualite: d.qualite, montage: d.montage, bruitages: !!d.bruitages, valider: !!d.valider, musique });
+        const r = await agir('creer', { genre: 'clip', prompt: d.prompt, format: d.format, duree: dureesLues(d.prompt).length ? 'auto' : d.duree, qualite: d.qualite, montage: d.montage, bruitages: !!d.bruitages, valider: !!d.valider, musique });
         S.brouillonClip = null; memoire.ecrire('brouillonClip', null);
         S.video = r.video; S.videos = null; S.planOuvert = null; location.hash = '#video/' + r.video.id;
       });
