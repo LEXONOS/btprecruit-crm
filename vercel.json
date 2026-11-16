@@ -1,11 +1,170 @@
 {
-  "cleanUrls": true,
+  "regions": [
+    "cdg1"
+  ],
+  "functions": {
+    "api/tick.js": {
+      "maxDuration": 300,
+      "includeFiles": "lib/sites/polices/**"
+    },
+    "api/hq.js": {
+      "maxDuration": 60,
+      "includeFiles": "lib/sites/polices/**"
+    },
+    "api/acces.js": {
+      "maxDuration": 60
+    },
+    "api/whatsapp.js": {
+      "maxDuration": 240
+    },
+    "api/usine.js": {
+      "maxDuration": 60
+    },
+    "api/regard.js": {
+      "maxDuration": 90,
+      "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    },
+    "api/apercu.js": {
+      "maxDuration": 30
+    },
+    "api/studio.js": {
+      "maxDuration": 300
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/tick",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/whatsapp",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/studio",
+      "schedule": "*/5 * * * *"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/lib/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/test/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/usine/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/supabase/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/node_modules/:chemin*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/(README\\.md|package\\.json|package-lock\\.json|vercel\\.json|\\.gitignore|\\.env.*)",
+      "destination": "/",
+      "permanent": false
+    }
+  ],
   "headers": [
-    { "source": "/assets/fonts/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
-    { "source": "/assets/(img|photos)/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] },
-    { "source": "/(.*)", "headers": [
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
-    ] }
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://fbmzlfrwxrzflfkazvmn.supabase.co https://fal.media https://*.fal.media; media-src 'self' https://fbmzlfrwxrzflfkazvmn.supabase.co https://fal.media https://*.fal.media; font-src 'self'; connect-src 'self' https://fbmzlfrwxrzflfkazvmn.supabase.co; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/studio",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/studio/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/tour/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/studio",
+      "destination": "/studio.html"
+    }
   ]
 }
