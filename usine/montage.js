@@ -76,14 +76,42 @@ async function dependances(cmd) {
   }
 }
 
+// la voix naturelle (ElevenLabs, par fal) : un fichier par phrase, déjà dit ; téléchargés depuis fal seulement (en local,
+// --fichier, un fichier de la machine), mis en WAV mono 48 kHz pour voix.py (les aigus de la voix sont gardés)
+async function voixEnFichiers(v, sortie, n) {
+  const liste = Array.isArray(v.fichiers) ? v.fichiers : [];
+  if (liste.length !== n) throw new Error(liste.length + ' fichiers de voix pour ' + n + ' phrases');
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const x = liste[i];
+    const brut = path.join(sortie, 'voix-' + i + '.source');
+    const wav = path.join(sortie, 'voix-' + i + '.wav');
+    if (x && typeof x === 'object' && x.fichier && arg('fichier') && fs.existsSync(x.fichier)) fs.copyFileSync(x.fichier, brut);
+    else await telecharger(String((x && x.url) || x || ''), brut, 2000);
+    await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-i', brut, '-ac', '1', '-ar', '48000', '-c:a', 'pcm_s16le', wav]);
+    out.push(wav);
+  }
+  return out;
+}
+
 async function voix(cmd, sortie, beats) {
-  const v = cmd.voix || {};
+  let v = cmd.voix || {};
+  let fichiers = null;
+  if (v.moteur === 'fichiers') {
+    // la voix naturelle ; si ses fichiers ne viennent pas, la voix gratuite de la langue la remplace en entier
+    try { fichiers = await voixEnFichiers(v, sortie, beats.length); }
+    catch (e) {
+      journal(cmd.langue, 'voix naturelle indisponible (' + String(e.message).slice(0, 120) + ') : voix gratuite à la place');
+      (cmd.avertissements = cmd.avertissements || []).push('voix naturelle indisponible : voix gratuite à la place');
+      v = v.secours || {};
+    }
+  }
   const cjk = cjkDe(cmd);
   const modeles = process.env.KOKORO_DIR || path.join(__dirname, '.modeles');
   // les mots forts (*mot*) : par position du mot (langues à espaces) ou par caractère (chinois, japonais)
   const forts = beats.map((b) => (cjk ? fortsCJK(b.voix) : motsForts(b.voix)));
   const commande = {
-    moteur: v.moteur === 'piper' ? 'piper' : 'kokoro', piper: v.piper || null, piper_dir: process.env.PIPER_DIR || path.join(__dirname, '.piper'), cjk,
+    moteur: fichiers ? 'fichiers' : v.moteur === 'piper' ? 'piper' : 'kokoro', fichiers, sr: fichiers ? 48000 : 24000, piper: v.piper || null, piper_dir: process.env.PIPER_DIR || path.join(__dirname, '.piper'), cjk,
     langue: v.kokoro || 'fr-fr', voix: v.voix || 'ff_siwis', vitesse: v.vitesse || 1.0,
     segments: forts.map((f) => (cjk ? f.texte : f.map((x) => x.m).join(' '))), sortie,
     modele: path.join(modeles, 'kokoro-v1.0.onnx'), voix_fichier: path.join(modeles, 'voices-v1.0.bin'),
@@ -91,7 +119,7 @@ async function voix(cmd, sortie, beats) {
     musique: (cmd.plan || {}).musique !== 'aucune', ambiance: (cmd.plan || {}).musique || 'calme', graine: Number((cmd.video || {}).id) || 7,
     etiquettes: []
   };
-  await dependances(cmd);
+  if (!fichiers) await dependances(Object.assign({}, cmd, { voix: v }));
   const res = await lancer(PYTHON, [path.join(__dirname, 'voix.py')], JSON.stringify(commande));
   journal(cmd.langue, 'voix', commande.moteur, res.trim().split('\n').pop());
   const temps = JSON.parse(fs.readFileSync(path.join(sortie, 'temps.json'), 'utf8'));
@@ -103,7 +131,7 @@ async function voix(cmd, sortie, beats) {
 }
 
 /* ── 2. le fond ── */
-async function telecharger(url, fichier) {
+async function telecharger(url, fichier, minimum) {
   let u;
   try { u = new URL(url); } catch (e) { throw new Error('adresse de vidéo illisible'); }
   if (!adresseAutorisee(u)) throw new Error('adresse de vidéo refusée : ' + u.hostname);
@@ -114,7 +142,7 @@ async function telecharger(url, fichier) {
       const final = new URL(r.url || u);
       if (!adresseAutorisee(final, true)) throw new Error('redirection refusée : ' + final.hostname);
       const buf = Buffer.from(await r.arrayBuffer());
-      if (buf.length < 10000 || buf.length > MAX_CLIP) throw new Error('taille inattendue : ' + buf.length);
+      if (buf.length < (minimum || 10000) || buf.length > MAX_CLIP) throw new Error('taille inattendue : ' + buf.length);
       fs.writeFileSync(fichier, buf);
       return fichier;
     } catch (e) {
@@ -345,7 +373,7 @@ async function monter(cmd, sortie) {
   try { fs.unlinkSync(f.fichier); } catch (e) { /* déjà parti */ }
   const taille = fs.statSync(finale).size;
   journal(cmd.langue, 'vidéo prête', (taille / 1048576).toFixed(1) + ' Mo', temps.duree + ' s', Math.round((Date.now() - t0) / 1000) + ' s au total');
-  return { video: finale, vignette, srt: path.join(sortie, 'sous-titres.srt'), duree: temps.duree, taille, secondes: Math.round((Date.now() - t0) / 1000), avertissements: f.avertissements };
+  return { video: finale, vignette, srt: path.join(sortie, 'sous-titres.srt'), duree: temps.duree, taille, secondes: Math.round((Date.now() - t0) / 1000), avertissements: (c.avertissements || []).concat(f.avertissements) };
 }
 
 /* ── 5. avec la tour ── */

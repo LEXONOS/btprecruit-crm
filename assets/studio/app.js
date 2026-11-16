@@ -18,6 +18,7 @@
   const I = {
     studio: '<path d="M3 21h18"/><path d="M5 21V9l6-4v16"/><path d="M11 21V8l8-3v16"/><path d="M14 10h2M14 14h2M7.5 12h1M7.5 16h1"/>',
     creer: '<path d="M12 5v14M5 12h14"/>',
+    ecouter: '<path d="M8 5.5v13l10.5-6.5z"/>',
     videos: '<rect x="4" y="3" width="7" height="12" rx="2"/><rect x="13" y="9" width="7" height="12" rx="2"/>',
     equipe: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.2.3 3.8 1.9 4.5 4.4"/>',
     reglages: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
@@ -272,7 +273,7 @@
       case 'ecriture': return e.quoi === 'critique' ? { role: 'critique', texte: membre('critique').prenom + ' relit ' + tt } : { role: 'plume', texte: membre('plume').prenom + (e.quoi === 'reecriture' ? ' réécrit ' : ' écrit ') + tt };
       case 'relecture': return { role: 'toi', texte: 'Le script de ' + tt + ' t\'attend' };
       case 'langues': return { role: 'traduction', texte: membre('traduction').prenom + ' adapte ' + tt };
-      case 'realisation': return { role: 'realisation', texte: membre('realisation').prenom + (e.quoi === 'images_ia' ? ' fait créer les images IA de ' : ' choisit les images de ') + tt };
+      case 'realisation': return { role: 'realisation', texte: membre('realisation').prenom + (e.quoi === 'voix' ? ' enregistre les voix de ' : e.quoi === 'images_ia' ? ' fait créer les images IA de ' : ' choisit les images de ') + tt };
       case 'fabrication': return { role: 'realisation', texte: 'Montage de ' + tt };
       case 'prete': return { role: 'diffusion', texte: tt + ' est prête à publier' };
       case 'publication': return { role: 'diffusion', texte: membre('diffusion').prenom + ' publie ' + tt };
@@ -620,12 +621,19 @@
   }
   // ce que coûte la vidéo qu'elle s'apprête à lancer : l'écriture sur sa clé Claude (le même calcul que le serveur),
   // les images IA sur sa clé fal
+  function voixNaturelle() { const vi = S.moi.reglages.voix_ia || {}; return vi.actif !== false && !!S.moi.connexions.fal.branchee; }
+  function coutVoix(format, n) { const c = ((S.cat.voix_ia || {}).couts || {})[format === 'long' ? 'long' : 'court'] || 0; return Math.round(c * Math.max(1, n) * 100) / 100; }
   function coutCreerHtml(style, format, mouvement, nbLangues) {
     const r = S.moi.reglages, q = S.cat.qualites[r.qualite] || {};
     const f = format === 'long' ? 1.4 : 1, n = nbLangues || r.langues.length || 1;
     const ecriture = (q.par_video || 0) * f + (q.par_langue || 0) * f * Math.max(0, n - 1) + (r.tendances ? 0.02 : 0);
+    const voix = voixNaturelle();
+    const offert = ['le montage'].concat(voix ? [] : ['les voix']).concat(style === 'clips' ? ['les vidéos d\'illustration'] : []);
+    const liste = offert.length > 1 ? offert.slice(0, -1).join(', ') + ' et ' + offert[offert.length - 1] : offert[0];
     return 'Environ ' + h(usd(ecriture)) + ' pour l\'écriture sur ta clé Claude, en qualité ' + h((q.nom || '').toLowerCase()) + '.' +
-      (style === 'ia' ? ' Les images IA : environ ' + h(usd(coutIa(format, mouvement))) + ' sur ta clé fal. Le montage et les voix sont offerts.' : style === 'clips' ? ' Le montage, les voix et les images sont offerts.' : ' Le montage et les voix sont offerts.');
+      (style === 'ia' ? ' Les images IA : environ ' + h(usd(coutIa(format, mouvement))) + ' sur ta clé fal.' : '') +
+      (voix ? ' La voix naturelle : environ ' + h(usd(coutVoix(format, n))) + ' sur ta clé fal.' : '') +
+      ' ' + h(liste.charAt(0).toUpperCase() + liste.slice(1)) + (offert.length > 1 ? ' sont offerts.' : ' est offert.');
   }
   function carteIdee(i) {
     return '<article class="idee"><h3>' + h(i.titre) + '</h3>' + (i.accroche ? '<blockquote>' + forts(i.accroche) + '</blockquote>' : '') + '<p>' + h(i.angle) + '</p>' + (i.pourquoi ? '<p class="pourquoi">' + h(i.pourquoi) + '</p>' : '') +
@@ -704,8 +712,11 @@
     const e = v.etape || {}, st = v.status;
     const r = v.rendus || {};
     const enIa = (v.plan || {}).style === 'ia';
+    // continuer sans fal : sans images IA (look images IA), ou avec la voix gratuite (une vidéo bloquée par sa voix naturelle)
+    const parFal = !(v.plan || {}).sans_fal && (enIa || e.bloque === 'fal' || e.bloque === 'credit_fal' || !!(v.plan || {}).voix_ia);
+    const libelleSans = enIa ? 'Continuer sans images IA' : 'Continuer avec la voix gratuite';
     if (e.bloque || (e.erreur && st !== 'echec')) {
-      const sans = enIa && st === 'realisation' ? '<button class="btn second petit" data-a="sansIa">Continuer sans images IA</button>' : '';
+      const sans = parFal && st === 'realisation' ? '<button class="btn second petit" data-a="sansIa">' + libelleSans + '</button>' : '';
       const act = {
         cle: '<a class="btn petit" href="#reglages/connexions">Ma clé Claude</a>',
         credit: '<a class="btn petit" href="https://platform.claude.com/settings/billing" target="_blank" rel="noopener noreferrer">Ajouter du crédit</a><button class="btn second petit" data-a="reprendre">Réessayer</button>',
@@ -716,12 +727,13 @@
       }[e.bloque];
       return '<div class="activite alerte">' + avatar(roleActif(v), 'petit') + '<div class="plein"><b>' + h(e.bloque ? 'En attente' : 'Petit souci') + '</b><br>' + h(e.erreur || '') + (e.bloque ? '' : '<br><span class="doux petit">L\'équipe réessaie toute seule.</span>') + (act != null ? '<div class="actions" style="margin-top:8px">' + (act || '') + (e.bloque ? '' : '<button class="btn second petit" data-a="reprendre">Réessayer maintenant</button>') + '</div>' : '') + '</div></div>';
     }
-    if (st === 'echec') return '<div class="activite alerte">' + avatar(roleActif(v), 'petit') + '<div class="plein"><b>Bloquée</b><br>' + h(e.erreur || 'L\'équipe n\'a pas pu finir.') + '<div class="actions" style="margin-top:8px"><button class="btn petit" data-a="reprendre">Reprendre</button>' + (enIa && e.statut_avant === 'realisation' ? '<button class="btn second petit" data-a="sansIa">Continuer sans images IA</button>' : '') + '</div></div></div>';
-    // les images IA en route : combien sont faites, combien d'animations
+    if (st === 'echec') return '<div class="activite alerte">' + avatar(roleActif(v), 'petit') + '<div class="plein"><b>Bloquée</b><br>' + h(e.erreur || 'L\'équipe n\'a pas pu finir.') + '<div class="actions" style="margin-top:8px"><button class="btn petit" data-a="reprendre">Reprendre</button>' + (parFal && e.statut_avant === 'realisation' ? '<button class="btn second petit" data-a="sansIa">' + libelleSans + '</button>' : '') + '</div></div></div>';
+    // les voix naturelles, puis les images IA en route : combien sont faites, combien d'animations
     const pr = e.progres || null;
     const lou = membre('realisation').prenom;
-    const realisation = !enIa ? lou + ' choisit les images de chaque phrase.'
-      : !pr ? lou + ' prépare les images IA de chaque phrase.'
+    const realisation = e.quoi === 'voix' && pr && pr.voix ? lou + ' enregistre les voix naturelles : ' + pr.voix[0] + ' phrases sur ' + pr.voix[1] + '. Quelques secondes chacune.'
+      : !enIa ? lou + ' choisit les images de chaque phrase.'
+      : !pr || !pr.images ? lou + ' prépare les images IA de chaque phrase.'
         : pr.images[0] < pr.images[1] ? lou + ' fait créer les images IA : ' + pr.images[0] + ' sur ' + pr.images[1] + '. Quelques secondes chacune.'
           : pr.videos[1] && pr.videos[0] < pr.videos[1] ? lou + ' anime ' + (pr.videos[1] > 1 ? 'les scènes en vidéo : ' + pr.videos[0] + ' sur ' + pr.videos[1] : 'la première scène en vidéo') + '. Compte une à deux minutes.'
             : lou + ' a toutes les images IA et lance le montage.';
@@ -973,6 +985,20 @@
       '<label class="champ"><span>Des vidéos que tu aimes</span><textarea name="chaine.exemples" rows="2" maxlength="900" placeholder="Des créatrices, des formats, des vidéos qui ont marché chez toi">' + h(c.exemples) + '</textarea></label>' +
       '<label class="champ"><span>Ce que tu ne veux jamais</span><textarea name="chaine.interdits" rows="2" maxlength="500" placeholder="Pas de gros mots, pas de régimes, pas de politique">' + h(c.interdits) + '</textarea></label>');
   }
+  // les voix naturelles : allumées ou non, la voix de sa chaîne (à écouter avant de choisir), ce que ça coûte
+  function blocVoixIa(r) {
+    const vi = r.voix_ia || {};
+    const cat = S.cat.voix_ia || { voix: {}, couts: {} };
+    if (!S.moi.connexions.fal.branchee) return '<div class="message" style="margin-bottom:16px"><b>Des voix naturelles</b>Avec ta clé fal, tes vidéos sont dites par une vraie voix (ElevenLabs), la même dans toutes tes langues : environ ' + h(usd(cat.couts.court || 0)) + ' par langue pour une vidéo courte. <a href="#reglages/connexions">Brancher ma clé fal</a></div>';
+    const cartes = Object.keys(cat.voix).map((k) => {
+      const x = cat.voix[k];
+      return '<div class="voix-ia"><label><input type="radio" name="voix_ia.voix" value="' + h(k) + '"' + (k === vi.voix ? ' checked' : '') + '><span><b>' + h(x.nom) + '</b><small>' + h(x.court) + '</small></span></label>' +
+        '<button type="button" class="ecouter" data-a="ecouterVoix" data-voix="' + h(k) + '" title="Écouter ' + h(x.nom) + '" aria-label="Écouter la voix ' + h(x.nom) + '">' + ico('ecouter') + '</button></div>';
+    }).join('');
+    return '<div class="panneau-voix">' + inter('voix_ia.actif', vi.actif !== false, 'Voix naturelles', 'Une vraie voix d\'ElevenLabs, la même dans toutes tes langues, avec l\'accent de chaque langue. Environ ' + usd(cat.couts.court || 0) + ' par langue pour une vidéo courte, ' + usd(cat.couts.long || 0) + ' pour une longue, sur ta clé fal.') +
+      '<div class="voix-grille" role="radiogroup" aria-label="La voix de ta chaîne">' + cartes + '</div><div id="ecoute" class="ecoute" hidden></div>' +
+      '<p class="doux petit" style="margin:10px 0 0">Écouter coûte moins d\'un centime. Sans voix naturelle, ou si fal ne répond pas, la voix gratuite de chaque langue (ci-dessous) prend le relais.</p></div>';
+  }
   function sectionLangues(r) {
     const voix = r.langues.map((l) => {
       const L = S.cat.langues[l];
@@ -981,8 +1007,9 @@
     }).join('');
     return formulaire('langues',
       champ('Ta langue principale', '<select name="langue_source">' + Object.keys(S.cat.langues).sort((a, b) => nomLangue(a).localeCompare(nomLangue(b), 'fr')).map((l) => '<option value="' + l + '"' + (l === r.langue_source ? ' selected' : '') + '>' + h(nomLangue(l)) + '</option>').join('') + '</select>', 'Les scripts sont écrits dans cette langue, puis adaptés.') +
-      champ('Tes langues', choixLangues('langues[]', r.langues), 'Chaque langue fait une vidéo de plus, avec sa voix, ses sous-titres et ses hashtags (six au plus).') + voix +
-      '<p class="doux petit" style="margin-bottom:12px">Des voix de synthèse gratuites : Kokoro pour les langues aux voix les plus naturelles, Piper pour les autres. Enregistre pour voir les voix d\'une langue que tu viens d\'ajouter.</p>');
+      champ('Tes langues', choixLangues('langues[]', r.langues), 'Chaque langue fait une vidéo de plus, avec sa voix, ses sous-titres et ses hashtags (six au plus).') + blocVoixIa(r) +
+      (S.moi.connexions.fal.branchee && (r.voix_ia || {}).actif !== false ? '<h3 class="sous-titre-voix">Les voix gratuites, en secours</h3>' : '') + voix +
+      '<p class="doux petit" style="margin-bottom:12px">Les voix gratuites : Kokoro pour les langues aux voix les plus naturelles, Piper pour les autres. Enregistre pour voir les voix d\'une langue que tu viens d\'ajouter.</p>');
   }
   function sectionVideos(r) {
     return formulaire('videos',
@@ -1076,7 +1103,7 @@
   }
   function sectionAide() {
     const q = [
-      ['Combien ça coûte ?', 'L\'écriture se paie sur ta clé Claude : environ 1 centime par vidéo en qualité économique, 8 centimes en qualité équilibrée (plus 2 par langue), 15 centimes en premium. Si tu choisis le look Images IA, les images se paient sur ta clé fal : environ ' + usd(coutIa('court', 'zoom')) + ' par vidéo en images animées, ' + usd(coutIa('court', 'accroche')) + ' avec l\'accroche en vidéo, ' + usd(coutIa('court', 'tout')) + ' tout en vidéo. Le montage, les voix, les vidéos d\'illustration et le stockage sont offerts par le studio. Ton budget du jour (Claude et fal ensemble) bloque tout dépassement.'],
+      ['Combien ça coûte ?', 'L\'écriture se paie sur ta clé Claude : environ 1 centime par vidéo en qualité économique, 8 centimes en qualité équilibrée (plus 2 par langue), 15 centimes en premium. Avec ta clé fal : la voix naturelle, environ ' + usd(coutVoix('court', 1)) + ' par langue pour une vidéo courte (' + usd(coutVoix('long', 1)) + ' pour une longue) ; le look Images IA, environ ' + usd(coutIa('court', 'zoom')) + ' par vidéo en images animées, ' + usd(coutIa('court', 'accroche')) + ' avec l\'accroche en vidéo, ' + usd(coutIa('court', 'tout')) + ' tout en vidéo ; une image créée quand aucune vidéo d\'illustration ne colle, 1,6 centime. Le montage, les voix gratuites, les vidéos d\'illustration et le stockage sont offerts par le studio. Ton budget du jour (Claude et fal ensemble) bloque tout dépassement.'],
       ['Les images IA, c\'est quoi ?', 'Au lieu de vidéos trouvées dans une banque, chaque phrase a sa scène créée pour ta vidéo, dans le style que tu choisis : photo réaliste, anime, 3D, aquarelle, pâte à modeler... Le même personnage revient d\'une scène à l\'autre. Les images zooment doucement, et la première scène (ou toutes) peut devenir une vraie vidéo IA. Il faut ta clé fal : Réglages, Connexions.'],
       ['Quelles langues ?', Object.keys(S.cat.langues).length + ' langues. Les voix les plus naturelles : ' + (S.cat.naturelles || []).map(nomLangue).join(', ') + '. Les autres ont une voix correcte, un peu plus robotique. Une vidéo peut sortir dans six langues au plus, chacune avec ses sous-titres et ses hashtags.'],
       ['Pourquoi TikTok ne se publie pas tout seul ?', 'TikTok n\'autorise la publication automatique que par des services agréés. upload-post l\'est, sur son offre payante. Sinon, depuis ton téléphone : Partager, puis TikTok ; le texte se copie en un geste.'],
@@ -1084,7 +1111,7 @@
       ['Et YouTube ?', 'Une vidéo verticale de moins de 3 minutes devient un Short tout seul. Elle peut rapporter une fois ta chaîne acceptée au Programme Partenaire YouTube.'],
       ['Combien de temps mes vidéos restent-elles ici ?', 'Leurs fichiers sont gardés ' + S.cat.garde_jours + ' jours : télécharge celles que tu veux garder. Les scripts restent.'],
       ['Ma vidéo est bloquée, je fais quoi ?', 'Ouvre-la : le message dit pourquoi (clé, crédit, budget du jour) et le bouton pour régler. Une vidéo en images IA peut aussi continuer sans elles, avec des vidéos d\'illustration. Les petits soucis passagers se réessaient tout seuls.'],
-      ['D\'où viennent les images, la voix, la musique ?', 'Les vidéos d\'illustration viennent de Pexels (libres de droits, usage commercial permis) ; les images IA sont créées pour toi par fal, sur ton compte, et tu peux t\'en servir commercialement. La voix est une voix de synthèse libre (Kokoro ou Piper), la musique est fabriquée par le studio. Tu peux publier et monétiser sans rien payer de plus pour elles.'],
+      ['D\'où viennent les images, la voix, la musique ?', 'Les vidéos d\'illustration viennent de Pexels (libres de droits, usage commercial permis) : Lou en réunit plusieurs par phrase et garde celle qui montre vraiment ce qui est dit ; sinon une image est créée pour la phrase (avec ta clé fal), sinon le fond animé. Les images IA et la voix naturelle (ElevenLabs) sont faites pour toi par fal, sur ton compte, et tu peux t\'en servir commercialement. Sans clé fal, la voix est une voix de synthèse libre (Kokoro ou Piper). La musique est fabriquée par le studio. Tu peux publier et monétiser sans rien payer de plus pour elles.'],
       ['Qu\'est-ce qui se passe dans ma rue ?', 'La vie du quartier : Mila qui se gare comme elle peut, des collègues qui s\'ennuient et lorgnent sur la piscine de la résidence d\'à côté... Touche la voiture garée ou la piscine pour voir.'],
       ['Qui voit mes clés et mes vidéos ?', 'Tes clés (Claude, fal, upload-post) sont rangées chiffrées et ne s\'affichent plus jamais. Dans la tour, Louis voit que ton compte existe, ta dépense et le nombre de tes vidéos.']
     ];
@@ -1250,7 +1277,8 @@
     async reprendre(b) { await occupe(b, async () => { const r = await agir('reprendre', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); }); },
     async refaire(b) {
       const ia = ((S.video || {}).plan || {}).style === 'ia';
-      if (!(await fenetre({ titre: 'Refaire le montage ?', texte: ia ? 'Avec tes réglages actuels (couleur, musique, voix). Les images IA de moins de 6 jours sont reprises sans rien payer ; les plus vieilles, ou celles qui avaient raté, sont refaites sur ta clé fal.' : 'Avec tes réglages actuels (couleur, musique, voix) et de nouvelles images. Ça ne coûte rien sur ta clé.', ok: 'Refaire' }))) return;
+      const voix = voixNaturelle() ? ' Les phrases déjà dites par ta voix naturelle sont reprises ; une nouvelle voix, ou une phrase changée, se paie sur ta clé fal (environ ' + usd(coutVoix(((S.video || {}).plan || {}).format || S.moi.reglages.format, ((S.video || {}).langues || []).length || 1)) + ' pour tout redire).' : '';
+      if (!(await fenetre({ titre: 'Refaire le montage ?', texte: ia ? 'Avec tes réglages actuels (couleur, musique, voix). Les images IA de moins de 6 jours sont reprises sans rien payer ; les plus vieilles, ou celles qui avaient raté, sont refaites sur ta clé fal.' + voix : 'Avec tes réglages actuels (couleur, musique, voix) et de nouvelles images : Lou relit les vidéos de chaque phrase (moins d\'un centime sur ta clé Claude)' + (S.moi.connexions.fal.branchee ? ' et fait créer une image là où aucune ne colle (1,6 centime chacune).' : '.') + voix, ok: 'Refaire' }))) return;
       await occupe(b, async () => { const r = await agir('refaire', { id: S.video.id }); S.partage = {}; majVideo(r.video); suivre(S.video.id); });
     },
     async archiver(b) { await occupe(b, async () => { await agir('archiver', { id: S.video.id }); S.videos = null; location.hash = '#videos'; toast('Vidéo archivée.', 'ok'); }); },
@@ -1306,8 +1334,25 @@
       await occupe(b, async () => { await agir('cle_fal_supprimer'); rendre(); });
     },
     async sansIa(b) {
-      if (!(await fenetre({ titre: 'Continuer sans images IA ?', texte: 'Cette vidéo prend des vidéos d\'illustration à la place (offertes), puis part au montage. Les images IA déjà faites restent sur ton compte fal.', ok: 'Continuer' }))) return;
+      const ia = ((S.video || {}).plan || {}).style === 'ia';
+      if (!(await fenetre(ia
+        ? { titre: 'Continuer sans images IA ?', texte: 'Cette vidéo prend des vidéos d\'illustration à la place (offertes) et la voix gratuite, puis part au montage. Les images IA déjà faites restent sur ton compte fal.', ok: 'Continuer' }
+        : { titre: 'Continuer avec la voix gratuite ?', texte: 'Cette vidéo part au montage sans passer par fal : la voix gratuite de chaque langue, et le fond animé là où aucune vidéo ne colle.', ok: 'Continuer' }))) return;
       await occupe(b, async () => { const r = await agir('sans_ia', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); });
+    },
+    // écouter une voix naturelle : une phrase dans sa langue principale, sur sa clé fal ; le lecteur reste sous les voix
+    async ecouterVoix(b) {
+      const voix = b.dataset.voix;
+      await occupe(b, async () => {
+        const r = await agir('ecouter_voix', { voix, langue: S.moi.reglages.langue_source });
+        const z = $('#ecoute');
+        if (!z) return;
+        const nom = ((S.cat.voix_ia || {}).voix || {})[voix] || {};
+        z.hidden = false;
+        z.innerHTML = '<span class="petit">' + h(nom.nom || voix) + ' en ' + h(nomLangue(S.moi.reglages.langue_source).toLowerCase()) + '</span><audio controls autoplay preload="auto" src="' + h(r.url) + '"></audio>';
+        const a = $('audio', z);
+        if (a) a.play().catch(() => { /* la lecture automatique peut être refusée : le lecteur est là */ });
+      });
     },
     async upConnecter(b) { await occupe(b, async () => { const r = await agir('uploadpost_connecter', { profil: b.dataset.profil }); location.href = r.url; }); },
     async upRafraichir(b) { await occupe(b, async () => { await agir('uploadpost_profils'); rendre(); toast('Profils à jour.', 'ok'); }); },
