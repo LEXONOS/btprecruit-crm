@@ -54,7 +54,7 @@ function catalogue() {
     couts_ia: Object.fromEntries(['court', 'long'].map((f) => [f, Object.fromEntries(C.MODELES_VIDEO.map((q) => [q, Object.fromEntries(Object.keys(C.MOUVEMENTS_IA).map((m) => [m, Object.fromEntries(Object.keys(C.IMAGES_IA).map((im) => [im, C.coutIa(f, m, q, im)]))]))]))])),
     // la publication : les modes, l'heure de grande écoute de chaque langue (fuseau, heure, pays)
     publication: { modes: C.MODES_PUB, marches: Object.fromEntries(Object.keys(C.LANGUES).map((l) => [l, C.marcheDe(l)])) },
-    personnages: { genres: C.GENRES_PERSO, max: C.PERSOS_MAX, photo_max: PS.TAILLE_MAX },
+    personnages: { genres: C.GENRES_PERSO, max: C.PERSOS_MAX, photo_max: PS.TAILLE_MAX, portrait: FAL.prixImageClip('1K') },
     limites: { budget_jour: C.BUDGET_MAX, langues: CH.LANGUES_MAX, langues_video: CH.LANGUES_MAX_VIDEO, memoire: C.MEMOIRE_MAX },
     images: IM.branche(), usine: G.branche(), coffre: SEC.disponible()
   };
@@ -257,6 +257,7 @@ async function action(req, res, db, b) {
   // ses personnages : la photo (un lien d'envoi), puis le personnage
   if (op === 'perso_photo_envoi') { const r = await PS.preparerPhoto(c, b); return json(res, r.code, r.code === 200 ? { ok: true, chemin: r.chemin, url: r.url, type: r.type } : { erreur: r.erreur }); }
   if (op === 'perso_enregistrer') { const r = await PS.enregistrer(db, c, b); return json(res, r.code, r.code === 200 ? { ok: true, personnage: r.personnage, personnages: r.personnages, moi: r.moi, avertissement: r.avertissement } : { erreur: r.erreur }); }
+  if (op === 'perso_portrait') { const r = await PS.creerPortrait(db, c, b.id, b.style); return json(res, r.code, r.code === 200 ? { ok: true, personnage: r.personnage, personnages: r.personnages, moi: r.moi, cout: r.cout } : { erreur: r.erreur }); }
   if (op === 'perso_supprimer') { const r = await PS.supprimer(db, c, b.id); return json(res, r.code, r.code === 200 ? { ok: true, personnages: r.personnages, moi: r.moi } : { erreur: r.erreur }); }
   // la conversation avec son équipe
   if (op === 'discuter' || op === 'discussion_confirmer') {

@@ -1698,12 +1698,14 @@
     if (!l) return x + '<div class="cadre-vide" style="height:120px"></div></div>';
     x += l.length ? '<div class="persos">' + l.map((p) => '<article class="perso">' + '<div class="perso-photos">' + (p.photos.length ? p.photos.map((ph) => (ph.url ? '<img src="' + h(ph.url) + '" alt="' + h(p.nom) + '" loading="lazy">' : '<span class="ph-vide"></span>')).join('') : '<span class="ph-vide">' + ico('photo') + '</span>') + '</div>' +
       '<div class="perso-txt"><b>' + h(p.nom) + '</b><small>' + h((cat.genres || {})[p.genre] || '') + (p.nom_en ? ' · ' + h(p.nom_en) : '') + '</small><p>' + h(p.description || '') + '</p>' + (p.description_en ? '<p class="doux petit">« ' + h(p.description_en) + ' »</p>' : '') +
-      '<div class="actions"><button class="btn second petit" data-a="persoOuvrir" data-id="' + h(p.id) + '">Retoucher</button><button class="btn danger petit" data-a="persoSupprimer" data-id="' + h(p.id) + '">Supprimer</button></div></div></article>').join('') + '</div>' : '<p class="doux petit">Pas encore de personnage.</p>';
+      '<div class="actions"><button class="btn second petit" data-a="persoOuvrir" data-id="' + h(p.id) + '">Retoucher</button>' + (p.photos.length < 4 ? '<button class="btn second petit" data-a="persoPortrait" data-id="' + h(p.id) + '">' + ico('photo') + (p.photos.length ? 'Un autre portrait' : 'Créer son portrait') + '</button>' : '') + '<button class="btn danger petit" data-a="persoSupprimer" data-id="' + h(p.id) + '">Supprimer</button></div>' +
+      (!p.photos.length ? '<p class="doux petit" style="margin-top:8px">Sans photo, il change un peu d\'une scène à l\'autre. Son portrait (créé par l\'IA, environ ' + h(usd(prixPortrait())) + ') devient sa référence : le même héros à chaque épisode.</p>' : '') + '</div></article>').join('') + '</div>' : '<p class="doux petit">Pas encore de personnage.</p>';
     const ed = S.persoOuvert ? l.find((p) => p.id === S.persoOuvert) : null;
     if (S.persoOuvert === 'nouveau' || ed) x += persoFormHtml(ed, cat);
     else if (l.length < (cat.max || 12)) x += '<div class="actions" style="margin-top:14px"><button class="btn" data-a="persoOuvrir" data-id="nouveau">' + ico('creer') + 'Nouveau personnage</button></div>';
     return x + '</div>';
   }
+  const prixPortrait = () => (S.cat.personnages || {}).portrait || 0.05;
   function persoFormHtml(p, cat) {
     p = p || { nom: '', genre: 'personnage', description: '', description_en: '', photos: [] };
     return '<form class="bloc vif" data-form="perso"' + (p.id ? ' data-id="' + h(p.id) + '"' : '') + ' style="margin-top:14px"><h3 style="margin-bottom:12px">' + (p.id ? 'Retoucher ' + h(p.nom) : 'Nouveau personnage') + '</h3>' +
@@ -2161,6 +2163,26 @@
     },
     persoOuvrir(b) { S.persoOuvert = b.dataset.id; const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages'); const fm = $('form[data-form="perso"]'); if (fm) fm.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
     persoFermer() { S.persoOuvert = null; const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages'); },
+    // son portrait créé par l'IA, dans le style choisi (celui de ses vidéos par défaut) : il devient sa photo de référence
+    async persoPortrait(b) {
+      const p = (S.persos || []).find((x) => x.id === b.dataset.id) || {};
+      if (!S.moi.connexions.fal.branchee) { toast('Branche d\'abord ta clé fal : le portrait se crée sur ton compte fal.', 'err'); location.hash = '#reglages/connexions'; return; }
+      const looks = (S.cat.ia || {}).looks || {};
+      const rep = await fenetreForm({
+        titre: ((p.photos || []).length ? 'Un autre portrait de ' : 'Le portrait de ') + (p.nom || 'ton personnage'),
+        texte: membre('realisation').prenom + ' le dessine d\'après son portrait, dans le style choisi : environ ' + usd(prixPortrait()) + ' sur ta clé fal. Il devient sa photo de référence (tu peux le retirer dans Retoucher).',
+        corps: '<div class="champ"><span>Le style</span>' + radios('style', Object.keys(looks).map((k) => [k, looks[k].nom]), (S.moi.reglages.ia || {}).style || 'realiste') + '</div>',
+        ok: 'Créer son portrait'
+      });
+      if (!rep) return;
+      await occupe(b, async () => {
+        b.textContent = membre('realisation').prenom + ' dessine…';
+        const r = await agir('perso_portrait', { id: p.id, style: rep.style });
+        S.persos = r.personnages;
+        const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages');
+        toast('Son portrait est prêt : il sert de référence dans tes scènes.', 'ok');
+      });
+    },
     async persoSupprimer(b) {
       const p = (S.persos || []).find((x) => x.id === b.dataset.id) || {};
       if (!(await fenetre({ titre: 'Supprimer ' + (p.nom || 'ce personnage') + ' ?', texte: 'Ses photos sont effacées. Les vidéos déjà faites ne changent pas.', ok: 'Supprimer', danger: true }))) return;

@@ -186,9 +186,11 @@ G.forcer(async (url, o) => {
 });
 
 /* ── le stockage simulé ── */
-const STOCK = { envoyes: [], effaces: [], msgEnvoyes: [], msgEffaces: [], arrives: new Set(), copies: [], copieRatee: false };
+const STOCK = { envoyes: [], effaces: [], msgEnvoyes: [], msgEffaces: [], arrives: new Set(), copies: [], copieRatee: false, deposes: [] };
 ST.forcer(async (url, o) => {
   const json = (d) => ({ ok: true, status: 200, text: async () => JSON.stringify(d) });
+  // un petit fichier déposé par la tour (le portrait d'un personnage créé par l'IA)
+  if (/\/object\/studio\/crea\//.test(url) && o.method === 'POST') { const c = url.split('/object/studio/')[1]; STOCK.deposes.push({ chemin: c, type: o.headers['Content-Type'], taille: o.body.length }); STOCK.arrives.add(c); return json({ Key: 'studio/' + c }); }
   // une copie d'un espace à l'autre (une vidéo du studio de Louis envoyée dans une conversation) ; elle peut rater
   if (/\/object\/copy$/.test(url)) {
     const b = JSON.parse(o.body);
@@ -227,8 +229,10 @@ P.forcer(async (url, o) => {
 const FAL = require('../lib/createurs/fal');
 const IA = require('../lib/createurs/ia');
 IA.reglerAttente(0);
-const FALM = { envois: [], vus: {}, refuse: false, credit: false, erreurs: {}, filtre: {}, cles: [], ailleurs: [], voix: [], directes: [], voixRatees: {} };
+const FALM = { envois: [], vus: {}, refuse: false, credit: false, erreurs: {}, filtre: {}, cles: [], ailleurs: [], voix: [], directes: [], voixRatees: {}, medias: [] };
 FAL.forcer(async (url, o) => {
+  // un fichier créé chez fal, rapatrié par la tour : son CDN, sans la clé
+  if (/(^|\.)fal\.media$/.test(new URL(url).hostname)) { FALM.medias.push({ url, cle: (o.headers || {}).Authorization || null }); return { ok: true, status: 200, arrayBuffer: async () => Buffer.from('jpeg du portrait') }; }
   const k = String(o.headers.Authorization || '').replace(/^Key /, '');
   FALM.cles.push(k);
   const u = new URL(url);
@@ -1547,7 +1551,7 @@ async function jusqua(id, statuts, n) {
   r = await api('POST', { op: 'questions', sujet: 'x y z' });
   assert.deepStrictEqual(r.d.questions, []); assert.strictEqual(CLAUDE.appels.length, nQuestc2, 'questions coupées : aucun appel');
 
-  // 35. ses personnages : une photo (JPEG, droit dans le stockage), son accord, le portraitP écrit par l'équipe en lisant la
+  // 35. ses personnages : une photo (JPEG, droit dans le stockage), son accord, le portrait écrit par l'équipe en lisant la
   //     photo ; ils jouent dans les images IA (Nano Banana, avec leur photo) et deviennent les éléments d'un clip
   r = await api('POST', { op: 'perso_photo_envoi', type: 'image/png', taille: 1e5 });
   assert.strictEqual(r.code, 400, 'du JPEG seulement');
@@ -1562,7 +1566,7 @@ async function jusqua(id, statuts, n) {
   r = await api('POST', { op: 'perso_enregistrer', nom: 'Lila', genre: 'mascotte', description: 'une renarde rousse en ciré jaune', photos: [cheminPerso, 'crea/999/persos/0123456789abcdef.jpg'], consentement: true });
   assert.strictEqual(r.code, 200, JSON.stringify(r.d));
   const lilaP = r.d.personnage;
-  assert.deepStrictEqual([lilaP.nom, lilaP.nom_en, lilaP.photos], ['Lila', 'Lila the red fox', 1], 'le portraitP, une photo (pas celle d\'un autre compte)');
+  assert.deepStrictEqual([lilaP.nom, lilaP.nom_en, lilaP.photos], ['Lila', 'Lila the red fox', 1], 'le portrait, une photo (pas celle d\'un autre compte)');
   assert.ok(/yellow raincoat/.test(lilaP.description_en));
   assert.ok(!JSON.stringify(r.d).includes('/persos/') || /token/.test(JSON.stringify(r.d.personnages)), 'jamais un chemin, des liens signés');
   assert.ok(!JSON.stringify(r.d.moi).includes('persos/'), 'pas de chemin dans ses réglages');
@@ -1603,6 +1607,31 @@ async function jusqua(id, statuts, n) {
   const refATuto = v.plan.clip.gen.refs.find((x) => x && x.id === 'A');
   assert.ok(refATuto && refATuto.etat === 'fini' && refATuto.photo && /\/persos\//.test(refATuto.url), 'la page montre sa photo comme référence');
   assert.strictEqual((await api('POST', { op: 'clip_reference', id: v.id, element: 'A', consigne: 'x' })).code, 400, 'sa photo ne se refait pas');
+  // un héros inventé, sans photo : son portrait créé par l'IA sur sa clé fal (dans le style choisi, jamais une personne
+  // réelle), rangé comme ses photos, devient sa référence ; payé sur son budget du jour
+  r = await api('POST', { op: 'perso_enregistrer', nom: 'Masque', genre: 'personnage', description: 'un super-héros masqué, collégien dans la vraie vie, cape bleu nuit' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const masque = r.d.personnage;
+  assert.strictEqual(masque.photos, 0);
+  const nDirP = FALM.directes.length, depP = STOCK.deposes.length, medP = FALM.medias.length;
+  const jourAvantP = C.depense(await db.one('hq_createurs', { eq: { id: louisRow.id } })).jour;
+  r = await api('POST', { op: 'perso_portrait', id: masque.id, style: 'anime' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.strictEqual(r.d.personnage.photos, 1, 'son portrait devient sa photo');
+  const demP = FALM.directes[nDirP];
+  assert.strictEqual(demP.modele, 'google/nano-banana-2.1', 'Nano Banana 2.1');
+  assert.ok(/anime illustration/.test(demP.corps.prompt) && /does not resemble any real person/.test(demP.corps.prompt) && /No text/.test(demP.corps.prompt), demP.corps.prompt);
+  assert.strictEqual(demP.corps.aspect_ratio, '3:4', 'en pied');
+  assert.strictEqual(STOCK.deposes.length, depP + 1, 'rangé dans son stockage');
+  assert.ok(new RegExp('^crea/' + louisRow.id + '/persos/[a-f0-9]{16}\\.jpg$').test(STOCK.deposes[depP].chemin), STOCK.deposes[depP].chemin);
+  assert.strictEqual(STOCK.deposes[depP].type, 'image/jpeg');
+  assert.ok(FALM.medias.length === medP + 1 && !FALM.medias[medP].cle, 'téléchargé chez fal, sans la clé');
+  const jourApresP = C.depense(await db.one('hq_createurs', { eq: { id: louisRow.id } })).jour;
+  assert.ok(Math.abs(jourApresP - jourAvantP - FAL.prixImageClip('1K')) < 0.0001, 'payé sur son budget du jour : ' + (jourApresP - jourAvantP));
+  r = await api('GET', { op: 'personnages' });
+  assert.ok((r.d.personnages.find((x) => x.id === masque.id).photos[0] || {}).url, 'son portrait, en lien signé');
+  assert.strictEqual((await api('POST', { op: 'perso_portrait', id: 'inconnu' })).code, 404);
+  await api('POST', { op: 'perso_supprimer', id: masque.id });
 
   // 36. parler à son équipe : elle demande, l'équipe agit ; ce qui coûte des dollars attend son « oui » ; ce que
   //     l'équipe retient d'elle part dans toutes les écritures ; son budget ne se change jamais par la conversation
