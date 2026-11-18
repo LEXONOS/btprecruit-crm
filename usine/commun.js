@@ -91,4 +91,28 @@ async function televerser(url, fichier, type) {
   }
 }
 
-module.exports = { journal, lancer, motsForts, fortsCJK, srt, horodatage, tour, televerser };
+// Le stockage de la tour (Supabase, offre gratuite) refuse tout fichier de plus de 50 Mo : la vidéo d'Emma de deux
+// minutes en anglais (53 Mo) était refusée à l'envoi, deux fois, et la tour attendait 70 minutes pour rien. La vidéo
+// vise 44 Mo au plus, quelle que soit sa durée : le débit maximum de l'image suit la durée (6 Mbit/s au plus, assez pour
+// des sous-titres nets) ; si le fichier dépasse encore 48 Mo, il est réencodé plus léger avant l'envoi.
+const CIBLE_OCTETS = 44 * 1048576;
+const LIMITE_OCTETS = 48 * 1048576;
+function debitVideo(duree, audioKbps) {
+  const total = (CIBLE_OCTETS * 8) / Math.max(5, Number(duree) || 60) / 1000;
+  return Math.max(700, Math.min(6000, Math.floor(total - (audioKbps || 192) - 60)));
+}
+// un fichier trop lourd : l'image réencodée au débit qui tient sous la cible (le son est gardé tel quel)
+async function alleger(ffmpeg, fichier, duree) {
+  const taille = fs.statSync(fichier).size;
+  if (taille <= LIMITE_OCTETS) return taille;
+  const k = Math.max(500, Math.floor(debitVideo(duree) * 0.85 * LIMITE_OCTETS / taille));
+  const tmp = fichier.replace(/\.mp4$/, '') + '-leger.mp4';
+  await lancer(ffmpeg, ['-y', '-loglevel', 'error', '-i', fichier, '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', k + 'k', '-maxrate', k + 'k', '-bufsize', (2 * k) + 'k', '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-movflags', '+faststart', tmp]);
+  fs.renameSync(tmp, fichier);
+  const apres = fs.statSync(fichier).size;
+  journal('fichier allégé', (taille / 1048576).toFixed(1) + ' Mo → ' + (apres / 1048576).toFixed(1) + ' Mo');
+  if (apres > LIMITE_OCTETS) throw new Error('vidéo trop lourde pour le stockage même allégée (' + (apres / 1048576).toFixed(1) + ' Mo, 48 au plus)');
+  return apres;
+}
+
+module.exports = { journal, lancer, motsForts, fortsCJK, srt, horodatage, tour, televerser, debitVideo, alleger, CIBLE_OCTETS, LIMITE_OCTETS };

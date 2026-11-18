@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { journal, lancer, motsForts, fortsCJK, srt, tour, televerser } = require('./commun');
+const { journal, lancer, motsForts, fortsCJK, srt, tour, televerser, debitVideo, alleger } = require('./commun');
 
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
@@ -369,10 +369,13 @@ async function monter(cmd, sortie) {
   fs.writeFileSync(sous, sousTitres(c, temps));
   const finale = path.join(sortie, 'video.mp4');
   const chemin = (p) => p.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'");
+  // le débit maximum suit la durée : une vidéo de deux minutes tient sous les 50 Mo du stockage
+  const k = debitVideo(temps.duree);
   await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-i', f.fichier, '-i', path.join(sortie, 'son.wav'),
     '-filter_complex', "[0:v]subtitles='" + chemin(sous) + "':fontsdir='" + chemin(POLICES) + "'[v];[1:a]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]",
-    '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+    '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-maxrate', k + 'k', '-bufsize', (2 * k) + 'k', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-shortest', '-movflags', '+faststart', finale]);
+  await alleger(FFMPEG, finale, temps.duree);
   const vignette = path.join(sortie, 'vignette.jpg');
   await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-ss', String(Math.min(1.4, Math.max(0.6, temps.duree / 3))), '-i', finale, '-frames:v', '1', '-q:v', '3', vignette]);
   fs.writeFileSync(path.join(sortie, 'sous-titres.srt'), srt(temps.segments, cjkDe(c) ? '' : ' '));
@@ -408,9 +411,15 @@ async function principal() {
     throw e;
   }
   const fichiers = [['video.mp4', r.video, 'video/mp4'], ['vignette.jpg', r.vignette, 'image/jpeg']].concat(r.srt ? [['sous-titres.srt', r.srt, 'application/x-subrip']] : []);
-  const urls = await tour('montage_televerser', { video, langue, jeton: cmd.jeton, fichiers: fichiers.map((f) => ({ nom: f[0], type: f[2], taille: fs.statSync(f[1]).size })) });
-  for (const f of fichiers) { const u = (urls.urls || {})[f[0]]; if (!u) throw new Error('pas d\'adresse d\'envoi pour ' + f[0]); await televerser(u, f[1], f[2]); }
-  await tour('montage_fini', { video, langue, ok: true, jeton: cmd.jeton, duree: r.duree, taille: r.taille, secondes: r.secondes, fichiers: fichiers.map((f) => f[0]), avertissements: r.avertissements });
+  // un envoi refusé est dit tout de suite à la tour (avant, elle l'apprenait au bout de 70 minutes sans nouvelles)
+  try {
+    const urls = await tour('montage_televerser', { video, langue, jeton: cmd.jeton, fichiers: fichiers.map((f) => ({ nom: f[0], type: f[2], taille: fs.statSync(f[1]).size })) });
+    for (const f of fichiers) { const u = (urls.urls || {})[f[0]]; if (!u) throw new Error('pas d\'adresse d\'envoi pour ' + f[0]); await televerser(u, f[1], f[2]); }
+  } catch (e) {
+    await tour('montage_fini', { video, langue, ok: false, erreur: 'envoi des fichiers : ' + String(e.message || e).slice(0, 880), jeton: cmd.jeton }).catch(() => null);
+    throw e;
+  }
+  await tour('montage_fini', { video, langue, ok: true, jeton: cmd.jeton, duree: r.duree, taille: fs.statSync(r.video).size, secondes: r.secondes, fichiers: fichiers.map((f) => f[0]), avertissements: r.avertissements });
   journal('envoyé à la tour');
 }
 

@@ -17,6 +17,8 @@ const MSG = require('../lib/createurs/messages');
 const CLIP = require('../lib/createurs/clip');
 const CH = require('../lib/createurs/chaine');
 const B = require('../lib/createurs/bible');
+const PS = require('../lib/createurs/personnages');
+const DI = require('../lib/createurs/discussion');
 const G = require('../lib/studio/github');
 const ST = require('../lib/studio/stockage');
 const { open } = require('../lib/db');
@@ -45,6 +47,15 @@ function catalogue() {
     // les clips (son prompt de réalisateur) : les qualités et leurs modèles, le prix de chaque morceau, les styles de
     // montage, les formats, les sources de musique
     clip: CLIP.catalogue(),
+    // la qualité des images IA, les modèles qui animent les scènes (les mêmes que les clips), le coût à peu près de chaque
+    // combinaison pour une vidéo courte et une longue
+    images_ia: Object.fromEntries(Object.keys(C.IMAGES_IA).map((k) => [k, { nom: C.IMAGES_IA[k].nom, court: C.IMAGES_IA[k].court, prix: C.IMAGES_IA[k].prix() }])),
+    modeles_video: C.MODELES_VIDEO,
+    couts_ia: Object.fromEntries(['court', 'long'].map((f) => [f, Object.fromEntries(C.MODELES_VIDEO.map((q) => [q, Object.fromEntries(Object.keys(C.MOUVEMENTS_IA).map((m) => [m, Object.fromEntries(Object.keys(C.IMAGES_IA).map((im) => [im, C.coutIa(f, m, q, im)]))]))]))])),
+    // la publication : les modes, l'heure de grande écoute de chaque langue (fuseau, heure, pays)
+    publication: { modes: C.MODES_PUB, marches: Object.fromEntries(Object.keys(C.LANGUES).map((l) => [l, C.marcheDe(l)])) },
+    personnages: { genres: C.GENRES_PERSO, max: C.PERSOS_MAX, photo_max: PS.TAILLE_MAX },
+    limites: { budget_jour: C.BUDGET_MAX, langues: CH.LANGUES_MAX, langues_video: CH.LANGUES_MAX_VIDEO, memoire: C.MEMOIRE_MAX },
     images: IM.branche(), usine: G.branche(), coffre: SEC.disponible()
   };
 }
@@ -64,8 +75,17 @@ async function maVideo(db, c, id) { return okId(id) ? db.one('hq_crea_videos', {
 async function vueVideo(db, v) {
   const avecFichiers = Object.values(v.rendus || {}).some((r) => r && r.etat === 'fini');
   const out = C.videoPublique(v, avecFichiers ? await F.liens(v, true).catch(() => ({})) : undefined);
-  // un clip : ce qu'il reste à payer pour le finir (le prix affiché sur « Tourner le clip »)
-  if (CLIP.estClip(v) && out.plan.clip) out.plan.clip.a_payer = CLIP.aPayer(v);
+  // un clip : ce qu'il reste à payer pour le finir (le prix affiché sur « Tourner le clip »), et les photos de ses
+  // personnages (leurs liens signés vieillissent : refaits à chaque lecture)
+  if (CLIP.estClip(v) && out.plan.clip) {
+    out.plan.clip.a_payer = CLIP.aPayer(v);
+    const brut = ((((v.plan || {}).clip || {}).gen || {}).refs || []);
+    const photos = brut.filter((j) => j && j.photo).map((j) => j.photo);
+    if (photos.length && out.plan.clip.gen) {
+      const signes = await ST.liensLecture(photos, 6 * 3600).catch(() => ({}));
+      out.plan.clip.gen.refs = out.plan.clip.gen.refs.map((j, i) => (j && brut[i] && brut[i].photo ? Object.assign({}, j, { url: signes[brut[i].photo] || j.url, photo: true }) : j));
+    }
+  }
   return out;
 }
 
@@ -105,6 +125,8 @@ async function lecture(req, res, db, q) {
     const signes = Object.keys(chemins).length ? await ST.liensLecture(Object.values(chemins), 6 * 3600).catch(() => ({})) : {};
     return json(res, 200, { videos: liste.map((v) => C.videoResume(Object.assign({}, v, { vignette: signes[chemins[v.id]] || null }))) });
   }
+  if (q.op === 'personnages') return json(res, 200, { personnages: await PS.lister(c) });
+  if (q.op === 'discussion') return json(res, 200, await DI.lire(db, c));
   if (q.op === 'video') {
     const v = await maVideo(db, c, q.id);
     if (!v) return json(res, 404, { erreur: 'vidéo introuvable' });
@@ -218,6 +240,32 @@ async function action(req, res, db, b) {
       return json(res, 200, { ok: true, idees: r.idees, cout: r.cout, moi: C.moi(c) });
     } catch (e) { return json(res, e.code === 'budget' || /^cle|credit/.test(e.code || '') ? 402 : 400, { erreur: court(e.message, 300), code: e.code || null }); }
   }
+  // ses idées à elle (son carnet) : Maya s'en sert, et le pilote les prend en premier
+  if (op === 'idee_ajouter') {
+    const titre = court(String(b.titre || '').replace(/[<>]/g, '').trim(), 90);
+    if (titre.length < 3) return json(res, 400, { erreur: 'écris ton idée en quelques mots' });
+    const idee = { id: Date.now().toString(36) + 'm', titre, angle: court(String(b.angle || '').replace(/[<>]/g, ''), 400), accroche: '', pourquoi: '', source: 'moi', le: iso() };
+    c = await majCreateur(db, c, { idees: [idee].concat(c.idees || []).slice(0, 12) });
+    return json(res, 200, { ok: true, moi: C.moi(c) });
+  }
+  // les questions de la plume avant d'écrire (le petit modèle, moins d'un centime)
+  if (op === 'questions') {
+    if (C.reglagesDe(c).questions === 'non') return json(res, 200, { ok: true, questions: [] });
+    try { const r = await E.poserQuestions(db, c, { sujet: b.sujet, modele: b.modele, format: b.format }); return json(res, 200, { ok: true, questions: r.questions, cout: r.cout }); }
+    catch (e) { return json(res, 200, { ok: true, questions: [], avertissement: court(e.message, 200) }); }
+  }
+  // ses personnages : la photo (un lien d'envoi), puis le personnage
+  if (op === 'perso_photo_envoi') { const r = await PS.preparerPhoto(c, b); return json(res, r.code, r.code === 200 ? { ok: true, chemin: r.chemin, url: r.url, type: r.type } : { erreur: r.erreur }); }
+  if (op === 'perso_enregistrer') { const r = await PS.enregistrer(db, c, b); return json(res, r.code, r.code === 200 ? { ok: true, personnage: r.personnage, personnages: r.personnages, moi: r.moi, avertissement: r.avertissement } : { erreur: r.erreur }); }
+  if (op === 'perso_supprimer') { const r = await PS.supprimer(db, c, b.id); return json(res, r.code, r.code === 200 ? { ok: true, personnages: r.personnages, moi: r.moi } : { erreur: r.erreur }); }
+  // la conversation avec son équipe
+  if (op === 'discuter' || op === 'discussion_confirmer') {
+    const r = op === 'discuter' ? await DI.envoyer(db, c, b, { CH }) : await DI.confirmer(db, c, b, { CH });
+    if (r.code !== 200) return json(res, r.code, { erreur: r.erreur, code: r.code_erreur || null });
+    const c2 = await relire(db, c.id);
+    return json(res, 200, Object.assign({}, r, { code: undefined, moi: C.moi(c2, { messages_non_lus: await compteur(db, c2) }) }));
+  }
+  if (op === 'discussion_effacer') { await DI.effacer(db, c); return json(res, 200, { ok: true, messages: [] }); }
   if (op === 'idee_oublier') {
     c = await majCreateur(db, c, { idees: (c.idees || []).filter((x) => x.id !== String(b.id || '')) });
     return json(res, 200, { ok: true, moi: C.moi(c) });
@@ -227,8 +275,8 @@ async function action(req, res, db, b) {
   if (op === 'creer') {
     const idee = b.idee_id ? (c.idees || []).find((x) => x.id === String(b.idee_id)) : null;
     const r = b.genre === 'clip'
-      ? await CH.creer(db, c, { genre: 'clip', prompt: b.prompt, format: b.format, qualite: b.qualite, montage: b.montage, bruitages: b.bruitages, valider: b.valider, duree: b.duree, musique: b.musique })
-      : await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, ia: b.ia, modele: b.modele });
+      ? await CH.creer(db, c, { genre: 'clip', prompt: b.prompt, format: b.format, qualite: b.qualite, montage: b.montage, bruitages: b.bruitages, valider: b.valider, duree: b.duree, musique: b.musique, personnages: b.personnages })
+      : await CH.creer(db, c, { sujet: b.sujet, idee, langues: b.langues, format: b.format, style: b.style, ia: b.ia, modele: b.modele, personnages: b.personnages, voix: b.voix, musique: b.musique, couleur: b.couleur, ton: b.ton, relire: b.relire, publier: b.publier, brief: b.brief, consigne: b.consigne });
     if (r.erreur) return json(res, 400, { erreur: r.erreur });
     return json(res, 200, { ok: true, video: await vueVideo(db, r.video) });
   }
@@ -245,7 +293,10 @@ async function action(req, res, db, b) {
   if (op === 'valider') r = await CH.valider(db, c, v.id, b.accepte);
   else if (op === 'reecrire') r = await CH.reecrire(db, c, v.id, b.consigne);
   else if (op === 'modifier') r = await CH.modifier(db, c, v.id, { script: b.script, langue: b.langue, texte: b.texte });
-  else if (op === 'publier') r = await CH.publier(db, c, v.id, b.choix || null);
+  else if (op === 'publier') r = await CH.publier(db, c, v.id, b.choix || null, b.quand);
+  else if (op === 'annuler_programmation') r = await CH.annulerProgrammation(db, c, v.id, b.langue || null);
+  else if (op === 'ajouter_langues') r = await CH.ajouterLangues(db, c, v.id, b.langues);
+  else if (op === 'relancer_montage') r = await CH.relancerMontage(db, c, v.id);
   else if (op === 'marquer_publiee') r = await CH.marquerPubliee(db, c, v.id, String(b.langue || ''), String(b.plateforme || ''), b.lien);
   else if (op === 'reprendre') r = await CH.reprendre(db, c, v.id);
   else if (op === 'refaire') r = await CH.refaireMontage(db, c, v.id, { montage: b.montage, musique: b.musique, bruitages: b.bruitages });
@@ -264,8 +315,8 @@ async function action(req, res, db, b) {
     await db.remove('hq_crea_videos', { eq: { id: v.id, createur_id: c.id } });
     return json(res, 200, { ok: true, supprimee: true });
   } else return json(res, 400, { erreur: 'opération inconnue' });
-  if (r.erreur) return json(res, 400, { erreur: r.erreur });
-  return json(res, 200, { ok: true, video: r.video ? await vueVideo(db, r.video) : null });
+  if (r.erreur) return json(res, 400, { erreur: r.erreur, ignorees: r.ignorees || undefined });
+  return json(res, 200, { ok: true, video: r.video ? await vueVideo(db, r.video) : null, ignorees: r.ignorees || undefined, langues: r.langues || undefined });
 }
 
 // la fonction est coupée à 300 secondes : un appel à Claude qui ne pourrait plus finir avant n'est pas lancé (l'heure de

@@ -18,7 +18,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { journal, lancer } = require('./commun');
+const { journal, lancer, alleger, CIBLE_OCTETS } = require('./commun');
 
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 const FFPROBE = process.env.FFPROBE || 'ffprobe';
@@ -124,7 +124,7 @@ function expressions(e, D) {
 }
 
 // un plan à l'écran : cadré au format, ses effets, l'étalonnage commun ; muet (le son est fait à part)
-async function morceauVideo(src, info, f, e, style, W, H, sortie, i) {
+async function morceauVideo(src, info, f, e, style, W, H, sortie, i, kbps) {
   const out = path.join(sortie, 'plan-' + String(i).padStart(2, '0') + '.mp4');
   const k = 1.25, W2 = Math.round(W * k / 2) * 2, H2 = Math.round(H * k / 2) * 2;
   const ex = expressions(e, f.duree);
@@ -135,7 +135,7 @@ async function morceauVideo(src, info, f, e, style, W, H, sortie, i) {
     style === 'net' ? null : 'vignette=PI/5', style === 'net' ? null : 'noise=alls=3:allf=t', 'format=yuv420p'
   ].filter(Boolean).join(',');
   const entree = info.image ? ['-loop', '1', '-framerate', String(FPS), '-t', N(f.duree), '-i', src] : ['-ss', N(DEPART), '-t', N(f.duree), '-i', src];
-  await lancer(FFMPEG, ['-y', '-loglevel', 'error'].concat(entree, ['-vf', vf, '-an', '-frames:v', String(Math.round(f.duree * FPS)), '-r', String(FPS), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '19', '-maxrate', '9M', '-bufsize', '18M', '-pix_fmt', 'yuv420p', '-g', String(FPS * 2), out]));
+  await lancer(FFMPEG, ['-y', '-loglevel', 'error'].concat(entree, ['-vf', vf, '-an', '-frames:v', String(Math.round(f.duree * FPS)), '-r', String(FPS), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '19', '-maxrate', (kbps || 9000) + 'k', '-bufsize', (2 * (kbps || 9000)) + 'k', '-pix_fmt', 'yuv420p', '-g', String(FPS * 2), out]));
   return out;
 }
 // son morceau de son : ses bruitages (fondus de quelques millisecondes : pas de clic à la coupe), ou du silence
@@ -206,6 +206,8 @@ async function monter(cmd, sortie, outils) {
   // 2. les coupes, sur le rythme
   const fen = calerCoupes(plans.map((x) => Number(x.p.duree) || 3), plans.map((x) => x.dispo), rythme);
   const total = Math.round(fen.reduce((a, f) => a + f.duree, 0) * 1000) / 1000;
+  // le débit maximum de l'image suit la durée du clip : le fichier tient sous les 50 Mo du stockage
+  const kbps = Math.max(700, Math.min(9000, Math.floor(CIBLE_OCTETS * 8 / Math.max(5, total + (c.fin_noir ? NOIR : 0)) / 1000 - 252)));
 
   // 3. chaque plan : son son, son moment fort, ses effets, son image
   const videos = [], sons = [];
@@ -214,7 +216,7 @@ async function monter(cmd, sortie, outils) {
     const son = await morceauSon(x.fichier, x.info, f, c.bruitages !== false, sortie, i);
     const pic = x.info.son && !x.info.image && c.bruitages !== false ? await picDe(son) : null;
     const e = effetsPlan(x.p, f, rythme, style, pic, x.info.image);
-    videos.push(await morceauVideo(x.fichier, x.info, f, e, style, W, H, sortie, i));
+    videos.push(await morceauVideo(x.fichier, x.info, f, e, style, W, H, sortie, i, kbps));
     sons.push(son);
   }
   // le noir final : la musique continue dessous
@@ -240,6 +242,7 @@ async function monter(cmd, sortie, outils) {
       (aDesBruits ? '[1:a]volume=0.6[b];[b][m]amix=inputs=2:normalize=0:duration=first,' : '[m]') + 'alimiter=limit=0.95,loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]';
   } else filtre = aDesBruits ? '[1:a]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]' : '[1:a]anull[a]';
   await lancer(FFMPEG, args.concat(['-filter_complex', filtre, '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-t', N(duree), '-movflags', '+faststart', finale]));
+  await alleger(FFMPEG, finale, duree);
   if (musique && rythme && rythme.duree && rythme.duree + 0.5 < total) avertissements.push('la musique est plus courte que le clip : la fin est sans musique');
   const vignette = path.join(sortie, 'vignette.jpg');
   await lancer(FFMPEG, ['-y', '-loglevel', 'error', '-ss', N(Math.min(total * 0.3, Math.max(0.5, total - 0.5))), '-i', finale, '-frames:v', '1', '-q:v', '3', vignette]);

@@ -150,6 +150,20 @@ CL.forcer(async (url, o) => {
   else if (outil === 'noter_script') { const n = CLAUDE.notes.length > 1 ? CLAUDE.notes.shift() : CLAUDE.notes[0]; input = { notes: { accroche: n, promesse: n, rythme: n, boucles: n, gain: n, fin: n, clarte: n, ton: n, images: n }, points_forts: ['L\'accroche'], corrections: n < 7.5 ? ['Phrase 2 : plus court'] : [], verdict: 'Note ' + n }; }
   else if (outil === 'decouper_clip') { CLAUDE.appels[CLAUDE.appels.length - 1].system = JSON.stringify(body.system); input = storyboardFaux(CLAUDE.appels.filter((x) => x.outil === 'decouper_clip').length); }
   else if (outil === 'adapter_script') { const src = JSON.parse(prompt.split('L\'ORIGINALE :\n')[1].split('\n\nAppelle')[0]); input = { titre: 'Why the sky is blue', accroche: 'The sky is *not* blue', beats: src.beats.map((b, i) => ({ voix: 'English sentence ' + (i + 1) + ' that says the same thing.', ecran: 'Screen ' + (i + 1) })), description: 'Did you know?', hashtags: ['science'], titre_youtube: 'The sky is not blue' }; }
+  // (18 nov.) le texte d'un clip dans d'autres langues, les questions avant d'écrire, le portrait d'un personnage, la
+  // conversation avec l'équipe
+  else if (outil === 'adapter_textes') { const codes = (/dans ces langues : ([^.]+)\./.exec(prompt) || [])[1].split(', ').map((x) => x.split(' ')[0]); input = { versions: codes.map((l) => ({ langue: l, titre: 'Title ' + l, description: 'Text ' + l + ', which one?', hashtags: ['#tag' + l, 'ai'], titre_youtube: 'YT ' + l })) }; }
+  else if (outil === 'poser_questions') input = { questions: [{ question: 'Tu veux finir comment ?', choix: ['Par une question', 'Par une chute'] }, { question: 'Un exemple à toi ?', choix: ['Oui', 'Non', 'Mon chat'] }, { question: 'Sans choix', choix: ['seul'] }] };
+  else if (outil === 'decrire_personnage') { CLAUDE.portraits = (CLAUDE.portraits || []).concat([body.messages[0].content]); input = { nom_en: 'Lila the red fox', description_en: 'A small red fox with a white chest and big amber eyes, wearing a bright yellow raincoat with wooden toggles, stylized 3D look' }; }
+  else if (outil === 'repondre') {
+    CLAUDE.discussions = (CLAUDE.discussions || []).concat([{ system: JSON.stringify(body.system), prompt }]);
+    const msg = (/SON MESSAGE : « ([^]*) »\n\nAppelle/.exec(prompt) || [])[1] || '';
+    const n = Number((/vidéo (\d+)/.exec(msg) || [])[1]) || null;
+    if (/espagnol/.test(msg)) input = { qui: 'traduction', message: 'Je lance l\'espagnol, environ 9 centimes.', actions: [{ type: 'ajouter_langues', video: n, langues: ['es'] }] };
+    else if (/clip/.test(msg)) input = { qui: 'realisation', message: 'Voilà le clip que je te propose.', actions: [{ type: 'creer_clip', prompt: 'A red fox in a yellow raincoat runs through neon Tokyo at night. Shot 1 (3s): close-up. Shot 2 (3s): wide.', qualite: 'pro' }] };
+    else if (/retiens/.test(msg)) input = { qui: 'idees', message: 'Noté.', actions: [{ type: 'retenir', texte: 'Elle adore les chutes absurdes' }, { type: 'modifier_reglages', reglages: { budget_jour: 150, chaine: { ton: 'absurde et tendre' } } }, { type: 'consignes', role: 'plume', texte: 'Toujours une chute absurde' }] };
+    else input = { qui: 'idees', message: 'Dis-m\'en plus sur ta chaîne.', questions: [{ question: 'Ton public ?', choix: ['Ados', 'Jeunes adultes'] }] };
+  }
   nTool++;
   return reponse(body, { model: body.model, content: [{ type: 'tool_use', id: 'tu_' + nTool, name: outil, input }], stop_reason: 'tool_use', usage: { input_tokens: 4000, output_tokens: 1500 } });
 });
@@ -306,14 +320,15 @@ async function jusqua(id, statuts, n) {
 
   // 2. les réglages passent au tamis
   const r0 = C.nettoyerReglages({ budget_jour: 999, langues: ['en', 'zz', 'en'], langue_source: 'es', chaine: { sujets: '<script>x</script>beauté' }, voix: { en: 'bf_emma', fr: 'pas-une-voix' }, pilote: { videos_jour: 50, heure: -3 }, publication: { en: { profil: 'studio', plateformes: ['tiktok', 'myspace'] }, fr: { profil: 'x y', plateformes: ['youtube'] } }, fuseau: 'Mars/Olympus' });
-  assert.strictEqual(r0.budget_jour, 20, 'budget plafonné à 20 $ par jour');
+  assert.strictEqual(r0.budget_jour, 200, 'budget plafonné à 200 $ par jour');
   assert.deepStrictEqual(r0.langues, ['es', 'en'], 'langues connues, sans doublon, la principale en tête');
   assert.ok(!/script/.test(r0.chaine.sujets), 'pas de balise');
   assert.strictEqual(r0.voix.en, 'bf_emma'); assert.ok(!r0.voix.fr, 'une voix inconnue est ignorée');
   assert.strictEqual(C.voixDe(r0, 'en').kokoro, 'en-gb', 'voix britannique, anglais britannique');
   assert.deepStrictEqual([r0.pilote.videos_jour, r0.pilote.heure], [5, 0], 'pilote borné');
-  assert.deepStrictEqual(r0.publication.en, { profil: 'studio', plateformes: ['tiktok'] }, 'plateformes connues seulement');
-  assert.deepStrictEqual(r0.publication.fr, { profil: '', plateformes: [] }, 'un profil invalide ne publie nulle part');
+  assert.deepStrictEqual([r0.publication.en.profil, r0.publication.en.plateformes, r0.publication.en.mode], ['studio', ['tiktok'], 'bouton'], 'plateformes connues seulement, publiées d\'un bouton par défaut');
+  assert.deepStrictEqual([r0.publication.en.fuseau, r0.publication.en.heure, r0.publication.en.depuis], ['America/New_York', 18, null], 'l\'heure de grande écoute du pays visé');
+  assert.deepStrictEqual([r0.publication.fr.profil, r0.publication.fr.plateformes, r0.publication.fr.mode], ['', [], 'bouton'], 'un profil invalide ne publie nulle part');
   assert.strictEqual(r0.fuseau, 'Europe/Paris', 'un fuseau inconnu est ignoré');
 
   // 3. Louis crée le compte de Léa : un lien d'invitation, jamais gardé
@@ -643,10 +658,10 @@ async function jusqua(id, statuts, n) {
   r = await api('POST', { op: 'cle_claude', cle: 'sk-ant-api03-la-cle-de-mila-0123456789abc' });
   assert.strictEqual(r.code, 200);
   r = await api('POST', { op: 'reglages', reglages: { style: 'ia', ia: { style: 'anime', mouvement: 'accroche' }, budget_jour: 5, langues: ['fr', 'en'] } });
-  assert.strictEqual(r.d.moi.reglages.style, 'ia'); assert.deepStrictEqual(r.d.moi.reglages.ia, { style: 'anime', mouvement: 'accroche' });
+  assert.strictEqual(r.d.moi.reglages.style, 'ia'); assert.deepStrictEqual(r.d.moi.reglages.ia, { style: 'anime', mouvement: 'accroche', modele: 'rapide', images: 'turbo' });
   assert.ok(r.d.moi.depense.estime_ia > 0.2 && r.d.moi.depense.estime_video > r.d.moi.depense.estime_ia, 'le coût estimé compte les images IA : ' + JSON.stringify(r.d.moi.depense));
   r = await api('POST', { op: 'reglages', reglages: { ia: { style: 'inconnu', mouvement: 'tout' } } });
-  assert.deepStrictEqual(r.d.moi.reglages.ia, { style: 'anime', mouvement: 'tout' }, 'un look inconnu est ignoré');
+  assert.deepStrictEqual(r.d.moi.reglages.ia, { style: 'anime', mouvement: 'tout', modele: 'rapide', images: 'turbo' }, 'un look inconnu est ignoré');
   await api('POST', { op: 'reglages', reglages: { ia: { mouvement: 'accroche' } } });
   const catIa = (await api('GET', { op: 'etat' })).d.catalogue.ia;
   assert.ok(catIa.looks.anime && catIa.looks.anime.nom === 'Anime' && !catIa.looks.anime.prompt, 'le catalogue montre les looks, pas ce que reçoit l\'IA');
@@ -666,7 +681,7 @@ async function jusqua(id, statuts, n) {
   // la plume écrit les scènes pour l'IA, dans le look choisi ; Mila retouche une scène
   r = await api('POST', { op: 'creer', sujet: 'Pourquoi les flamants roses sont roses', langues: ['fr', 'en'] });
   assert.strictEqual(r.code, 200, JSON.stringify(r.d)); const vIa = r.d.video.id;
-  assert.strictEqual(r.d.video.plan.style, 'ia'); assert.deepStrictEqual(r.d.video.plan.ia, { style: 'anime', mouvement: 'accroche' });
+  assert.strictEqual(r.d.video.plan.style, 'ia'); assert.deepStrictEqual(r.d.video.plan.ia, { style: 'anime', mouvement: 'accroche', modele: 'rapide', images: 'turbo' });
   v = await jusqua(vIa, 'relecture');
   assert.strictEqual(v.status, 'relecture');
   const ecritIa = CLAUDE.appels.filter((x) => x.outil === 'ecrire_script').pop();
@@ -1267,6 +1282,7 @@ async function jusqua(id, statuts, n) {
   r = await api('POST', { op: 'invitation', code: louisCree.code, mdp: 'le studio de louis 2026' });
   assert.strictEqual(r.code, 200);
   const louisRow = await db.one('hq_createurs', { eq: { identifiant: 'louis' } });
+  const coLouis = COOKIE;
   r = await api('GET', { op: 'etat' });
   assert.strictEqual(r.d.moi.louis, true, 'son compte est reconnu');
   assert.strictEqual((await api('GET', { op: 'etat' }, { cookie: coMila, garder: false })).d.moi.louis, false, 'une créatrice n\'est pas Louis');
@@ -1378,6 +1394,250 @@ async function jusqua(id, statuts, n) {
   const vieux = (await api('GET', { op: 'messages', avec: String(mila.id) })).d.messages.find((m) => m.id === msgL.id);
   assert.ok(vieux.texte && vieux.pieces[0].expire && !vieux.pieces[0].url && !vieux.pieces[0].telecharger, 'la vidéo n\'est plus là, le message reste');
   await ADM.agir(db, 'crea_statut', { id: samia.id, statut: 'active' });
+
+  // 31. (18 nov.) les vidéos en anglais de Louis ne se publiaient pas : sa règle n'existait que pour le français, et la
+  //     langue sans chaîne partait en silence. Chaque langue qui ne part pas dit maintenant pourquoi ; chaque langue a sa
+  //     règle (tel profil, donc telle chaîne YouTube ; d'un bouton, dès qu'elle est prête, ou à l'heure de grande écoute du
+  //     pays) ; une règle allumée ne publie que les vidéos montées après.
+  COOKIE = coLouis;
+  r = await api('POST', { op: 'cle_claude', cle: 'sk-ant-api03-louis-0123456789abcdefghijklmnopqrstuvwxyz0123456789' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  r = await api('POST', { op: 'cle_fal', cle: CLE_FAL });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  r = await api('POST', { op: 'uploadpost', cle: 'up-bonne-cle-0123456789abcdef' });
+  assert.strictEqual(r.code, 200);
+  r = await api('POST', { op: 'reglages', reglages: { budget_jour: 50, publication: { fr: { profil: 'studio', plateformes: ['youtube'] } } } });
+  assert.strictEqual(r.d.moi.reglages.budget_jour, 50, 'plus de 20 $ par jour : le mode sans compter');
+  const pret = (id, langues, extra) => db.insert('hq_crea_videos', Object.assign({
+    createur_id: louisRow.id, status: 'prete', sujet: 'le ciel', titre: 'Le ciel', langue_source: 'fr', langues,
+    script: { titre: 'Le ciel', description: 'Tu savais ?', hashtags: ['ciel'], accroche: 'Le ciel', beats: [{ voix: 'Une phrase.', ecran: 'Un' }, { voix: 'Deux phrases.', ecran: 'Deux' }] },
+    traductions: { en: { titre: 'The sky', description: 'Did you know?', hashtags: ['sky'], accroche: 'The sky', beats: [{ voix: 'One.', ecran: 'One' }, { voix: 'Two.', ecran: 'Two' }] } },
+    rendus: Object.fromEntries(langues.map((l) => [l, { etat: 'fini', fini_le: new Date().toISOString(), duree: 40, fichiers: ['video.mp4', 'vignette.jpg'] }])), plan: { style: 'clips', clips: [] }, publication: {}, critique: {}, etape: {}, idee: {}
+  }, extra || {})).then((x) => x[0]);
+  const vEn = await pret(null, ['fr', 'en']);
+  const upAvant = UP.envois.length;
+  r = await api('POST', { op: 'publier', id: vEn.id });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.deepStrictEqual(r.d.ignorees.map((x) => [x.langue, /aucune chaîne choisie/.test(x.raison)]), [['en', true]], 'l\'anglais dit pourquoi il ne part pas');
+  assert.deepStrictEqual(Object.keys(r.d.video.publication), ['fr'], 'le français part');
+  // la règle de l'anglais : son propre profil, à l'heure de grande écoute à New York
+  r = await api('POST', { op: 'reglages', reglages: { publication: { en: { profil: 'studio-en', plateformes: ['youtube', 'tiktok'], mode: 'programme' } } } });
+  const regleEn = r.d.moi.reglages.publication.en;
+  assert.deepStrictEqual([regleEn.profil, regleEn.mode, regleEn.heure, regleEn.fuseau], ['studio-en', 'programme', 18, 'America/New_York']);
+  assert.ok(regleEn.depuis, 'la règle sait depuis quand elle publie seule');
+  // une vidéo montée avant la règle ne part pas toute seule ; une vidéo montée après, si
+  const vVieille = await pret(null, ['fr', 'en'], { rendus: { fr: { etat: 'fini', fini_le: '2026-01-01T00:00:00.000Z' }, en: { etat: 'fini', fini_le: '2026-01-01T00:00:00.000Z' } } });
+  assert.strictEqual((await api('POST', { op: 'avancer', id: vVieille.id })).d.video.status, 'prete', 'une vieille vidéo ne part pas d\'un coup');
+  await dormir(5);
+  const vAuto = await pret(null, ['fr', 'en']);
+  v = (await api('POST', { op: 'avancer', id: vAuto.id })).d.video;
+  assert.strictEqual(v.status, 'publication', 'prête : l\'anglais se programme tout seul');
+  const progT = v.publication.en.plateformes.youtube;
+  assert.strictEqual(progT.etat, 'programmee'); assert.strictEqual(progT.profil, 'studio-en');
+  const heureNYT = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', hourCycle: 'h23' }).format(new Date(progT.prevu_le)));
+  assert.strictEqual(heureNYT, 18, '18 h à New York : ' + progT.prevu_le);
+  assert.ok(new Date(progT.prevu_le).getTime() > Date.now(), 'dans le futur');
+  assert.strictEqual(v.publication.en.plateformes.tiktok.etat, 'programmee');
+  assert.ok(!v.publication.fr, 'le français reste au bouton');
+  // deux envois du même profil ne tombent jamais ensemble
+  const prisesT = {};
+  const regleT = C.regleDe(C.reglagesDe(await db.one('hq_createurs', { eq: { id: louisRow.id } })), 'en');
+  const tc1 = CH.creneau(regleT, prisesT), tc2 = CH.creneau(regleT, prisesT), tc3 = CH.creneau(regleT, prisesT), tc4 = CH.creneau(regleT, prisesT);
+  assert.ok(tc2 - tc1 >= 100 * 60000 && tc3 - tc2 >= 100 * 60000, 'deux heures d\'écart');
+  assert.ok(tc4 - tc1 >= 20 * 3600000, 'trois par jour au plus, puis le lendemain');
+  // l'heure venue, l'envoi part vers SON profil, puis il est suivi jusqu'au bout
+  const fAuto = await db.one('hq_crea_videos', { eq: { id: vAuto.id } });
+  const passeT = JSON.parse(JSON.stringify(fAuto.publication));
+  Object.keys(passeT.en.plateformes).forEach((x) => { passeT.en.plateformes[x].prevu_le = new Date(Date.now() - 1000).toISOString(); });
+  await db.update('hq_crea_videos', { publication: passeT, etape: Object.assign({}, fAuto.etape, { attendre_jusqu: null }) }, { eq: { id: vAuto.id } });
+  v = (await api('POST', { op: 'avancer', id: vAuto.id })).d.video;
+  const envAuto = UP.envois.slice(upAvant).find((x) => x.user === 'studio-en');
+  assert.ok(envAuto && envAuto.plateformes.sort().join() === 'tiktok,youtube', 'parti vers le profil de l\'anglais : ' + JSON.stringify(UP.envois.slice(upAvant)));
+  assert.strictEqual(v.publication.en.plateformes.youtube.etat, 'en_cours');
+  // une autre vidéo programmée, puis annulée : elle redevient prête
+  await dormir(5);
+  const vAnn = await pret(null, ['en']);
+  v = (await api('POST', { op: 'avancer', id: vAnn.id })).d.video;
+  assert.strictEqual(v.status, 'publication');
+  r = await api('POST', { op: 'annuler_programmation', id: vAnn.id });
+  assert.strictEqual(r.code, 200); assert.strictEqual(r.d.video.status, 'prete', 'annulée : prête');
+  assert.ok(!Object.keys((r.d.video.publication.en || {}).plateformes || {}).length);
+  // annulée, elle ne repart pas toute seule (elle a déjà été planifiée une fois) ; « Publier » la fait partir quand même
+  assert.strictEqual((await api('POST', { op: 'avancer', id: vAnn.id })).d.video.status, 'prete', 'annulée, elle ne repart pas toute seule');
+  r = await api('POST', { op: 'publier', id: vAnn.id });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.video.status, 'publication', '« Publier » la fait partir quand même');
+  await api('POST', { op: 'annuler_programmation', id: vAnn.id });
+  // le pilote qui publie seul : une vidéo du pilote montée avant que l'anglais ait sa chaîne ne part pas d'un coup ;
+  // montée après, elle part, même d'une règle « je publie moi-même » (comme avant)
+  r = await api('POST', { op: 'reglages', reglages: { pilote: { actif: false, publier: true }, publication: { de: { profil: 'studio-en', plateformes: ['youtube'], mode: 'bouton' } } } });
+  const regleDe = r.d.moi.reglages.publication.de;
+  assert.ok(regleDe.le && !regleDe.depuis, 'la règle sait depuis quand ce profil sert l\'allemand');
+  const vPilVieille = await pret(null, ['de'], { auto: true, rendus: { de: { etat: 'fini', fini_le: '2026-01-01T00:00:00.000Z', fichiers: ['video.mp4'] } } });
+  assert.strictEqual((await api('POST', { op: 'avancer', id: vPilVieille.id })).d.video.status, 'prete', 'le pilote ne vide pas son arriéré sur une chaîne neuve');
+  await dormir(5);
+  const vPil = await pret(null, ['de'], { auto: true });
+  v = (await api('POST', { op: 'avancer', id: vPil.id })).d.video;
+  assert.strictEqual(v.status, 'publication', 'le pilote publie sa vidéo du jour');
+  assert.strictEqual(v.publication.de.plateformes.youtube.etat, 'a_envoyer', 'tout de suite, comme avant');
+  assert.strictEqual(C.regleDe({ publication: { fr: { profil: 'studio', plateformes: ['youtube'] } } }, 'fr').le, null, 'une règle d\'avant garde son comportement');
+
+  // 32. une langue ajoutée à une vidéo déjà faite : Nora écrit la version, la voix et le montage de cette langue
+  //     seulement ; les autres langues ne bougent pas ; la vidéo retrouve son statut (publiée reste publiée)
+  const vAj = await pret(null, ['fr'], { status: 'publiee', publication: { fr: { plateformes: { youtube: { etat: 'publiee', lien: 'https://youtube.com/x' } } } } });
+  const ghAvant = GH.montages.length, nAppels = CLAUDE.appels.length;
+  r = await api('POST', { op: 'ajouter_langues', id: vAj.id, langues: ['es', 'fr', 'zz'] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.deepStrictEqual(r.d.langues, ['es'], 'seulement les langues nouvelles et connues');
+  assert.strictEqual(r.d.video.status, 'langues'); assert.deepStrictEqual(r.d.video.langues, ['fr', 'es']);
+  v = await jusqua(vAj.id, 'fabrication', 6);
+  assert.strictEqual(v.status, 'fabrication', JSON.stringify(v.etape));
+  assert.ok(v.traductions.es && v.traductions.es.beats.length === 2, 'la version espagnole est écrite');
+  assert.ok(CLAUDE.appels.slice(nAppels).some((x) => x.outil === 'adapter_script'));
+  assert.deepStrictEqual(GH.montages.slice(ghAvant).map((x) => x.langue), ['es'], 'seul l\'espagnol est monté');
+  assert.strictEqual(v.rendus.fr.etat, 'fini', 'le français ne bouge pas');
+  const jEsp = (await appelUsine('GET', { op: 'montage', video: String(vAj.id), langue: 'es' })).d.jeton;
+  u = await appelUsine('POST', { op: 'montage_fini', video: vAj.id, langue: 'es', jeton: jEsp, ok: true, duree: 40, fichiers: ['video.mp4', 'vignette.jpg'] });
+  assert.strictEqual(u.d.prete, true);
+  assert.strictEqual((await db.one('hq_crea_videos', { eq: { id: vAj.id } })).status, 'publiee', 'publiée, elle le reste');
+  assert.strictEqual((await api('POST', { op: 'ajouter_langues', id: vAj.id, langues: ['es'] })).code, 400, 'une langue qu\'elle a déjà');
+  // un clip : la même vidéo, copiée chez Supabase, avec son texte écrit dans la nouvelle langue
+  const [vClipAj] = await db.insert('hq_crea_videos', { createur_id: louisRow.id, status: 'prete', sujet: 'clip', titre: 'Le renard', langue_source: 'fr', langues: ['fr'], script: { titre: 'Le renard', description: 'Lequel ?', hashtags: ['renard'] }, rendus: { fr: { etat: 'fini', duree: 12, taille: 9e6, fichiers: ['video.mp4', 'vignette.jpg'] } }, plan: { genre: 'clip', clip: { prompt: 'x' } }, traductions: {}, publication: {}, etape: {}, critique: {}, idee: {} });
+  const copies0 = STOCK.copies.length;
+  r = await api('POST', { op: 'ajouter_langues', id: vClipAj.id, langues: ['en', 'de'] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.deepStrictEqual(r.d.video.langues, ['fr', 'en', 'de']);
+  assert.strictEqual(r.d.video.traductions.en.titre, 'Title en'); assert.deepStrictEqual(r.d.video.traductions.de.hashtags, ['tagde', 'ai'], 'des hashtags propres');
+  assert.strictEqual(r.d.video.rendus.de.etat, 'fini'); assert.strictEqual(r.d.video.status, 'prete');
+  assert.deepStrictEqual(STOCK.copies.slice(copies0).map((x) => x.destinationKey), ['crea/' + louisRow.id + '/' + vClipAj.id + '/en/video.mp4', 'crea/' + louisRow.id + '/' + vClipAj.id + '/en/vignette.jpg', 'crea/' + louisRow.id + '/' + vClipAj.id + '/de/video.mp4', 'crea/' + louisRow.id + '/' + vClipAj.id + '/de/vignette.jpg']);
+  assert.strictEqual(CH.textePublication(await db.one('hq_crea_videos', { eq: { id: vClipAj.id } }), 'en').titre_youtube, 'YT en', 'le texte publié dans la langue');
+
+  // 33. un montage trop lourd pour le stockage est refusé tout de suite ; « Relancer le montage raté » ne refait que lui
+  const vRat = await pret(null, ['fr', 'en'], { rendus: { fr: { etat: 'fini', fini_le: new Date().toISOString(), fichiers: ['video.mp4'] }, en: { etat: 'echec', essais: 2, erreur: 'envoi des fichiers : trop lourd' } } });
+  const ghRat = GH.montages.length;
+  r = await api('POST', { op: 'relancer_montage', id: vRat.id });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.video.status, 'fabrication');
+  assert.deepStrictEqual(GH.montages.slice(ghRat).map((x) => x.langue), ['en'], 'seul l\'anglais repart');
+  const jRat = (await appelUsine('GET', { op: 'montage', video: String(vRat.id), langue: 'en' })).d.jeton;
+  u = await appelUsine('POST', { op: 'montage_televerser', video: vRat.id, langue: 'en', jeton: jRat, fichiers: [{ nom: 'video.mp4', taille: 53 * 1048576 }] });
+  assert.strictEqual(u.code, 400); assert.ok(/trop lourd pour le stockage/.test(u.d.erreur) && /53,0 Mo/.test(u.d.erreur), u.d.erreur);
+  u = await appelUsine('POST', { op: 'montage_fini', video: vRat.id, langue: 'en', jeton: jRat, ok: true, duree: 118, fichiers: ['video.mp4', 'vignette.jpg'] });
+  assert.strictEqual((await db.one('hq_crea_videos', { eq: { id: vRat.id } })).status, 'prete', 'relancé, puis prêt');
+  assert.strictEqual((await api('POST', { op: 'relancer_montage', id: vRat.id })).code, 400, 'plus rien à relancer');
+  const UCm = require('../usine/commun');
+  assert.ok(UCm.debitVideo(118) < 3000 && UCm.debitVideo(118) > 2000 && UCm.debitVideo(40) === 6000, 'le débit suit la durée : ' + UCm.debitVideo(118));
+  assert.ok((UCm.debitVideo(118) + 192) * 118 / 8 * 1000 < 48 * 1048576, 'deux minutes tiennent sous 48 Mo');
+
+  // 34. les questions de la plume avant d'écrire, ses réponses dans le script
+  r = await api('POST', { op: 'questions', sujet: 'Pourquoi les chats ronronnent', modele: 'saviez' });
+  assert.strictEqual(r.code, 200); assert.strictEqual(r.d.questions.length, 2, 'une question sans vrai choix est écartée');
+  assert.deepStrictEqual(r.d.questions[0].choix, ['Par une question', 'Par une chute']);
+  r = await api('POST', { op: 'creer', sujet: 'Pourquoi les chats ronronnent', langues: ['fr'], brief: [{ q: 'Tu veux finir comment ?', r: 'Par une chute' }, { q: '', r: 'x' }], ton: 'tendre et drôle', voix: 'Brian', musique: 'mystere', couleur: '#00ff88', relire: false, publier: false, consigne: 'Commence par un bruit de ronron' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const vQuest = r.d.video;
+  assert.deepStrictEqual(vQuest.idee.brief, [{ q: 'Tu veux finir comment ?', r: 'Par une chute' }], 'ses réponses, sans les vides');
+  assert.deepStrictEqual([vQuest.plan.ton, vQuest.plan.voix_choisie, vQuest.plan.musique_choisie, vQuest.plan.couleur_choisie, vQuest.plan.relire, vQuest.plan.publier], ['tendre et drôle', 'Brian', 'mystere', '#00FF88', false, false]);
+  const nQuest = CLAUDE.appels.length;
+  v = await jusqua(vQuest.id, ['langues', 'realisation', 'fabrication', 'relecture'], 4);
+  const ecrQ = CLAUDE.appels.slice(nQuest).find((x) => x.outil === 'ecrire_script');
+  assert.ok(/SES RÉPONSES À TES QUESTIONS[^]*Par une chute/.test(ecrQ.prompt) && /Commence par un bruit de ronron/.test(ecrQ.prompt), 'ses réponses et sa consigne arrivent chez la plume');
+  assert.ok(/tendre et drôle/.test(ecrQ.system), 'le ton de cette vidéo passeT avant celui de la chaîne');
+  assert.notStrictEqual(v.status, 'relecture', 'lancée « sans relecture » : la suite s\'enchaîne');
+  await api('POST', { op: 'reglages', reglages: { questions: 'non' } });
+  const nQuestc2 = CLAUDE.appels.length;
+  r = await api('POST', { op: 'questions', sujet: 'x y z' });
+  assert.deepStrictEqual(r.d.questions, []); assert.strictEqual(CLAUDE.appels.length, nQuestc2, 'questions coupées : aucun appel');
+
+  // 35. ses personnages : une photo (JPEG, droit dans le stockage), son accord, le portraitP écrit par l'équipe en lisant la
+  //     photo ; ils jouent dans les images IA (Nano Banana, avec leur photo) et deviennent les éléments d'un clip
+  r = await api('POST', { op: 'perso_photo_envoi', type: 'image/png', taille: 1e5 });
+  assert.strictEqual(r.code, 400, 'du JPEG seulement');
+  r = await api('POST', { op: 'perso_photo_envoi', type: 'image/jpeg', taille: 2e5 });
+  assert.strictEqual(r.code, 200); const cheminPerso = r.d.chemin;
+  assert.ok(new RegExp('^crea/' + louisRow.id + '/persos/[a-f0-9]{16}\\.jpg$').test(cheminPerso), cheminPerso);
+  r = await api('POST', { op: 'perso_enregistrer', nom: 'Lila', genre: 'mascotte', description: 'une renarde rousse en ciré jaune', photos: [cheminPerso], consentement: true });
+  assert.strictEqual(r.code, 400, 'une photo pas arrivée');
+  STOCK.arrives.add(cheminPerso);
+  r = await api('POST', { op: 'perso_enregistrer', nom: 'Lila', genre: 'mascotte', description: 'une renarde rousse en ciré jaune', photos: [cheminPerso] });
+  assert.strictEqual(r.code, 400, 'sans son accord, pas de photo');
+  r = await api('POST', { op: 'perso_enregistrer', nom: 'Lila', genre: 'mascotte', description: 'une renarde rousse en ciré jaune', photos: [cheminPerso, 'crea/999/persos/0123456789abcdef.jpg'], consentement: true });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const lilaP = r.d.personnage;
+  assert.deepStrictEqual([lilaP.nom, lilaP.nom_en, lilaP.photos], ['Lila', 'Lila the red fox', 1], 'le portraitP, une photo (pas celle d\'un autre compte)');
+  assert.ok(/yellow raincoat/.test(lilaP.description_en));
+  assert.ok(!JSON.stringify(r.d).includes('/persos/') || /token/.test(JSON.stringify(r.d.personnages)), 'jamais un chemin, des liens signés');
+  assert.ok(!JSON.stringify(r.d.moi).includes('persos/'), 'pas de chemin dans ses réglages');
+  const portraitP = CLAUDE.portraits[CLAUDE.portraits.length - 1];
+  assert.strictEqual(portraitP[0].type, 'image'); assert.ok(/\/object\/sign\/studio\/crea\/\d+\/persos\//.test(portraitP[0].source.url), 'Claude lit la photo par un lien signé');
+  r = await api('GET', { op: 'personnages' });
+  assert.ok(r.d.personnages[0].photos[0].url, 'la photo, en lien signé');
+  // une vidéo en images IA avec Lila : la plume la fait jouer, la scène où elle joue part avec sa photo
+  await api('POST', { op: 'reglages', reglages: { questions: 'oui', pilote: { actif: false } } });
+  r = await api('POST', { op: 'creer', sujet: 'Lila découvre la neige', langues: ['fr'], style: 'ia', ia: { style: '3d', mouvement: 'zoom', modele: 'pro', images: 'turbo' }, personnages: [lilaP.id, 'inconnu'] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.deepStrictEqual(r.d.video.plan.personnages, [lilaP.id], 'seulement ses personnages');
+  const nPerso = CLAUDE.appels.length;
+  v = await jusqua(r.d.video.id, 'relecture', 5);
+  assert.strictEqual(v.status, 'relecture');
+  assert.ok(/SES PERSONNAGES DANS CETTE VIDÉO[^]*Lila the red fox/.test(CLAUDE.appels.slice(nPerso).find((x) => x.outil === 'ecrire_script').prompt), 'la plume connaît Lila');
+  const beatsPerso = v.script.beats.map((x, i) => (i === 0 ? Object.assign({}, x, { visuel: Object.assign({}, x.visuel, { prompt: 'Lila the red fox catches her first snowflake on her nose, close-up, soft morning light' }) }) : x));
+  await api('POST', { op: 'modifier', id: v.id, script: { beats: beatsPerso } });
+  const falPerso = FALM.envois.length;
+  await api('POST', { op: 'valider', id: v.id });
+  v = await jusqua(v.id, 'fabrication', 8);
+  const envPerso = FALM.envois.slice(falPerso);
+  const avecPhotoP = envPerso.filter((x) => x.modele === 'google/nano-banana-2.1/edit');
+  assert.strictEqual(avecPhotoP.length, 1, 'la scène où Lila joue : Nano Banana avec sa photo');
+  assert.ok(/\/object\/sign\/studio\/crea\/\d+\/persos\//.test(avecPhotoP[0].corps.image_urls[0]) && /Reference image 1 shows Lila the red fox/.test(avecPhotoP[0].corps.prompt), 'sa photo et la consigne de la garder');
+  assert.strictEqual(avecPhotoP[0].corps.aspect_ratio, '9:16');
+  assert.ok(envPerso.filter((x) => x.modele === 'fal-ai/flux-2/turbo').length >= 8, 'les autres scènes : FLUX.2 Turbo');
+  // un clip avec Lila : elle devient l'élément A, sa photo sert de référence (rien à payer pour elle)
+  const falClipP = FALM.envois.length;
+  r = await api('POST', { op: 'creer', genre: 'clip', prompt: 'Two knights in Monaco, cinematic. Shot 1 (3s): arrival. Shot 2 (3s): stepping out.', qualite: 'rapide', valider: true, musique: { source: 'aucune' }, personnages: [lilaP.id] });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  v = await jusqua(r.d.video.id, 'relecture', 10);
+  const elAT = v.plan.clip.storyboard.elements.find((x) => x.id === 'A');
+  assert.deepStrictEqual([elAT.nom, elAT.nom_en], ['Lila', 'Lila the red fox'], 'Lila est l\'élément A');
+  const envClipP = FALM.envois.slice(falClipP);
+  assert.ok(!envClipP.some((x) => /Character reference image of Lila/.test((x.corps || {}).prompt || '')), 'aucune référence fabriquée pour elle');
+  assert.ok(envClipP.some((x) => (x.corps.image_urls || []).some((u2) => /\/persos\//.test(u2))), 'ses plans partent avec sa photo');
+  const refATuto = v.plan.clip.gen.refs.find((x) => x && x.id === 'A');
+  assert.ok(refATuto && refATuto.etat === 'fini' && refATuto.photo && /\/persos\//.test(refATuto.url), 'la page montre sa photo comme référence');
+  assert.strictEqual((await api('POST', { op: 'clip_reference', id: v.id, element: 'A', consigne: 'x' })).code, 400, 'sa photo ne se refait pas');
+
+  // 36. parler à son équipe : elle demande, l'équipe agit ; ce qui coûte des dollars attend son « oui » ; ce que
+  //     l'équipe retient d'elle part dans toutes les écritures ; son budget ne se change jamais par la conversation
+  r = await api('POST', { op: 'discuter', texte: 'Salut, tu peux m\'aider ?' });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  assert.strictEqual(r.d.messages.length, 2); assert.strictEqual(r.d.messages[1].questions[0].choix.length, 2, 'une question, avec ses réponses toutes prêtes');
+  const vDisc = await pret(null, ['fr']);
+  r = await api('POST', { op: 'discuter', texte: 'Est-ce que tu peux ajouter l\'espagnol à ma vidéo ' + vDisc.id + ' ?', video: vDisc.id });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d));
+  const repD = r.d.messages[1];
+  assert.strictEqual(repD.qui, 'traduction'); assert.strictEqual(repD.resultats[0].ok, true, JSON.stringify(repD.resultats));
+  assert.strictEqual((await db.one('hq_crea_videos', { eq: { id: vDisc.id } })).status, 'langues', 'l\'espagnol est lancé');
+  const dscT = CLAUDE.discussions[CLAUDE.discussions.length - 1];
+  assert.ok(/"video_ouverte":\{"n":/.test(dscT.prompt) && /LA CONVERSATION JUSQU/.test(dscT.prompt), 'l\'équipe voit son studio, la vidéo ouverte et la conversation');
+  r = await api('POST', { op: 'discuter', texte: 'Fais-moi un clip de Lila à Tokyo' });
+  const repClip = r.d.messages[1];
+  assert.strictEqual(repClip.resultats[0].attente, true, 'un clip attend son oui'); assert.ok(/environ \d+,\d+ \$/.test(repClip.resultats[0].texte), repClip.resultats[0].texte);
+  const nbVid = (await db.select('hq_crea_videos', { eq: { createur_id: louisRow.id } })).length;
+  r = await api('POST', { op: 'discussion_confirmer', message: repClip.id, action: 0 });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.d)); assert.strictEqual(r.d.resultat.ok, true, JSON.stringify(r.d.resultat));
+  assert.strictEqual((await db.select('hq_crea_videos', { eq: { createur_id: louisRow.id } })).length, nbVid + 1, 'le clip est lancé');
+  assert.strictEqual((await api('POST', { op: 'discussion_confirmer', message: repClip.id, action: 0 })).code, 404, 'une seule fois');
+  const budgetAvant = (await db.one('hq_createurs', { eq: { id: louisRow.id } })).reglages.budget_jour;
+  r = await api('POST', { op: 'discuter', texte: 'retiens que j\'aime les chutes absurdes et monte mon budget' });
+  const fRet = await db.one('hq_createurs', { eq: { id: louisRow.id } });
+  assert.strictEqual(fRet.reglages.budget_jour, budgetAvant, 'le budget ne change jamais par la conversation');
+  assert.strictEqual(fRet.reglages.chaine.ton, 'absurde et tendre'); assert.strictEqual(fRet.reglages.memoire[0], 'Elle adore les chutes absurdes');
+  assert.ok(/Toujours une chute absurde/.test(fRet.equipe.plume.consignes), 'la consigne donnée à la plume');
+  assert.ok(r.d.moi.reglages.memoire.length >= 1, 'la page le voit');
+  r = await api('POST', { op: 'discuter', texte: 'Et maintenant ?' });
+  assert.ok(/CE QUE L'ÉQUIPE A RETENU D'ELLE[^]*chutes absurdes/.test(CLAUDE.discussions[CLAUDE.discussions.length - 1].system), 'ce qu\'elle a dit est retenu pour la suite');
+  r = await api('GET', { op: 'discussion' });
+  assert.ok(r.d.messages.length >= 10 && r.d.messages.every((m) => m.auteur === 'moi' || m.auteur === 'equipe'), 'la conversation est gardée');
+  // une autre créatrice ne voit rien de sa conversation
+  assert.strictEqual((await api('GET', { op: 'discussion' }, { cookie: coMila, garder: false })).d.messages.length, 0);
   COOKIE = coMila;
 
   console.log('Studio des créatrices : tout passe (' + CLAUDE.appels.length + ' appels Claude simulés, ' + GH.montages.length + ' montages, ' + UP.envois.length + ' publication, ' + FALM.envois.length + ' demandes à fal, phrases dites : ' + FALM.voix.length + ', images créées : ' + FALM.directes.length + ', clips tournés : 3).');

@@ -13,7 +13,9 @@
     moi: null, cat: null, videos: null, filtre: 'tout', video: null, sigCorps: '', onglet: {}, partage: {}, mayaCherche: false, boucle: 0, chargement: false,
     ville: null, villeEssai: false, fil: [], filOuvert: false, salutReplie: false, menu: false, fiche: null, evenement: null, modele: '', visite: null, statuts: null, badgesVus: null,
     // le compte de Louis : ses conversations avec les créatrices (prénoms, messages non lus, leurs langues)
-    dest: null, destEnCours: false, destErreur: null
+    dest: null, destEnCours: false, destErreur: null,
+    // la conversation avec son équipe (le tiroir « Parler à l'équipe »), ses personnages (avec leurs photos signées)
+    disc: { ouvert: false, charge: false, messages: [], video: null, envoi: false }, persos: null, persoOuvert: null
   };
 
   /* ── petits outils ── */
@@ -63,7 +65,11 @@
     chiffres: '<path d="M5 19L19 5"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
     avant: '<path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/>',
     question: '<path d="M4 5h16v11H9l-5 4z"/><path d="M10 9.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v.5M12 14v.01"/>',
-    libre: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>'
+    libre: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
+    bulles: '<path d="M14.5 9.5a6 6 0 0 1-8.7 5.4L3 16l.8-3A6 6 0 1 1 14.5 9.5z"/><path d="M17.6 8.2A5.5 5.5 0 0 1 20.2 17l.8 3-2.9-1.1a5.5 5.5 0 0 1-6.6-1.6"/>',
+    langue: '<path d="M4 5h9M8.5 3v2M6 5c.6 3 2.6 5.4 5 6.5M11 5c-.8 3.5-3.4 6.5-7 8"/><path d="M13 21l3.5-9 3.5 9M14.2 18h4.6"/>',
+    horloge: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    photo: '<rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/>'
   };
   const ico = (n) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (I[n] || '') + '</svg>';
   const usd = (n) => { n = Number(n) || 0; if (n > 0 && n < 0.01) return 'moins d\'un centime'; return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; };
@@ -217,8 +223,8 @@
     const nom = r.chaine.nom || 'Le studio de ' + S.moi.prenom;
     return '<header class="barre"><a class="marque" href="#accueil" aria-label="Mon studio"><span class="logo">' + initiale(r.chaine.nom || S.moi.prenom) + '</span><span><b>' + h(nom) + '</b><small>' + h(r.langues.map(nomLangue).join(', ')) + '</small></span></a>' +
       '<nav class="onglets-barre" aria-label="Le studio">' + NAV.map((n) => '<a href="#' + n[0] + '" class="' + (n[0] === 'creer' ? 'creer ' : '') + (actif === n[0] ? 'on' : '') + '"' + (actif === n[0] ? ' aria-current="page"' : '') + '>' + ico(n[2]) + n[1] + '</a>').join('') + '</nav>' +
-      '<div class="barre-d">' + jaugeHtml() + boutonMessages(vue) +
-      '<button class="icone-barre" data-a="basculerNuit" title="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '" aria-label="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '">' + ico(estNuit() ? 'jour' : 'nuit') + '</button>' +
+      '<div class="barre-d">' + jaugeHtml() + '<button class="icone-barre equipe-btn' + (S.disc.ouvert ? ' on' : '') + '" data-a="ouvrirEquipe" title="Parler à ton équipe" aria-label="Parler à ton équipe">' + ico('bulles') + '</button>' + boutonMessages(vue) +
+      '<button class="icone-barre bascule-nuit" data-a="basculerNuit" title="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '" aria-label="' + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '">' + ico(estNuit() ? 'jour' : 'nuit') + '</button>' +
       '<div class="compte"><button class="icone-barre" data-a="menu" aria-label="Mon compte" aria-expanded="' + S.menu + '">' + ico('personne') + '</button>' + (S.menu ? menuHtml() : '') + '</div></div></header>';
   }
   // l'icône des messages (avec Louis ; pour le compte de Louis, avec les créatrices), avec ce qu'il reste à lire
@@ -230,6 +236,7 @@
   function majBoutonMessages() { const b = $('#b-messages'); if (b) b.outerHTML = boutonMessages(route().vue); }
   function menuHtml() {
     return '<div class="menu-compte" role="menu"><a href="#reglages/compte" role="menuitem">' + ico('personne') + 'Mon compte (' + h(S.moi.identifiant) + ')</a><a href="#equipe" role="menuitem">' + ico('etoile') + 'Mes badges</a>' +
+      '<button data-a="basculerNuit" role="menuitem" class="menu-nuit">' + ico(estNuit() ? 'jour' : 'nuit') + (estNuit() ? 'Passer au jour' : 'Passer à la nuit') + '</button>' +
       '<button data-a="revoirVisite" role="menuitem">' + ico('studio') + 'Revoir la visite</button><a href="#reglages/aide" role="menuitem">' + ico('aide') + 'Aide</a><hr><button data-a="deconnexion" role="menuitem">' + ico('sortir') + 'Me déconnecter</button></div>';
   }
   function tabsHtml(vue) {
@@ -264,6 +271,8 @@
   // ce qui se charge après l'affichage (les listes, la vidéo, le suivi)
   function apres(r) {
     if (r.vue === 'reglages') { const a = $('.reglages-nav a.on'); if (a && a.scrollIntoView) a.scrollIntoView({ inline: 'center', block: 'nearest' }); }
+    if (r.vue === 'reglages' && r.arg === 'personnages' && !S.persos) lire('personnages').then((d) => { S.persos = d.personnages || []; if (route().vue === 'reglages' && route().arg === 'personnages') { const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages'); } }).catch((e) => toast(e.message, 'err'));
+    if (r.vue === 'reglages' && r.arg === 'publication' && S.videos === null && !S.chargement) lire('videos').then((d) => { S.videos = d.videos || []; if (route().vue === 'reglages' && route().arg === 'publication' && !document.querySelector('#contenu form :focus')) { const c = $('#contenu'); if (c) c.innerHTML = vueReglages('publication'); } }).catch(() => null);
     if ((r.vue === 'accueil' || r.vue === 'videos' || r.vue === 'equipe') && !S.chargement) chargerVideos();
     if (r.vue === 'video') { if (!S.video || String(S.video.id) !== String(r.arg)) chargerVideo(r.arg); else { centrerBande(); suivre(r.arg); } }
     // le compte de Louis : ses conversations, chargées une fois (sa messagerie et le bouton « Envoyer à » en ont besoin)
@@ -621,11 +630,24 @@
 
   /* ── le look : vidéos d'illustration, images IA (un style, un mouvement), texte animé ── */
   const IA_VIDE = { looks: {}, mouvements: {}, couts: {}, modeles: {} };
-  const coutIa = (format, mouvement) => (((S.cat.ia || IA_VIDE).couts || {})[format === 'long' ? 'long' : 'court'] || {})[mouvement] || 0;
-  function mouvementsHtml(format, choisi) {
+  // le coût des images IA d'une vidéo : sa durée, le mouvement, le modèle qui anime, la qualité des images
+  function coutIa(format, mouvement, modele, images) {
+    const f = format === 'long' ? 'long' : 'court';
+    const t = (((((S.cat.couts_ia || {})[f] || {})[modele || 'rapide'] || {})[mouvement] || {})[images || 'turbo']);
+    return t != null ? t : ((((S.cat.ia || IA_VIDE).couts || {})[f] || {})[mouvement] || 0);
+  }
+  function mouvementsHtml(format, choisi, modele, images) {
     const m = (S.cat.ia || IA_VIDE).mouvements;
-    return radios('ia.mouvement', Object.keys(m).map((k) => [k, m[k].nom, 'environ ' + usd(coutIa(format, k))]), choisi) +
+    return radios('ia.mouvement', Object.keys(m).map((k) => [k, m[k].nom, 'environ ' + usd(coutIa(format, k, modele, images))]), choisi) +
       '<small>' + h((m[choisi] || {}).court || '') + '. Par vidéo, sur ta clé fal.</small>';
+  }
+  // le modèle qui anime les scènes (les mêmes qualités que les clips) et la qualité des images
+  function modelesIaHtml(format, ia) {
+    const q = catClip().qualites || {};
+    const mods = (S.cat.modeles_video || ['rapide']).filter((k) => q[k]);
+    const im = S.cat.images_ia || {};
+    return '<div class="champ" data-modeles-ia><span>Le modèle qui anime</span>' + radios('ia.modele', mods.map((k) => [k, q[k].nom, h(q[k].modele) + ', ' + usd(q[k].seconde) + '/s']), ia.modele || 'rapide') + '<small>Pour les scènes animées (l\'accroche, ou tout). Cinéma : le plus spectaculaire, et le plus cher.</small></div>' +
+      '<div class="champ"><span>La qualité des images</span>' + radios('ia.images', Object.keys(im).map((k) => [k, im[k].nom, usd(im[k].prix) + ' l\'image']), ia.images || 'turbo') + '<small>' + h((im[ia.images || 'turbo'] || {}).court || '') + '. Avec tes personnages, leurs scènes passent toujours par Nano Banana, avec leurs photos.</small></div>';
   }
   function lookHtml(r, format) {
     const cat = S.cat.ia || IA_VIDE;
@@ -640,7 +662,7 @@
         const l = cat.looks[k];
         return '<label class="look"><input type="radio" name="ia.style" value="' + h(k) + '"' + (k === ia.style ? ' checked' : '') + '><span><i style="background:linear-gradient(155deg,' + (l.teintes || []).map(h).join(',') + ')"></i><b>' + h(l.nom) + '</b><small>' + h(l.court) + '</small></span></label>';
       }).join('') + '</div></div>' +
-      '<div class="champ" data-mouvements><span>Le mouvement</span>' + mouvementsHtml(format, ia.mouvement) + '</div></div>';
+      '<div class="champ" data-mouvements><span>Le mouvement</span>' + mouvementsHtml(format, ia.mouvement, ia.modele, ia.images) + '</div>' + modelesIaHtml(format, ia) + '</div>';
   }
   // le formulaire a changé (format, look, mouvement) : le panneau des images IA et les coûts suivent
   function majLook(form) {
@@ -649,32 +671,38 @@
     const p = $('[data-panneau-ia]', form);
     if (p) p.hidden = d.style !== 'ia';
     const format = d.format || S.moi.reglages.format;
-    const mouvement = (d.ia || {}).mouvement || S.moi.reglages.ia.mouvement;
-    // les prix suivent la durée choisie, l'explication suit le mouvement (sans redessiner : le focus reste où il est)
-    $$('input[name="ia.mouvement"]', form).forEach((el) => { const sm = $('small', el.nextElementSibling); if (sm) sm.textContent = 'environ ' + usd(coutIa(format, el.value)); });
+    const x = d.ia || {};
+    const mouvement = x.mouvement || S.moi.reglages.ia.mouvement, modele = x.modele || S.moi.reglages.ia.modele, images = x.images || S.moi.reglages.ia.images;
+    // les prix suivent la durée, le modèle et la qualité choisis ; l'explication suit le mouvement (sans redessiner : le
+    // focus reste où il est)
+    $$('input[name="ia.mouvement"]', form).forEach((el) => { const sm = $('small', el.nextElementSibling); if (sm) sm.textContent = 'environ ' + usd(coutIa(format, el.value, modele, images)); });
     const m = $('[data-mouvements] > small', form);
     if (m) m.textContent = (((S.cat.ia || IA_VIDE).mouvements[mouvement] || {}).court || '') + '. Par vidéo, sur ta clé fal.';
     const c = $('[data-cout-creer]', form);
-    if (c) c.innerHTML = coutCreerHtml(d.style, format, mouvement, (d.langues || []).length);
+    if (c) c.innerHTML = coutCreerHtml(d.style, format, mouvement, (d.langues || []).length, modele, images, d.voix);
   }
   // ce que coûte la vidéo qu'elle s'apprête à lancer : l'écriture sur sa clé Claude (le même calcul que le serveur),
   // les images IA sur sa clé fal
-  function voixNaturelle() { const vi = S.moi.reglages.voix_ia || {}; return vi.actif !== false && !!S.moi.connexions.fal.branchee; }
+  function voixNaturelle(choisie) { const vi = S.moi.reglages.voix_ia || {}; if (choisie === 'gratuite') return false; return (choisie ? true : vi.actif !== false) && !!S.moi.connexions.fal.branchee; }
   function coutVoix(format, n) { const c = ((S.cat.voix_ia || {}).couts || {})[format === 'long' ? 'long' : 'court'] || 0; return Math.round(c * Math.max(1, n) * 100) / 100; }
-  function coutCreerHtml(style, format, mouvement, nbLangues) {
+  function coutCreerHtml(style, format, mouvement, nbLangues, modele, images, voixChoisie) {
     const r = S.moi.reglages, q = S.cat.qualites[r.qualite] || {};
     const f = format === 'long' ? 1.4 : 1, n = nbLangues || r.langues.length || 1;
     const ecriture = (q.par_video || 0) * f + (q.par_langue || 0) * f * Math.max(0, n - 1) + (r.tendances ? 0.02 : 0);
-    const voix = voixNaturelle();
+    const voix = voixNaturelle(voixChoisie);
+    const ia = style === 'ia' ? coutIa(format, mouvement, modele || r.ia.modele, images || r.ia.images) : 0;
+    const total = ecriture + ia + (voix ? coutVoix(format, n) : 0);
+    const reste = Math.max(0, (S.moi.depense.budget || 0) - (S.moi.depense.jour || 0));
     const offert = ['le montage'].concat(voix ? [] : ['les voix']).concat(style === 'clips' ? ['les vidéos d\'illustration'] : []);
     const liste = offert.length > 1 ? offert.slice(0, -1).join(', ') + ' et ' + offert[offert.length - 1] : offert[0];
     return 'Environ ' + h(usd(ecriture)) + ' pour l\'écriture sur ta clé Claude, en qualité ' + h((q.nom || '').toLowerCase()) + '.' +
-      (style === 'ia' ? ' Les images IA : environ ' + h(usd(coutIa(format, mouvement))) + ' sur ta clé fal.' : '') +
+      (style === 'ia' ? ' Les images IA : environ ' + h(usd(ia)) + ' sur ta clé fal.' : '') +
       (voix ? ' La voix naturelle : environ ' + h(usd(coutVoix(format, n))) + ' sur ta clé fal.' : '') +
-      ' ' + h(liste.charAt(0).toUpperCase() + liste.slice(1)) + (offert.length > 1 ? ' sont offerts.' : ' est offert.');
+      ' ' + h(liste.charAt(0).toUpperCase() + liste.slice(1)) + (offert.length > 1 ? ' sont offerts.' : ' est offert.') +
+      (total > reste + 0.001 ? ' <b class="alerte-texte">Environ ' + h(usd(total)) + ' en tout : plus que ce qu\'il te reste aujourd\'hui (' + h(usd(reste)) + '). <a href="#reglages/budget">Monter mon budget</a></b>' : '');
   }
   function carteIdee(i) {
-    return '<article class="idee"><h3>' + h(i.titre) + '</h3>' + (i.accroche ? '<blockquote>' + forts(i.accroche) + '</blockquote>' : '') + '<p>' + h(i.angle) + '</p>' + (i.pourquoi ? '<p class="pourquoi">' + h(i.pourquoi) + '</p>' : '') +
+    return '<article class="idee' + (i.source === 'moi' ? ' a-moi' : '') + '"><h3>' + (i.source === 'moi' ? '<span class="pastille vif nu">à toi</span> ' : '') + h(i.titre) + '</h3>' + (i.accroche ? '<blockquote>' + forts(i.accroche) + '</blockquote>' : '') + '<p>' + h(i.angle) + '</p>' + (i.pourquoi ? '<p class="pourquoi">' + h(i.pourquoi) + '</p>' : '') +
       '<div class="actions"><button class="btn petit" data-a="ideeChoisir" data-id="' + h(i.id) + '">Faire cette vidéo</button><button class="btn discret petit" data-a="ideeOublier" data-id="' + h(i.id) + '">Oublier</button></div></article>';
   }
   function modelesHtml() {
@@ -700,13 +728,32 @@
       '<label class="champ"><span>Ton idée</span><textarea name="sujet" rows="3" maxlength="600" placeholder="' + h(mod ? mod.exemple : 'Pourquoi on a toujours froid aux pieds la nuit') + '"></textarea><small class="aide" id="aideIdee">' + (mod ? 'Par exemple : « ' + h(mod.exemple) + ' ». <a href="#" data-a="prendreExemple">Prendre cet exemple</a>' : 'Une phrase suffit.') + '</small></label>' +
       '<div class="champ"><span>Langues</span>' + choixLangues('langues[]', r.langues) + '<small>La version en ' + h(nomLangue(r.langue_source).toLowerCase()) + ' s\'écrit d\'abord ; ' + h(membre('traduction').prenom) + ' adapte les autres. Six langues au plus par vidéo.</small></div>' +
       '<div class="champ"><span>Durée</span>' + radios('format', [['court', '35 à 50 s'], ['long', 'Plus d\'une minute', 'payée par TikTok']], r.format) + '</div>' +
-      lookHtml(r, r.format) +
+      lookHtml(r, r.format) + persosChoixHtml('video') + optionsVideoHtml(r) +
       '<button class="btn large" type="submit">Lancer l\'équipe</button><p class="doux petit" style="margin-top:10px" data-cout-creer>' + coutCreerHtml(r.style, r.format, r.ia.mouvement, r.langues.length) + '</p></form>';
     x += '<div class="ou">ou</div><section class="bloc"><div class="ligne" style="margin-bottom:14px">' + avatar('idees', 'grand', S.mayaCherche) + '<div class="plein"><h2>' + h(membre('idees').prenom) + ' te propose 5 idées</h2><p class="doux petit">' + (r.tendances ? 'Elle regarde d\'abord ce dont on parle cette semaine dans ta niche. ' : '') + 'Quelques centimes sur ta clé.</p></div></div>' +
       '<form data-form="idees"><label class="champ"><span>Un thème ?</span><input type="text" name="theme" maxlength="200" placeholder="Facultatif : la rentrée, les plantes, les entretiens d\'embauche"></label><button class="btn second large" type="submit"' + (S.mayaCherche ? ' disabled' : '') + '>' + (S.mayaCherche ? h(membre('idees').prenom) + ' cherche…' : 'Proposer des idées') + '</button></form>';
     const idees = S.moi.idees || [];
     if (idees.length) x += '<div class="idees" style="margin-top:14px">' + idees.map(carteIdee).join('') + '</div>';
+    // son carnet : ses idées à elle, que Maya et le pilote prennent en premier
+    x += '<details class="carnet"><summary>' + ico('creer') + 'Noter une idée à moi</summary><form data-form="ideeMoi" class="duo-champs" style="margin-top:10px;align-items:flex-start;flex-wrap:wrap"><input type="text" name="titre" maxlength="90" placeholder="Mon idée en une ligne" required style="flex:1 1 220px"><input type="text" name="angle" maxlength="400" placeholder="Ce qui la rend drôle ou forte (facultatif)" style="flex:2 1 260px"><button class="btn second" type="submit">Noter</button></form><small class="doux">Le pilote automatique prend tes idées avant celles de ' + h(membre('idees').prenom) + '.</small></details>';
     return x + '</section>';
+  }
+  // ses personnages, à cocher pour une vidéo (ils jouent dans le look Images IA) ou un clip
+  function persosChoixHtml(genre) {
+    const l = S.moi.reglages.personnages || [];
+    if (!l.length) return '<p class="doux petit" style="margin:-6px 0 14px">' + ico('photo') + ' Tes personnages (toi, ta mascotte, un héros récurrent) avec leurs photos : <a href="#reglages/personnages">Mes personnages</a>.</p>';
+    return '<div class="champ"><span>Tes personnages dans ' + (genre === 'clip' ? 'ce clip' : 'cette vidéo') + '</span><div class="choix">' + l.map((p) => '<label><input type="checkbox" name="personnages[]" value="' + h(p.id) + '"><span>' + h(p.nom) + (p.photos ? ' <small>' + p.photos + ' photo' + (p.photos > 1 ? 's' : '') + '</small>' : '') + '</span></label>').join('') + '</div><small>' + (genre === 'clip' ? 'Ils deviennent les personnages du clip : leur photo sert de référence, plan après plan (4 au plus).' : 'Ils jouent dans les scènes du look Images IA, avec leurs photos (3 au plus).') + '</small></div>';
+  }
+  // ce qu'elle veut pour CETTE vidéo (le reste suit ses réglages)
+  function optionsVideoHtml(r) {
+    const fal = S.moi.connexions.fal.branchee;
+    const vx = (S.cat.voix_ia || {}).voix || {};
+    const voix = fal ? '<label class="champ"><span>La voix</span><select name="voix"><option value="">Ma voix habituelle' + (r.voix_ia && r.voix_ia.actif !== false ? ' (' + h(r.voix_ia.voix) + ')' : ' (gratuite)') + '</option>' + Object.keys(vx).map((k) => '<option value="' + h(k) + '">' + h(vx[k].nom + ', ' + vx[k].court.toLowerCase()) + '</option>').join('') + '<option value="gratuite">La voix gratuite</option></select></label>' : '';
+    return '<details class="bloc-options"><summary>Réglages de cette vidéo</summary><div class="options-corps">' + voix +
+      '<div class="champ"><span>La musique</span>' + radios('musique', [['', 'Comme d\'habitude']].concat(Object.keys(S.cat.musiques).map((k) => [k, S.cat.musiques[k]])), '') + '</div>' +
+      '<div class="grille2"><label class="champ"><span>Le ton de cette vidéo</span><input type="text" name="ton" maxlength="200" placeholder="' + h(r.chaine.ton || 'complice, simple et drôle') + '"></label><label class="champ"><span>Sa couleur</span><input type="color" name="couleur" value="' + h(r.couleur) + '" data-couleur-libre></label></div>' +
+      '<label class="champ"><span>Une consigne pour ' + h(membre('plume').prenom) + '</span><textarea name="consigne" rows="2" maxlength="600" placeholder="Commence par un bruit, cite un chiffre précis, finis sur une question"></textarea></label>' +
+      '<div class="inters">' + inter('relire', true, 'Je relis le script avant la suite', 'Décoche pour que tout s\'enchaîne jusqu\'à la vidéo prête') + inter('publier', true, 'Publier selon mes règles', 'Décoche pour garder cette vidéo pour toi, même si tes règles publient seules') + '</div></div></details>';
   }
 
   /* ── un clip : son prompt de réalisateur ── */
@@ -791,7 +838,7 @@
       '<div class="champ"><span>La qualité des plans</span><div class="qualites-clip">' + qualites + '</div></div>' +
       '<div class="champ"><span>Le montage</span>' + cartesMontage('montage', b.montage || 'zooms') + '</div>' +
       '<div class="inters">' + inter('bruitages', b.bruitages !== false, 'Les bruitages', 'Le moteur, le bouchon, le briquet : le son de chaque plan') + inter('valider', b.valider !== false, 'Je vois les images avant le tournage', 'Une image par plan, quelques centimes chacune : tu valides avant de payer les plans filmés') + '</div>' +
-      musiqueClipHtml(b.musique || {}) +
+      musiqueClipHtml(b.musique || {}) + persosChoixHtml('clip') +
       '<button class="btn large" type="submit">Lancer ' + h(lou) + '</button><p class="doux petit" style="margin-top:10px" data-cout-clip>' + coutClipHtml(base) + '</p></form>';
   }
   // le formulaire a changé : ce qui est lu dans le prompt, la musique choisie, le prix ; le brouillon est gardé (un long
@@ -928,11 +975,11 @@
     const textes = {
       ecriture: e.quoi === 'critique' ? membre('critique').prenom + ' relit le script et le note.' : e.quoi === 'reecriture' ? membre('plume').prenom + ' réécrit le script avec ' + (e.consigne ? 'ta consigne.' : 'les remarques de ' + membre('critique').prenom + '.') : membre('plume').prenom + ' écrit le script.',
       relecture: 'À toi : relis le script, retouche ce que tu veux, puis valide.',
-      langues: membre('traduction').prenom + ' écrit la version ' + h(nomLangue(e.langue || (v.langues || []).find((l) => l !== v.langue_source && !(v.traductions || {})[l]) || '').toLowerCase()) + '.',
+      langues: membre('traduction').prenom + ' écrit la version ' + h(nomLangue(e.langue || (v.langues || []).find((l) => l !== v.langue_source && !(v.traductions || {})[l]) || '').toLowerCase()) + '.' + (e.ajout ? ' Les autres langues ne bougent pas.' : ''),
       realisation: h(realisation),
       fabrication: 'Montage en cours : ' + (v.langues || []).filter((l) => r[l] && r[l].etat === 'fini').length + ' sur ' + (v.langues || []).length + '. Compte 3 à 6 minutes.' + (e.note ? ' ' + e.note : ''),
       prete: 'Ta vidéo est prête.' + (e.note ? ' ' + e.note : ''),
-      publication: membre('diffusion').prenom + ' publie ta vidéo.',
+      publication: e.quoi === 'programmee' && e.attendre_jusqu ? membre('diffusion').prenom + ' publiera ta vidéo à l\'heure prévue (' + h(new Date(e.attendre_jusqu).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })) + ', chez toi). Tu peux publier maintenant ou annuler, plus bas.' : membre('diffusion').prenom + ' publie ta vidéo.',
       publiee: 'Publiée.' + (e.note ? ' ' + e.note : ''),
       archivee: 'Archivée.'
     };
@@ -1010,27 +1057,59 @@
     return { titre: t.titre || s.titre || v.titre, titre_youtube: t.titre_youtube || s.titre_youtube || s.titre || v.titre, description: t.description != null ? t.description : (s.description || ''), hashtags: t.hashtags || s.hashtags || [] };
   }
   const legende = (t) => [t.description, (t.hashtags || []).map((x) => '#' + x).join(' ')].filter(Boolean).join('\n\n');
+  // la règle de publication d'une langue (Réglages, Publication), avec l'heure de grande écoute du pays visé par défaut
+  function regleDe(l) {
+    const p = (S.moi.reglages.publication || {})[l] || {};
+    const m = (((S.cat.publication || {}).marches) || {})[l] || { fuseau: 'Europe/Paris', heure: 18, pays: '' };
+    return { profil: p.profil || '', plateformes: p.profil ? (p.plateformes || []) : [], mode: p.profil ? (p.mode || 'bouton') : 'bouton', heure: p.heure != null ? p.heure : m.heure, fuseau: p.fuseau || m.fuseau, pays: m.pays, conseil: m };
+  }
+  const profilDe = (nom) => ((S.moi.connexions.uploadpost || {}).profils || []).find((p) => p.username === nom) || null;
+  const villeDe = (f) => String(f || '').split('/').pop().replace(/_/g, ' ');
+  // « aujourd'hui à 18:00 à New York (00:00 chez toi) »
+  function quandLocal(iso, fuseau) {
+    const d = new Date(iso);
+    let la = '', ici = '';
+    try { la = d.toLocaleString('fr-FR', { timeZone: fuseau, weekday: 'long', hour: '2-digit', minute: '2-digit' }); } catch (e) { la = d.toLocaleString('fr-FR'); }
+    try { ici = d.toLocaleString('fr-FR', { timeZone: S.moi.reglages.fuseau || 'Europe/Paris', hour: '2-digit', minute: '2-digit' }); } catch (e) { ici = ''; }
+    const meme = (S.moi.reglages.fuseau || 'Europe/Paris') === fuseau;
+    return la + ' à ' + villeDe(fuseau) + (ici && !meme ? ' (' + ici + ' chez toi)' : '');
+  }
+  function comptesProfil(p) {
+    if (!p) return '';
+    return Object.keys(S.cat.plateformes).filter((k) => p.comptes[k]).map((k) => S.cat.plateformes[k].split(' ')[0] + ' ' + (p.comptes[k].pseudo || p.comptes[k].nom)).join(', ');
+  }
   function pubHtml(v, l) {
-    const r = S.moi.reglages;
-    const conf = (r.publication || {})[l] || {};
     const up = S.moi.connexions.uploadpost;
+    const g = regleDe(l);
     const p = ((v.publication || {})[l] || {}).plateformes || {};
     const lignes = Object.keys(S.cat.plateformes).map((k) => {
       const x = p[k] || {};
       let etat = '<small>Pas encore publiée</small>', bouton = '<button class="btn second petit" data-a="marquer" data-l="' + l + '" data-p="' + k + '">Je l\'ai publiée</button>';
       if (x.etat === 'publiee' || x.etat === 'manuelle') { etat = '<small>' + (x.etat === 'manuelle' ? 'Publiée à la main ' : 'Publiée ') + h(depuis(x.le)) + '</small>'; bouton = x.lien ? '<a class="btn second petit" href="' + h(x.lien) + '" target="_blank" rel="noopener noreferrer">' + ico('ouvrir') + 'Voir</a>' : ''; }
       else if (x.etat === 'a_envoyer' || x.etat === 'en_cours') { etat = '<small>Envoi en cours…</small>'; bouton = ''; }
+      else if (x.etat === 'programmee') { etat = '<small>' + ico('horloge') + ' Programmée ' + h(quandLocal(x.prevu_le, g.fuseau)) + (x.profil ? ', sur ' + h(x.profil) : '') + '</small>'; bouton = ''; }
       else if (x.etat === 'echec') etat = '<small style="color:var(--alerte)">' + h(x.erreur || 'Refusée') + '</small>';
-      const auto = conf.profil && (conf.plateformes || []).indexOf(k) >= 0;
-      return '<div class="plateforme"><div class="plein"><b>' + h(S.cat.plateformes[k]) + (auto ? ' <span class="pastille vif">auto</span>' : '') + '</b>' + etat + '</div>' + bouton + '</div>';
+      const auto = g.profil && g.plateformes.indexOf(k) >= 0;
+      return '<div class="plateforme"><div class="plein"><b>' + h(S.cat.plateformes[k]) + (auto ? ' <span class="pastille vif">' + (g.mode === 'bouton' ? 'réglée' : 'auto') + '</span>' : '') + '</b>' + etat + '</div>' + bouton + '</div>';
     }).join('');
-    const auto = up.branchee && conf.profil && (conf.plateformes || []).length;
-    const enCours = Object.keys(p).some((k) => p[k].etat === 'a_envoyer' || p[k].etat === 'en_cours');
+    const etats = Object.keys(p).map((k) => p[k].etat);
+    const enCours = etats.some((e) => e === 'a_envoyer' || e === 'en_cours');
+    const programmee = etats.some((e) => e === 'programmee');
+    const restant = g.plateformes.filter((k) => !p[k] || ['echec', 'programmee'].indexOf(p[k].etat) >= 0 || !p[k].etat);
     let tete = '';
-    if (auto && !enCours) tete = '<div class="actions" style="margin-bottom:12px"><button class="btn" data-a="publier">' + ico('avion') + 'Publier sur ' + h((conf.plateformes || []).map((k) => S.cat.plateformes[k]).join(', ')) + '</button></div>';
-    else if (!up.branchee) tete = '<p class="doux petit" style="margin-bottom:12px">Pour publier depuis ton téléphone : Partager (ou Télécharger), puis l\'appli. Le texte se copie avec « Copier le texte ». <a href="#reglages/connexions">Publication automatique</a></p>';
-    else if (!conf.profil) tete = '<p class="doux petit" style="margin-bottom:12px">Choisis où publier cette langue dans <a href="#reglages/publication">Réglages, Publication</a>.</p>';
-    return '<h3 style="margin:22px 0 10px">Publication</h3>' + tete + '<div class="plateformes">' + lignes + '</div>';
+    if (!up.branchee) tete = '<p class="doux petit" style="margin-bottom:12px">Pour publier depuis ton téléphone : Partager (ou Télécharger), puis l\'appli. Le texte se copie avec « Copier le texte ». <a href="#reglages/connexions">Publication automatique</a></p>';
+    else if (!g.profil) tete = '<div class="message attention" style="margin-bottom:12px"><b>Aucune chaîne choisie pour la version ' + h(nomLangue(l).toLowerCase()) + '</b>Elle ne part nulle part toute seule. Choisis sur quel profil (donc quelle chaîne YouTube, quel compte TikTok) elle part, et quand.<div class="actions"><a class="btn petit" href="#reglages/publication">Choisir sa chaîne</a></div></div>';
+    else {
+      const pr = profilDe(g.profil);
+      const mode = g.mode === 'programme' ? 'à ' + g.heure + ' h, heure de ' + villeDe(g.fuseau) : g.mode === 'auto' ? 'dès qu\'elle est prête' : 'quand tu appuies';
+      tete = '<p class="doux petit" style="margin-bottom:10px">Part sur le profil <b>' + h(g.profil) + '</b>' + (pr ? ' (' + h(comptesProfil(pr) || 'aucun compte relié') + ')' : '') + ', ' + h(mode) + '. <a href="#reglages/publication">Changer</a></p>';
+      const boutons = [];
+      if (!enCours && restant.length) boutons.push('<button class="btn" data-a="publierLangue" data-l="' + l + '" data-q="maintenant">' + ico('avion') + 'Publier maintenant</button>');
+      if (!enCours && !programmee && restant.length) boutons.push('<button class="btn second" data-a="publierLangue" data-l="' + l + '" data-q="programme">' + ico('horloge') + 'À ' + g.heure + ' h à ' + h(villeDe(g.fuseau)) + '</button>');
+      if (programmee) boutons.push('<button class="btn discret" data-a="annulerProg" data-l="' + l + '">Annuler la programmation</button>');
+      if (boutons.length) tete += '<div class="actions" style="margin-bottom:12px">' + boutons.join('') + '</div>';
+    }
+    return '<h3 style="margin:22px 0 10px">Publication en ' + h(nomLangue(l).toLowerCase()) + '</h3>' + tete + '<div class="plateformes">' + lignes + '</div>';
   }
   function lecteurHtml(v) {
     const ls = pretes(v);
@@ -1046,7 +1125,8 @@
       (peutPartager ? '<button class="btn second" data-a="partager" data-l="' + l + '">' + ico('partager') + (pret ? 'Partager maintenant' : 'Partager') + '</button>' : '') +
       '<button class="btn second" data-a="copierTexte" data-l="' + l + '">' + ico('copier') + 'Copier le texte</button>' +
       (S.moi.louis ? '<button class="btn second" id="b-envoyer" data-a="envoyerVideo" data-l="' + l + '">' + ico('envoyer') + h(libelleEnvoyer()) + '</button>'
-        : '<button class="btn second" data-a="envoyerALouis" data-l="' + l + '">' + ico('message') + 'Envoyer à Louis</button>') + '</div>' +
+        : '<button class="btn second" data-a="envoyerALouis" data-l="' + l + '">' + ico('message') + 'Envoyer à Louis</button>') +
+      (v.status !== 'publication' && (v.langues || []).length < ((S.cat.limites || {}).langues_video || 12) ? '<button class="btn second" data-a="ajouterLangue">' + ico('langue') + 'Ajouter une langue</button>' : '') + '</div>' +
       '<p class="doux petit" style="margin-top:10px">' + (((v.rendus || {})[l] || {}).duree ? Math.round(v.rendus[l].duree) + ' secondes. ' : '') + 'Disponible jusqu\'au ' + h(dateCourte(v.garde_jusqu)) + '.</p>' +
       '<form data-form="texte" data-l="' + l + '" style="margin-top:18px"><label class="champ"><span>Titre (TikTok, Instagram)</span><input type="text" name="titre" maxlength="100" value="' + h(t.titre) + '"></label>' +
       '<label class="champ"><span>Titre YouTube</span><input type="text" name="titre_youtube" maxlength="95" value="' + h(t.titre_youtube) + '"></label>' +
@@ -1179,7 +1259,7 @@
     if (st === 'fabrication' || Object.keys(r).length) {
       x += '<div class="bloc"><h3 style="margin-bottom:10px">Le montage</h3><div class="plateformes">' + (v.langues || []).map((l) => {
         const e = r[l] || {};
-        const t = e.etat === 'fini' ? 'Prête' : e.etat === 'demande' ? 'En cours depuis ' + h(depuis(e.demande_le)).replace('il y a ', '') : e.etat === 'echec' ? h(e.erreur || 'Raté') + (e.essais < 2 ? ' (nouvel essai bientôt)' : '') : 'En attente';
+        const t = e.etat === 'fini' ? 'Prête' : e.etat === 'efface' ? 'Fichiers effacés (gardés ' + S.cat.garde_jours + ' jours)' : e.etat === 'demande' ? 'En cours depuis ' + h(depuis(e.demande_le)).replace('il y a ', '') : e.etat === 'echec' ? h(e.erreur || 'Raté') + (e.essais < 2 && v.status === 'fabrication' ? ' (nouvel essai bientôt)' : '') : 'En attente';
         return '<div class="plateforme"><div class="plein"><b>' + h(nomLangue(l)) + '</b><small' + (e.etat === 'echec' ? ' style="color:var(--alerte)"' : '') + '>' + t + '</small></div>' + (e.etat === 'fini' ? '<span class="pastille ok nu">' + ico('ok') + '</span>' : '') + '</div>';
       }).join('') + '</div></div>';
     }
@@ -1187,6 +1267,8 @@
   }
   function basVideo(v) {
     const b = [];
+    const ratees = (v.langues || []).filter((l) => ((v.rendus || {})[l] || {}).etat === 'echec');
+    if (ratees.length && (['prete', 'publiee'].indexOf(v.status) >= 0 || (v.status === 'echec' && (v.etape || {}).quoi === 'montage'))) b.push('<button class="btn petit" data-a="relancerMontage">Relancer le montage raté (' + h(ratees.map(nomLangue).join(', ')) + ')</button>');
     if (['prete', 'publiee', 'echec'].indexOf(v.status) >= 0 && v.script && v.script.beats) b.push('<button class="btn second petit" data-a="refaire">Refaire le montage</button>');
     if (['relecture', 'prete', 'publiee', 'echec', 'fabrication'].indexOf(v.status) >= 0) b.push('<button class="btn discret petit" data-a="archiver">Archiver</button>');
     b.push('<button class="btn danger petit" data-a="supprimer">Supprimer</button>');
@@ -1204,7 +1286,7 @@
     const v = S.video && String(S.video.id) === String(id) ? S.video : null;
     if (!v) return '<a class="retour" href="#videos">' + ico('retour') + 'Tes vidéos</a><div class="cadre-vide" style="max-width:220px"></div>';
     S.sigCorps = signature(v);
-    return '<a class="retour" href="#videos">' + ico('retour') + 'Tes vidéos</a><div class="video-tete"><div class="titre-video">' + forts(v.titre || v.sujet) + '</div><div class="meta"><span class="pastille ' + ((v.etape || {}).erreur ? 'alerte' : TON[v.status] || '') + '">' + h(v.statut) + '</span><span>' + h(v.langues.map(nomLangue).join(', ')) + '</span><span>' + h(usd(v.cout_usd)) + '</span><span>' + h(depuis(v.created_at)) + '</span>' + (v.auto ? '<span>pilote automatique</span>' : '') + '</div></div>' +
+    return '<a class="retour" href="#videos">' + ico('retour') + 'Tes vidéos</a><div class="video-tete"><button class="btn second petit demander" data-a="demanderEquipe">' + ico('bulles') + 'Demander à l\'équipe</button><div class="titre-video">' + forts(v.titre || v.sujet) + '</div><div class="meta"><span class="pastille ' + ((v.etape || {}).erreur ? 'alerte' : TON[v.status] || '') + '">' + h(v.statut) + '</span><span>' + h(v.langues.map(nomLangue).join(', ')) + '</span><span>' + h(usd(v.cout_usd)) + '</span><span>' + h(depuis(v.created_at)) + '</span>' + (v.auto ? '<span>pilote automatique</span>' : '') + '</div></div>' +
       '<div class="bloc" id="v-etat">' + etatHtml(v) + '</div><div id="v-corps" style="margin-top:12px">' + corpsVideo(v) + '</div>';
   }
   async function chargerVideo(id) {
@@ -1453,6 +1535,22 @@
       if (ecrit.length) toast(ecrit.length > 1 ? listeNoms(ecrit.map((x) => x.prenom)) + ' t\'ont écrit.' : ecrit[0].prenom + ' t\'a écrit.', 'ok');
     } catch (e) { /* la prochaine fois */ }
   }
+  function enJpeg(fichier, max) {
+    return new Promise((ok, ko) => {
+      const url = URL.createObjectURL(fichier);
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => (b ? ok(b) : ko(new Error(fichier.name + ' : photo illisible'))), 'image/jpeg', 0.9);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); ko(new Error(fichier.name + ' : ce format ne s\'ouvre pas ici (prends une photo en JPEG ou PNG)')); };
+      img.src = url;
+    });
+  }
   // envoyer un fichier droit dans le stockage, avec sa progression
   function televerser(url, fichier, type, progres) {
     return new Promise((ok, ko) => {
@@ -1465,6 +1563,92 @@
       x.onerror = () => ko(new Error('connexion coupée pendant l\'envoi'));
       x.send(fichier);
     });
+  }
+
+  /* ── parler à son équipe : un tiroir à droite (plein écran sur téléphone), ouvert depuis la barre ou une vidéo ── */
+  // elle écrit comme à une collègue ; l'équipe répond, pose ses questions (des réponses toutes prêtes à toucher) et agit ;
+  // ce qui coûte des dollars ou se voit en public attend son « oui » d'un bouton
+  const SUGGESTIONS = ['Fais-moi l\'interview de ma chaîne', 'Propose-moi 5 idées pour cette semaine', 'Qu\'est-ce que tu sais de moi ?', 'Rends mes scripts plus drôles'];
+  const SUGGESTIONS_VIDEO = ['Ajoute l\'anglais à cette vidéo', 'Réécris l\'accroche, plus choc', 'Refais le montage avec une musique énergique'];
+  function ouvrirEquipe(video, texte) {
+    S.disc.ouvert = true;
+    if (video !== undefined) S.disc.video = video || null;
+    let el = $('#tiroir-eq');
+    if (!el) { el = document.createElement('aside'); el.id = 'tiroir-eq'; el.className = 'tiroir-eq'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Ton équipe'); document.body.appendChild(el); }
+    el.innerHTML = tiroirHtml();
+    document.body.classList.add('tiroir-ouvert');
+    requestAnimationFrame(() => el.classList.add('visible'));
+    const b = $('.equipe-btn'); if (b) b.classList.add('on');
+    const t = $('textarea', el);
+    if (texte && t) t.value = texte;
+    if (t) setTimeout(() => t.focus(), 60);
+    majFilEquipe(true);
+    // le fil arrive pendant qu'un message part (l'interview) : le message en route reste affiché
+    if (!S.disc.charge) lire('discussion').then((d) => { const l = d.messages || []; S.disc.messages = l.concat(S.disc.messages.filter((m) => m.temp || !l.some((x) => x.id === m.id))); S.disc.charge = true; majFilEquipe(true); }).catch((e) => toast(e.message, 'err'));
+  }
+  function fermerEquipe() {
+    S.disc.ouvert = false;
+    const el = $('#tiroir-eq'); if (el) el.classList.remove('visible');
+    document.body.classList.remove('tiroir-ouvert');
+    const b = $('.equipe-btn'); if (b) b.classList.remove('on');
+  }
+  function tiroirHtml() {
+    const v = S.disc.video && S.video && String(S.video.id) === String(S.disc.video) ? S.video : ((S.videos || []).find((x) => String(x.id) === String(S.disc.video)) || null);
+    return '<header class="eq-tete"><div class="equipe-mini">' + S.cat.ordre.map((k) => avatar(k, 'petit')).join('') + '</div><div class="plein"><b>Ton équipe</b><small>Demande, propose : « est-ce que tu peux… »</small></div>' +
+      '<button class="btn discret petit" data-a="eqEffacer" title="Repartir d\'une conversation vide">Effacer</button><button class="btn discret icone petit" data-a="fermerEquipe" aria-label="Fermer">' + ico('fermer') + '</button></header>' +
+      (S.disc.video ? '<div class="eq-contexte">' + ico('videos') + '<span>À propos de ' + (v ? '« ' + forts(v.titre || v.sujet || '') + ' »' : 'la vidéo n° ' + h(S.disc.video)) + '</span><button data-a="eqSansContexte" aria-label="Parler d\'autre chose">' + ico('fermer') + '</button></div>' : '') +
+      '<div class="conv-fil eq-fil" id="eq-fil" aria-live="polite"></div>' +
+      '<form class="conv-saisie" data-form="eqMessage" autocomplete="off"><div class="conv-ligne"><textarea name="texte" rows="1" maxlength="2000" placeholder="Écris à ton équipe" aria-label="Ton message"></textarea><button class="conv-envoyer" type="submit" aria-label="Envoyer">' + ico('envoyer') + '</button></div></form>';
+  }
+  function bulleEquipe(m, derniere) {
+    if (m.auteur === 'moi') return '<div class="bulle moi' + (m.temp ? ' envoi' : '') + '"><p>' + h(m.texte) + '</p><small>' + h(heureDe(m.le)) + '</small></div>';
+    const qui = membre(m.qui || 'idees');
+    const res = (m.resultats || []).map((r, i) => {
+      if (r.attente) return '<div class="eq-res attente"><span>' + h(r.texte) + '</span><button class="btn petit" data-a="eqConfirmer" data-m="' + h(m.id) + '" data-i="' + i + '">Oui, vas-y</button></div>';
+      return '<div class="eq-res ' + (r.ok ? 'ok' : 'ko') + '">' + ico(r.ok ? 'ok' : 'fermer') + '<span>' + h(r.texte) + '</span>' + (r.ok && r.video ? '<a href="#video/' + h(r.video) + '">Voir</a>' : '') + '</div>';
+    }).join('');
+    const qs = derniere && (m.questions || []).length ? (m.questions || []).map((q) => '<div class="eq-q"><span>' + h(q.question) + '</span><div class="eq-choix">' + (q.choix || []).map((c) => '<button data-a="eqChoix" data-t="' + h(c) + '">' + h(c) + '</button>').join('') + '</div></div>').join('')
+      : (m.questions || []).map((q) => '<p class="doux petit">' + h(q.question) + '</p>').join('');
+    return '<div class="eq-msg">' + avatar(m.qui || 'idees', 'petit') + '<div class="bulle lui"><b class="eq-qui" style="color:' + h(qui.couleur) + '">' + h(qui.prenom) + '</b><p>' + h(m.texte) + '</p>' + res + qs + '<small>' + h(heureDe(m.le)) + '</small></div></div>';
+  }
+  function filEquipeHtml() {
+    const d = S.disc;
+    if (!d.charge) return '<div class="conv-vide">Un instant…</div>';
+    const l = d.messages;
+    const idx = l.map((m) => m.auteur).lastIndexOf('equipe');
+    const sugg = (d.video ? SUGGESTIONS_VIDEO : []).concat(SUGGESTIONS);
+    const vide = !l.length ? '<div class="conv-vide"><b>Ton équipe t\'écoute</b>Demande ce que tu veux : une vidéo, une langue en plus, un autre ton, des idées. Elle te pose ses questions quand il lui manque quelque chose, et elle retient ce que tu aimes.</div>' : '';
+    const att = d.envoi ? '<div class="eq-msg">' + avatar('idees', 'petit', true) + '<div class="bulle lui eq-tape"><i></i><i></i><i></i></div></div>' : '';
+    return vide + l.map((m, i) => bulleEquipe(m, i === idx && i === l.length - 1)).join('') + att +
+      (!d.envoi && (!l.length || d.video) ? '<div class="eq-sugg">' + sugg.slice(0, 5).map((t) => '<button data-a="eqChoix" data-t="' + h(t) + '">' + h(t) + '</button>').join('') + '</div>' : '');
+  }
+  function majFilEquipe(bas) {
+    const f = $('#eq-fil'); if (!f) return;
+    f.innerHTML = filEquipeHtml();
+    if (bas) f.scrollTop = f.scrollHeight;
+  }
+  async function envoyerEquipe(texte) {
+    const d = S.disc;
+    texte = String(texte || '').trim();
+    if (!texte || d.envoi) return;
+    if (!S.moi.connexions.claude.branchee) { toast('Branche d\'abord ta clé Claude : ton équipe en a besoin pour te répondre.', 'err'); return; }
+    const temp = { id: 'tmp' + Date.now(), auteur: 'moi', texte, le: new Date().toISOString(), temp: true };
+    d.messages = d.messages.concat([temp]); d.envoi = true;
+    majFilEquipe(true);
+    try {
+      const r = await agir('discuter', { texte, video: d.video || undefined });
+      const recus = r.messages || [];
+      d.messages = d.messages.filter((m) => m !== temp && !recus.some((x) => x.id === m.id)).concat(recus);
+      const changees = (r.messages || []).some((m) => (m.resultats || []).some((x) => x.ok && x.video));
+      if (r.videos || changees || r.idees) { S.videos = null; if (route().vue === 'videos' || route().vue === 'accueil') chargerVideos(true); }
+      if (r.idees && route().vue === 'creer') { const c = $('#contenu'); if (c) c.innerHTML = vueCreer(); }
+      if (route().vue === 'video' && S.video && (r.messages || []).some((m) => (m.resultats || []).some((x) => String(x.video) === String(S.video.id)))) chargerVideo(S.video.id);
+      const b = $('.barre'); if (b) b.outerHTML = barreHtml(route().vue);
+    } catch (e) {
+      d.messages = d.messages.filter((m) => m !== temp);
+      const t = $('#tiroir-eq textarea'); if (t && !t.value) t.value = texte;
+      toast(e.message, 'err');
+    } finally { d.envoi = false; majFilEquipe(true); }
   }
 
   /* ── l'équipe ── */
@@ -1480,7 +1664,7 @@
   const PISTES = { idees: 'Des sujets du quotidien, jamais de politique', plume: 'Tutoie, sois drôle, finis toujours par une question', critique: 'Sois très exigeante sur l\'accroche', traduction: 'En anglais, parle comme une Londonienne de 25 ans', realisation: 'Des images lumineuses, plutôt la nature', diffusion: 'Pas plus de 4 hashtags' };
 
   /* ── les réglages ── */
-  const SECTIONS = [['chaine', 'Ma chaîne'], ['langues', 'Langues et voix'], ['videos', 'Mes vidéos'], ['budget', 'Budget'], ['pilote', 'Pilote automatique'], ['connexions', 'Connexions'], ['publication', 'Publication'], ['apparence', 'Apparence'], ['compte', 'Mon compte'], ['aide', 'Aide']];
+  const SECTIONS = [['chaine', 'Ma chaîne'], ['personnages', 'Mes personnages'], ['langues', 'Langues et voix'], ['videos', 'Mes vidéos'], ['budget', 'Budget'], ['pilote', 'Pilote automatique'], ['connexions', 'Connexions'], ['publication', 'Publication'], ['apparence', 'Apparence'], ['compte', 'Mon compte'], ['aide', 'Aide']];
   const FUSEAUX = [['Europe/Paris', 'France, Belgique, Suisse'], ['Europe/London', 'Royaume-Uni'], ['Europe/Madrid', 'Espagne'], ['Europe/Rome', 'Italie'], ['Europe/Lisbon', 'Portugal'], ['Europe/Berlin', 'Allemagne'], ['America/Martinique', 'Martinique'], ['America/Guadeloupe', 'Guadeloupe'], ['America/Cayenne', 'Guyane'], ['Indian/Reunion', 'La Réunion'], ['America/Montreal', 'Québec'], ['America/New_York', 'New York'], ['America/Sao_Paulo', 'Brésil'], ['Africa/Abidjan', 'Côte d\'Ivoire, Sénégal'], ['Africa/Casablanca', 'Maroc'], ['Asia/Dubai', 'Émirats'], ['Asia/Kolkata', 'Inde'], ['Asia/Tokyo', 'Japon'], ['Asia/Shanghai', 'Chine']];
   function inter(nom, coche, titre, texte, desactive) { return '<label class="inter"><span><b>' + h(titre) + '</b>' + (texte ? '<small>' + h(texte) + '</small>' : '') + '</span><input type="checkbox" name="' + nom + '"' + (coche ? ' checked' : '') + (desactive ? ' disabled' : '') + '></label>'; }
   function nuancier(nom, valeur) { return '<div class="nuancier" data-nuancier="' + nom + '">' + NUANCES.map((c) => '<button type="button" style="background:' + c + '" data-a="nuance" data-c="' + c + '" class="' + (String(valeur).toUpperCase() === c ? 'on' : '') + '" aria-label="' + c + '"></button>').join('') + '<input type="color" name="' + nom + '" value="' + h(valeur) + '" aria-label="Autre couleur"></div>'; }
@@ -1495,7 +1679,41 @@
       '<label class="champ"><span>Ton public</span><input type="text" name="chaine.public" maxlength="300" value="' + h(c.public) + '" placeholder="18 à 30 ans, curieux, plutôt sur TikTok"></label>' +
       '<label class="champ"><span>Ton ton</span><input type="text" name="chaine.ton" maxlength="300" value="' + h(c.ton) + '" placeholder="Complice, simple et drôle"></label>' +
       '<label class="champ"><span>Des vidéos que tu aimes</span><textarea name="chaine.exemples" rows="2" maxlength="900" placeholder="Des créatrices, des formats, des vidéos qui ont marché chez toi">' + h(c.exemples) + '</textarea></label>' +
-      '<label class="champ"><span>Ce que tu ne veux jamais</span><textarea name="chaine.interdits" rows="2" maxlength="500" placeholder="Pas de gros mots, pas de régimes, pas de politique">' + h(c.interdits) + '</textarea></label>');
+      '<label class="champ"><span>Ce que tu ne veux jamais</span><textarea name="chaine.interdits" rows="2" maxlength="500" placeholder="Pas de gros mots, pas de régimes, pas de politique">' + h(c.interdits) + '</textarea></label>') + memoireHtml(r);
+  }
+  // ce que l'équipe a retenu d'elle (au fil des conversations, ou ce qu'elle ajoute) : lu à chaque écriture
+  function memoireHtml(r) {
+    const m = r.memoire || [];
+    return '<div class="bloc"><div class="bloc-t"><span>Ce que ton équipe sait de toi</span><button class="btn second petit" data-a="interview">' + ico('bulles') + 'Fais-moi l\'interview</button></div>' +
+      '<p class="doux petit" style="margin-bottom:10px">Ton équipe le relit avant chaque idée et chaque script. Elle l\'apprend en parlant avec toi ; tu peux aussi l\'écrire ici.</p>' +
+      (m.length ? '<ul class="memoire">' + m.map((x, i) => '<li><span>' + h(x) + '</span><button class="btn discret icone petit" data-a="oublierMemoire" data-i="' + i + '" aria-label="Oublier">' + ico('fermer') + '</button></li>').join('') + '</ul>' : '<p class="doux petit">Rien pour l\'instant.</p>') +
+      '<form data-form="memoire" class="duo-champs" style="margin-top:10px"><input type="text" name="texte" maxlength="200" placeholder="Ce qu\'elle doit savoir : « jamais de chiffres sans source »" required><button class="btn second" type="submit">Ajouter</button></form></div>';
+  }
+  // ses personnages : leurs photos, leur portrait, à créer ou à retoucher
+  function sectionPersonnages() {
+    const cat = S.cat.personnages || { genres: {}, max: 12 };
+    const l = S.persos;
+    let x = '<div class="bloc"><h2>Mes personnages</h2><p class="doux" style="margin:6px 0 14px">Toi, ta mascotte, un héros qui revient dans tes vidéos : avec leurs photos, ton équipe les garde à l\'identique, scène après scène (dans le look Images IA et dans les clips). Son portrait en anglais, écrit par ' + h(membre('realisation').prenom) + ' en regardant les photos, est ce que lisent les modèles.</p>' +
+      '<div class="message" style="margin-bottom:14px"><b>Les personnes réelles</b>Seulement toi, ou quelqu\'un qui est d\'accord. Une célébrité ne se recrée pas (visage, voix ou nom) : c\'est un deepfake, interdit et supprimé par les plateformes. Invente plutôt un personnage qui ne ressemble à personne de réel.</div>';
+    if (!l) return x + '<div class="cadre-vide" style="height:120px"></div></div>';
+    x += l.length ? '<div class="persos">' + l.map((p) => '<article class="perso">' + '<div class="perso-photos">' + (p.photos.length ? p.photos.map((ph) => (ph.url ? '<img src="' + h(ph.url) + '" alt="' + h(p.nom) + '" loading="lazy">' : '<span class="ph-vide"></span>')).join('') : '<span class="ph-vide">' + ico('photo') + '</span>') + '</div>' +
+      '<div class="perso-txt"><b>' + h(p.nom) + '</b><small>' + h((cat.genres || {})[p.genre] || '') + (p.nom_en ? ' · ' + h(p.nom_en) : '') + '</small><p>' + h(p.description || '') + '</p>' + (p.description_en ? '<p class="doux petit">« ' + h(p.description_en) + ' »</p>' : '') +
+      '<div class="actions"><button class="btn second petit" data-a="persoOuvrir" data-id="' + h(p.id) + '">Retoucher</button><button class="btn danger petit" data-a="persoSupprimer" data-id="' + h(p.id) + '">Supprimer</button></div></div></article>').join('') + '</div>' : '<p class="doux petit">Pas encore de personnage.</p>';
+    const ed = S.persoOuvert ? l.find((p) => p.id === S.persoOuvert) : null;
+    if (S.persoOuvert === 'nouveau' || ed) x += persoFormHtml(ed, cat);
+    else if (l.length < (cat.max || 12)) x += '<div class="actions" style="margin-top:14px"><button class="btn" data-a="persoOuvrir" data-id="nouveau">' + ico('creer') + 'Nouveau personnage</button></div>';
+    return x + '</div>';
+  }
+  function persoFormHtml(p, cat) {
+    p = p || { nom: '', genre: 'personnage', description: '', description_en: '', photos: [] };
+    return '<form class="bloc vif" data-form="perso"' + (p.id ? ' data-id="' + h(p.id) + '"' : '') + ' style="margin-top:14px"><h3 style="margin-bottom:12px">' + (p.id ? 'Retoucher ' + h(p.nom) : 'Nouveau personnage') + '</h3>' +
+      '<div class="grille2"><label class="champ"><span>Son nom</span><input type="text" name="nom" maxlength="40" value="' + h(p.nom) + '" placeholder="Lila" required></label><label class="champ"><span>C\'est</span><select name="genre">' + Object.keys(cat.genres || {}).map((k) => '<option value="' + k + '"' + (k === p.genre ? ' selected' : '') + '>' + h(cat.genres[k]) + '</option>').join('') + '</select></label></div>' +
+      '<label class="champ"><span>Comment tu le vois</span><textarea name="description" rows="2" maxlength="600" placeholder="Une renarde rousse, toujours en ciré jaune, un peu maladroite">' + h(p.description) + '</textarea></label>' +
+      (p.photos.length ? '<div class="champ"><span>Ses photos (décoche pour en retirer)</span><div class="choix photos-garder">' + p.photos.map((ph, i) => '<label><input type="checkbox" name="garder[]" value="' + i + '" checked><span>' + (ph.url ? '<img src="' + h(ph.url) + '" alt="">' : 'Photo ' + (i + 1)) + '</span></label>').join('') + '</div></div>' : '') +
+      '<label class="champ"><span>' + (p.photos.length ? 'Ajouter des photos' : 'Ses photos') + ' (4 au plus)</span><input type="file" name="photos" accept="image/*" multiple><small>De face, net, bien éclairé : c\'est ce que les modèles recopient. Elles sont réduites et envoyées en JPEG.</small></label>' +
+      '<label class="ligne" style="gap:10px;margin:4px 0 14px"><input type="checkbox" name="consentement"><span class="petit">C\'est moi, un personnage à moi, ou la personne est d\'accord pour que ses photos servent à mes vidéos.</span></label>' +
+      (p.id ? '<label class="champ"><span>Son portrait en anglais (ce que lisent les modèles)</span><textarea name="description_en" rows="3" maxlength="800">' + h(p.description_en || '') + '</textarea><small>Réécrit tout seul quand ses photos ou ta description changent.</small></label>' : '') +
+      '<div class="actions"><button class="btn" type="submit">Enregistrer</button><button class="btn discret" type="button" data-a="persoFermer">Annuler</button></div></form>';
   }
   // les voix naturelles : allumées ou non, la voix de sa chaîne (à écouter avant de choisir), ce que ça coûte
   function blocVoixIa(r) {
@@ -1529,20 +1747,25 @@
       lookHtml(r, r.format) +
       '<p class="doux petit" style="margin:-4px 0 16px">Vidéos d\'illustration : des vidéos libres de droits (Pexels) choisies phrase par phrase, offertes. Images IA : chaque scène est créée pour ta vidéo, dans le style que tu choisis, sur ta clé fal. Texte animé : le texte sur un fond à tes couleurs.</p>' +
       champ('La couleur de tes vidéos', nuancier('couleur', r.couleur), 'L\'accroche et le mot qui s\'allume pendant les sous-titres.') +
-      champ('Musique', radios('musique', Object.keys(S.cat.musiques).map((k) => [k, S.cat.musiques[k]]), r.musique), 'Une musique d\'ambiance très douce sous la voix, fabriquée par le studio (aucun droit à payer).'));
+      champ('Musique', radios('musique', Object.keys(S.cat.musiques).map((k) => [k, S.cat.musiques[k]]), r.musique), 'Une musique d\'ambiance très douce sous la voix, fabriquée par le studio (aucun droit à payer).') +
+      inter('questions', r.questions !== 'non', 'Questions avant d\'écrire', membre('plume').prenom + ' te pose deux ou trois questions (avec des réponses toutes prêtes) avant chaque script lancé à la main. Moins d\'un centime.'));
   }
   function sectionBudget(r) {
     const d = S.moi.depense;
     return formulaire('budget',
       '<div class="message" style="margin-bottom:16px"><b>Aujourd\'hui : ' + h(usd(d.jour)) + ' sur ' + h(usd(d.budget)) + '</b>Ce mois : ' + h(usd(d.mois)) + '. Depuis le début : ' + h(usd(d.total)) + '.</div>' +
-      '<label class="champ"><span>Budget par jour : <output id="budgetVal">' + h(usd(r.budget_jour)) + '</output></span><input type="range" name="budget_jour" min="0.1" max="' + (r.budget_jour > 5 || r.style === 'ia' ? 20 : 5) + '" step="0.05" value="' + h(r.budget_jour) + '"><small>Ton équipe s\'arrête dès qu\'elle l\'atteint, et reprend le lendemain. Il compte l\'écriture (Claude) et, avec le look images IA, les images (fal). Une vidéo coûte environ ' + h(usd(d.estime_video)) + '.' + (d.estime_video > r.budget_jour ? ' Monte ton budget : une vidéo coûte plus que ce que tu permets par jour.' : '') + '</small></label>' +
+      '<div class="champ"><span>Budget par jour</span><div class="duo-champs"><input type="number" name="budget_jour" min="0.1" max="' + ((S.cat.limites || {}).budget_jour || 200) + '" step="0.05" value="' + h(r.budget_jour) + '" style="max-width:140px"><span class="doux">$</span></div>' +
+      '<div class="choix" style="margin-top:10px">' + [0.5, 1, 2, 5, 20, 60, 200].map((n) => '<label><input type="radio" name="x-budget" value="' + n + '" data-budget="' + n + '"' + (Number(r.budget_jour) === n ? ' checked' : '') + '><span>' + h(usd(n)) + '</span></label>').join('') + '</div>' +
+      '<small>Ton équipe s\'arrête dès qu\'elle l\'atteint, et reprend le lendemain. Il compte l\'écriture (Claude), la voix naturelle et les images IA (fal). Une vidéo coûte environ ' + h(usd(d.estime_video)) + '.' + (d.estime_video > r.budget_jour ? ' <b class="alerte-texte">Monte ton budget : une vidéo coûte plus que ce que tu permets par jour (le pilote attend).</b>' : '') + ' ' + h(phraseSansCompter()) + '</small></div>' +
       champ('Qualité de l\'écriture', radios('qualite', Object.keys(S.cat.qualites).map((k) => [k, S.cat.qualites[k].nom]), r.qualite), h((S.cat.qualites[r.qualite] || {}).explication || '')) +
       inter('tendances', r.tendances, 'Regarder les tendances', h(membre('idees').prenom) + ' cherche sur le web ce dont on parle cette semaine avant de proposer des idées (1 centime la recherche).'));
   }
   function sectionPilote(r) {
     const p = r.pilote, up = S.moi.connexions.uploadpost.branchee;
+    const d = S.moi.depense;
     return formulaire('pilote',
-      '<p class="doux" style="margin-bottom:8px">Chaque jour, à ton heure, ' + h(membre('idees').prenom) + ' choisit une idée et l\'équipe fait la vidéo toute seule, dans ton budget.</p>' +
+      (p.actif && d.estime_video > r.budget_jour ? '<div class="message attention" style="margin-bottom:12px"><b>Ton pilote ne peut rien lancer</b>Une vidéo coûte environ ' + h(usd(d.estime_video)) + ' et ton budget du jour est de ' + h(usd(r.budget_jour)) + '. <a href="#reglages/budget">Monte ton budget</a>, ou choisis moins de langues, une vidéo courte ou la qualité économique.</div>' : '') +
+      '<p class="doux" style="margin-bottom:8px">Chaque jour, à ton heure, ' + h(membre('idees').prenom) + ' choisit une idée (les tiennes d\'abord) et l\'équipe fait la vidéo toute seule, dans ton budget.</p>' +
       inter('pilote.actif', p.actif, 'Pilote automatique', 'Des vidéos tous les jours, sans rien demander.') +
       '<div class="grille2" style="margin-top:12px">' + champ('Vidéos par jour', '<select name="pilote.videos_jour">' + [1, 2, 3, 4, 5].map((n) => '<option' + (n === p.videos_jour ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>') +
       champ('À partir de', '<select name="pilote.heure">' + Array.from({ length: 24 }, (_, i) => '<option value="' + i + '"' + (i === p.heure ? ' selected' : '') + '>' + i + ' h</option>').join('') + '</select>') + '</div>' +
@@ -1591,18 +1814,41 @@
     }
     return x + '</div>';
   }
+  // les langues dont elle peut régler la publication : les siennes, celles de ses vidéos, celles qui ont une règle, et
+  // celles qu'elle ajoute ici (avant, seules ses langues habituelles avaient une règle : l'anglais de Louis n'en avait pas)
+  function languesPublication(r) {
+    const t = new Set(r.langues || []);
+    (S.videos || []).forEach((v) => (v.langues || []).forEach((l) => t.add(l)));
+    Object.keys(r.publication || {}).forEach((l) => { if ((r.publication[l] || {}).profil) t.add(l); });
+    (S.pubEnPlus || []).forEach((l) => t.add(l));
+    return Array.from(t).filter((l) => S.cat.langues[l]);
+  }
+  function lignePub(l) {
+    const pr = (S.moi.connexions.uploadpost || {}).profils || [];
+    const modes = (S.cat.publication || {}).modes || { bouton: 'Je publie moi-même', auto: 'Dès qu\'elle est prête', programme: 'À l\'heure de grande écoute' };
+    const g = regleDe(l);
+    const profil = profilDe(g.profil);
+    const fus = FUSEAUX.concat(FUSEAUX.some((f) => f[0] === g.conseil.fuseau) ? [] : [[g.conseil.fuseau, g.conseil.pays || villeDe(g.conseil.fuseau)]]).concat(FUSEAUX.some((f) => f[0] === g.fuseau) || g.fuseau === g.conseil.fuseau ? [] : [[g.fuseau, villeDe(g.fuseau)]]);
+    return '<div class="regle-pub" data-langue="' + l + '"><div class="regle-tete"><b>Vidéos en ' + h(nomLangue(l).toLowerCase()) + '</b><small>' + ico('horloge') + ' grande écoute : ' + g.conseil.heure + ' h, ' + h(g.conseil.pays || villeDe(g.conseil.fuseau)) + '</small></div>' +
+      '<label class="champ"><span>Sur quel profil (quelle chaîne)</span><select name="publication.' + l + '.profil"><option value="">Aucun : je publie à la main</option>' + pr.map((p) => '<option value="' + h(p.username) + '"' + (p.username === g.profil ? ' selected' : '') + '>' + h(p.nom || p.username) + (comptesProfil(p) ? ' : ' + h(comptesProfil(p)) : ' (aucun compte relié)') + '</option>').join('') + '</select></label>' +
+      '<div class="champ"><span>Sur</span><div class="choix">' + Object.keys(S.cat.plateformes).map((k) => '<label><input type="checkbox" name="publication.' + l + '.plateformes[]" value="' + k + '"' + (g.plateformes.indexOf(k) >= 0 ? ' checked' : '') + '><span>' + h(S.cat.plateformes[k]) + ' <small class="pas-relie"' + (!profil || profil.comptes[k] ? ' hidden' : '') + '>pas relié</small></span></label>').join('') + '</div></div>' +
+      '<div class="champ"><span>Quand</span>' + radios('publication.' + l + '.mode', Object.keys(modes).map((k) => [k, modes[k]]), g.mode) + '</div>' +
+      '<div class="grille2" data-heure-pub' + (g.mode === 'programme' ? '' : ' hidden') + '><label class="champ"><span>À quelle heure</span><select name="publication.' + l + '.heure">' + Array.from({ length: 24 }, (_, i) => '<option value="' + i + '"' + (i === Number(g.heure) ? ' selected' : '') + '>' + i + ' h</option>').join('') + '</select></label>' +
+      '<label class="champ"><span>Heure de quel pays</span><select name="publication.' + l + '.fuseau">' + fus.map((f) => '<option value="' + h(f[0]) + '"' + (f[0] === g.fuseau ? ' selected' : '') + '>' + h(f[1]) + '</option>').join('') + '</select></label></div></div>';
+  }
   function sectionPublication(r) {
     const up = S.moi.connexions.uploadpost;
     if (!up.branchee) return '<div class="bloc"><h2>Publication</h2><p class="doux" style="margin-top:6px">Branche d\'abord upload-post dans <a href="#reglages/connexions">Connexions</a>. Sans lui, chaque vidéo prête se télécharge ou se partage depuis ton téléphone, avec son texte prêt à copier.</p></div>';
-    const pr = up.profils || [];
-    const lignes = r.langues.map((l) => {
-      const c = (r.publication || {})[l] || {};
-      return '<div class="champ"><span>Vidéos en ' + h(nomLangue(l).toLowerCase()) + '</span><select name="publication.' + l + '.profil"><option value="">À la main, depuis mon téléphone</option>' + pr.map((p) => '<option value="' + h(p.username) + '"' + (p.username === c.profil ? ' selected' : '') + '>Profil ' + h(p.nom || p.username) + '</option>').join('') + '</select><div class="choix" style="margin-top:10px">' + Object.keys(S.cat.plateformes).map((k) => '<label><input type="checkbox" name="publication.' + l + '.plateformes[]" value="' + k + '"' + ((c.plateformes || []).indexOf(k) >= 0 ? ' checked' : '') + '><span>' + h(S.cat.plateformes[k]) + '</span></label>').join('') + '</div></div>';
-    }).join('');
-    return formulaire('publication', lignes +
-      champ('Visibilité sur TikTok', '<select name="visibilite.tiktok">' + [['PUBLIC_TO_EVERYONE', 'Tout le monde'], ['MUTUAL_FOLLOW_FRIENDS', 'Amis'], ['FOLLOWER_OF_CREATOR', 'Abonnés'], ['SELF_ONLY', 'Moi seulement (pour essayer)']].map((o) => '<option value="' + o[0] + '"' + (o[0] === r.visibilite.tiktok ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>') +
-      champ('Visibilité sur YouTube', '<select name="visibilite.youtube">' + [['public', 'Publique'], ['unlisted', 'Non répertoriée'], ['private', 'Privée (pour essayer)']].map((o) => '<option value="' + o[0] + '"' + (o[0] === r.visibilite.youtube ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>') +
-      inter('etiquette_ia', r.etiquette_ia, 'Signaler le contenu fait avec l\'IA sur TikTok', 'TikTok demande d\'étiqueter les vidéos dont la voix est générée par une IA réaliste.'));
+    const ls = languesPublication(r);
+    const lignes = ls.map(lignePub).join('');
+    const autres = Object.keys(S.cat.langues).filter((l) => ls.indexOf(l) < 0).sort((a, b) => nomLangue(a).localeCompare(nomLangue(b), 'fr'));
+    return '<div class="bloc"><h2>Publication</h2><p class="doux" style="margin:6px 0 10px">Chaque langue a sa règle : sur quel profil elle part, sur quelles plateformes, et quand. Un profil upload-post relie <b>une</b> chaîne YouTube, <b>un</b> compte TikTok et <b>un</b> compte Instagram : pour publier l\'anglais sur une autre chaîne YouTube que le français, crée un profil (« studio-en ») dans <a href="#reglages/connexions">Connexions</a>, relie-y ta chaîne anglaise, puis choisis-le ici.</p>' +
+      '<p class="doux petit">' + (up.plan ? 'Ton offre upload-post : ' + h(up.plan) + '. ' : '') + 'L\'offre gratuite : 2 profils et 10 publications par mois (YouTube et Instagram) ; TikTok demande l\'offre Basic. « Dès qu\'elle est prête » et « à l\'heure de grande écoute » ne publient que les vidéos montées à partir du moment où tu les choisis.</p></div>' +
+      formulaire('publication', lignes +
+        (autres.length ? '<label class="champ"><span>Une autre langue</span><select data-ajout-langue-pub><option value="">Ajouter une langue…</option>' + autres.map((l) => '<option value="' + l + '">' + h(nomLangue(l)) + '</option>').join('') + '</select></label>' : '') +
+        champ('Visibilité sur TikTok', '<select name="visibilite.tiktok">' + [['PUBLIC_TO_EVERYONE', 'Tout le monde'], ['MUTUAL_FOLLOW_FRIENDS', 'Amis'], ['FOLLOWER_OF_CREATOR', 'Abonnés'], ['SELF_ONLY', 'Moi seulement (pour essayer)']].map((o) => '<option value="' + o[0] + '"' + (o[0] === r.visibilite.tiktok ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>') +
+        champ('Visibilité sur YouTube', '<select name="visibilite.youtube">' + [['public', 'Publique'], ['unlisted', 'Non répertoriée'], ['private', 'Privée (pour essayer)']].map((o) => '<option value="' + o[0] + '"' + (o[0] === r.visibilite.youtube ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>') +
+        inter('etiquette_ia', r.etiquette_ia, 'Signaler le contenu fait avec l\'IA sur TikTok', 'TikTok demande d\'étiqueter les vidéos dont la voix ou les images sont générées par une IA réaliste.'));
   }
   function sectionApparence(r) {
     return formulaire('apparence', champ('La couleur de ton studio', nuancier('theme.accent', r.theme.accent), 'Les boutons, ta marque, et toi dans ton studio en 3D.') +
@@ -1613,8 +1859,20 @@
     return '<div class="bloc"><h2>Mon compte</h2><p class="doux" style="margin:6px 0 16px">Identifiant : <b>' + h(S.moi.identifiant) + '</b></p><form data-form="mdp"><label class="champ"><span>Mot de passe actuel</span><input type="password" name="ancien" autocomplete="current-password" required></label><label class="champ"><span>Nouveau mot de passe</span><input type="password" name="nouveau" autocomplete="new-password" minlength="10" required><small>10 caractères au moins.</small></label><button class="btn second" type="submit">Changer mon mot de passe</button></form></div>' +
       '<div class="bloc"><div class="actions"><button class="btn second" data-a="revoirVisite">Revoir la visite du studio</button><button class="btn second" data-a="deconnexion">Me déconnecter</button><button class="btn discret" data-a="partout">Déconnecter tous mes appareils</button></div></div>';
   }
+  // « tout en vidéo : environ 14,80 $ en Pro, 29,50 $ en Cinéma pour une vidéo courte (47,20 $ pour une longue) »
+  function phraseSansCompter() {
+    const t = (f, q) => ((((((S.cat.couts_ia || {})[f] || {})[q] || {}).tout) || {}).premium) || 0;
+    if (!t('court', 'cinema')) return 'Jusqu\'à ' + usd((S.cat.limites || {}).budget_jour || 200) + ' par jour, pour les vidéos les plus belles.';
+    return 'Le mode sans compter (images IA, tout en vidéo, images Premium) : environ ' + usd(t('court', 'pro')) + ' la vidéo courte en Pro, ' + usd(t('court', 'cinema')) + ' en Cinéma (' + usd(t('long', 'cinema')) + ' pour une longue). Ton budget monte jusqu\'à ' + usd((S.cat.limites || {}).budget_jour || 200) + ' par jour.';
+  }
   function sectionAide() {
     const q = [
+      ['Je peux parler à mon équipe ?', 'Oui : la bulle en haut à droite (ou « Demander à l\'équipe » sur une vidéo). Demande comme à une collègue : « est-ce que tu peux ajouter l\'espagnol à ma dernière vidéo », « réécris-la plus drôle », « trois idées sur les chats », « publie la version anglaise à l\'heure de grande écoute », « retiens que je tutoie toujours ». Elle le fait tout de suite, te pose ses questions quand il lui manque quelque chose, et te demande ton accord avant de lancer un clip ou de publier. Moins d\'un centime par message, sur ta clé Claude.'],
+      ['Publier l\'anglais sur une autre chaîne YouTube ?', 'Un profil upload-post relie une chaîne YouTube, un compte TikTok et un compte Instagram. Crée un deuxième profil dans Connexions (par exemple « studio-en »), relie-y ta chaîne anglaise, puis dans Publication choisis ce profil pour les vidéos en anglais, et quand elles partent : dès qu\'elles sont prêtes, ou à l\'heure de grande écoute du pays (18 h à New York, par exemple). L\'offre gratuite d\'upload-post a 2 profils et 10 publications par mois.'],
+      ['Ajouter une langue à une vidéo déjà faite ?', 'Ouvre la vidéo, « Ajouter une langue » : l\'équipe traduit, fait la voix et monte la nouvelle version, sans toucher aux autres. Les images IA déjà faites resservent : seule la nouvelle langue se paie.'],
+      ['Mes personnages, c\'est quoi ?', 'Toi, ta mascotte, un héros qui revient : avec deux ou trois photos, ton équipe le garde à l\'identique d\'une scène à l\'autre (images IA et clips). Réglages, Mes personnages. Une personne réelle seulement si c\'est toi ou si elle est d\'accord.'],
+      ['Des vidéos avec des célébrités ?', 'Non : recréer le visage, la voix ou le nom d\'une vraie personne connue, c\'est un deepfake. C\'est interdit (droit à l\'image), et TikTok, YouTube et Instagram suppriment ces vidéos, voire la chaîne. Invente plutôt tes personnages (un chef étoilé grincheux, une diva de la pop rétro, un détective chat) : ils peuvent revenir dans toutes tes vidéos, et ils sont à toi.'],
+      ['Jusqu\'où va la qualité ?', 'Par défaut, ton équipe reste économe. Sur une vidéo en images IA, tu choisis le modèle qui anime les scènes (Rapide, HD, Pro ou Cinéma), les images (Turbo ou Premium) et combien de scènes bougent. ' + phraseSansCompter() + ' Les clips aussi ont leur qualité, jusqu\'à Cinéma.'],
       ['Combien ça coûte ?', 'L\'écriture se paie sur ta clé Claude : environ 1 centime par vidéo en qualité économique, 8 centimes en qualité équilibrée (plus 2 par langue), 15 centimes en premium. Avec ta clé fal : la voix naturelle, environ ' + usd(coutVoix('court', 1)) + ' par langue pour une vidéo courte (' + usd(coutVoix('long', 1)) + ' pour une longue) ; le look Images IA, environ ' + usd(coutIa('court', 'zoom')) + ' par vidéo en images animées, ' + usd(coutIa('court', 'accroche')) + ' avec l\'accroche en vidéo, ' + usd(coutIa('court', 'tout')) + ' tout en vidéo ; une image créée quand aucune vidéo d\'illustration ne colle, 1,6 centime. Le montage, les voix gratuites, les vidéos d\'illustration et le stockage sont offerts par le studio. Ton budget du jour (Claude et fal ensemble) bloque tout dépassement.'],
       ['Les images IA, c\'est quoi ?', 'Au lieu de vidéos trouvées dans une banque, chaque phrase a sa scène créée pour ta vidéo, dans le style que tu choisis : photo réaliste, anime, 3D, aquarelle, pâte à modeler... Le même personnage revient d\'une scène à l\'autre. Les images zooment doucement, et la première scène (ou toutes) peut devenir une vraie vidéo IA. Il faut ta clé fal : Réglages, Connexions.'],
       ['Quelles langues ?', Object.keys(S.cat.langues).length + ' langues. Les voix les plus naturelles : ' + (S.cat.naturelles || []).map(nomLangue).join(', ') + '. Les autres ont une voix correcte, un peu plus robotique. Une vidéo peut sortir dans six langues au plus, chacune avec ses sous-titres et ses hashtags.'],
@@ -1632,7 +1890,7 @@
   function vueReglages(section) {
     const r = S.moi.reglages;
     const s = SECTIONS.some((x) => x[0] === section) ? section : 'chaine';
-    const corps = { chaine: sectionChaine, langues: sectionLangues, videos: sectionVideos, budget: sectionBudget, pilote: sectionPilote, connexions: sectionConnexions, publication: sectionPublication, apparence: sectionApparence, compte: sectionCompte, aide: sectionAide }[s](r);
+    const corps = { chaine: sectionChaine, personnages: sectionPersonnages, langues: sectionLangues, videos: sectionVideos, budget: sectionBudget, pilote: sectionPilote, connexions: sectionConnexions, publication: sectionPublication, apparence: sectionApparence, compte: sectionCompte, aide: sectionAide }[s](r);
     return '<div class="s-tete"><div><h1>Réglages</h1></div></div><nav class="reglages-nav" aria-label="Réglages">' + SECTIONS.map((x) => '<a href="#reglages/' + x[0] + '" class="' + (x[0] === s ? 'on' : '') + '">' + h(x[1]) + '</a>').join('') + '</nav>' + corps;
   }
 
@@ -1655,6 +1913,12 @@
 
   /* ── les formulaires ── */
   const FORMS = {
+    async eqMessage(f) {
+      const t = $('textarea[name="texte"]', f);
+      const texte = t.value;
+      t.value = ''; t.style.height = '';
+      await envoyerEquipe(texte);
+    },
     async message(f, btn) {
       const c = S.conv;
       const ta = $('textarea[name="texte"]', f);
@@ -1699,7 +1963,55 @@
       if (d.style === 'ia' && !S.moi.connexions.fal.branchee) { toast('Branche d\'abord ta clé fal pour les images IA, ou choisis un autre look.', 'err'); location.hash = '#reglages/connexions'; return; }
       if (String(d.sujet || '').trim().length < 4) { toast('Écris ton idée en quelques mots.', 'err'); const t = $('textarea[name="sujet"]', f); if (t) t.focus(); return; }
       if ((d.langues || []).length > 6) { toast('Six langues au plus par vidéo.', 'err'); return; }
-      await occupe(btn, async () => { const r = await agir('creer', { sujet: d.sujet, langues: d.langues, format: d.format, style: d.style, ia: d.ia || null, modele: d.modele || null }); S.video = r.video; S.videos = null; S.modele = ''; location.hash = '#video/' + r.video.id; });
+      const couleurChoisie = $('[data-couleur-libre]', f) && String(d.couleur || '').toUpperCase() !== String(S.moi.reglages.couleur).toUpperCase() ? d.couleur : null;
+      const corps = { sujet: d.sujet, langues: d.langues, format: d.format, style: d.style, ia: d.ia || null, modele: d.modele || null, personnages: d.personnages || [], voix: d.voix || null, musique: d.musique || null, couleur: couleurChoisie, ton: d.ton || null, consigne: d.consigne || null, relire: d.relire !== false, publier: d.publier !== false };
+      await occupe(btn, async () => {
+        // les questions de la plume avant d'écrire (moins d'un centime) : elle répond d'un geste, ou passe
+        if (S.moi.reglages.questions !== 'non') {
+          const q = await agir('questions', { sujet: d.sujet, modele: d.modele || null, format: d.format }).catch(() => ({ questions: [] }));
+          if ((q.questions || []).length) {
+            const rep = await fenetreForm({
+              titre: membre('plume').prenom + ' a ' + (q.questions.length > 1 ? q.questions.length + ' questions' : 'une question') + ' pour toi',
+              texte: 'Touche une réponse, ou écris la tienne. Tout est facultatif.',
+              corps: q.questions.map((x, i) => '<div class="champ"><span>' + h(x.question) + '</span>' + radios('q' + i, x.choix.map((c) => [c, c]), '') + '<input type="text" name="l' + i + '" maxlength="200" placeholder="Ou ta réponse" style="margin-top:8px"></div>').join(''),
+              ok: 'Écrire le script'
+            });
+            if (rep === null) return;
+            corps.brief = q.questions.map((x, i) => ({ q: x.question, r: String(rep['l' + i] || '').trim() || rep['q' + i] || '' })).filter((x) => x.r);
+          }
+        }
+        const r = await agir('creer', corps);
+        S.video = r.video; S.videos = null; S.modele = ''; location.hash = '#video/' + r.video.id;
+      });
+    },
+    async memoire(f, btn) {
+      const d = lireForm(f);
+      await occupe(btn, async () => { await agir('reglages', { reglages: { memoire: [d.texte].concat(S.moi.reglages.memoire || []) } }); rendre(); toast('Ton équipe le sait.', 'ok'); });
+    },
+    // un personnage : ses photos converties en JPEG et réduites, envoyées droit dans le stockage, puis le personnage
+    async perso(f, btn) {
+      const d = lireForm(f);
+      const fichiers = Array.from(($('input[name="photos"]', f) || {}).files || []).slice(0, 4);
+      if (fichiers.length && !d.consentement) { toast('Coche que c\'est toi, un personnage à toi, ou que la personne est d\'accord.', 'err'); return; }
+      await occupe(btn, async () => {
+        const chemins = [];
+        for (let i = 0; i < fichiers.length; i++) {
+          btn.textContent = 'Photo ' + (i + 1) + ' sur ' + fichiers.length + '…';
+          const jpeg = await enJpeg(fichiers[i], 1600);
+          const r = await agir('perso_photo_envoi', { type: 'image/jpeg', taille: jpeg.size });
+          await televerser(r.url, jpeg, 'image/jpeg', () => {});
+          chemins.push(r.chemin);
+        }
+        btn.textContent = membre('realisation').prenom + ' regarde…';
+        const r = await agir('perso_enregistrer', { id: f.dataset.id || undefined, nom: d.nom, genre: d.genre, description: d.description, description_en: d.description_en, garder: f.dataset.id ? (d.garder || []).map(Number) : undefined, photos: chemins, consentement: !!d.consentement });
+        S.persos = r.personnages; S.persoOuvert = null; if (r.moi) S.moi = r.moi;
+        const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages');
+        toast(r.avertissement ? 'Enregistré : ' + r.avertissement : (r.personnage.nom + ' est dans ton équipe.'), r.avertissement ? '' : 'ok');
+      });
+    },
+    async ideeMoi(f, btn) {
+      const d = lireForm(f);
+      await occupe(btn, async () => { await agir('idee_ajouter', { titre: d.titre, angle: d.angle }); toast('Idée notée.', 'ok'); const c = $('#contenu'); if (c) c.innerHTML = vueCreer(); });
     },
     // lancer un clip : son fichier audio d'abord (droit dans le stockage), puis le clip
     async clip(f, btn) {
@@ -1713,7 +2025,7 @@
         const musique = { source: m.source || 'aucune' };
         if (musique.source === 'fichier') Object.assign(musique, await envoyerSon(f, btn), { debut: Number(m.debut) || 0 });
         if (musique.source === 'ia') musique.idee = m.idee || '';
-        const r = await agir('creer', { genre: 'clip', prompt: d.prompt, format: d.format, duree: dureesLues(d.prompt).length ? 'auto' : d.duree, qualite: d.qualite, montage: d.montage, bruitages: !!d.bruitages, valider: !!d.valider, musique });
+        const r = await agir('creer', { genre: 'clip', prompt: d.prompt, format: d.format, duree: dureesLues(d.prompt).length ? 'auto' : d.duree, qualite: d.qualite, montage: d.montage, bruitages: !!d.bruitages, valider: !!d.valider, musique, personnages: d.personnages || [] });
         S.brouillonClip = null; memoire.ecrire('brouillonClip', null);
         S.video = r.video; S.videos = null; S.planOuvert = null; location.hash = '#video/' + r.video.id;
       });
@@ -1825,6 +2137,36 @@
   /* ── les boutons ── */
   const ACTIONS = {
     recharger() { location.reload(); },
+    ouvrirEquipe() { if (S.disc.ouvert) fermerEquipe(); else ouvrirEquipe(route().vue === 'video' && S.video ? S.video.id : undefined); },
+    demanderEquipe() { ouvrirEquipe(S.video ? S.video.id : null); },
+    fermerEquipe() { fermerEquipe(); },
+    eqChoix(b) { envoyerEquipe(b.dataset.t); },
+    eqSansContexte() { S.disc.video = null; const el = $('#tiroir-eq'); if (el) { const t = ($('textarea', el) || {}).value || ''; el.innerHTML = tiroirHtml(); const t2 = $('textarea', el); if (t2) t2.value = t; majFilEquipe(true); } },
+    async eqConfirmer(b) {
+      await occupe(b, async () => {
+        const r = await agir('discussion_confirmer', { message: Number(b.dataset.m), action: Number(b.dataset.i) });
+        S.disc.messages = S.disc.messages.map((m) => (m.id === r.message.id ? r.message : m));
+        majFilEquipe(false);
+        if (r.resultat && r.resultat.ok) { toast(r.resultat.texte, 'ok'); S.videos = null; if (r.resultat.video) location.hash = '#video/' + r.resultat.video; }
+        else if (r.resultat) toast(r.resultat.texte, 'err');
+      });
+    },
+    async eqEffacer(b) {
+      if (!(await fenetre({ titre: 'Repartir d\'une conversation vide ?', texte: 'Ce que ton équipe a retenu de toi reste (Réglages, Ma chaîne).', ok: 'Effacer' }))) return;
+      await occupe(b, async () => { await agir('discussion_effacer'); S.disc.messages = []; majFilEquipe(true); });
+    },
+    async oublierMemoire(b) {
+      const m = (S.moi.reglages.memoire || []).filter((x, i) => i !== Number(b.dataset.i));
+      await occupe(b, async () => { await agir('reglages', { reglages: { memoire: m } }); rendre(); });
+    },
+    persoOuvrir(b) { S.persoOuvert = b.dataset.id; const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages'); const fm = $('form[data-form="perso"]'); if (fm) fm.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+    persoFermer() { S.persoOuvert = null; const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages'); },
+    async persoSupprimer(b) {
+      const p = (S.persos || []).find((x) => x.id === b.dataset.id) || {};
+      if (!(await fenetre({ titre: 'Supprimer ' + (p.nom || 'ce personnage') + ' ?', texte: 'Ses photos sont effacées. Les vidéos déjà faites ne changent pas.', ok: 'Supprimer', danger: true }))) return;
+      await occupe(b, async () => { const r = await agir('perso_supprimer', { id: p.id }); S.persos = r.personnages; if (r.moi) S.moi = r.moi; const c = $('#contenu'); if (c) c.innerHTML = vueReglages('personnages'); });
+    },
+    interview() { ouvrirEquipe(null); envoyerEquipe('Fais-moi l\'interview de ma chaîne, pour que vous colliez vraiment à ce que je fais.'); },
     menu() { S.menu = !S.menu; const b = $('.barre'); if (b) b.outerHTML = barreHtml(route().vue); },
     async basculerNuit() {
       const nuit = !estNuit();
@@ -1939,8 +2281,40 @@
       catch (e) { toast('Copie impossible : sélectionne le texte à la main.', 'err'); }
     },
     async publier(b) {
-      await occupe(b, async () => { const r = await agir('publier', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); toast(membre('diffusion').prenom + ' publie ta vidéo.', 'ok'); });
+      await occupe(b, async () => { const r = await agir('publier', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); toast(membre('diffusion').prenom + ' publie ta vidéo.' + ignoreesTexte(r), 'ok'); });
     },
+    // une langue : maintenant, ou à l'heure de grande écoute de son pays
+    async publierLangue(b) {
+      const l = b.dataset.l, g = regleDe(l);
+      await occupe(b, async () => {
+        const r = await agir('publier', { id: S.video.id, choix: { [l]: g.plateformes }, quand: b.dataset.q });
+        majVideo(r.video); suivre(S.video.id);
+        const prog = ((((r.video.publication || {})[l] || {}).plateformes) || {});
+        const k = Object.keys(prog).find((x) => prog[x].etat === 'programmee');
+        toast(b.dataset.q === 'programme' && k ? 'Programmée ' + quandLocal(prog[k].prevu_le, g.fuseau) + '.' : membre('diffusion').prenom + ' publie la version ' + nomLangue(l).toLowerCase() + '.' + ignoreesTexte(r), 'ok');
+      });
+    },
+    async annulerProg(b) { await occupe(b, async () => { const r = await agir('annuler_programmation', { id: S.video.id, langue: b.dataset.l }); majVideo(r.video); toast('Programmation annulée.', 'ok'); }); },
+    async ajouterLangue(b) {
+      const v = S.video, deja = v.langues || [];
+      const toutes = Object.keys(S.cat.langues).filter((l) => deja.indexOf(l) < 0);
+      const max = ((S.cat.limites || {}).langues_video || 12) - deja.length;
+      const clip = estClip(v);
+      const choix = await fenetreForm({
+        titre: 'Ajouter une langue',
+        texte: clip ? 'Le clip garde sa vidéo : ' + membre('traduction').prenom + ' écrit son texte de publication dans chaque langue (quelques centimes), il est prêt tout de suite.' : membre('traduction').prenom + ' écrit chaque nouvelle version, sa voix est dite et son montage fait. Les langues déjà faites ne bougent pas. Environ ' + usd(((S.cat.qualites[S.moi.reglages.qualite] || {}).par_langue || 0.02) + (voixNaturelle() ? coutVoix((v.plan || {}).format || 'court', 1) : 0)) + ' par langue.',
+        corps: choixLangues('l[]', []).replace(/name="l\[\]" value="([a-z]{2})"/g, (m0, l) => (toutes.indexOf(l) < 0 ? 'name="x" value="' + l + '" disabled' : m0)),
+        ok: 'Ajouter',
+        verifier: (d) => (!(d.l || []).length ? 'Choisis au moins une langue.' : d.l.length > max ? max + ' langue' + (max > 1 ? 's' : '') + ' de plus au plus.' : null)
+      });
+      if (!choix) return;
+      await occupe(b, async () => {
+        const r = await agir('ajouter_langues', { id: v.id, langues: choix.l });
+        majVideo(r.video); suivre(v.id);
+        toast('Ajout de : ' + (r.langues || choix.l).map(nomLangue).join(', ') + '.', 'ok');
+      });
+    },
+    async relancerMontage(b) { await occupe(b, async () => { const r = await agir('relancer_montage', { id: S.video.id }); majVideo(r.video); suivre(S.video.id); toast('Le montage raté repart.', 'ok'); }); },
     async marquer(b) {
       const lien = await fenetre({ titre: 'Publiée sur ' + S.cat.plateformes[b.dataset.p] + ' ?', texte: 'Colle le lien de la publication si tu veux le retrouver ici (facultatif).', saisie: 'https://…', ok: 'C\'est publié' });
       if (lien === null) return;
@@ -2046,9 +2420,11 @@
       await occupe(b, async () => { await agir('deconnexion', { partout: true }); S.moi = null; oublierConversations(); if (S.ville) { S.ville.detruire(); S.ville = null; } location.hash = ''; rendre(); });
     }
   };
+  // ce qui n'est pas parti, et pourquoi (une langue sans chaîne choisie partait avant en silence)
+  function ignoreesTexte(r) { const l = (r && r.ignorees) || []; return l.length ? ' Pas parti : ' + l.map((x) => x.nom + ' (' + x.raison + ')').join(' ; ') + '.' : ''; }
   async function rafraichirMoi() { try { const d = await lire('moi'); S.moi = d.moi; } catch (e) { /* la page reste comme elle est */ } }
   // à la déconnexion : rien d'une conversation ne reste pour le compte suivant
-  function oublierConversations() { S.conv = null; S.dest = null; S.destErreur = null; S.partage = {}; }
+  function oublierConversations() { S.conv = null; S.dest = null; S.destErreur = null; S.partage = {}; fermerEquipe(); S.disc = { ouvert: false, charge: false, messages: [], video: null, envoi: false }; S.persos = null; const el = $('#tiroir-eq'); if (el) el.remove(); }
 
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-a]');
@@ -2058,7 +2434,8 @@
     e.preventDefault();
     ACTIONS[b.dataset.a](b, e);
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (S.menu) ACTIONS.menu(); else if (S.fiche) fermerFiche(); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (S.menu) ACTIONS.menu(); else if (S.disc.ouvert && !$('.fenetre')) fermerEquipe(); else if (S.fiche) fermerFiche(); } });
+  window.addEventListener('hashchange', () => { if (S.disc.ouvert && !matchMedia('(min-width: 900px)').matches) fermerEquipe(); });
   document.addEventListener('submit', (e) => {
     const f = e.target.closest('form[data-form]');
     if (!f || !FORMS[f.dataset.form]) return;
@@ -2078,11 +2455,11 @@
   document.addEventListener('keydown', (e) => {
     // Entrée envoie sur ordinateur, Maj + Entrée va à la ligne ; sur téléphone, Entrée va à la ligne
     const t = e.target;
-    if (e.key === 'Enter' && !e.shiftKey && t.name === 'texte' && t.closest('[data-form="message"]') && matchMedia('(hover: hover) and (pointer: fine)').matches) { e.preventDefault(); t.form.requestSubmit(); }
+    if (e.key === 'Enter' && !e.shiftKey && t.name === 'texte' && t.closest('[data-form="message"], [data-form="eqMessage"]') && matchMedia('(hover: hover) and (pointer: fine)').matches) { e.preventDefault(); t.form.requestSubmit(); }
   });
   document.addEventListener('input', (e) => {
     const t = e.target;
-    if (t.name === 'texte' && t.closest('[data-form="message"]')) { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
+    if (t.name === 'texte' && t.closest('[data-form="message"], [data-form="eqMessage"]')) { t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
     // un clip : le genre choisi (vidéo racontée ou clip), puis le formulaire du clip ou du remontage, qui a ses propres
     // aperçus (sa qualité n'est pas celle de l'écriture)
     if (t.name === 'genre' && t.closest('.genres')) { S.genreCreer = t.value; memoire.ecrire('genre', t.value); const c = $('#contenu'); if (c) c.innerHTML = vueCreer(); return; }
@@ -2093,10 +2470,26 @@
       const av = carte && $('.agent', carte);
       if (av) { const p = $('input[name$=".prenom"]', carte).value, c = $('input[name$=".couleur"]', carte).value; av.textContent = (p || '?').charAt(0).toUpperCase(); av.style.setProperty('--c', c); }
     }
-    if (t.name === 'budget_jour') { const o = $('#budgetVal'); if (o) o.textContent = usd(t.value); }
+    if (t.dataset && t.dataset.budget) { const n = $('input[name="budget_jour"]', t.closest('form')); if (n) n.value = t.dataset.budget; }
+    if (/^publication\.[a-z]{2}\.mode$/.test(t.name || '')) { const bloc = t.closest('.regle-pub'); const hb = bloc && $('[data-heure-pub]', bloc); if (hb) hb.hidden = t.value !== 'programme'; }
+    // une langue de plus : sa ligne s'ajoute au-dessus, sans redessiner (ce qui n'est pas encore enregistré reste)
+    if (t.dataset && t.dataset.ajoutLanguePub != null && t.value) {
+      const l = t.value; S.pubEnPlus = (S.pubEnPlus || []).concat([l]);
+      t.closest('label').insertAdjacentHTML('beforebegin', lignePub(l));
+      const o = $('option[value="' + l + '"]', t); if (o) o.remove();
+      t.value = '';
+      const sel = $('select[name="publication.' + l + '.profil"]'); if (sel) sel.focus();
+    }
+    // un profil choisi : ses comptes reliés se cochent (si rien ne l'était), et « pas relié » se met à jour
+    if (/^publication\.[a-z]{2}\.profil$/.test(t.name || '')) {
+      const bloc = t.closest('.regle-pub'), p = profilDe(t.value);
+      const cases = $$('input[type="checkbox"]', bloc);
+      if (p && !cases.some((c) => c.checked)) cases.forEach((c) => { c.checked = !!p.comptes[c.value]; });
+      cases.forEach((c) => { const sm = $('.pas-relie', c.parentNode); if (sm) sm.hidden = !p || !!p.comptes[c.value]; });
+    }
     if (t.type === 'color' && t.closest('[data-nuancier]')) { const n = t.closest('[data-nuancier]'); $$('button', n).forEach((x) => x.classList.toggle('on', x.dataset.c.toLowerCase() === t.value.toLowerCase())); if (n.dataset.nuancier === 'theme.accent') document.documentElement.style.setProperty('--accent', t.value); }
     if (t.name === 'qualite' && S.cat) { const s = t.closest('.champ'); const sm = s && $('small', s); if (sm) sm.textContent = (S.cat.qualites[t.value] || {}).explication || ''; }
-    if (['style', 'format', 'ia.mouvement', 'ia.style'].indexOf(t.name) >= 0 && S.cat) majLook(t.closest('form'));
+    if (['style', 'format', 'ia.mouvement', 'ia.style', 'ia.modele', 'ia.images', 'voix'].indexOf(t.name) >= 0 && S.cat) majLook(t.closest('form'));
     if (t.name === 'modele') {
       S.modele = t.value;
       const m = (S.cat.modeles || {})[t.value], ta = $('textarea[name="sujet"]'), aide = $('#aideIdee');
